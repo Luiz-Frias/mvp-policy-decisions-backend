@@ -26,10 +26,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/username/pd_prime_demo"
-Repository = "https://github.com/username/pd_prime_demo"
-Documentation = "https://github.com/username/pd_prime_demo#readme"
-Issues = "https://github.com/username/pd_prime_demo/issues"
+Homepage = "https://github.com/Luiz-Frias/mvp-policy-decisions-backend"
+Repository = "https://github.com/Luiz-Frias/mvp-policy-decisions-backend"
+Documentation = "https://github.com/Luiz-Frias/mvp-policy-decisions-backend#readme"
+Issues = "https://github.com/Luiz-Frias/mvp-policy-decisions-backend/issues"
 
 [project.optional-dependencies]
 dev = [
