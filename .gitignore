@@ -163,6 +163,7 @@ safety-report.json
 *.memprof
 profile_output/
 benchmarks/
+.benchmarks/
 
 # Memory profiling outputs
 *.prof
