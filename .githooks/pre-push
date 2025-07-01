@@ -36,7 +36,7 @@ fi
 
 # 3. Package validation
 print_status "📦 Validating built package..."
-if ! uv run twine check dist/*; then
+if ! uv run check-wheel-contents dist/; then
     print_error "Package validation failed!"
     exit 1
 fi
