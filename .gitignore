@@ -183,3 +183,6 @@ tracemalloc_*.txt
 !.sage/wave_context/*
 !.sage/wave_context/*/*
 !.sage/MASTER_INSTRUCTION_SET.md
+
+# Project-level GPG keys (keep private but scripts are versioned)
+.gpg/
