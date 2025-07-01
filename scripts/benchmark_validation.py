@@ -49,7 +49,7 @@ class BenchmarkPersonModel(BaseModel):
 
 @beartype
 def pydantic_validation_benchmark(
-    data: list[dict[str, Any]]
+    data: list[dict[str, Any]],
 ) -> list[BenchmarkPersonModel]:
     """Benchmark Pydantic validation performance."""
     return [BenchmarkPersonModel(**item) for item in data]
