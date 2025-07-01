@@ -1,0 +1,473 @@
+{
+  // ===== ULTIMATE DEVELOPMENT ENVIRONMENT CONFIGURATION =====
+  // Peak Excellence Standards for Python, Node.js/TypeScript, and Rust
+  // === PYTHON CONFIGURATION (MODERN STACK) ===
+  "python.defaultInterpreterPath": "/opt/miniconda3/bin/python",
+  // 🚀 Modern Python with Ruff (replaces Black + isort + flake8 + more)
+  "python.formatting.provider": "none", // Let Ruff handle everything
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit",
+      "source.fixAll.ruff": "explicit"
+    }
+  },
+  // Ruff configuration (ultra-fast Rust-based linter/formatter)
+  "ruff.enabled": true,
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true,
+  "ruff.codeAction.fixViolation": {
+    "enable": true
+  },
+  // 🔒 Enhanced Python linting (comprehensive coverage)
+  "python.linting.enabled": true,
+  "python.linting.lintOnSave": true,
+  "python.linting.pylintEnabled": true,
+  "python.linting.pylintArgs": [
+    "--max-line-length=88",
+    "--disable=C0111,C0103", // Disable docstring and naming conventions
+    "--enable=W0613,W0622,W0612", // Enable more warnings
+    "--extension-pkg-whitelist=pydantic,attrs,cattrs,beartype"
+  ],
+  "python.linting.mypyEnabled": true,
+  "python.linting.mypyArgs": [
+    "--strict",
+    "--show-error-codes",
+    "--show-column-numbers",
+    "--follow-imports=normal",
+    "--ignore-missing-imports",
+    "--plugins=pydantic.mypy"
+  ],
+  "python.linting.banditEnabled": true,
+  "python.linting.banditArgs": ["-r", ".", "-ll"],
+  // 🚀 CODE PERFORMANCE OPTIMIZATION & PROFILING
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "--benchmark-only",
+    "--benchmark-json=benchmark-results.json",
+    "--memray",
+    "--profile"
+  ],
+  // Memory & Speed Profiling Integration
+  "python.terminal.launchArgs": [
+    "-X",
+    "dev", // Enable development mode for better error messages
+    "-X",
+    "tracemalloc" // Enable memory allocation tracking
+  ],
+  // 🧠 Enhanced Python IntelliSense (Pydantic-focused)
+  "python.analysis.completeFunctionParens": true,
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.typeCheckingMode": "strict",
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.inlayHints.variableTypes": true,
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.indexing": true,
+  "python.analysis.packageIndexDepths": [
+    {
+      "name": "pydantic",
+      "depth": 5
+    },
+    {
+      "name": "attrs",
+      "depth": 5
+    },
+    {
+      "name": "beartype",
+      "depth": 3
+    }
+  ],
+  // 🔬 Performance Analysis Tools Configuration
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.terminal.activateEnvironment": true,
+  "python.experiments.enabled": true,
+  "python.experiments.optInto": ["pythonDiscoveryModule", "pythonTerminalEnvVarActivation"],
+  // === NODE.JS/TYPESCRIPT CONFIGURATION (ENTERPRISE GRADE) ===
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "javascript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "javascript.suggest.autoImports": true,
+  "npm.packageManager": "pnpm",
+  // 🔒 Strict TypeScript Configuration
+  "typescript.preferences.includeCompletionsForModuleExports": true,
+  "typescript.preferences.includeCompletionsWithInsertText": true,
+  "typescript.suggest.completeFunctionCalls": true,
+  "javascript.suggest.completeFunctionCalls": true,
+  "typescript.suggest.includeCompletionsForImportStatements": true,
+  "typescript.inlayHints.enableInlayHints": true,
+  "typescript.inlayHints.includeInlayParameterNameHints": "all",
+  "typescript.inlayHints.includeInlayParameterNameHintsWhenArgumentMatchesName": true,
+  "typescript.inlayHints.includeInlayFunctionParameterTypeHints": true,
+  "typescript.inlayHints.includeInlayVariableTypeHints": true,
+  "typescript.inlayHints.includeInlayPropertyDeclarationTypeHints": true,
+  "typescript.inlayHints.includeInlayFunctionLikeReturnTypeHints": true,
+  "typescript.inlayHints.includeInlayEnumMemberValueHints": true,
+  // 🎨 Enhanced JavaScript/TypeScript formatting
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // 🔍 ESLint configuration for maximum code quality
+  "eslint.enable": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact",
+    "vue",
+    "html",
+    "markdown"
+  ],
+  "eslint.codeActionsOnSave.mode": "all",
+  "eslint.format.enable": true,
+  "eslint.lintTask.enable": true,
+  // === RUST CONFIGURATION (PERFORMANCE OPTIMIZED) ===
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "rust-analyzer.checkOnSave.allTargets": true,
+  "rust-analyzer.checkOnSave.extraArgs": ["--", "-W", "clippy::pedantic", "-W", "clippy::nursery"],
+  "rust-analyzer.cargo.features": "all",
+  "rust-analyzer.completion.addCallParentheses": true,
+  "rust-analyzer.completion.addCallArgumentSnippets": true,
+  "rust-analyzer.completion.autoimport.enable": true,
+  "rust-analyzer.completion.autoself.enable": true,
+  // 🧠 Enhanced Rust IntelliSense and hints
+  "rust-analyzer.inlayHints.enable": true,
+  "rust-analyzer.inlayHints.chainingHints.enable": true,
+  "rust-analyzer.inlayHints.parameterHints.enable": true,
+  "rust-analyzer.inlayHints.typeHints.enable": true,
+  "rust-analyzer.inlayHints.closureReturnTypeHints.enable": "always",
+  "rust-analyzer.inlayHints.lifetimeElisionHints.enable": "always",
+  "rust-analyzer.inlayHints.bindingModeHints.enable": true,
+  "rust-analyzer.inlayHints.discriminantHints.enable": "always",
+  // 🎨 Rust formatting
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  // 🔧 Rust analyzer performance optimizations
+  "rust-analyzer.server.extraEnv": {
+    "RUST_LOG": "warn"
+  },
+  "rust-analyzer.procMacro.enable": true,
+  "rust-analyzer.experimental.procAttrMacros": true,
+  // === GENERAL EDITOR OPTIMIZATIONS (PEAK PERFORMANCE) ===
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit",
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.ruff": "explicit",
+    "source.sortImports": "explicit"
+  },
+  // 🚀 Auto-save and responsiveness
+  "files.autoSave": "onFocusChange",
+  "files.autoSaveDelay": 500,
+  "editor.quickSuggestions": {
+    "other": "on",
+    "comments": "on",
+    "strings": "on"
+  },
+  "editor.suggestOnTriggerCharacters": true,
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.acceptSuggestionOnEnter": "on",
+  "editor.tabCompletion": "on",
+  // 🎯 Enhanced completion and suggestions
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  "editor.suggest.localityBonus": true,
+  "editor.suggest.shareSuggestSelections": true,
+  "editor.suggest.showKeywords": true,
+  "editor.suggest.showSnippets": true,
+  "editor.suggest.showStatusBar": true,
+  "editor.suggest.preview": true,
+  "editor.wordBasedSuggestions": "allDocuments",
+  "editor.wordBasedSuggestionsMode": "currentDocument",
+  // 📏 Visual optimizations and guidelines
+  "editor.rulers": [80, 88, 100, 120],
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": true,
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  // 🔧 Advanced editor features
+  "editor.linkedEditing": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.guides.highlightActiveIndentation": true,
+  "editor.inlineSuggest.enabled": true,
+  "editor.stickyScroll.enabled": true,
+  // === PERFORMANCE & SECURITY OPTIMIZATIONS ===
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/target": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.venv": true,
+    "**/.coverage": true,
+    "**/coverage": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/target": true,
+    "**/__pycache__": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.venv": true,
+    "**/coverage": true
+  },
+  // 🔐 Security and privacy
+  "security.workspace.trust.enabled": false,
+  "telemetry.telemetryLevel": "off",
+  "update.enableWindowsBackgroundUpdates": false,
+  "workbench.enableExperiments": false,
+  // 🚀 Performance optimizations
+  "search.smartCase": true,
+  "search.useIgnoreFiles": true,
+  "search.useGlobalIgnoreFiles": true,
+  "search.followSymlinks": false,
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/target/**": true,
+    "**/__pycache__/**": true
+  },
+  // === TERMINAL CONFIGURATION ===
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "/bin/bash",
+      "args": ["-l"]
+    }
+  },
+  "terminal.integrated.enableMultiLinePasteWarning": false,
+  "terminal.integrated.copyOnSelection": true,
+  "terminal.integrated.cursorBlinking": true,
+  // === GIT OPTIMIZATIONS ===
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "git.autoStash": true,
+  "git.enableStatusBarSync": true,
+  "git.suggestSmartCommit": false,
+  "git.detectSubmodules": true,
+  "git.timeline.showAuthor": true,
+  "scm.diffDecorations": "all",
+  // === FILE ASSOCIATIONS & LANGUAGE SUPPORT ===
+  "files.associations": {
+    "*.toml": "toml",
+    "*.lock": "yaml",
+    "Dockerfile*": "dockerfile",
+    ".env*": "properties",
+    "*.jsonc": "jsonc",
+    "*.py.jinja": "python",
+    "*.py.j2": "python",
+    "pyproject.toml": "toml",
+    "Cargo.toml": "toml",
+    "*.rs": "rust",
+    "*.md": "markdown",
+    "*.tsx": "typescriptreact",
+    "*.jsx": "javascriptreact"
+  },
+  // === CURSOR AI OPTIMIZATIONS ===
+  "cursor.chat.enabled": true,
+  "cursor.cpp.disabledLanguages": [],
+  "cursor.general.enableAutoCompletion": true,
+  // === THEME & UI (PRODUCTIVITY FOCUSED) ===
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.colorTheme": "GitHub Dark",
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.showTabs": "multiple",
+  "workbench.editor.tabCloseButton": "right",
+  "workbench.editor.tabSizing": "shrink",
+  "workbench.editor.wrapTabs": true,
+  "workbench.activityBar.visible": true,
+  "workbench.statusBar.visible": true,
+  "breadcrumbs.enabled": true,
+  // === LANGUAGE-SPECIFIC ENHANCEMENTS ===
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.formatOnSave": true
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    }
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "be5invis.toml",
+    "editor.formatOnSave": true
+  },
+  // === MEMORY & PERFORMANCE MONITORING ===
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  "workbench.startup.editor": "none",
+  // === DEBUGGING OPTIMIZATIONS ===
+  "debug.allowBreakpointsEverywhere": true,
+  "debug.inlineValues": "auto",
+  "debug.showSubSessionsInToolBar": true,
+  "debug.terminal.clearBeforeReusing": true,
+  // === INTELLISENSE PERFORMANCE TUNING ===
+  "typescript.preferences.detectTypeUsage": "aggressive",
+  "typescript.preferences.useAliasesForRenames": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.workspaceSymbols.scope": "allOpenProjects",
+  // === FINAL PERFORMANCE OPTIMIZATIONS ===
+  "editor.minimap.enabled": false, // Disable for performance
+  "editor.hover.delay": 300,
+  "editor.lightbulb.enabled": true,
+  "problems.showCurrentInStatus": true,
+  "scm.countBadge": "all",
+  // 🔬 CODE PERFORMANCE DEBUGGING PROFILES
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "🐍 Python Memory Profiler",
+        "type": "python",
+        "request": "launch",
+        "program": "${file}",
+        "console": "integratedTerminal",
+        "args": [],
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}",
+          "TRACEMALLOC": "1"
+        },
+        "preLaunchTask": "memray-profile"
+      },
+      {
+        "name": "🚀 Python Speed Profiler",
+        "type": "python",
+        "request": "launch",
+        "program": "${file}",
+        "console": "integratedTerminal",
+        "args": [],
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        },
+        "preLaunchTask": "py-spy-profile"
+      },
+      {
+        "name": "🔒 Python Type Safety Validator",
+        "type": "python",
+        "request": "launch",
+        "program": "${file}",
+        "console": "integratedTerminal",
+        "args": [],
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}",
+          "PYDANTIC_STRICT": "1",
+          "BEARTYPE_DOOR_IS_OPEN": "0"
+        }
+      }
+    ]
+  },
+  // 🔧 PERFORMANCE ANALYSIS TASKS
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "memray-profile",
+        "type": "shell",
+        "command": "memray",
+        "args": ["run", "--output", "memory-profile.bin", "${file}"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "py-spy-profile",
+        "type": "shell",
+        "command": "py-spy",
+        "args": ["record", "-o", "speed-profile.svg", "--", "python", "${file}"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "memory-analysis",
+        "type": "shell",
+        "command": "python",
+        "args": ["-m", "memray", "flamegraph", "memory-profile.bin"],
+        "group": "build",
+        "dependsOn": "memray-profile"
+      },
+      {
+        "label": "benchmark-tests",
+        "type": "shell",
+        "command": "pytest",
+        "args": [
+          "--benchmark-only",
+          "--benchmark-json=benchmark-results.json",
+          "--benchmark-compare-fail=min:10%"
+        ],
+        "group": "test"
+      },
+      {
+        "label": "type-coverage",
+        "type": "shell",
+        "command": "mypy",
+        "args": ["--html-report", "type-coverage", "--any-exprs-report", "type-coverage", "src/"],
+        "group": "build"
+      },
+      {
+        "label": "pydantic-validation-benchmark",
+        "type": "shell",
+        "command": "python",
+        "args": [
+          "-c",
+          "from scripts.benchmark_validation import run_pydantic_benchmarks; run_pydantic_benchmarks()"
+        ],
+        "group": "test"
+      }
+    ]
+  }
+}

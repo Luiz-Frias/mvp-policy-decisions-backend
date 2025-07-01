@@ -1,0 +1,128 @@
+{
+  "name": "Railway SSH Development Environment",
+  // This configuration is designed to work with Railway container via SSH
+  // Use Command Palette: "Remote-SSH: Connect to Host" and select "railway-development-sandbox-dev"
+  // When connected via SSH, these settings will be applied
+  "settings": {
+    // Python settings for Railway environment
+    "python.defaultInterpreterPath": "/opt/miniconda3/bin/python",
+    "python.formatting.provider": "black",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.sortImports.args": ["--profile", "black"],
+    // Node.js settings
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "javascript.preferences.includePackageJsonAutoImports": "auto",
+    "npm.packageManager": "pnpm",
+    // Rust settings
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.cargo.features": "all",
+    // Editor settings
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true,
+      "source.fixAll": true
+    },
+    "editor.rulers": [80, 120],
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    // File associations
+    "files.associations": {
+      "*.toml": "toml",
+      "Dockerfile*": "dockerfile",
+      ".env*": "properties"
+    },
+    // Terminal settings for Railway container
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.profiles.linux": {
+      "bash": {
+        "path": "/bin/bash",
+        "args": ["-l"]
+      }
+    },
+    // Git settings
+    "git.enableSmartCommit": true,
+    "git.confirmSync": false,
+    "git.autofetch": true,
+    // Security settings
+    "security.workspace.trust.enabled": false,
+    // Theme
+    "workbench.iconTheme": "material-icon-theme",
+    "workbench.colorTheme": "GitHub Dark"
+  },
+  // Extensions to install when connected to Railway
+  "extensions": [
+    // Python
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "ms-python.flake8",
+    // Node.js/JavaScript/TypeScript
+    "ms-vscode.vscode-typescript-next",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-json",
+    // Rust
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    // Git and GitHub
+    "github.vscode-pull-request-github",
+    "github.copilot",
+    "github.copilot-chat",
+    "eamodio.gitlens",
+    // General Development
+    "ms-vscode.vscode-docker",
+    "ms-azuretools.vscode-docker",
+    "redhat.vscode-yaml",
+    "ms-vscode.makefile-tools",
+    "ms-vscode.cmake-tools",
+    // Security and Quality
+    "snyk-security.snyk-vulnerability-scanner",
+    "ms-vscode.vscode-security",
+    // Productivity
+    "ms-vscode.vscode-thunder-client",
+    "humao.rest-client",
+    "formulahendry.code-runner",
+    "ms-vscode.vscode-todo-highlight",
+    // Markdown and Documentation
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    // Theme and UI
+    "pkief.material-icon-theme",
+    "github.github-vscode-theme"
+  ],
+  // Port forwarding when connected via SSH
+  "forwardPorts": [3000, 3001, 5000, 5173, 8000, 8080, 8888],
+  "portsAttributes": {
+    "3000": {
+      "label": "React/Next.js Dev Server",
+      "onAutoForward": "notify"
+    },
+    "3001": {
+      "label": "Alternative Dev Server",
+      "onAutoForward": "notify"
+    },
+    "5000": {
+      "label": "Flask/FastAPI Server",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "Django/FastAPI Server",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Alternative Web Server",
+      "onAutoForward": "notify"
+    },
+    "8888": {
+      "label": "Jupyter Notebook",
+      "onAutoForward": "notify"
+    }
+  }
+}

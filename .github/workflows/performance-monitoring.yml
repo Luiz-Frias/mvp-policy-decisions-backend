@@ -1,0 +1,55 @@
+name: 📊 Performance Monitoring
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # Every 6 hours
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+
+jobs:
+  performance-benchmarks:
+    name: 🔍 Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install 3.11
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: ⚡ Run Performance Tests
+        run: |
+          uv run pytest tests/benchmarks \
+            --benchmark-json=benchmark-results.json \
+            --benchmark-compare-fail=min:10% \
+            --benchmark-compare-fail=mean:15%
+
+      - name: 📊 Memory Analysis
+        run: |
+          uv run memray run --output=memory-profile.bin -m pytest tests/performance || true
+          uv run memray stats memory-profile.bin > memory-stats.txt || true
+
+      - name: 📈 Performance Regression Detection
+        run: |
+          echo "Checking for performance regressions..."
+          # Add historical comparison logic here
+
+      - name: 📤 Upload Performance Data
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-data
+          path: |
+            benchmark-results.json
+            memory-profile.bin
+            memory-stats.txt
+          retention-days: 90

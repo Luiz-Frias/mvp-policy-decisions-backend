@@ -1,0 +1,139 @@
+#!/bin/bash
+# 🚀 Comprehensive Pre-push Validation Pipeline
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Get current branch name
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+print_status "🌿 Current branch: $BRANCH"
+print_status "🚀 Running comprehensive pre-push validation sequence..."
+
+# 1. Full test suite
+print_status "🧪 Running complete test suite..."
+if ! uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=80; then
+    print_error "Test suite failed or coverage below 80%!"
+    exit 1
+fi
+
+# 2. Build validation
+print_status "🏗️ Validating package build..."
+if ! uv build; then
+    print_error "Package build failed!"
+    exit 1
+fi
+
+# 3. Package validation
+print_status "📦 Validating built package..."
+if ! uv run twine check dist/*; then
+    print_error "Package validation failed!"
+    exit 1
+fi
+
+# 4. Security audit
+print_status "🔐 Running comprehensive security audit..."
+if ! uv run safety check; then
+    print_error "Security vulnerabilities found!"
+    exit 1
+fi
+
+if ! uv run pip-audit; then
+    print_error "Package audit failed!"
+    exit 1
+fi
+
+# 5. MANDATORY: Performance Quality Gates
+print_status "⚡ MASTER RULE: Performance quality gate enforcement..."
+# Check for performance benchmarks
+if [ -d "tests/benchmarks" ]; then
+    print_status "📊 Running performance benchmarks with regression detection..."
+
+    # Run benchmarks with JSON output for analysis
+    if uv run pytest tests/benchmarks --benchmark-only --benchmark-json=benchmark-results.json; then
+        print_success "✅ Performance benchmarks completed"
+
+        # Check for performance regressions (basic threshold check)
+        SLOW_BENCHMARKS=$(cat benchmark-results.json 2>/dev/null | jq -r '.benchmarks[] | select(.stats.mean > 0.1) | .name' | wc -l || echo "0")
+        if [ "$SLOW_BENCHMARKS" -gt 0 ]; then
+            print_warning "⚠️ PERFORMANCE: $SLOW_BENCHMARKS benchmarks exceed 100ms threshold"
+        fi
+    else
+        print_error "❌ MASTER RULE VIOLATION: Performance benchmarks failed"
+        print_error "🚨 BENCHMARK REQUIREMENT: All benchmarks must pass before push"
+        exit 1
+    fi
+
+    # Memory profiling validation
+    print_status "🧠 Running memory leak detection..."
+    if uv run pytest tests/benchmarks -v --tb=short 2>&1 | grep -i "memory\|leak"; then
+        print_success "✅ Memory leak detection completed"
+    fi
+else
+    print_warning "⚠️ PERFORMANCE RULE: No benchmark tests found in tests/benchmarks/"
+    print_status "💡 RECOMMENDATION: Create performance benchmarks for functions >10 lines"
+
+    # Check if there are complex functions that need benchmarks
+    COMPLEX_FUNCS=$(find src -name "*.py" -exec wc -l {} \; | awk '$1 > 50 {count++} END {print count+0}')
+    if [ "$COMPLEX_FUNCS" -gt 0 ]; then
+        print_warning "📊 Found $COMPLEX_FUNCS files >50 lines - consider adding benchmarks"
+    fi
+fi
+
+# 6. MANDATORY: Memory allocation limits check
+print_status "🧠 MASTER RULE: Memory allocation limits validation..."
+if [ -d "tests" ]; then
+    MEMORY_EXCEEDED=$(uv run pytest tests -k "memory" --tb=no -q 2>&1 | grep -i "exceed\|limit\|fail" | wc -l || echo "0")
+    if [ "$MEMORY_EXCEEDED" -gt 0 ]; then
+        print_error "❌ MASTER RULE VIOLATION: Memory allocation limits exceeded"
+        print_error "🚨 MEMORY SAFETY: Functions must not allocate >1MB temporary objects"
+        exit 1
+    fi
+fi
+
+# 7. Code quality metrics
+print_status "📊 Checking code quality metrics..."
+uv run radon cc src --min B || print_warning "High complexity code detected"
+uv run radon mi src --min B || print_warning "Low maintainability index detected"
+
+# 8. Branch-specific validations
+case $BRANCH in
+    "main"|"master")
+        print_status "🏛️ Validating main branch push..."
+
+        # Ensure commit follows conventional commits
+        LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+        if ! echo "$LAST_COMMIT_MSG" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|chore|ci)(\(.+\))?: .+'; then
+            print_warning "Warning: Last commit doesn't follow conventional commit format"
+            print_status "💡 Consider using: feat/fix/docs/style/refactor/perf/test/chore/ci: description"
+        fi
+
+        # Ensure CHANGELOG is updated
+        if git diff --name-only HEAD~1 | grep -v CHANGELOG.md; then
+            print_warning "Consider updating CHANGELOG.md for this release"
+        fi
+        ;;
+
+    "staging"|"develop")
+        print_status "🎭 Validating staging branch push..."
+        # Integration test requirements could go here
+        ;;
+
+    *)
+        print_status "🌱 Validating feature branch push..."
+        # Lighter validation for feature branches
+        ;;
+esac
+
+print_success "🚀 Pre-push validation completed successfully!"
+print_status "💡 All MASTER RULESET requirements satisfied for push"

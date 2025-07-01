@@ -1,0 +1,70 @@
+name: 🛡️ Security Monitoring
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 6 AM UTC
+  workflow_dispatch:
+  push:
+    paths:
+      - "pyproject.toml"
+      - "requirements*.txt"
+
+jobs:
+  dependency-audit:
+    name: 🔍 Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install 3.11
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🔍 Comprehensive Security Audit
+        run: |
+          echo "🔍 Running comprehensive security audit..."
+          uv run safety check --json --output safety-report.json || true
+          uv run pip-audit --format=json --output=pip-audit-report.json || true
+          uv run bandit -r src -f json -o bandit-report.json || true
+
+      - name: 📋 Generate Security Report
+        run: |
+          echo "📊 Security audit completed"
+          echo "Reports generated: safety-report.json, pip-audit-report.json, bandit-report.json"
+
+      - name: 📤 Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+            bandit-report.json
+          retention-days: 90
+
+  vulnerability-scanning:
+    name: 🔐 Vulnerability Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: 📤 Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"

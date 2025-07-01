@@ -1,0 +1,38 @@
+{
+  "recommendations": [
+    // Python Development
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "ms-python.flake8",
+    // Node.js/TypeScript
+    "ms-vscode.vscode-typescript-next",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    // Rust
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    // AI/LLM Development
+    "continue.continue",
+    "github.copilot",
+    "github.copilot-chat",
+    // Git and Version Control
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    // Security and Quality
+    "snyk-security.snyk-vulnerability-scanner",
+    // Development Tools
+    "ms-vscode.vscode-docker",
+    "redhat.vscode-yaml",
+    "humao.rest-client",
+    "formulahendry.code-runner",
+    // Markdown and Docs
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    // Theme and UI
+    "pkief.material-icon-theme",
+    "github.github-vscode-theme"
+  ],
+  "unwantedRecommendations": ["ms-vscode.vscode-typescript", "hookyqr.beautify"]
+}

@@ -1,0 +1,401 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "toy_api_model"
+version = "0.1.0"
+description = "creating a toy api model to establish a baseline of what ai-assisted software dev looks lik"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+dependencies = []
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+keywords = ["python", "modern"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/username/toy_api_model"
+Repository = "https://github.com/username/toy_api_model"
+Documentation = "https://github.com/username/toy_api_model#readme"
+Issues = "https://github.com/username/toy_api_model/issues"
+
+[project.optional-dependencies]
+dev = [
+    # 🧪 Testing foundation
+    "pytest>=7.0,<8.0",
+    "pytest-cov>=4.0,<5.0",
+    "pytest-mock>=3.10,<4.0",
+    "pytest-asyncio>=0.21,<1.0",
+    # 🎨 Code formatting
+    "black>=23.0,<25.0",
+    "isort>=5.12,<6.0",
+    "flake8>=6.0,<8.0",
+    "mypy>=1.0,<2.0",
+    "pre-commit>=3.0,<4.0",
+    "tox>=4.0,<5.0",
+    "coverage[toml]>=7.0,<8.0",
+    # 🎯 PEAK EXCELLENCE: Maximum Type Coverage Commitment
+    # 🚨 ROOT CAUSE FIX: types-all is broken due to yanked dependencies
+    # SOLUTION: Comprehensive type coverage installed separately in setup function
+    # This maintains the highest standard without broken package dependencies
+    # 🛡️ Security and SAST tools
+    "safety>=3.0,<4.0",
+    "bandit[toml]>=1.7,<2.0",
+    "pip-audit>=2.6,<3.0",
+    "semgrep>=1.0,<2.0",
+    # 📊 Performance and profiling
+    "pytest-benchmark>=4.0,<5.0",
+    "memray>=1.10,<2.0",
+    "py-spy>=0.3,<1.0",
+    # 🔍 Code quality and compliance
+    "ruff>=0.2,<1.0",
+    "pylint>=3.0,<4.0",
+    "radon>=6.0,<7.0",
+    "pydocstyle>=6.3,<7.0",
+    "interrogate>=1.5,<2.0",
+    # 🔗 Supply chain security
+    "pip-licenses>=4.3,<5.0",
+    "cyclonedx-bom>=4.0,<5.0",
+    # 📚 Documentation and formatting
+    "pyupgrade>=3.15,<4.0",
+    "commitizen>=3.16,<4.0",
+    # 📦 Build and packaging
+    "twine>=5.0,<6.0",
+    "build>=1.0,<2.0",
+    # 🔐 Secret detection baseline
+    "detect-secrets>=1.4,<2.0",
+]
+
+# 🛡️ MANDATORY CORE VALIDATION & SAFETY (Rust-like ownership model)
+# NON-NEGOTIABLE: ALL DATA MODELS MUST USE PYDANTIC
+validation = [
+    "pydantic>=2.5,<3.0", # MANDATORY: Fast validation with Rust core
+    "pydantic-extra-types>=2.4,<3.0", # MANDATORY: Extended Pydantic types
+    "pydantic-settings>=2.1,<3.0", # MANDATORY: Settings management
+    "beartype>=0.17,<1.0", # MANDATORY: Runtime type checking (@beartype on ALL public functions)
+    "attrs>=23.0,<24.0", # MANDATORY: Immutable data classes (frozen=True)
+    "result>=0.16,<1.0", # MANDATORY: Rust-like Result/Option types (no exceptions for flow control)
+    "returns>=0.22,<1.0", # MANDATORY: Functional programming patterns
+    "cattrs>=23.0,<24.0", # MANDATORY: Structure/unstructure data safely
+    "typing-extensions>=4.8,<5.0", # MANDATORY: Enhanced typing support
+    "annotated-types>=0.6,<1.0", # MANDATORY: Enhanced type annotations
+]
+
+# 🚀 MANDATORY PERFORMANCE OPTIMIZATION & PROFILING
+# PERFORMANCE QUALITY GATES: Functions >10 lines MUST have benchmarks
+# MEMORY LEAK DETECTION: No growth >1MB in 1000 iterations
+# CPU EFFICIENCY: O(n) operations MUST complete within expected bounds
+performance = [
+    "memray>=1.10,<2.0", # MANDATORY: Memory profiling (Netflix's tool)
+    "py-spy>=0.3,<1.0", # MANDATORY: CPU profiling (no code changes needed)
+    "line-profiler>=4.1,<5.0", # MANDATORY: Line-by-line profiling
+    "memory-profiler>=0.61,<1.0", # MANDATORY: Memory usage profiling
+    "pympler>=0.9,<1.0", # MANDATORY: Advanced memory analysis
+    "scalene>=1.5,<2.0; python_version >= '3.8' and sys_platform != 'win32'", # MANDATORY: CPU+GPU+memory profiler
+    "pytest-benchmark>=4.0,<5.0", # MANDATORY: Benchmarking for pytest
+    "pytest-memray>=1.6,<2.0; python_version >= '3.8'", # MANDATORY: Memory testing integration
+    "psutil>=5.9,<6.0", # MANDATORY: System resource monitoring
+    "objgraph>=3.6,<4.0", # MANDATORY: Object reference tracking
+    # NOTE: tracemalloc is built-in to Python 3.4+ - no external package needed
+    "guppy3>=3.1,<4.0; python_version >= '3.8' and sys_platform != 'win32'", # MANDATORY: Heap analysis
+    "scalene>=1.5,<2.0",
+    "guppy3>=3.1,<4.0",
+]
+
+# 🔒 MANDATORY DEFENSIVE PROGRAMMING & TYPE SAFETY
+# TYPE SAFETY: 100% type coverage, NO 'Any' types except at system boundaries
+# MYPY STRICT MODE: Must pass --strict without ignores
+# RUNTIME VALIDATION: @beartype on ALL public functions
+defensive = [
+    "typeguard>=4.1,<5.0",  # MANDATORY: Runtime type checking
+    "hypothesis>=6.92,<7.0",  # MANDATORY: Property-based testing
+    "typing-inspect>=0.9,<1.0",  # MANDATORY: Runtime type inspection
+    "mypy>=1.8,<2.0",  # MANDATORY: Static type checking (strict mode)
+    "pyright>=1.1,<2.0",  # MANDATORY: Microsoft's type checker
+    "ruff>=0.2,<1.0",  # MANDATORY: Ultra-fast linting (Rust-based)
+    "vulture>=2.10,<3.0",  # MANDATORY: Dead code detection
+    "bandit[toml]>=1.7,<2.0",  # MANDATORY: Security vulnerability scanning
+    "semgrep>=1.0,<2.0",  # MANDATORY: Static analysis for security
+    "safety>=3.0,<4.0",  # MANDATORY: Dependency vulnerability scanning
+]
+
+# 🌐 Web application stack
+webapp = [
+    "fastapi>=0.104,<1.0",
+    "uvicorn[standard]>=0.24,<1.0",
+    "pydantic>=2.5,<3.0",
+    "jinja2>=3.1,<4.0",
+    "python-multipart>=0.0.6,<1.0",
+    "httpx>=0.25,<1.0",
+    "python-jose[cryptography]>=3.3,<4.0",
+    "passlib[bcrypt]>=1.7,<2.0",
+]
+
+# 🔬 ML/Data science stack
+ml = [
+    "numpy>=1.24,<2.0",
+    "pandas>=2.0,<3.0",
+    "scikit-learn>=1.3,<2.0",
+    "matplotlib>=3.7,<4.0",
+    "seaborn>=0.12,<1.0",
+    "jupyter>=1.0,<2.0",
+    "ipython>=8.0,<9.0",
+    "polars>=0.20,<1.0",  # Fast DataFrame library
+    "duckdb>=0.9,<1.0",  # Fast analytics
+]
+
+# 🤖 LLM/AI pipeline stack
+llm = [
+    "openai>=1.0,<2.0",
+    "anthropic>=0.7,<1.0",
+    "langchain>=0.1,<1.0",
+    "langchain-community>=0.0.10,<1.0",
+    "tiktoken>=0.5,<1.0",
+    "sentence-transformers>=2.2,<3.0",
+    "chromadb>=0.4,<1.0",
+    "pinecone-client>=2.2,<3.0",
+]
+
+# 📊 Data pipeline stack
+data = [
+    "duckdb>=0.9,<1.0",
+    "polars>=0.20,<1.0",
+    "pyarrow>=14.0,<15.0",
+    "dask>=2023.12,<2024.12",
+    "prefect>=2.14,<3.0",
+    "great-expectations>=0.18,<1.0",
+    "pandera>=0.17,<1.0",  # Data validation
+]
+
+# 🚀 API development stack
+api = [
+    "fastapi>=0.104,<1.0",
+    "uvicorn[standard]>=0.24,<1.0",
+    "pydantic>=2.5,<3.0",
+    "httpx>=0.25,<1.0",
+    "redis>=5.0,<6.0",
+    "celery>=5.3,<6.0",
+    "sqlalchemy>=2.0,<3.0",
+    "alembic>=1.12,<2.0",
+]
+
+# 🖥️ CLI application stack
+cli = [
+    "typer>=0.9,<1.0",
+    "rich>=13.0,<14.0",
+    "click>=8.1,<9.0",
+    "pydantic>=2.5,<3.0",
+    "python-dotenv>=1.0,<2.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/toy_api_model"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["toy_api_model"]
+
+[tool.mypy]
+# 🛡️ MASTER RULESET: MAXIMUM Type Safety Standards
+python_version = "3.11"
+
+# STRICT MODE ENFORCEMENT - No compromises on type safety
+strict = true
+
+# TYPE SAFETY MAXIMIZATION
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+disallow_any_unimported = true
+disallow_any_expr = false  # Only disabled for decorators/generics - everything else strict
+disallow_any_decorated = false  # Only for complex decorators
+disallow_any_explicit = false  # Only for TypeVar bounds
+disallow_any_generics = true
+disallow_subclassing_any = true
+
+# DEFENSIVE PROGRAMMING ENFORCEMENT
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# ERROR HANDLING STANDARDS
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+# NO MISSING IMPORTS ALLOWED - Fix root causes, don't ignore
+# EXCEPTION: Only for packages confirmed to have no type stubs available
+ignore_missing_imports = false
+
+# Per-module overrides for packages without type stubs
+[[tool.mypy.overrides]]
+module = [
+    "memray.*",  # No official type stubs yet
+    "pytest_benchmark.*",  # Type hints included but not fully compatible
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.bandit]
+# 🛡️ MASTER RULESET: Security-first development with context awareness
+# MAINTAIN HIGH STANDARDS - don't skip rules, configure them properly
+
+# Exclude patterns for build/cache directories only (not source/tests)
+exclude_dirs = ["build", "dist", ".tox", ".venv", "venv", ".git", "__pycache__"]
+
+# Test context awareness without lowering standards
+[tool.bandit.assert_used]
+# B101: Assert statements are acceptable in test files when used with proper messages
+# This maintains security while understanding test context
+skips = ["*/test_*.py", "*/tests/*", "*_test.py", "conftest.py"]
+
+# 🛡️ MASTER RULESET: Poetry Compatibility for Security Scanning
+# COEXISTENCE: UV (primary) + Poetry (safety hook compatibility)
+# SOLUTION: Poetry section for Lucas-C safety hook without changing UV workflow
+[tool.poetry]
+name = "toy_api_model"
+version = "0.1.0"
+description = "creating a toy api model to establish a baseline of what ai-assisted software dev looks lik"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "toy_api_model", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+# Note: UV manages actual dependencies, this is for safety hook compatibility
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0"
+black = "^23.0"
+isort = "^5.12"
+mypy = "^1.0"
+pre-commit = "^3.0"
+safety = "^3.0"
+bandit = "^1.7"
+ruff = "^0.2"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38,py39,py310,py311,py312,lint,type
+
+[testenv]
+deps =
+    pytest
+    pytest-cov
+    pytest-mock
+commands = pytest {posargs}
+
+[testenv:lint]
+deps =
+    black>=23.0,<25.0
+    isort>=5.12,<6.0
+    flake8>=6.0,<8.0
+commands =
+    black --check src tests
+    isort --check-only src tests
+    flake8 src tests
+
+[testenv:type]
+deps = mypy
+commands = mypy src
+"""
+
+[dependency-groups]
+dev = [
+    "black>=23.0,<25.0",
+    "isort>=5.12,<6.0",
+    "mypy>=1.8,<2.0",
+    "pre-commit>=3.0,<4.0",
+    "pytest>=7.0,<8.0",
+    "ruff>=0.2,<1.0",
+    "safety>=3.2.4",
+    "types-aiofiles>=23.2,<24.0",
+    "types-beautifulsoup4>=4.12,<5.0",
+    "types-click>=7.1,<8.0",
+    "types-colorama>=0.4,<1.0",
+    "types-jsonschema>=4.17,<5.0",
+    "types-lxml>=2023.10,<2025.0",
+    "types-mock>=5.1,<6.0",
+    "types-passlib>=1.7,<2.0",
+    "types-pillow>=10.0,<11.0",
+    "types-python-dateutil>=2.8,<3.0",
+    "types-python-slugify>=8.0,<9.0",
+    "types-pytz>=2023.3,<2025.0",
+    "types-pyyaml>=6.0,<7.0",
+    "types-redis>=4.6,<5.0",
+    "types-requests>=2.31,<3.0",
+    "types-setuptools>=69.0,<70.0",
+    "types-toml>=0.10,<1.0",
+    "types-tqdm>=4.66,<5.0",
+    "types-urllib3>=1.26,<2.0",
+]

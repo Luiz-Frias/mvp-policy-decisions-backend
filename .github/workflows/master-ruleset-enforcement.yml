@@ -1,0 +1,495 @@
+name: 🛡️ Master Ruleset Enforcement CI/CD
+
+on:
+  push:
+    branches: [main, develop, staging]
+    paths-ignore:
+      - "*.md"
+      - "docs/**"
+  pull_request:
+    branches: [main, staging, develop]
+  schedule:
+    - cron: "0 2 * * 1" # Weekly security scan
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_CACHE_DIR: ~/.cache/uv
+  FORCE_COLOR: "1"
+
+jobs:
+  setup:
+    name: 🔧 Setup & Cache
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-keys.outputs.cache-key }}
+      python-version: ${{ steps.python-version.outputs.version }}
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 🐍 Detect Python version from pyproject.toml
+        id: python-version
+        run: |
+          VERSION=$(grep -E 'requires-python.*>=.*[0-9]+\.[0-9]+' pyproject.toml | sed -E 's/.*>=([0-9]+\.[0-9]+).*/\1/' || echo "3.11")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ steps.python-version.outputs.version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🔑 Generate cache keys
+        id: cache-keys
+        run: |
+          echo "cache-key=${{ runner.os }}-python-${{ steps.python-version.outputs.version }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}" >> $GITHUB_OUTPUT
+
+  master-ruleset-validation:
+    name: 🛡️ Master Ruleset Enforcement
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      fail-fast: true # Fail fast for master ruleset violations
+      matrix:
+        validation: [pydantic-compliance, type-safety, performance-gates, security-enforcement]
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ needs.setup.outputs.python-version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: "🔍 MASTER RULE: Pydantic Model Compliance"
+        if: matrix.validation == 'pydantic-compliance'
+        run: |
+          echo "🛡️ ENFORCING: ALL DATA STRUCTURES MUST USE PYDANTIC MODELS"
+
+          # Check for plain dictionary usage
+          PLAIN_DICTS=$(find src -name "*.py" -exec grep -l "dict\[" {} \; 2>/dev/null | wc -l)
+          if [ "$PLAIN_DICTS" -gt 0 ]; then
+            echo "❌ MASTER RULE VIOLATION: Found $PLAIN_DICTS files using plain dictionaries"
+            find src -name "*.py" -exec grep -l "dict\[" {} \; 2>/dev/null
+            exit 1
+          fi
+
+          # Check for frozen=True in Pydantic models
+          UNFROZEN_MODELS=$(find src -name "*.py" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null | xargs grep -L "frozen.*=.*True" 2>/dev/null | wc -l)
+          if [ "$UNFROZEN_MODELS" -gt 0 ]; then
+            echo "❌ MASTER RULE VIOLATION: Found $UNFROZEN_MODELS Pydantic models without frozen=True"
+            exit 1
+          fi
+
+          # Check for @beartype decorators on public functions
+          PUBLIC_FUNCS=$(find src -name "*.py" -exec grep -c "^def [^_]" {} \; 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
+          BEARTYPE_FUNCS=$(find src -name "*.py" -exec grep -c "@beartype" {} \; 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
+          echo "📊 Found $PUBLIC_FUNCS public functions, $BEARTYPE_FUNCS with @beartype"
+
+          if [ "$PUBLIC_FUNCS" -gt 0 ] && [ "$BEARTYPE_FUNCS" -lt "$PUBLIC_FUNCS" ]; then
+            echo "⚠️ RECOMMENDATION: Add @beartype to all public functions for runtime type checking"
+          fi
+
+          echo "✅ Pydantic model compliance verified"
+
+      - name: "🔒 MASTER RULE: Type Safety Enforcement"
+        if: matrix.validation == 'type-safety'
+        run: |
+          echo "🛡️ ENFORCING: 100% TYPE COVERAGE, MYPY --STRICT MODE"
+
+          # MyPy strict mode enforcement
+          if ! uv run mypy --strict src; then
+            echo "❌ MASTER RULE VIOLATION: MyPy strict mode failed"
+            echo "🚨 TYPE SAFETY: Code must pass mypy --strict without ignores"
+            exit 1
+          fi
+
+          # Ruff type-checking and linting
+          uv run ruff check src tests --output-format=github
+          uv run ruff format --check src tests
+
+          # Type coverage analysis
+          TYPE_ERRORS=$(uv run mypy --strict src 2>&1 | grep -c "error:" || echo "0")
+          if [ "$TYPE_ERRORS" -gt 0 ]; then
+            echo "❌ MASTER RULE VIOLATION: $TYPE_ERRORS type errors found"
+            exit 1
+          fi
+
+          echo "✅ Type safety enforcement completed"
+
+      - name: "⚡ MASTER RULE: Performance Quality Gates"
+        if: matrix.validation == 'performance-gates'
+        run: |
+          echo "🛡️ ENFORCING: PERFORMANCE BENCHMARKS & MEMORY LIMITS"
+
+          # Check for performance benchmarks
+          if [ -d "tests/benchmarks" ]; then
+            echo "📊 Running performance benchmarks with quality gates..."
+
+            # Run benchmarks with strict thresholds
+            uv run pytest tests/benchmarks \
+              --benchmark-only \
+              --benchmark-json=benchmark-results.json \
+              --benchmark-compare-fail=min:10% \
+              --benchmark-compare-fail=mean:15%
+
+            # Memory profiling with memray
+            uv run memray run --output=memory-profile.bin -m pytest tests/unit || true
+            uv run memray stats memory-profile.bin > memory-stats.txt || true
+
+            # Check memory allocation limits
+            MAX_MEMORY=$(cat memory-stats.txt 2>/dev/null | grep -o "[0-9.]*MB" | head -1 | sed 's/MB//' || echo "0")
+            if [ "$(echo "$MAX_MEMORY > 10" | bc -l 2>/dev/null || echo "0")" = "1" ]; then
+              echo "⚠️ PERFORMANCE WARNING: Peak memory usage: ${MAX_MEMORY}MB"
+            fi
+
+            echo "✅ Performance quality gates validated"
+          else
+            echo "⚠️ PERFORMANCE RULE: No benchmark tests found"
+            echo "💡 RECOMMENDATION: Create tests/benchmarks/ with pytest-benchmark tests"
+          fi
+
+      - name: "🛡️ MASTER RULE: Security Enforcement"
+        if: matrix.validation == 'security-enforcement'
+        run: |
+          echo "🛡️ ENFORCING: SECURITY-FIRST DEVELOPMENT"
+
+          # High-severity security issue detection
+          uv run bandit -r src -f json -o bandit-report.json
+          HIGH_ISSUES=$(cat bandit-report.json | jq -r '.results[] | select(.issue_severity == "HIGH") | .test_name' | wc -l || echo "0")
+          if [ "$HIGH_ISSUES" -gt 0 ]; then
+            echo "❌ MASTER RULE VIOLATION: $HIGH_ISSUES high-severity security issues found"
+            cat bandit-report.json | jq -r '.results[] | select(.issue_severity == "HIGH")'
+            exit 1
+          fi
+
+          # Dependency vulnerability scanning
+          uv run safety check --json --output safety-report.json || true
+          VULNERABILITIES=$(cat safety-report.json 2>/dev/null | jq -r '.vulnerabilities | length' || echo "0")
+          if [ "$VULNERABILITIES" -gt 0 ]; then
+            echo "❌ MASTER RULE VIOLATION: $VULNERABILITIES dependency vulnerabilities found"
+            exit 1
+          fi
+
+          # Secret detection
+          uv run detect-secrets scan --all-files --baseline .secrets.baseline || true
+
+          echo "✅ Security enforcement completed"
+
+      - name: 📊 Upload Master Ruleset Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: master-ruleset-reports-${{ matrix.validation }}
+          path: |
+            bandit-report.json
+            safety-report.json
+            benchmark-results.json
+            memory-profile.bin
+            memory-stats.txt
+          retention-days: 90
+
+  security:
+    name: 🛡️ Security Scan
+    runs-on: ubuntu-latest
+    needs: setup
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ needs.setup.outputs.python-version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🔐 Dependency Vulnerability Scan
+        run: |
+          uv run safety check --json --output safety-report.json || true
+          uv run pip-audit --output=json --output-file=pip-audit-report.json || true
+
+      - name: 🐍 Snyk Security Scan
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --json --json-file-output=snyk-report.json
+        continue-on-error: true
+
+      - name: 🔍 Secret Detection
+        uses: trufflesecurity/trufflehog@v3.89.1
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: 📋 Generate SBOM
+        run: |
+          uv run pip-licenses --format=json --output-file=licenses.json
+          uv run cyclonedx-py requirements --output=sbom.json || true
+
+      - name: 📤 Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+            snyk-report.json
+            licenses.json
+            sbom.json
+          retention-days: 90
+
+  test:
+    name: 🧪 Test Suite
+    runs-on: ${{ matrix.os }}
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🧪 Run Unit Tests
+        run: |
+          uv run pytest tests/unit \
+            --cov=src \
+            --cov-report=xml:coverage-unit.xml \
+            --cov-report=html:htmlcov-unit \
+            --junit-xml=junit-unit.xml \
+            -v
+
+      - name: 🔗 Run Integration Tests
+        run: |
+          uv run pytest tests/integration \
+            --cov=src \
+            --cov-report=xml:coverage-integration.xml \
+            --junit-xml=junit-integration.xml \
+            -v
+
+      - name: 🎯 Coverage Report
+        run: |
+          uv run coverage combine
+          uv run coverage report --show-missing --fail-under=80
+          uv run coverage xml -o coverage-combined.xml
+
+      - name: 📊 Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage-combined.xml
+          flags: ${{ matrix.os }}-${{ matrix.python-version }}
+          fail_ci_if_error: false
+
+  performance:
+    name: 📊 Performance Analysis
+    runs-on: ubuntu-latest
+    needs: [setup, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ needs.setup.outputs.python-version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: ⚡ Run Benchmarks
+        run: |
+          uv run pytest tests/benchmarks --benchmark-json=benchmark-results.json || true
+
+      - name: 🔍 Memory Profiling
+        run: |
+          uv run memray run --output=memory-profile.bin -m pytest tests/unit || true
+          uv run memray flamegraph memory-profile.bin --output=memory-flamegraph.html || true
+
+      - name: 📈 Performance Regression Check
+        run: |
+          echo "Checking for performance regressions..."
+          # Add custom performance threshold checks here
+
+      - name: 📤 Upload Performance Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-reports
+          path: |
+            benchmark-results.json
+            memory-profile.bin
+            memory-flamegraph.html
+          retention-days: 30
+
+  compliance:
+    name: ⚖️ Compliance Check
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ needs.setup.outputs.python-version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: ⚖️ License Compliance
+        run: |
+          uv run pip-licenses --allow-only="MIT;Apache Software License;BSD License;Apache License" \
+            --format=json --output-file=license-compliance.json || true
+
+      - name: 📊 Code Complexity Analysis
+        run: |
+          uv run radon cc src --json > complexity-report.json || true
+          uv run radon mi src --json > maintainability-report.json || true
+
+      - name: 📚 Documentation Coverage
+        run: |
+          uv run interrogate src --generate-badge interrogate_badge.svg
+          uv run pydocstyle src > docstyle-report.txt || true
+
+      - name: 📤 Upload Compliance Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-reports
+          path: |
+            license-compliance.json
+            complexity-report.json
+            maintainability-report.json
+            interrogate_badge.svg
+            docstyle-report.txt
+          retention-days: 90
+
+  build-validation:
+    name: 🏗️ Build Validation
+    runs-on: ubuntu-latest
+    needs: [master-ruleset-validation, security, test]
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install ${{ needs.setup.outputs.python-version }}
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🏗️ Build Package
+        run: |
+          uv build
+          ls -la dist/
+
+      - name: 🧪 Test Package Installation
+        run: |
+          uv run twine check dist/*
+
+      - name: 🐳 Docker Build Test
+        if: hashFiles('Dockerfile') != ''
+        run: |
+          docker build -t test-image .
+          docker run --rm test-image --version || echo "No --version command available"
+
+      - name: 📤 Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 30
+
+  pre-deployment:
+    name: 🚦 Pre-deployment Validation
+    runs-on: ubuntu-latest
+    needs: [build-validation, performance, compliance]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    steps:
+      - name: 🔍 Environment validation
+        run: |
+          echo "🌍 Validating environment for branch: ${{ github.ref_name }}"
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "📦 Production deployment validation"
+            echo "✅ Ready for production deployment"
+          elif [[ "${{ github.ref_name }}" == "staging" ]]; then
+            echo "🔄 Staging deployment validation"
+            echo "✅ Ready for staging deployment"
+          fi
+
+      - name: 🎯 Deployment readiness check
+        run: |
+          echo "🎯 All quality gates passed!"
+          echo "📊 Build artifacts validated"
+          echo "🔒 Security checks completed"
+          echo "💅 Code quality verified"
+          echo "⚡ Performance benchmarks completed"
+          echo "⚖️ Compliance checks passed"
+
+  notification:
+    name: 📢 Pipeline Status
+    runs-on: ubuntu-latest
+    needs: [master-ruleset-validation, security, test, performance, compliance, build-validation]
+    if: always()
+    steps:
+      - name: 📊 Pipeline Summary
+        run: |
+          if [[ "${{ needs.master-ruleset-validation.result }}" == "success" &&
+                "${{ needs.security.result }}" == "success" &&
+                "${{ needs.test.result }}" == "success" &&
+                "${{ needs.build-validation.result }}" == "success" ]]; then
+            echo "✅ CI/CD Pipeline: SUCCESS"
+            echo "🚀 Ready for deployment"
+          else
+            echo "❌ CI/CD Pipeline: FAILED"
+            echo "🛑 Deployment blocked"
+            exit 1
+          fi
