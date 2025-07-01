@@ -186,3 +186,6 @@ tracemalloc_*.txt
 
 # Project-level GPG keys (keep private but scripts are versioned)
 .gpg/
+
+# Archived docs
+docs/archive/
