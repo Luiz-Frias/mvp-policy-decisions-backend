@@ -152,3 +152,12 @@ cython_debug/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Node.js
+node_modules/
+
+# Agentic Context Instructions
+.sage/
+!.sage/wave_context/*
+!.sage/wave_context/*/*
+!.sage/MASTER_INSTRUCTION_SET.md

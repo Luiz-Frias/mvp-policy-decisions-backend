@@ -73,9 +73,9 @@ fi
 # 4. Pre-commit hooks (fast file-level checks)
 print_status "📝 Running pre-commit hooks (auto-fixing issues)..."
 # Run pre-commit hooks up to 3 times to handle auto-fixes
-local max_attempts=3
-local attempt=1
-local hooks_passed=false
+max_attempts=3
+attempt=1
+hooks_passed=false
 
 while [ $attempt -le $max_attempts ]; do
     print_status "🔧 Pre-commit run attempt $attempt/$max_attempts..."
@@ -103,7 +103,7 @@ if [ "$hooks_passed" != "true" ]; then
     exit 1
 fi
 
-# Verify all changes have been staged
+# Verify all changes have been staged after pre-commit hooks
 if ! git diff --quiet; then
     print_status "📝 Staging auto-fixed changes..."
     git add -A
@@ -117,6 +117,14 @@ if ! uv run ruff check src tests; then
     exit 1
 fi
 
+# Run ruff format and stage any additional changes
+uv run ruff format src tests
+if ! git diff --quiet; then
+    print_status "📝 Staging ruff format changes..."
+    git add -A
+fi
+
+# Now check that everything is properly formatted
 if ! uv run ruff format --check src tests; then
     print_error "❌ MASTER RULE VIOLATION: Code formatting issues found"
     exit 1
