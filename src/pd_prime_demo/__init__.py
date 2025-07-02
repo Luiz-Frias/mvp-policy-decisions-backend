@@ -1,7 +1,5 @@
-"""A modern Python package."""
+"""MVP Policy Decision Backend - Enterprise-grade insurance policy management system."""
 
 __version__ = "0.1.0"
 
-from .main import main
-
-__all__ = ["main", "__version__"]
+__all__ = ["__version__"]
