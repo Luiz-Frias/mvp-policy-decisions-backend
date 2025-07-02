@@ -33,6 +33,11 @@ Run database-dependent tests with: pytest -m database --setup-db
 === CURRENT STATUS ===
 ✅ 67% Integration Tests PASSING (14/21) - Core API functionality working
 ❌ 33% Tests require real database integration (marked with @pytest.mark.database)
+
+# TODO Wave 2: Re-enable database tests by removing @pytest.mark.database decorators
+# TODO Wave 2: Remove beartype mock and implement real database integration
+# TODO Wave 2: These tests are currently skipped due to beartype/asyncpg type incompatibility
+# TODO Wave 2: Implement real PostgreSQL connection for integration testing
 """
 
 import os
