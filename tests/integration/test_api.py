@@ -53,37 +53,43 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
-
-# Now safely import from source code
 from httpx._transports.asgi import ASGITransport
 
+# Import test dependencies first
 from src.pd_prime_demo.api.dependencies import (
     get_current_user,
     get_db,
     get_redis,
 )
-from src.pd_prime_demo.api.v1.health import HealthStatus
-from src.pd_prime_demo.api.v1.policies import PolicyListResponse
-from src.pd_prime_demo.core.config import Settings, get_settings
-from src.pd_prime_demo.main import create_app
-from src.pd_prime_demo.models.policy import PolicyStatus, PolicyType
-from src.pd_prime_demo.schemas.auth import CurrentUser
 
-# Set up test environment variables before importing the app
+# Set up test environment variables BEFORE any app imports
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql://test:test@localhost/test",  # pragma: allowlist secret
+    "postgresql://test:test@localhost/test",  # nosec # pragma: allowlist secret
 )
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 os.environ.setdefault(
     "SECRET_KEY",
-    "test-secret-key-for-testing-with-32-chars",  # pragma: allowlist secret
+    "test-secret-key-for-testing-with-32-chars",  # nosec # pragma: allowlist secret
 )
 os.environ.setdefault(
     "JWT_SECRET",
-    "test-jwt-secret-for-testing-with-32-chars",  # pragma: allowlist secret
+    "test-jwt-secret-for-testing-with-32-chars",  # nosec # pragma: allowlist secret
 )
 os.environ.setdefault("API_ENV", "development")
+
+# NOW we can safely import the app-related modules  # noqa: E402
+from src.pd_prime_demo.api.v1.health import HealthStatus  # noqa: E402
+from src.pd_prime_demo.api.v1.policies import (  # noqa: E402
+    PolicyListResponse,
+)
+from src.pd_prime_demo.core.config import Settings, get_settings  # noqa: E402
+from src.pd_prime_demo.main import create_app  # noqa: E402
+from src.pd_prime_demo.models.policy import (  # noqa: E402
+    PolicyStatus,
+    PolicyType,
+)
+from src.pd_prime_demo.schemas.auth import CurrentUser  # noqa: E402
 
 # Test data using actual model structures
 VALID_POLICY_CREATE_DATA = {
@@ -104,10 +110,10 @@ VALID_POLICY_CREATE_DATA = {
 def test_settings() -> Settings:
     """Create test settings with all required values."""
     return Settings(  # nosec B106 - Test credentials only
-        database_url="postgresql://test:test@localhost/test",  # pragma: allowlist secret
+        database_url="postgresql://test:test@localhost/test",  # nosec # pragma: allowlist secret,  # nosec
         redis_url="redis://localhost:6379/1",
-        secret_key="test-secret-key-for-testing-with-32-chars",  # pragma: allowlist secret
-        jwt_secret="test-jwt-secret-for-testing-with-32-chars",  # pragma: allowlist secret
+        secret_key="test-secret-key-for-testing-with-32-chars",  # nosec # pragma: allowlist secret
+        jwt_secret="test-jwt-secret-for-testing-with-32-chars",  # nosec # pragma: allowlist secret
         api_env="development",
         api_host="0.0.0.0",  # nosec B104 - Test environment binding
         api_port=8000,
