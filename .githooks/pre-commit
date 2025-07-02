@@ -87,6 +87,14 @@ while [ $attempt -le $max_attempts ]; do
     else
         if [ $attempt -lt $max_attempts ]; then
             print_warning "⚡ Pre-commit hooks auto-fixed issues, running again..."
+
+            # Auto-stage any files that were modified by the hooks
+            if ! git diff --quiet; then
+                print_status "📝 Auto-staging fixed files for next attempt..."
+                git add -A
+                print_success "✅ Modified files staged for retry"
+            fi
+
             # Give a moment for file system to sync
             sleep 1
         fi
@@ -105,9 +113,9 @@ fi
 
 # Verify all changes have been staged after pre-commit hooks
 if ! git diff --quiet; then
-    print_status "📝 Staging auto-fixed changes..."
+    print_status "📝 Staging any remaining auto-fixed changes..."
     git add -A
-    print_success "✅ Auto-fixes applied and staged"
+    print_success "✅ Final auto-fixes applied and staged"
 fi
 
 # 5. MANDATORY: Ruff ultra-fast linting
@@ -120,8 +128,9 @@ fi
 # Run ruff format and stage any additional changes
 uv run ruff format src tests
 if ! git diff --quiet; then
-    print_status "📝 Staging ruff format changes..."
+    print_status "📝 Auto-staging ruff format changes..."
     git add -A
+    print_success "✅ Ruff formatting changes staged"
 fi
 
 # Now check that everything is properly formatted
