@@ -4,94 +4,22 @@ This module provides RESTful endpoints for managing customers
 with proper validation, caching, and error handling.
 """
 
-from datetime import date, datetime
-from uuid import UUID, uuid4
+import json
+from datetime import datetime, timezone
+from uuid import UUID
 
 import asyncpg
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
+from ...models.customer import Customer, CustomerCreate, CustomerUpdate
 from ...schemas.auth import CurrentUser
 from ...schemas.common import PolicySummary
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()
-
-
-class CustomerBase(BaseModel):
-    """Base customer attributes shared across operations."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    first_name: str = Field(..., min_length=1, max_length=100)
-    last_name: str = Field(..., min_length=1, max_length=100)
-    email: EmailStr = Field(..., description="Customer email address")
-    phone: str = Field(..., pattern=r"^\+?1?\d{10,14}$", description="Phone number")
-    date_of_birth: date = Field(..., description="Customer's date of birth")
-
-    address_line1: str = Field(..., min_length=1, max_length=200)
-    address_line2: str | None = Field(None, max_length=200)
-    city: str = Field(..., min_length=1, max_length=100)
-    state: str = Field(..., min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
-    zip_code: str = Field(..., pattern=r"^\d{5}(-\d{4})?$")
-
-    @field_validator("date_of_birth")
-    @classmethod
-    def validate_age(cls, v: date) -> date:
-        """Ensure customer is at least 18 years old."""
-        today = date.today()
-        age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
-        if age < 18:
-            raise ValueError("Customer must be at least 18 years old")
-        if age > 120:
-            raise ValueError("Invalid date of birth")
-        return v
-
-
-class CustomerCreate(CustomerBase):
-    """Model for creating a new customer."""
-
-    marketing_consent: bool = Field(
-        False, description="Consent for marketing communications"
-    )
-    preferred_contact_method: str = Field("email", pattern=r"^(email|phone|sms)$")
-
-
-class CustomerUpdate(BaseModel):
-    """Model for updating customer information."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    first_name: str | None = Field(None, min_length=1, max_length=100)
-    last_name: str | None = Field(None, min_length=1, max_length=100)
-    email: EmailStr | None = None
-    phone: str | None = Field(None, pattern=r"^\+?1?\d{10,14}$")
-
-    address_line1: str | None = Field(None, min_length=1, max_length=200)
-    address_line2: str | None = Field(None, max_length=200)
-    city: str | None = Field(None, min_length=1, max_length=100)
-    state: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
-    zip_code: str | None = Field(None, pattern=r"^\d{5}(-\d{4})?$")
-
-    marketing_consent: bool | None = None
-    preferred_contact_method: str | None = Field(None, pattern=r"^(email|phone|sms)$")
-
-
-class Customer(CustomerBase):
-    """Complete customer entity with all attributes."""
-
-    id: UUID = Field(..., description="Unique customer identifier")
-    created_at: datetime = Field(..., description="Customer creation timestamp")
-    updated_at: datetime = Field(..., description="Last update timestamp")
-
-    marketing_consent: bool = Field(..., description="Marketing consent status")
-    preferred_contact_method: str = Field(..., description="Preferred contact method")
-
-    is_active: bool = Field(True, description="Whether customer account is active")
-    total_policies: int = Field(0, ge=0, description="Total number of policies")
-    total_claims: int = Field(0, ge=0, description="Total number of claims filed")
 
 
 class CustomerListResponse(BaseModel):
@@ -111,8 +39,15 @@ class CustomerFilter(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     search: str | None = Field(None, description="Search by name or email")
-    state: str | None = Field(
-        None, pattern=r"^[A-Z]{2}$", description="Filter by state"
+    state_province: str | None = Field(
+        None, min_length=2, max_length=100, description="Filter by state/province"
+    )
+    country_code: str | None = Field(
+        None,
+        min_length=2,
+        max_length=2,
+        pattern=r"^[A-Z]{2}$",
+        description="Filter by country",
     )
     is_active: bool | None = Field(None, description="Filter by active status")
     has_policies: bool | None = Field(
@@ -151,7 +86,7 @@ async def list_customers(
         return CustomerListResponse.model_validate_json(cached_result)
 
     # TODO: Implement actual database query with filters
-    # This is a placeholder implementation
+    # This is a placeholder implementation for Wave 1
     customers: list[Customer] = []
     total = 0
 
@@ -188,20 +123,42 @@ async def create_customer(
         HTTPException: If customer creation fails
     """
     try:
-        # TODO: Check for duplicate email
-        # TODO: Implement actual database insertion
+        # TODO: Implement actual database insertion with customer service
+        # This is a placeholder implementation for Wave 1
 
         # Invalidate relevant caches
         pattern = "customers:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
-        # Return mock customer for now
+        # Return mock customer for Wave 1 (will be replaced with actual service call)
+        from uuid import uuid4
+
+        from ...models.customer import CustomerStatus
+
         customer = Customer(
             id=uuid4(),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            **customer_data.model_dump(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            customer_number=f"CUST-{str(uuid4())[:10].replace('-', '')}0",
+            status=CustomerStatus.ACTIVE,
+            tax_id_masked=customer_data.tax_id,  # Already masked by CustomerCreate validator
+            total_policies=0,
+            risk_score=None,
+            # Copy all fields from CustomerCreate (they inherit from CustomerBase)
+            customer_type=customer_data.customer_type,
+            first_name=customer_data.first_name,
+            last_name=customer_data.last_name,
+            email=customer_data.email,
+            phone_number=customer_data.phone_number,
+            date_of_birth=customer_data.date_of_birth,
+            address_line1=customer_data.address_line1,
+            address_line2=customer_data.address_line2,
+            city=customer_data.city,
+            state_province=customer_data.state_province,
+            postal_code=customer_data.postal_code,
+            country_code=customer_data.country_code,
+            marketing_consent=customer_data.marketing_consent,
         )
 
         return customer
@@ -210,7 +167,7 @@ async def create_customer(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create customer: {str(e)}",
-        ) from e
+        )
 
 
 @router.get("/{customer_id}", response_model=Customer)
@@ -221,33 +178,32 @@ async def get_customer(
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> Customer:
-    """Retrieve a specific customer by ID.
+    """Get customer by ID.
 
     Args:
-        customer_id: UUID of the customer
+        customer_id: Unique customer identifier
         db: Database session
         redis: Redis client for caching
         current_user: Authenticated user information
 
     Returns:
-        Customer: Retrieved customer entity
+        Customer: Customer entity
 
     Raises:
         HTTPException: If customer not found
     """
     # Check cache first
-    cache_key = f"customers:{customer_id}"
-    cached_customer = await redis.get(cache_key)
+    cache_key = f"customer:{customer_id}"
+    cached_result = await redis.get(cache_key)
 
-    if cached_customer:
-        return Customer.model_validate_json(cached_customer)
+    if cached_result:
+        return Customer.model_validate_json(cached_result)
 
     # TODO: Implement actual database query
-    # This is a placeholder implementation
-
+    # This is a placeholder for Wave 1
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Customer {customer_id} not found",
+        detail="Customer not found",
     )
 
 
@@ -260,11 +216,11 @@ async def update_customer(
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> Customer:
-    """Update an existing customer.
+    """Update customer information.
 
     Args:
-        customer_id: UUID of the customer to update
-        customer_update: Fields to update
+        customer_id: Unique customer identifier
+        customer_update: Updated customer data
         db: Database session
         redis: Redis client for cache invalidation
         current_user: Authenticated user information
@@ -275,19 +231,28 @@ async def update_customer(
     Raises:
         HTTPException: If customer not found or update fails
     """
-    # TODO: Implement actual database update
-    # This is a placeholder implementation
+    try:
+        # TODO: Implement actual database update with customer service
+        # This is a placeholder for Wave 1
 
-    # Invalidate caches
-    await redis.delete(f"customers:{customer_id}")
-    pattern = "customers:list:*"
-    async for key in redis.scan_iter(match=pattern):
-        await redis.delete(key)
+        # Invalidate caches
+        await redis.delete(f"customer:{customer_id}")
+        pattern = "customers:list:*"
+        async for key in redis.scan_iter(match=pattern):
+            await redis.delete(key)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Customer {customer_id} not found",
-    )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update customer: {str(e)}",
+        )
 
 
 @router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -298,31 +263,39 @@ async def delete_customer(
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> None:
-    """Delete a customer (soft delete by setting is_active to False).
+    """Delete customer account.
 
     Args:
-        customer_id: UUID of the customer to delete
+        customer_id: Unique customer identifier
         db: Database session
         redis: Redis client for cache invalidation
         current_user: Authenticated user information
 
     Raises:
-        HTTPException: If customer not found or has active policies
+        HTTPException: If customer not found or deletion fails
     """
-    # TODO: Check for active policies before deletion
-    # TODO: Implement actual soft delete (is_active = False)
-    # This is a placeholder implementation
+    try:
+        # TODO: Implement actual database deletion with customer service
+        # This is a placeholder for Wave 1
 
-    # Invalidate caches
-    await redis.delete(f"customers:{customer_id}")
-    pattern = "customers:list:*"
-    async for key in redis.scan_iter(match=pattern):
-        await redis.delete(key)
+        # Invalidate caches
+        await redis.delete(f"customer:{customer_id}")
+        pattern = "customers:list:*"
+        async for key in redis.scan_iter(match=pattern):
+            await redis.delete(key)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Customer {customer_id} not found",
-    )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to delete customer: {str(e)}",
+        )
 
 
 @router.get("/{customer_id}/policies", response_model=list[PolicySummary])
@@ -336,18 +309,37 @@ async def get_customer_policies(
     """Get all policies for a specific customer.
 
     Args:
-        customer_id: UUID of the customer
+        customer_id: Unique customer identifier
         db: Database session
         redis: Redis client for caching
         current_user: Authenticated user information
 
     Returns:
-        list: List of customer's policies
+        list[PolicySummary]: List of customer's policies
 
     Raises:
         HTTPException: If customer not found
     """
-    # TODO: Implement actual query to fetch customer's policies
-    # This is a placeholder implementation
+    # Check cache first
+    cache_key = f"customer:{customer_id}:policies"
+    cached_result = await redis.get(cache_key)
 
-    return []
+    if cached_result:
+        # Safe JSON deserialization instead of eval()
+        try:
+            policies_data = json.loads(cached_result)
+            return [PolicySummary(**policy) for policy in policies_data]
+        except (json.JSONDecodeError, ValueError):
+            # Invalid cache data, continue to database query
+            await redis.delete(cache_key)
+
+    # TODO: Implement actual database query for customer policies
+    # This is a placeholder for Wave 1
+    policies: list[PolicySummary] = []
+
+    # Cache the result for 300 seconds (5 minutes)
+    await redis.setex(
+        cache_key, 300, json.dumps([policy.model_dump() for policy in policies])
+    )
+
+    return policies

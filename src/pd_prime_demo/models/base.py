@@ -5,10 +5,10 @@ enforcing immutability, strict validation, and enterprise-grade standards.
 """
 
 from datetime import datetime
+from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
-from pydantic.types import UUID4
 
 
 @beartype
@@ -53,4 +53,4 @@ class TimestampedModel(BaseModelConfig):
 class IdentifiableModel(TimestampedModel):
     """Base model with UUID identifier and timestamps."""
 
-    id: UUID4 = Field(..., description="Unique identifier for the entity")
+    id: UUID = Field(..., description="Unique identifier for the entity")
