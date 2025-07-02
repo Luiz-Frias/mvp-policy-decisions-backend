@@ -1,0 +1,140 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    # Python/FastAPI project file patterns
+    paths:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - "*.py"
+      - "pyproject.toml"
+      - "requirements.txt"
+      - "uv.lock"
+
+jobs:
+  claude-review:
+    # Filter for external contributors and first-time contributors, skip if marked to skip
+    if: |
+      !contains(github.event.pull_request.title, '[skip-review]') &&
+      !contains(github.event.pull_request.title, '[WIP]') &&
+      !startsWith(github.event.pull_request.title, 'docs:') &&
+      (
+        github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' ||
+        github.event.pull_request.author_association == 'CONTRIBUTOR' ||
+        contains(github.event.pull_request.labels.*.name, 'needs-review')
+      )
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for better context
+
+      - name: Set up Python 3.11+
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Use Claude Sonnet 4 for code reviews
+          model: "claude-3-5-sonnet-20241022"
+
+          # Python/FastAPI focused review prompt following master ruleset
+          direct_prompt: |
+            You are reviewing a Pull Request for a high-performance Python FastAPI backend that follows MASTER RULESET principles.
+
+            ## NON-NEGOTIABLE REQUIREMENTS:
+            - **NO QUICK FIXES OR WORKAROUNDS** - Always solve for root causes
+            - **DEFENSIVE PROGRAMMING** - All data models MUST use Pydantic with frozen=True
+            - **TYPE SAFETY** - 100% type coverage, no Any types except at system boundaries
+            - **PERFORMANCE FIRST** - Functions >10 lines must have benchmarks
+
+            ## REVIEW FOCUS AREAS:
+
+            **🛡️ Defensive Programming & Type Safety:**
+            - All Pydantic models use `frozen=True` and strict validation
+            - @beartype decorators on all public functions
+            - Result[T, E] pattern instead of exceptions for control flow
+            - No plain dictionaries - only validated Pydantic models
+            - Proper use of Optional[T] and Union types
+
+            **⚡ Performance & Memory:**
+            - Functions >10 lines have performance benchmarks
+            - Memory allocation <1MB per function
+            - Efficient data structures (set vs list, deque vs list)
+            - Lazy evaluation patterns
+            - Proper async/await usage
+
+            **🔒 Security & Validation:**
+            - Input validation at all system boundaries
+            - No hardcoded secrets or configuration
+            - Proper error handling without information leakage
+            - SQL injection prevention patterns
+            - Authentication/authorization implementation
+
+            **🏗️ Architecture & Code Quality:**
+            - Single Responsibility Principle adherence
+            - Proper dependency injection patterns
+            - Clear separation of concerns
+            - Resource management with context managers
+            - Comprehensive error handling
+
+            **🧪 Testing & Documentation:**
+            - Unit tests for all business logic
+            - Integration tests for API endpoints
+            - Performance benchmarks for critical functions
+            - Clear docstrings with type hints
+            - API documentation completeness
+
+            Provide constructive feedback with specific examples and suggestions for improvement.
+            If code violates master ruleset principles, clearly explain the issue and provide corrected examples.
+
+          # Python-specific tools for running tests and validation
+          allowed_tools: |
+            Bash(uv sync --dev)
+            Bash(uv run mypy src --strict)
+            Bash(uv run pytest tests/ -v)
+            Bash(uv run pytest --benchmark-only)
+            Bash(uv run flake8 src tests)
+            Bash(uv run black --check src tests)
+            Bash(uv run isort --check-only src tests)
+            Bash(uv run bandit -r src)
+            Bash(uv run safety check)
+            Bash(scripts/validate-pydantic-compliance.sh)
+            Bash(scripts/validate-performance-gates.sh)
+
+          # Custom instructions for this specific project
+          custom_instructions: |
+            This is an MVP Policy Decision Backend built with enterprise-grade standards.
+
+            Follow these project-specific guidelines:
+            - Use Pydantic v2 with Rust core for all data validation
+            - All models must be immutable (frozen=True) by default
+            - Implement comprehensive benchmarking for performance tracking
+            - Use Result types for error handling instead of exceptions
+            - Follow SOLID principles and composition over inheritance
+            - Maintain 100% type coverage with MyPy strict mode
+
+            The project uses uv for dependency management and follows a feature-based architecture.
+            Always check for existing implementations before suggesting new patterns.
+
+          # Note: To skip review, add [skip-review] or [WIP] to PR title
+          # The conditional logic is handled in the job-level 'if' statement above

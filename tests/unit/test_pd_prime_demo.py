@@ -3,7 +3,8 @@
 import pytest
 
 from pd_prime_demo import __version__
-from pd_prime_demo.main import BaseAppModel, Result
+from pd_prime_demo.models.base import BaseModelConfig
+from pd_prime_demo.services.result import Err, Ok, Result
 
 
 def test_version() -> None:
@@ -16,16 +17,16 @@ def test_version() -> None:
 
 
 def test_result_ok() -> None:
-    """Test Result.ok() creates successful result."""
-    result: Result[str, str] = Result.ok("success")
+    """Test Ok() creates successful result."""
+    result: Result[str, str] = Ok("success")
     assert result.is_ok(), "Result should be ok"
     assert not result.is_err(), "Result should not be error"
     assert result.unwrap() == "success", f"Expected 'success', got {result.unwrap()}"
 
 
 def test_result_err() -> None:
-    """Test Result.err() creates error result."""
-    result: Result[str, str] = Result.err("failure")
+    """Test Err() creates error result."""
+    result: Result[str, str] = Err("failure")
     assert result.is_err(), "Result should be error"
     assert not result.is_ok(), "Result should not be ok"
     assert result.unwrap_err() == "failure", (
@@ -35,23 +36,23 @@ def test_result_err() -> None:
 
 def test_result_unwrap_panic() -> None:
     """Test Result.unwrap() panics on error result."""
-    result: Result[str, str] = Result.err("failure")
-    with pytest.raises(RuntimeError, match="Called unwrap\\(\\) on error result"):
+    result: Result[str, str] = Err("failure")
+    with pytest.raises(ValueError, match="Called unwrap on Err value"):
         result.unwrap()
 
 
 def test_result_unwrap_err_panic() -> None:
     """Test Result.unwrap_err() panics on ok result."""
-    result: Result[str, str] = Result.ok("success")
-    with pytest.raises(RuntimeError, match="Called unwrap_err\\(\\) on ok result"):
+    result: Result[str, str] = Ok("success")
+    with pytest.raises(ValueError, match="Called unwrap_err on Ok value"):
         result.unwrap_err()
 
 
 def test_base_app_model() -> None:
-    """Test BaseAppModel provides frozen Pydantic base."""
+    """Test BaseModelConfig provides frozen Pydantic base."""
 
-    # Create a test model that inherits from BaseAppModel
-    class TestModel(BaseAppModel):
+    # Create a test model that inherits from BaseModelConfig
+    class TestModel(BaseModelConfig):
         name: str
         value: int = 42
 
@@ -65,9 +66,9 @@ def test_base_app_model() -> None:
 
 
 def test_base_app_model_validation() -> None:
-    """Test BaseAppModel validation follows MASTER RULESET principles."""
+    """Test BaseModelConfig validation follows MASTER RULESET principles."""
 
-    class TestModel(BaseAppModel):
+    class TestModel(BaseModelConfig):
         name: str
         age: int
 
@@ -78,4 +79,6 @@ def test_base_app_model_validation() -> None:
 
     # Invalid data should raise validation error
     with pytest.raises(Exception):  # Pydantic ValidationError
-        TestModel(name=123, age="not_an_int")  # type: ignore[arg-type] # Wrong types should fail
+        invalid_name: object = 123
+        invalid_age: object = "not_an_int"
+        TestModel(name=invalid_name, age=invalid_age)

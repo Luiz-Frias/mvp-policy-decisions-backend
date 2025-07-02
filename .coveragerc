@@ -1,0 +1,100 @@
+[run]
+# Coverage.py configuration for MVP Policy Decision Backend
+
+# Source packages to measure
+source = src
+
+# Files to omit from coverage
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */venv/*
+    */.venv/*
+    */site-packages/*
+    */migrations/*
+    */conftest.py
+    setup.py
+    */config.py
+    */__init__.py
+
+# Enable branch coverage
+branch = True
+
+# Enable coverage for multiprocessing
+parallel = True
+concurrency = multiprocessing,thread
+
+# Context for coverage (useful for test types)
+context = ${CONTEXT}
+
+[report]
+# Reporting configuration
+
+# Precision for coverage percentages
+precision = 2
+
+# Skip files with 100% coverage in report
+skip_covered = False
+
+# Skip empty files
+skip_empty = True
+
+# Show missing line numbers
+show_missing = True
+
+# Fail if coverage is below threshold
+fail_under = 80
+
+# Exclude patterns from coverage
+exclude_lines =
+    # Standard pragma
+    pragma: no cover
+
+    # Debug code
+    def __repr__
+    def __str__
+
+    # Defensive programming
+    raise AssertionError
+    raise NotImplementedError
+
+    # Non-runtime code
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstract
+    @abstractmethod
+
+    # Beartype decorators
+    @beartype
+
+    # Property setters (for frozen models)
+    @*.setter
+
+    # Protocol definitions
+    class .*Protocol\):
+    @runtime_checkable
+
+# Ignore errors from missing imported modules
+ignore_errors = True
+
+[html]
+# HTML report configuration
+directory = htmlcov
+title = MVP Policy Decision Backend Coverage Report
+
+[xml]
+# XML report configuration (for CI/CD)
+output = coverage.xml
+
+[json]
+# JSON report configuration
+output = coverage.json
+pretty_print = True
+
+[paths]
+# Path remapping for combining coverage from different environments
+source =
+    src/
+    */src/
+    *\src\

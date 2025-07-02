@@ -1,10 +1,22 @@
 """MVP Policy Decision Backend - Main Application Module."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Generic, TypeVar
 
+import uvicorn
 from attrs import define, field
 from beartype import beartype
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict
+
+from .api.v1 import router as v1_router
+from .core.cache import get_cache
+from .core.config import get_settings
+from .core.database import get_database
+from .schemas.common import APIInfo
 
 # Rust-like Result type for defensive programming
 T = TypeVar("T")
@@ -78,11 +90,104 @@ class BaseAppModel(BaseModel):
     )
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application lifecycle - startup and shutdown."""
+    # Startup
+    settings = get_settings()
+    print(f"🚀 Starting MVP Policy Decision Backend in {settings.api_env} mode...")
+
+    # Initialize database pool
+    db = get_database()
+    await db.connect()
+    print("✅ Database connection pool initialized")
+
+    # Initialize Redis pool
+    cache = get_cache()
+    await cache.connect()
+    print("✅ Redis connection pool initialized")
+
+    yield
+
+    # Shutdown
+    print("🛑 Shutting down MVP Policy Decision Backend...")
+
+    # Close database connections
+    await db.disconnect()
+    print("✅ Database connections closed")
+
+    # Close Redis connections
+    await cache.disconnect()
+    print("✅ Redis connections closed")
+
+
+@beartype
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application.
+
+    Returns:
+        FastAPI: Configured application instance
+    """
+    settings = get_settings()
+
+    app = FastAPI(
+        title="MVP Policy Decision Backend",
+        description="High-performance policy management system with enterprise-grade standards",
+        version="1.0.0",
+        docs_url="/docs" if not settings.is_production else None,
+        redoc_url="/redoc" if not settings.is_production else None,
+        openapi_url="/openapi.json" if not settings.is_production else None,
+        lifespan=lifespan,
+    )
+
+    # Security middleware
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["*"] if settings.is_development else ["api.example.com"],
+    )
+
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.api_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Include API routers
+    app.include_router(v1_router)
+
+    # Root endpoint
+    @app.get("/")
+    async def root() -> APIInfo:
+        """Root endpoint returning API information."""
+        return APIInfo(
+            name="MVP Policy Decision Backend",
+            version="1.0.0",
+            status="operational",
+            environment=settings.api_env,
+        )
+
+    return app
+
+
+# Create the application instance
+app = create_app()
+
+
 @beartype
 def main() -> None:
     """Run the main application entry point."""
-    print("🚀 MVP Policy Decision Backend starting...")
-    # TODO: Initialize your application here
+    settings = get_settings()
+
+    uvicorn.run(
+        "pd_prime_demo.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.is_development,
+        log_level="info" if not settings.is_production else "error",
+    )
 
 
 if __name__ == "__main__":

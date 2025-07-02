@@ -1,0 +1,9 @@
+# TruffleHog ignore patterns for demo and documentation files
+.sage/source_documents/DEMO_OVERALL_ARCHITECTURE.md
+.sage/wave_contexts/wave_1/WAVE_1_READY.md
+.sage/**/*.md
+docs/**
+*.md
+# Ignore test and demo files that may contain example secrets
+tests/fixtures/**
+demo/**

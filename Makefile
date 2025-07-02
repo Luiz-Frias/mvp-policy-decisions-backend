@@ -1,14 +1,11 @@
-.PHONY: install dev test lint format clean help
+.PHONY: all install dev test lint format clean help validate benchmark security
+
+all: dev lint test
 
 help:
-	@echo "Available targets:"
-	@echo "  install     - Install dependencies"
-	@echo "  dev         - Install development dependencies"
-	@echo "  test        - Run tests"
-	@echo "  lint        - Run linting"
-	@echo "  format      - Format code"
-	@echo "  clean       - Clean build artifacts"
-	@echo "  help        - Show this help"
+	@echo "MVP Policy Decision Backend - Available targets:"
+	@echo "Run 'make <target>' - Use 'all' for full setup"
+	@echo "Full target list: install dev test lint format clean validate benchmark security"
 
 install:
 	uv sync
@@ -44,3 +41,36 @@ clean:
 	rm -rf htmlcov/
 	find . -type d -name __pycache__ -delete
 	find . -type f -name "*.pyc" -delete
+
+validate: validate-pydantic validate-performance validate-master-ruleset
+	@echo "✅ All validation checks passed!"
+
+validate-pydantic:
+	@echo "🔍 Validating Pydantic model compliance..."
+	@bash scripts/validate-pydantic-compliance.sh
+
+validate-performance:
+	@echo "⚡ Validating performance gates..."
+	@bash scripts/validate-performance-gates.sh
+
+validate-master-ruleset:
+	@echo "📋 Validating master ruleset compliance..."
+	@bash scripts/validate-master-ruleset.sh
+
+benchmark:
+	@echo "🚀 Running performance benchmarks..."
+	@bash scripts/run_benchmarks.sh
+
+security:
+	@echo "🔒 Running security checks..."
+	uv run bandit -r src/
+	uv run safety check
+	uv run pip-audit
+
+check-db:
+	@echo "🗄️ Checking database connectivity..."
+	uv run python scripts/check_db.py
+
+check-redis:
+	@echo "🔴 Checking Redis connectivity..."
+	uv run python scripts/check_redis.py

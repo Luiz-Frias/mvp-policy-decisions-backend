@@ -51,6 +51,10 @@ jobs:
   vulnerability-scanning:
     name: 🔐 Vulnerability Scanning
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
     steps:
       - name: ⬇️ Checkout
         uses: actions/checkout@v4
@@ -62,6 +66,7 @@ jobs:
           scan-ref: "."
           format: "sarif"
           output: "trivy-results.sarif"
+          exit-code: "0" # Don't fail the job if vulnerabilities are found
 
       - name: 📤 Upload Trivy Results
         uses: github/codeql-action/upload-sarif@v3

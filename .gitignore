@@ -179,7 +179,30 @@ tracemalloc_*.txt
 .pre-commit-config.yaml.backup
 
 # Agentic Context Instructions
-.sage/
-!.sage/wave_context/*
-!.sage/wave_context/*/*
-!.sage/MASTER_INSTRUCTION_SET.md
+.sage/languages/
+.sage/core/
+.sage/domains/
+.sage/*.md
+.sage/LICENSE
+
+# Project-level GPG keys (keep private but scripts are versioned)
+.gpg/
+
+# Archived docs
+docs/archive/
+
+# Local configuration files (may contain environment-specific settings)
+.coveragerc.local
+alembic.ini.local
+pytest.ini.local
+
+# Frontend directory (to be moved to separate repo)
+frontend/
+
+# Local environment files
+.env.local
+.env.*.local
+
+# Local test databases
+test_*.db
+*.db-journal
