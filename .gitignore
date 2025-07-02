@@ -180,8 +180,8 @@ tracemalloc_*.txt
 
 # Agentic Context Instructions
 .sage/
-!.sage/wave_context/*
-!.sage/wave_context/*/*
+!.sage/wave_contexts/*
+!.sage/wave_contexts/*/*
 !.sage/MASTER_INSTRUCTION_SET.md
 
 # Project-level GPG keys (keep private but scripts are versioned)
