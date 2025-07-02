@@ -57,9 +57,9 @@ from httpx._transports.asgi import ASGITransport
 
 # Import test dependencies first
 from src.pd_prime_demo.api.dependencies import (
-    get_current_user,
     get_db,
     get_redis,
+    get_user_with_demo_fallback,
 )
 
 # Set up test environment variables BEFORE any app imports
@@ -162,7 +162,8 @@ def real_test_app(test_settings: Settings, mock_redis: Any) -> FastAPI:
 
     # Create app with dependency overrides
     with patch(
-        "src.pd_prime_demo.core.config.get_settings", return_value=test_settings
+        "src.pd_prime_demo.core.config.get_settings",
+        return_value=test_settings,
     ):
         app = create_app()
 
@@ -170,7 +171,7 @@ def real_test_app(test_settings: Settings, mock_redis: Any) -> FastAPI:
     app.dependency_overrides[get_db] = mock_get_db
     app.dependency_overrides[get_redis] = lambda: mock_redis
     app.dependency_overrides[get_settings] = lambda: test_settings
-    app.dependency_overrides[get_current_user] = mock_get_current_user
+    app.dependency_overrides[get_user_with_demo_fallback] = mock_get_current_user
 
     return app
 
@@ -245,7 +246,10 @@ class TestHealthEndpoints:
         data = response.json()
 
         # Validate the response structure manually
-        assert data["status"] in ["healthy", "degraded"]  # May be degraded due to mocks
+        assert data["status"] in [
+            "healthy",
+            "degraded",
+        ]  # May be degraded due to mocks
         assert data["environment"] == "development"
         assert "timestamp" in data
         assert "components" in data
@@ -462,7 +466,9 @@ class TestAPIPerformance:
     @pytest.mark.asyncio
     @pytest.mark.benchmark
     async def test_health_endpoint_performance(
-        self, real_async_client: AsyncClient, performance_threshold: dict[str, float]
+        self,
+        real_async_client: AsyncClient,
+        performance_threshold: dict[str, float],
     ) -> None:
         """Test health endpoint performance."""
         import time
