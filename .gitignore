@@ -179,10 +179,11 @@ tracemalloc_*.txt
 .pre-commit-config.yaml.backup
 
 # Agentic Context Instructions
-.sage/
-!.sage/wave_contexts/*
-!.sage/wave_contexts/*/*
-!.sage/MASTER_INSTRUCTION_SET.md
+.sage/languages/
+.sage/core/
+.sage/domains/
+.sage/*.md
+.sage/LICENSE
 
 # Project-level GPG keys (keep private but scripts are versioned)
 .gpg/
