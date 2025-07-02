@@ -147,7 +147,7 @@ class TestLifespanFunction:
             patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings),
             patch("src.pd_prime_demo.main.get_database", return_value=mock_db),
             patch("src.pd_prime_demo.main.get_cache", return_value=mock_cache),
-            patch("builtins.print") as mock_print,
+            patch("src.pd_prime_demo.main.logger") as mock_logger,
         ):
             # Test the lifespan context manager
             async with lifespan(mock_app):
@@ -157,16 +157,16 @@ class TestLifespanFunction:
 
                 # Verify startup messages
                 assert any(
-                    "Starting MVP Policy Decision Backend" in str(call)
-                    for call in mock_print.call_args_list
+                    "🚀 Starting MVP Policy Decision Backend" in str(call)
+                    for call in mock_logger.info.call_args_list
                 )
                 assert any(
-                    "Database connection pool initialized" in str(call)
-                    for call in mock_print.call_args_list
+                    "✅ Database connection pool initialized" in str(call)
+                    for call in mock_logger.info.call_args_list
                 )
                 assert any(
-                    "Redis connection pool initialized" in str(call)
-                    for call in mock_print.call_args_list
+                    "✅ Redis connection pool initialized" in str(call)
+                    for call in mock_logger.info.call_args_list
                 )
 
             # Verify shutdown was called
@@ -175,16 +175,16 @@ class TestLifespanFunction:
 
             # Verify shutdown messages
             assert any(
-                "Shutting down MVP Policy Decision Backend" in str(call)
-                for call in mock_print.call_args_list
+                "🛑 Shutting down MVP Policy Decision Backend" in str(call)
+                for call in mock_logger.info.call_args_list
             )
             assert any(
-                "Database connections closed" in str(call)
-                for call in mock_print.call_args_list
+                "✅ Database connections closed" in str(call)
+                for call in mock_logger.info.call_args_list
             )
             assert any(
-                "Redis connections closed" in str(call)
-                for call in mock_print.call_args_list
+                "✅ Redis connections closed" in str(call)
+                for call in mock_logger.info.call_args_list
             )
 
     @pytest.mark.asyncio

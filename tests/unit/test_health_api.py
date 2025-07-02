@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import Request
 from pydantic import ValidationError
 
 from src.pd_prime_demo.api.v1.health import (
@@ -18,6 +19,20 @@ from src.pd_prime_demo.api.v1.health import (
     readiness_check,
 )
 from src.pd_prime_demo.core.config import Settings
+
+
+def create_mock_request() -> Request:
+    """Create a mock Request object for testing."""
+    mock_request = MagicMock(spec=Request)
+    mock_request.method = "GET"
+    mock_request.url = MagicMock()
+    mock_request.url.path = "/health"
+    mock_request.headers = {}
+    mock_request.query_params = {}
+    mock_request.client = MagicMock()
+    mock_request.client.host = "127.0.0.1"
+    mock_request.client.port = 8000
+    return mock_request
 
 
 class TestHealthStatus:
@@ -150,7 +165,7 @@ class TestHealthCheckEndpoint:
             api_env="development",
         )
 
-        response = await health_check(settings=settings)
+        response = await health_check(request=create_mock_request(), settings=settings)
 
         assert response.status == "healthy"
         assert response.environment == "development"
@@ -175,7 +190,7 @@ class TestHealthCheckEndpoint:
             api_env="production",
         )
 
-        response = await health_check(settings=settings)
+        response = await health_check(request=create_mock_request(), settings=settings)
 
         assert response.environment == "production"
         assert response.status == "healthy"
@@ -187,7 +202,7 @@ class TestLivenessCheckEndpoint:
     @pytest.mark.asyncio
     async def test_liveness_check_success(self) -> None:
         """Test successful liveness check."""
-        response = await liveness_check()
+        response = await liveness_check(request=create_mock_request())
 
         assert response.status == "healthy"
         assert response.message == "Application is running"
@@ -237,6 +252,7 @@ class TestReadinessCheckEndpoint:
         )
 
         response = await readiness_check(
+            request=create_mock_request(),
             db=self.mock_db_connection(),
             redis=mock_redis,
             settings=settings,
@@ -285,6 +301,7 @@ class TestReadinessCheckEndpoint:
         )
 
         response = await readiness_check(
+            request=create_mock_request(),
             db=self.mock_db_connection_error(),
             redis=mock_redis,
             settings=settings,
@@ -315,6 +332,7 @@ class TestReadinessCheckEndpoint:
         )
 
         response = await readiness_check(
+            request=create_mock_request(),
             db=self.mock_db_connection(),
             redis=mock_redis,
             settings=settings,
@@ -350,6 +368,7 @@ class TestReadinessCheckEndpoint:
         )
 
         response = await readiness_check(
+            request=create_mock_request(),
             db=self.mock_db_connection(),
             redis=mock_redis,
             settings=settings,

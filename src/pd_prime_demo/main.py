@@ -1,16 +1,20 @@
 """MVP Policy Decision Backend - Main Application Module."""
 
-from collections.abc import AsyncGenerator
+import json
+import logging
+import time
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Generic, TypeVar
 
 import uvicorn
 from attrs import define, field
 from beartype import beartype
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .api.v1 import router as v1_router
 from .core.cache import get_cache
@@ -18,9 +22,123 @@ from .core.config import get_settings
 from .core.database import get_database
 from .schemas.common import APIInfo
 
+# Configure detailed logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 # Rust-like Result type for defensive programming
 T = TypeVar("T")
 E = TypeVar("E")
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Comprehensive request logging middleware for debugging."""
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Log all request and response details."""
+        start_time = time.time()
+        request_id = f"{int(start_time)}-{id(request)}"
+
+        # Log incoming request
+        logger.info("=" * 120)
+        logger.info(f"INCOMING REQUEST - ID: {request_id}")
+        logger.info(f"Method: {request.method}")
+        logger.info(f"URL: {request.url}")
+        logger.info(f"Path: {request.url.path}")
+        logger.info(f"Query params: {dict(request.query_params)}")
+        logger.info(
+            f"Client: {request.client.host if request.client else 'Unknown'}:{request.client.port if request.client else 'Unknown'}"
+        )
+        logger.info(f"User-Agent: {request.headers.get('user-agent', 'Unknown')}")
+        logger.info(f"Content-Type: {request.headers.get('content-type', 'None')}")
+        logger.info(
+            f"Content-Length: {request.headers.get('content-length', 'Unknown')}"
+        )
+        logger.info(f"Accept: {request.headers.get('accept', 'Unknown')}")
+        logger.info(
+            f"Authorization: {'Present' if request.headers.get('authorization') else 'None'}"
+        )
+        logger.info(f"Origin: {request.headers.get('origin', 'None')}")
+        logger.info(f"Referer: {request.headers.get('referer', 'None')}")
+
+        # Log all headers for debugging
+        logger.info("Headers:")
+        for name, value in request.headers.items():
+            # Don't log sensitive headers in full
+            if name.lower() in ["authorization", "cookie", "x-api-key"]:
+                logger.info(f"  {name}: [REDACTED]")
+            else:
+                logger.info(f"  {name}: {value}")
+
+        # Try to read and log request body for non-GET requests
+        if request.method != "GET":
+            try:
+                body = await request.body()
+                if body:
+                    try:
+                        # Try to parse as JSON
+                        body_json = json.loads(body.decode())
+                        logger.info(f"Request body (JSON): {body_json}")
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        logger.info(
+                            f"Request body (raw): {body[:500]!r}..."
+                        )  # First 500 chars
+                else:
+                    logger.info("Request body: Empty")
+            except Exception as e:
+                logger.error(f"Error reading request body: {e}")
+
+        logger.info(
+            f"Request processing started at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}"
+        )
+        logger.info("-" * 120)
+
+        # Process the request
+        try:
+            response = await call_next(request)
+            processing_time = (time.time() - start_time) * 1000
+
+            # Log response
+            logger.info(f"RESPONSE - ID: {request_id}")
+            logger.info(f"Status: {response.status_code}")
+            logger.info(f"Processing time: {processing_time:.2f}ms")
+            logger.info("Response headers:")
+            for name, value in response.headers.items():
+                logger.info(f"  {name}: {value}")
+
+            # Try to read response body for debugging (only for small responses)
+            if hasattr(response, "body"):
+                try:
+                    # This is tricky because we can't easily read the response body without consuming it
+                    logger.info(
+                        "Response body: [Available but not logged to preserve stream]"
+                    )
+                except Exception as e:
+                    logger.info(f"Could not read response body: {e}")
+
+            if response.status_code >= 400:
+                logger.error(
+                    f"ERROR RESPONSE - ID: {request_id} - Status: {response.status_code}"
+                )
+            else:
+                logger.info(
+                    f"SUCCESS RESPONSE - ID: {request_id} - Status: {response.status_code}"
+                )
+
+        except Exception as e:
+            processing_time = (time.time() - start_time) * 1000
+            logger.error(f"REQUEST FAILED - ID: {request_id}")
+            logger.error(f"Error: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Processing time: {processing_time:.2f}ms")
+            raise
+
+        logger.info("=" * 120)
+        return response
 
 
 @define(frozen=True, slots=True)
@@ -95,30 +213,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application lifecycle - startup and shutdown."""
     # Startup
     settings = get_settings()
-    print(f"🚀 Starting MVP Policy Decision Backend in {settings.api_env} mode...")
+    logger.info(
+        f"🚀 Starting MVP Policy Decision Backend in {settings.api_env} mode..."
+    )
+    logger.info(f"API Host: {settings.api_host}")
+    logger.info(f"API Port: {settings.api_port}")
+    logger.info(
+        f"Database URL: {settings.database_url[:20]}..."
+    )  # Only show first 20 chars
+    logger.info(f"Redis URL: {settings.redis_url[:20]}...")  # Only show first 20 chars
+    logger.info(f"CORS Origins: {settings.api_cors_origins}")
 
     # Initialize database pool
     db = get_database()
     await db.connect()
-    print("✅ Database connection pool initialized")
+    logger.info("✅ Database connection pool initialized")
 
     # Initialize Redis pool
     cache = get_cache()
     await cache.connect()
-    print("✅ Redis connection pool initialized")
+    logger.info("✅ Redis connection pool initialized")
 
     yield
 
     # Shutdown
-    print("🛑 Shutting down MVP Policy Decision Backend...")
+    logger.info("🛑 Shutting down MVP Policy Decision Backend...")
 
     # Close database connections
     await db.disconnect()
-    print("✅ Database connections closed")
+    logger.info("✅ Database connections closed")
 
     # Close Redis connections
     await cache.disconnect()
-    print("✅ Redis connections closed")
+    logger.info("✅ Redis connections closed")
 
 
 @beartype
@@ -139,6 +266,11 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if not settings.is_production else None,
         lifespan=lifespan,
     )
+
+    # Add comprehensive request logging middleware (only in development)
+    if settings.is_development:
+        logger.info("Adding request logging middleware for debugging")
+        app.add_middleware(RequestLoggingMiddleware)
 
     # Security middleware
     app.add_middleware(
@@ -180,6 +312,10 @@ app = create_app()
 def main() -> None:
     """Run the main application entry point."""
     settings = get_settings()
+
+    logger.info(f"Starting server on {settings.api_host}:{settings.api_port}")
+    logger.info(f"Development mode: {settings.is_development}")
+    logger.info(f"Production mode: {settings.is_production}")
 
     uvicorn.run(
         "pd_prime_demo.main:app",
