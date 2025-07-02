@@ -9,7 +9,7 @@ from collections.abc import AsyncGenerator
 
 import asyncpg
 from beartype import beartype
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Depends, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 
@@ -182,8 +182,29 @@ async def get_demo_user() -> CurrentUser:
 
 
 @beartype
+async def get_optional_bearer_token(
+    authorization: str | None = Header(default=None),
+) -> HTTPAuthorizationCredentials | None:
+    """Extract optional Bearer token from Authorization header.
+
+    Args:
+        authorization: Authorization header value
+
+    Returns:
+        HTTPAuthorizationCredentials if Bearer token present, None otherwise
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization[7:]  # Remove "Bearer " prefix
+    return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+
+@beartype
 async def get_user_with_demo_fallback(
-    credentials: HTTPAuthorizationCredentials | None = Security(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        get_optional_bearer_token
+    ),
     settings: Settings = Depends(get_settings),
 ) -> CurrentUser:
     """Get current user with demo fallback based on environment.

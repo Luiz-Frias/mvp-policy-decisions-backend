@@ -125,8 +125,8 @@ if [ ! -d node_modules ]; then
     fi
 fi
 
-# Start frontend in background
-npm run dev &
+# Start frontend in background with Doppler environment variables
+doppler run -- npm run dev &
 FRONTEND_PID=$!
 
 # Wait for frontend to start
