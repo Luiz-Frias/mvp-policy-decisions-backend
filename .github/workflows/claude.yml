@@ -1,4 +1,4 @@
-name: Claude Code
+name: Claude Code Assistant
 
 on:
   issue_comment:
@@ -19,41 +19,114 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0 # Full history for better context
 
-      - name: Run Claude Code
+      - name: Set up Python 3.11+
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Run Claude Code Assistant
         id: claude
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          
-          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-          # model: "claude-opus-4-20250514"
-          
-          # Optional: Customize the trigger phrase (default: @claude)
-          # trigger_phrase: "/claude"
-          
-          # Optional: Trigger when specific user is assigned to an issue
-          # assignee_trigger: "claude-bot"
-          
-          # Optional: Allow Claude to run specific commands
-          # allowed_tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
-          
-          # Optional: Add custom instructions for Claude to customize its behavior for your project
-          # custom_instructions: |
-          #   Follow our coding standards
-          #   Ensure all new code has tests
-          #   Use TypeScript for new files
-          
-          # Optional: Custom environment variables for Claude
-          # claude_env: |
-          #   NODE_ENV: test
 
+          # Use Claude Sonnet 4 for development assistance
+          model: "claude-3-5-sonnet-20241022"
+
+          # Custom trigger phrase for this project
+          trigger_phrase: "@claude"
+
+          # Python/FastAPI development tools
+          allowed_tools: |
+            Bash(uv sync --dev)
+            Bash(uv run python src/pd_prime_demo/main.py)
+            Bash(uv run fastapi dev src/pd_prime_demo/main.py)
+            Bash(uv run pytest tests/ -v)
+            Bash(uv run pytest --benchmark-only)
+            Bash(uv run pytest --cov=src --cov-report=term)
+            Bash(uv run mypy src --strict)
+            Bash(uv run flake8 src tests)
+            Bash(uv run black src tests)
+            Bash(uv run isort src tests)
+            Bash(uv run bandit -r src)
+            Bash(uv run safety check)
+            Bash(uv run pip-audit)
+            Bash(scripts/validate-pydantic-compliance.sh)
+            Bash(scripts/validate-performance-gates.sh)
+            Bash(scripts/validate-master-ruleset.sh)
+            Bash(uv run alembic upgrade head)
+            Bash(uv run alembic revision --autogenerate -m)
+            Bash(make test)
+            Bash(make lint)
+            Bash(make format)
+            Bash(make dev)
+
+          # Master ruleset custom instructions
+          custom_instructions: |
+            You are assisting with an MVP Policy Decision Backend built with enterprise-grade standards following MASTER RULESET principles.
+
+            ## NON-NEGOTIABLE RULES:
+            - **NO QUICK FIXES OR WORKAROUNDS** - Always solve for root causes
+            - **SEARCH BEFORE CREATE** - Always check for existing implementations
+            - **PEAK EXCELLENCE STANDARD** - Represent premium enterprise grade as minimum
+
+            ## DEFENSIVE PROGRAMMING PRINCIPLES:
+            - **ALL DATA MODELS MUST USE PYDANTIC** with frozen=True for immutability
+            - **100% TYPE COVERAGE** - No Any types except at system boundaries
+            - **@beartype DECORATORS** required on all public functions
+            - **RESULT TYPES** - Use Result[T, E] pattern instead of exceptions
+            - **PERFORMANCE QUALITY GATES** - Functions >10 lines must have benchmarks
+
+            ## PROJECT ARCHITECTURE:
+            - **Framework**: FastAPI with async/await patterns
+            - **Data Validation**: Pydantic v2 with Rust core
+            - **Package Manager**: uv (Rust-based, fast)
+            - **Type Checking**: MyPy strict mode
+            - **Testing**: pytest with benchmarking
+            - **Database**: PostgreSQL with asyncpg
+            - **Caching**: Redis for performance
+
+            ## DEVELOPMENT WORKFLOW:
+            - Use `uv run` for all Python commands
+            - Follow TDD with comprehensive test coverage
+            - Benchmark all performance-critical functions
+            - Validate Pydantic model compliance
+            - Ensure memory allocation <1MB per function
+            - Maintain security scanning with bandit/safety
+
+            ## CODE PATTERNS TO FOLLOW:
+            - Immutable data structures (frozen Pydantic models)
+            - Composition over inheritance
+            - Explicit resource management with context managers
+            - Fail-fast validation at system boundaries
+            - Structured error handling with Result types
+
+            ## CODE PATTERNS TO AVOID:
+            - Plain dictionaries (use Pydantic models)
+            - Exception-based control flow
+            - Mutable global state
+            - Blocking I/O in async functions
+            - Hardcoded configuration values
+
+            Always prioritize solving root causes over quick fixes, and ensure all solutions follow defensive programming principles.
+
+          # Environment variables for Claude
+          claude_env: |
+            PYTHONPATH: src
+            UV_PYTHON_PREFERENCE: only-managed
+            PYTHON_ENV: development
