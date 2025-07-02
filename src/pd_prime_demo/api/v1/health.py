@@ -184,8 +184,16 @@ async def readiness_check(
             message="Redis connection successful",
             details=RedisHealthDetails(
                 version=redis_version if isinstance(redis_version, str) else "unknown",
-                uptime_days=redis_info.get("uptime_in_days"),
-                connected_clients=redis_info.get("connected_clients", 0),
+                uptime_days=(
+                    int(redis_info.get("uptime_in_days", 0))
+                    if redis_info.get("uptime_in_days") is not None
+                    else None
+                ),
+                connected_clients=(
+                    int(redis_info.get("connected_clients", 0))
+                    if redis_info.get("connected_clients") is not None
+                    else None
+                ),
                 used_memory_human=(
                     redis_memory if isinstance(redis_memory, str) else "unknown"
                 ),
@@ -302,13 +310,16 @@ async def detailed_health_check(
 
         redis_response_time = (datetime.utcnow() - redis_start).total_seconds() * 1000
 
-        # Check Redis memory usage
+        # Check Redis memory usage with safe type conversion
         used_memory_percent = 0.0
         if "used_memory" in redis_info and "maxmemory" in redis_info:
-            if redis_info["maxmemory"] > 0:
-                used_memory_percent = (
-                    redis_info["used_memory"] / redis_info["maxmemory"]
-                ) * 100
+            try:
+                maxmemory = int(redis_info["maxmemory"])
+                used_memory = int(redis_info["used_memory"])
+                if maxmemory > 0:
+                    used_memory_percent = (used_memory / maxmemory) * 100
+            except (ValueError, TypeError):
+                used_memory_percent = 0.0
 
         redis_status = "healthy"
         if used_memory_percent > 90:
@@ -321,14 +332,32 @@ async def detailed_health_check(
             response_time_ms=redis_response_time,
             message="Redis operational",
             details=RedisHealthDetails(
-                version=redis_info.get("redis_version", "unknown"),
-                uptime_days=redis_info.get("uptime_in_days", 0),
-                connected_clients=redis_info.get("connected_clients", 0),
-                used_memory_human=redis_info.get("used_memory_human", "unknown"),
+                version=str(redis_info.get("redis_version", "unknown")),
+                uptime_days=(
+                    int(redis_info.get("uptime_in_days", 0))
+                    if redis_info.get("uptime_in_days") is not None
+                    else None
+                ),
+                connected_clients=(
+                    int(redis_info.get("connected_clients", 0))
+                    if redis_info.get("connected_clients") is not None
+                    else None
+                ),
+                used_memory_human=(
+                    str(redis_info.get("used_memory_human", "unknown"))
+                    if redis_info.get("used_memory_human") is not None
+                    else None
+                ),
                 used_memory_percent=round(used_memory_percent, 2),
-                total_commands_processed=redis_stats.get("total_commands_processed", 0),
-                instantaneous_ops_per_sec=redis_stats.get(
-                    "instantaneous_ops_per_sec", 0
+                total_commands_processed=(
+                    int(redis_stats.get("total_commands_processed", 0))
+                    if redis_stats.get("total_commands_processed") is not None
+                    else None
+                ),
+                instantaneous_ops_per_sec=(
+                    int(redis_stats.get("instantaneous_ops_per_sec", 0))
+                    if redis_stats.get("instantaneous_ops_per_sec") is not None
+                    else None
                 ),
             ),
         )

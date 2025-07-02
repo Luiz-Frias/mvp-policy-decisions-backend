@@ -58,7 +58,7 @@ async def get_redis() -> Redis:
     """Provide Redis client for dependency injection.
 
     Returns:
-        Redis: Active Redis client
+        Redis[str]: Active Redis client with string responses
     """
     return get_redis_client()
 

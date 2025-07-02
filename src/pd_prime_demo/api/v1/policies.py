@@ -58,7 +58,7 @@ async def list_policies(
     filters: PolicyFilter = Depends(),
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    # current_user: CurrentUser = Depends(get_current_user),  # Demo mode
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> PolicyListResponse:
     """List policies with pagination and filtering.
 
@@ -140,7 +140,7 @@ async def create_policy(
     policy_data: PolicyCreate,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    # current_user: CurrentUser = Depends(get_current_user),  # Demo mode
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> Policy:
     """Create a new insurance policy.
 
@@ -168,9 +168,6 @@ async def create_policy(
                 await redis.delete(key)
 
             # Return mock policy for now
-            from datetime import datetime
-            from uuid import uuid4
-
             policy = Policy(
                 id=uuid4(),
                 cancelled_at=None,
@@ -193,7 +190,7 @@ async def create_policy(
 @beartype
 async def get_policy(
     policy_id: UUID,
-    db: asyncpg.Connection = Depends(get_db),
+    db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> Policy:
@@ -231,7 +228,7 @@ async def get_policy(
 async def update_policy(
     policy_id: UUID,
     policy_update: PolicyUpdate,
-    db: asyncpg.Connection = Depends(get_db),
+    db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> Policy:
@@ -268,7 +265,7 @@ async def update_policy(
 @beartype
 async def delete_policy(
     policy_id: UUID,
-    db: asyncpg.Connection = Depends(get_db),
+    db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> None:

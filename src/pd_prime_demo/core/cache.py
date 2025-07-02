@@ -10,8 +10,17 @@ from beartype import beartype
 
 from .config import get_settings
 
+__all__ = [
+    "Cache",
+    "get_cache",
+    "init_redis_pool",
+    "close_redis_pool",
+    "get_redis_client",
+    "RedisType",
+]
+
 if TYPE_CHECKING:
-    RedisType = redis.Redis
+    from redis.asyncio import Redis as RedisType
 else:
     RedisType = redis.Redis
 
@@ -49,8 +58,8 @@ class Cache:
         if self._redis is not None:
             return
 
-        # Type cast to handle Redis.from_url returning Any due to missing type annotations
-        self._redis = redis.from_url(  # type: ignore[no-untyped-call]
+        # Type cast for Redis.from_url returning Any
+        self._redis = redis.from_url(
             self._config.url,
             max_connections=self._config.max_connections,
             decode_responses=self._config.decode_responses,

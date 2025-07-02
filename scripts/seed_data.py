@@ -11,6 +11,7 @@ reproducibility for consistent demo data across environments.
 """
 
 import asyncio
+import json
 import os
 import secrets
 import sys
@@ -339,7 +340,7 @@ async def seed_database(conn: asyncpg.Connection, num_customers: int = 50) -> No
             RETURNING id
             """,
             customer_data["external_id"],
-            customer_data["data"],
+            json.dumps(customer_data["data"]),
         )
         customer_ids.append(customer_id)
 
@@ -372,7 +373,7 @@ async def seed_database(conn: asyncpg.Connection, num_customers: int = 50) -> No
                 policy_data["status"],
                 policy_data["effective_date"],
                 policy_data["expiration_date"],
-                policy_data["data"],
+                json.dumps(policy_data["data"]),
             )
             policy_ids.append(policy_id)
             policy_count += 1
@@ -414,7 +415,7 @@ async def seed_database(conn: asyncpg.Connection, num_customers: int = 50) -> No
                 claim_data["amount_approved"],
                 claim_data["submitted_at"],
                 claim_data["resolved_at"],
-                claim_data["data"],
+                json.dumps(claim_data["data"]),
             )
             claim_count += 1
 

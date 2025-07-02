@@ -66,7 +66,7 @@ echo "⏳ Waiting for backend to start..."
 sleep 8
 
 # Check if backend is responding
-if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+if curl -f http://localhost:8000/api/v1/health > /dev/null 2>&1; then
     echo "✅ Backend server started successfully at http://localhost:8000"
     echo "📋 API Documentation: http://localhost:8000/docs"
     echo "🔗 Using Railway PostgreSQL + Redis (production-ready!)"
@@ -113,7 +113,7 @@ echo "🌐 DEMO URLS:"
 echo "├─ 🎨 Frontend Dashboard: http://localhost:3000"
 echo "├─ 🔧 Backend API: http://localhost:8000"
 echo "├─ 📋 API Documentation: http://localhost:8000/docs"
-echo "└─ ⚡ Health Check: http://localhost:8000/health"
+echo "└─ ⚡ Health Check: http://localhost:8000/api/v1/health"
 echo ""
 echo "☁️  CLOUD INFRASTRUCTURE:"
 echo "├─ 🐘 Railway PostgreSQL (production database)"
