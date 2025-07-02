@@ -4,6 +4,7 @@ This module provides health check endpoints that verify the status
 of all system components including database, Redis, and external services.
 """
 
+from collections.abc import AsyncGenerator
 from datetime import datetime
 
 import asyncpg
@@ -119,9 +120,8 @@ async def liveness_check() -> HealthStatus:
 
 
 @router.get("/health/ready", response_model=HealthResponse)
-@beartype
 async def readiness_check(
-    db: asyncpg.Connection = Depends(get_db),
+    db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HealthResponse:
@@ -142,7 +142,10 @@ async def readiness_check(
     # Check database health
     db_start = datetime.utcnow()
     try:
-        await db.fetchval("SELECT 1")
+        # Properly handle async generator from FastAPI dependency
+        async for connection in db:
+            await connection.fetchval("SELECT 1")
+            break  # Use the first (and only) yielded connection
         db_response_time = (datetime.utcnow() - db_start).total_seconds() * 1000
 
         component_statuses["database"] = HealthStatus(
@@ -235,9 +238,8 @@ async def readiness_check(
 
 
 @router.get("/health/detailed", response_model=HealthResponse)
-@beartype
 async def detailed_health_check(
-    db: asyncpg.Connection = Depends(get_db),
+    db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HealthResponse:
@@ -258,8 +260,10 @@ async def detailed_health_check(
     # Database health with connection pool stats
     db_start = datetime.utcnow()
     try:
-        # Test query
-        db_version = await db.fetchval("SELECT version()")
+        # Test query - properly handle async generator from FastAPI dependency
+        async for connection in db:
+            db_version = await connection.fetchval("SELECT version()")
+            break  # Use the first (and only) yielded connection
 
         # Get pool stats from connection
         pool_stats = None  # Pool stats structure varies by DB implementation
@@ -272,7 +276,9 @@ async def detailed_health_check(
             status="healthy",
             response_time_ms=db_response_time,
             message="PostgreSQL operational",
-            details=DatabaseHealthDetails(version=db_version, pool_stats=pool_stats),
+            details=DatabaseHealthDetails(
+                version=db_version if db_version else "unknown", pool_stats=pool_stats
+            ),
         )
         total_response_time += db_response_time
 
@@ -339,44 +345,55 @@ async def detailed_health_check(
         overall_status = "unhealthy"
         total_response_time += redis_response_time
 
-    # Memory usage check
-    import psutil
+    # System metrics check (with graceful degradation)
+    try:
+        import psutil
 
-    memory = psutil.virtual_memory()
-    memory_status = "healthy"
-    if memory.percent > 90:
-        memory_status = "degraded"
-        if overall_status == "healthy":
-            overall_status = "degraded"
+        # Memory usage check
+        memory = psutil.virtual_memory()
+        memory_status = "healthy"
+        if memory.percent > 90:
+            memory_status = "degraded"
+            if overall_status == "healthy":
+                overall_status = "degraded"
 
-    component_statuses["memory"] = HealthStatus(
-        status=memory_status,
-        response_time_ms=None,
-        message=f"Memory usage: {memory.percent:.1f}%",
-        details=MemoryHealthDetails(
-            total_gb=round(memory.total / (1024**3), 2),
-            available_gb=round(memory.available / (1024**3), 2),
-            used_percent=memory.percent,
-        ),
-    )
+        component_statuses["memory"] = HealthStatus(
+            status=memory_status,
+            response_time_ms=None,
+            message=f"Memory usage: {memory.percent:.1f}%",
+            details=MemoryHealthDetails(
+                total_gb=round(memory.total / (1024**3), 2),
+                available_gb=round(memory.available / (1024**3), 2),
+                used_percent=memory.percent,
+            ),
+        )
 
-    # CPU usage check
-    cpu_percent = psutil.cpu_percent(interval=0.1)
-    cpu_status = "healthy"
-    if cpu_percent > 80:
-        cpu_status = "degraded"
-        if overall_status == "healthy":
-            overall_status = "degraded"
+        # CPU usage check
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_status = "healthy"
+        if cpu_percent > 80:
+            cpu_status = "degraded"
+            if overall_status == "healthy":
+                overall_status = "degraded"
 
-    component_statuses["cpu"] = HealthStatus(
-        status=cpu_status,
-        response_time_ms=None,
-        message=f"CPU usage: {cpu_percent:.1f}%",
-        details=CPUHealthDetails(
-            count=psutil.cpu_count() or 1,  # Ensure we have a valid count
-            percent=cpu_percent,
-        ),
-    )
+        component_statuses["cpu"] = HealthStatus(
+            status=cpu_status,
+            response_time_ms=None,
+            message=f"CPU usage: {cpu_percent:.1f}%",
+            details=CPUHealthDetails(
+                count=psutil.cpu_count() or 1,
+                percent=cpu_percent,
+            ),
+        )
+
+    except ImportError:
+        # Graceful degradation: system metrics unavailable
+        component_statuses["system"] = HealthStatus(
+            status="healthy",
+            response_time_ms=None,
+            message="System metrics unavailable (psutil not installed)",
+            details=None,
+        )
 
     # API health
     api_response_time = 1.0

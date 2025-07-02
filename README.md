@@ -67,21 +67,17 @@ This project **ENFORCES FIRST PRINCIPLES** through automated validation:
 
 ## 📦 Installation
 
-\`\`\`bash
-
+```bash
 # Clone repository
-
 git clone https://github.com/username/mvp-policy-decision-backend.git
 cd mvp-policy-decision-backend
 
 # Install with uv (recommended)
-
 uv sync --dev
 
 # Or use make command
-
 make dev
-\`\`\`
+```
 
 ## 🛠️ Development
 
@@ -94,104 +90,84 @@ make dev
 
 ### Quick Start
 
-\`\`\`bash
-
+```bash
 # Clone repository
-
 git clone https://github.com/username/mvp-policy-decision-backend.git
 cd mvp-policy-decision-backend
 
 # Setup development environment
-
 make dev
 
 # Run tests
-
 make test
 
 # Start development server
-
 uv run uvicorn src.pd_prime_demo.main:app --reload
 
 # Format and lint code
-
 make format
 make lint
-\`\`\`
+```
 
 ### Available Commands
 
-\`\`\`bash
-make install # Install dependencies
-make dev # Setup development environment
-make test # Run tests
-make test-cov # Run tests with coverage
-make lint # Run linting
-make format # Format code
-make clean # Clean build artifacts
-\`\`\`
+```bash
+make install    # Install dependencies
+make dev        # Setup development environment
+make test       # Run tests
+make test-cov   # Run tests with coverage
+make lint       # Run linting
+make format     # Format code
+make clean      # Clean build artifacts
+```
 
 ## 🧪 Testing
 
-\`\`\`bash
-
+```bash
 # Run all tests
-
 uv run pytest
 
 # Run with coverage
-
 uv run pytest --cov=src --cov-report=html
 
 # Run specific test
-
 uv run pytest tests/test_specific.py
 
 # Performance benchmarks
-
 uv run pytest --benchmark-only
 uv run pytest -m benchmark
 
 # Memory profiling
-
 uv run python -m memray run --output profile.bin src/main.py
 uv run python -m memray flamegraph profile.bin
 
 # CPU profiling
-
 py-spy record -o profile.svg -- python src/main.py
 
 # Type coverage analysis
-
 uv run mypy --html-report type-coverage src/
 
 # MASTER RULESET VALIDATION
-
 ./scripts/validate-master-ruleset.sh
-\`\`\`
+```
 
 ## 🛡️ Master Ruleset Validation
 
 This project enforces **first principles** through comprehensive validation:
 
-\`\`\`bash
-
+```bash
 # Validate Pydantic model compliance (pre-commit)
-
 ./scripts/validate-pydantic-compliance.sh
 
 # Check performance quality gates (pre-push)
-
 ./scripts/validate-performance-gates.sh
 
 # Run complete master ruleset validation
-
 ./scripts/validate-master-ruleset.sh
 
 # Performance benchmark requirements
-
 pytest tests/benchmarks --benchmark-only --benchmark-compare-fail=mean:15%
-\`\`\`
+```
 
 ### **🎯 Quality Gates Enforced**
 
@@ -210,25 +186,20 @@ pytest tests/benchmarks --benchmark-only --benchmark-compare-fail=mean:15%
 
 ### **Built-in Profiling**
 
-\`\`\`bash
-
+```bash
 # Run with performance monitoring
-
 python -X tracemalloc src/main.py
 
 # Memory analysis with memray
-
 memray run --output memory.bin src/main.py
 memray flamegraph memory.bin
 
 # CPU profiling with py-spy (no code changes needed)
-
 py-spy record -o cpu-profile.svg -- python src/main.py
 
 # Benchmarking with pytest
-
 pytest --benchmark-only --benchmark-json=results.json
-\`\`\`
+```
 
 ### **Defensive Programming Examples**
 

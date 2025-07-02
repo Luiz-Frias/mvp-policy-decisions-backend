@@ -36,6 +36,23 @@ async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
         yield conn
 
 
+async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
+    """Provide direct database connection for beartype-compatible injection.
+
+    This dependency properly resolves the async generator for beartype compatibility
+    while maintaining proper resource management through FastAPI's dependency system.
+
+    Yields:
+        asyncpg.Connection: Active database connection
+
+    Note:
+        This is designed for use with @beartype decorated endpoints.
+        The async generator is resolved by FastAPI before beartype checks.
+    """
+    async with get_db_session() as conn:
+        yield conn
+
+
 @beartype
 async def get_redis() -> Redis:
     """Provide Redis client for dependency injection.

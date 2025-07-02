@@ -124,9 +124,7 @@ def generate_policy_data(customer_id: UUID, policy_type: str) -> dict[str, Any]:
         "health": secure_random.randint(2000, 8000),
     }.get(policy_type, 1000)
 
-    policy_number = (
-        f"POL-{policy_type.upper()}-" f"{fake.unique.random_number(digits=10)}"
-    )
+    policy_number = f"POL-{policy_type.upper()}-{fake.unique.random_number(digits=10)}"
 
     return {
         "policy_number": policy_number,
@@ -427,9 +425,11 @@ async def seed_database(conn: asyncpg.Connection, num_customers: int = 50) -> No
     print("Summary:")
     print(f"  - Customers: {num_customers}")
     print(
-        f"  - Policies: {policy_count} (avg {policy_count/num_customers:.1f} per customer)"
+        f"  - Policies: {policy_count} (avg {policy_count / num_customers:.1f} per customer)"
     )
-    print(f"  - Claims: {claim_count} (avg {claim_count/policy_count:.1f} per policy)")
+    print(
+        f"  - Claims: {claim_count} (avg {claim_count / policy_count:.1f} per policy)"
+    )
 
 
 @beartype

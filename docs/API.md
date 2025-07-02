@@ -27,7 +27,7 @@ Content-Type: application/json
 
 {
   "username": "user@example.com",
-  "password": "secure-password"
+  "password": "${SECURE_PASSWORD}"
 }
 ```
 
@@ -547,11 +547,12 @@ X-RateLimit-Reset: 1703674800
 ### Python
 
 ```python
+import os
 from pd_prime_sdk import PolicyClient
 
 client = PolicyClient(
     base_url="https://api.mvp-policy-backend.com",
-    api_key="your-api-key"
+    api_key=os.environ["API_KEY"]
 )
 
 # Create a policy
@@ -574,7 +575,7 @@ import { PolicyClient } from "@mvp-policy/sdk";
 
 const client = new PolicyClient({
   baseUrl: "https://api.mvp-policy-backend.com",
-  apiKey: "your-api-key",
+  apiKey: process.env.API_KEY!,
 });
 
 // Generate a quote
@@ -601,7 +602,7 @@ https://sandbox.api.mvp-policy-backend.com
 Test credentials:
 
 - Username: `test@example.com`
-- Password: `test123`
+- Password: `${TEST_PASSWORD}` (provided in sandbox environment)
 
 ### Postman Collection
 

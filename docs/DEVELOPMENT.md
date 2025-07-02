@@ -76,13 +76,13 @@ REDIS_URL=redis://localhost:6379/0
 REDIS_PASSWORD=
 
 # Security
-SECRET_KEY=your-secret-key-here-change-in-production
+SECRET_KEY=$(openssl rand -hex 32)  # Generate secure key automatically
 JWT_ALGORITHM=HS256
 JWT_EXPIRATION_MINUTES=60
 
 # AI Service
 AI_SERVICE_URL=http://localhost:8001
-AI_SERVICE_API_KEY=dev-api-key
+AI_SERVICE_API_KEY=${AI_SERVICE_API_KEY:-dev-placeholder}  # Use environment variable
 
 # Performance
 ENABLE_PROFILING=true

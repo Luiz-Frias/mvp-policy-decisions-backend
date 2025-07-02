@@ -41,6 +41,7 @@ Run database-dependent tests with: pytest -m database --setup-db
 """
 
 import os
+import time
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
@@ -51,6 +52,13 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
+
+# Now safely import from source code
+from src.pd_prime_demo.api.v1.health import HealthStatus
+from src.pd_prime_demo.api.v1.policies import PolicyListResponse
+from src.pd_prime_demo.core.config import Settings
+from src.pd_prime_demo.models.policy import PolicyStatus, PolicyType
+from src.pd_prime_demo.schemas.auth import CurrentUser
 
 # Set up test environment variables before importing the app
 os.environ.setdefault(
@@ -67,14 +75,6 @@ os.environ.setdefault(
     "test-jwt-secret-for-testing-with-32-chars",  # pragma: allowlist secret
 )
 os.environ.setdefault("API_ENV", "development")
-
-from src.pd_prime_demo.api.v1.health import HealthStatus
-from src.pd_prime_demo.api.v1.policies import PolicyListResponse
-
-# Now safely import from source code
-from src.pd_prime_demo.core.config import Settings
-from src.pd_prime_demo.models.policy import PolicyStatus, PolicyType
-from src.pd_prime_demo.schemas.auth import CurrentUser
 
 # Test data using actual model structures
 VALID_POLICY_CREATE_DATA = {
@@ -110,8 +110,6 @@ def test_settings() -> Settings:
 @pytest.fixture
 def real_test_app(test_settings: Settings, mock_redis: Any) -> FastAPI:
     """Create the actual FastAPI application for testing."""
-    from collections.abc import AsyncGenerator
-
     from src.pd_prime_demo.api.dependencies import get_current_user, get_db, get_redis
     from src.pd_prime_demo.core.config import get_settings
 
@@ -258,8 +256,6 @@ class TestHealthEndpoints:
         self, real_async_client: AsyncClient
     ) -> None:
         """Test health check responds quickly."""
-        import time
-
         start = time.time()
         response = await real_async_client.get("/api/v1/health")
         elapsed = (time.time() - start) * 1000

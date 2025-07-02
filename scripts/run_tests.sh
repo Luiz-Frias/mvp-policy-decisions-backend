@@ -95,7 +95,7 @@ else
         --cov-report=html \
         --cov-report=xml \
         --cov-fail-under=$COVERAGE_THRESHOLD \
-        $TEST_PATH
+$TEST_PATH
 fi
 
 # Check if tests passed
