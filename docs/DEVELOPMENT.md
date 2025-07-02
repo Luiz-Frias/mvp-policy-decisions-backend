@@ -67,7 +67,7 @@ API_PORT=8000
 API_PREFIX=/api/v1
 
 # Database
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/policy_db
+DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/policy_db  # pragma: allowlist secret
 DATABASE_POOL_SIZE=20
 DATABASE_MAX_OVERFLOW=0
 
@@ -485,7 +485,7 @@ uv run alembic downgrade -1
    docker-compose ps
 
    # Check connection
-   psql postgresql://postgres:password@localhost:5432/policy_db
+   psql postgresql://postgres:your_password@localhost:5432/policy_db  # pragma: allowlist secret
    ```
 
 3. **Type Checking Errors**

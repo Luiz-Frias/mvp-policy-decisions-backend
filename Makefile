@@ -1,19 +1,11 @@
-.PHONY: install dev test lint format clean help validate benchmark security
+.PHONY: all install dev test lint format clean help validate benchmark security
+
+all: dev lint test
 
 help:
-	@echo "Available targets:"
-	@echo "  install     - Install dependencies"
-	@echo "  dev         - Install development dependencies"
-	@echo "  test        - Run tests"
-	@echo "  test-cov    - Run tests with coverage"
-	@echo "  lint        - Run linting"
-	@echo "  format      - Format code"
-	@echo "  format-check - Check code formatting"
-	@echo "  clean       - Clean build artifacts"
-	@echo "  validate    - Run all validation checks"
-	@echo "  benchmark   - Run performance benchmarks"
-	@echo "  security    - Run security checks"
-	@echo "  help        - Show this help"
+	@echo "MVP Policy Decision Backend - Available targets:"
+	@echo "Run 'make <target>' - Use 'all' for full setup"
+	@echo "Full target list: install dev test lint format clean validate benchmark security"
 
 install:
 	uv sync
@@ -66,15 +58,8 @@ validate-master-ruleset:
 	@bash scripts/validate-master-ruleset.sh
 
 benchmark:
-	@echo "🚀 Running performance benchmarks (Wave 3 feature)..."
-	@if ! uv run python -c "import pytest_benchmark" 2>/dev/null; then \
-		echo "⚠️  pytest-benchmark not installed. Performance testing is a Wave 3 feature."; \
-		echo "💡 To enable: uv add --dev pytest-benchmark"; \
-		echo "📋 Skipping benchmark tests for now..."; \
-		exit 0; \
-	fi
-	uv run python scripts/benchmark_validation.py
-	uv run pytest -c pytest-benchmark.ini -m benchmark --benchmark-only -v
+	@echo "🚀 Running performance benchmarks..."
+	@bash scripts/run_benchmarks.sh
 
 security:
 	@echo "🔒 Running security checks..."

@@ -36,7 +36,8 @@ Run database-dependent tests with: pytest -m database --setup-db
 
 # TODO Wave 2: Re-enable database tests by removing @pytest.mark.database decorators
 # TODO Wave 2: Remove beartype mock and implement real database integration
-# TODO Wave 2: These tests are currently skipped due to beartype/asyncpg type incompatibility
+# TODO Wave 2: These tests are currently skipped due to beartype/asyncpg
+# type incompatibility
 # TODO Wave 2: Implement real PostgreSQL connection for integration testing
 """
 
@@ -54,9 +55,17 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 
 # Now safely import from source code
+from httpx._transports.asgi import ASGITransport
+
+from src.pd_prime_demo.api.dependencies import (
+    get_current_user,
+    get_db,
+    get_redis,
+)
 from src.pd_prime_demo.api.v1.health import HealthStatus
 from src.pd_prime_demo.api.v1.policies import PolicyListResponse
-from src.pd_prime_demo.core.config import Settings
+from src.pd_prime_demo.core.config import Settings, get_settings
+from src.pd_prime_demo.main import create_app
 from src.pd_prime_demo.models.policy import PolicyStatus, PolicyType
 from src.pd_prime_demo.schemas.auth import CurrentUser
 
@@ -110,11 +119,6 @@ def test_settings() -> Settings:
 @pytest.fixture
 def real_test_app(test_settings: Settings, mock_redis: Any) -> FastAPI:
     """Create the actual FastAPI application for testing."""
-    from src.pd_prime_demo.api.dependencies import get_current_user, get_db, get_redis
-    from src.pd_prime_demo.core.config import get_settings
-
-    # Import here to avoid early initialization
-    from src.pd_prime_demo.main import create_app
 
     # For integration tests, we'll create a minimal async function that
     # returns a real asyncpg-like object, but configured for testing
@@ -170,8 +174,6 @@ async def real_async_client(
     real_test_app: FastAPI,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Create async client with the real FastAPI app."""
-    from httpx._transports.asgi import ASGITransport
-
     transport = ASGITransport(app=real_test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client

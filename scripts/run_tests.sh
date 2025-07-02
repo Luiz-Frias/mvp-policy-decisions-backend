@@ -86,32 +86,27 @@ fi
 # Run tests with coverage
 if [ -n "$BENCHMARK" ]; then
     echo -e "${YELLOW}📊 Running benchmark tests...${NC}"
-    uv run pytest $VERBOSE $BENCHMARK $TEST_PATH
+    uv run pytest $VERBOSE $BENCHMARK "$TEST_PATH"
 else
     echo -e "${YELLOW}🧪 Running tests with coverage...${NC}"
-    uv run pytest $VERBOSE \
+    if uv run pytest $VERBOSE \
         --cov=src \
         --cov-report=term-missing:skip-covered \
         --cov-report=html \
         --cov-report=xml \
         --cov-fail-under=$COVERAGE_THRESHOLD \
-$TEST_PATH
-fi
+        "$TEST_PATH"; then
+        echo -e "${GREEN}✅ All tests passed!${NC}"
 
-# Check if tests passed
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ All tests passed!${NC}"
-
-    # Show coverage report location
-    if [ -z "$BENCHMARK" ]; then
+        # Show coverage report location
         echo -e "${YELLOW}📊 Coverage report generated:${NC}"
         echo "   - HTML: htmlcov/index.html"
         echo "   - XML: coverage.xml"
         echo "   - Terminal: See above"
+    else
+        echo -e "${RED}❌ Tests failed!${NC}"
+        exit 1
     fi
-else
-    echo -e "${RED}❌ Tests failed!${NC}"
-    exit 1
 fi
 
 # Run security checks

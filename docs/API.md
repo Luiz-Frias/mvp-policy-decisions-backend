@@ -27,7 +27,7 @@ Content-Type: application/json
 
 {
   "username": "user@example.com",
-  "password": "${SECURE_PASSWORD}"
+  "password": "your_secure_password"  // pragma: allowlist secret
 }
 ```
 
@@ -110,7 +110,7 @@ Content-Type: application/json
     "first_name": "John",
     "last_name": "Doe",
     "date_of_birth": "1980-01-01",
-    "drivers_license": "D123456789"
+    "drivers_license": "DL-XXXXXXX"
   },
   "vehicle": {
     "make": "Toyota",
@@ -552,7 +552,7 @@ from pd_prime_sdk import PolicyClient
 
 client = PolicyClient(
     base_url="https://api.mvp-policy-backend.com",
-    api_key=os.environ["API_KEY"]
+    api_key=os.environ["YOUR_API_KEY"]
 )
 
 # Create a policy
@@ -575,7 +575,7 @@ import { PolicyClient } from "@mvp-policy/sdk";
 
 const client = new PolicyClient({
   baseUrl: "https://api.mvp-policy-backend.com",
-  apiKey: process.env.API_KEY!,
+  apiKey: process.env.YOUR_API_KEY!,
 });
 
 // Generate a quote
@@ -602,7 +602,7 @@ https://sandbox.api.mvp-policy-backend.com
 Test credentials:
 
 - Username: `test@example.com`
-- Password: `${TEST_PASSWORD}` (provided in sandbox environment)
+- Password: `sandbox_password` (provided in sandbox environment) # pragma: allowlist secret
 
 ### Postman Collection
 
