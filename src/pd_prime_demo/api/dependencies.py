@@ -4,6 +4,7 @@ This module provides reusable dependencies that can be injected into
 API endpoints for cross-cutting concerns.
 """
 
+import os
 from collections.abc import AsyncGenerator
 
 import asyncpg
@@ -159,6 +160,70 @@ class PaginationParams:
 
         self.skip = skip
         self.limit = limit
+
+
+@beartype
+async def get_demo_user() -> CurrentUser:
+    """Provide demo user for development/demo purposes.
+
+    Returns:
+        CurrentUser: Demo user with full access
+
+    Note:
+        This bypasses authentication for demo purposes only.
+        Remove in production environment.
+    """
+    return CurrentUser(
+        user_id="demo-user-123",
+        username="demo_user",
+        email="demo@example.com",
+        scopes=["read", "write", "admin"],
+    )
+
+
+@beartype
+async def get_user_with_demo_fallback(
+    credentials: HTTPAuthorizationCredentials | None = Security(security),
+    settings: Settings = Depends(get_settings),
+) -> CurrentUser:
+    """Get current user with demo fallback based on environment.
+
+    Returns production user if DEMO_MODE=false or JWT token provided,
+    otherwise returns demo user for development/demo purposes.
+
+    Args:
+        credentials: Optional HTTP Bearer token
+        settings: Application settings
+
+    Returns:
+        CurrentUser: Authenticated user or demo user based on mode
+
+    Note:
+        Set DEMO_MODE=true for demo authentication bypass.
+        Set DEMO_MODE=false for production JWT authentication.
+    """
+    demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+
+    # If demo mode is enabled and no credentials provided, use demo user
+    if demo_mode and not credentials:
+        return await get_demo_user()
+
+    # If credentials provided, always validate (even in demo mode)
+    if credentials:
+        try:
+            return await get_current_user(credentials, settings)
+        except HTTPException:
+            # In demo mode, fall back to demo user if JWT fails
+            if demo_mode:
+                return await get_demo_user()
+            raise
+
+    # Production mode requires authentication
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @beartype

@@ -41,9 +41,16 @@ echo "✅ Node.js ready"
 
 # Function to kill processes using specific ports
 cleanup_ports() {
-    echo "🧹 Cleaning up any existing processes on ports 8000 and 3000..."
+    echo "🧹 Cleaning up any existing processes on ports 8080 and 3000..."
 
-    # Kill any process using port 8000 (backend)
+    # Kill any process using port 8080 (backend)
+    if lsof -ti:8080 &> /dev/null; then
+        echo "  🔄 Killing existing process on port 8080..."
+        lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+        sleep 2
+    fi
+
+    # Kill any process using port 8000 (old backend)
     if lsof -ti:8000 &> /dev/null; then
         echo "  🔄 Killing existing process on port 8000..."
         lsof -ti:8000 | xargs kill -9 2>/dev/null || true
@@ -84,9 +91,9 @@ fi
 
 echo "✅ Demo data ready"
 
-# Start backend server with Doppler secrets
+# Start backend server with Doppler secrets and demo mode
 echo "🚀 Starting backend server with Railway databases..."
-doppler run -- uv run uvicorn src.pd_prime_demo.main:app --host 0.0.0.0 --port 8000 --reload &
+DEMO_MODE=true doppler run -- uv run uvicorn src.pd_prime_demo.main:app --host 0.0.0.0 --port 8080 --reload &
 BACKEND_PID=$!
 
 # Wait for backend to start
@@ -94,9 +101,9 @@ echo "⏳ Waiting for backend to start..."
 sleep 8
 
 # Check if backend is responding
-if curl -f http://localhost:8000/api/v1/health > /dev/null 2>&1; then
-    echo "✅ Backend server started successfully at http://localhost:8000"
-    echo "📋 API Documentation: http://localhost:8000/docs"
+if curl -f http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+    echo "✅ Backend server started successfully at http://localhost:8080"
+    echo "📋 API Documentation: http://localhost:8080/docs"
     echo "🔗 Using Railway PostgreSQL + Redis (production-ready!)"
 else
     echo "❌ Backend server failed to start"
@@ -139,9 +146,9 @@ echo "🎉 PRODUCTION-READY DEMO IS LIVE!"
 echo ""
 echo "🌐 DEMO URLS:"
 echo "├─ 🎨 Frontend Dashboard: http://localhost:3000"
-echo "├─ 🔧 Backend API: http://localhost:8000"
-echo "├─ 📋 API Documentation: http://localhost:8000/docs"
-echo "└─ ⚡ Health Check: http://localhost:8000/api/v1/health"
+echo "├─ 🔧 Backend API: http://localhost:8080"
+echo "├─ 📋 API Documentation: http://localhost:8080/docs"
+echo "└─ ⚡ Health Check: http://localhost:8080/api/v1/health"
 echo ""
 echo "☁️  CLOUD INFRASTRUCTURE:"
 echo "├─ 🐘 Railway PostgreSQL (production database)"

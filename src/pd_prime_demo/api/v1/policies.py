@@ -23,7 +23,12 @@ from ...models.policy import (
     PolicyUpdate,
 )
 from ...schemas.auth import CurrentUser
-from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
+from ..dependencies import (
+    PaginationParams,
+    get_db,
+    get_redis,
+    get_user_with_demo_fallback,
+)
 
 router = APIRouter()
 
@@ -58,7 +63,7 @@ async def list_policies(
     filters: PolicyFilter = Depends(),
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_user_with_demo_fallback),
 ) -> PolicyListResponse:
     """List policies with pagination and filtering.
 
@@ -140,7 +145,7 @@ async def create_policy(
     policy_data: PolicyCreate,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_user_with_demo_fallback),
 ) -> Policy:
     """Create a new insurance policy.
 
@@ -192,7 +197,7 @@ async def get_policy(
     policy_id: UUID,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_user_with_demo_fallback),
 ) -> Policy:
     """Retrieve a specific policy by ID.
 
@@ -230,7 +235,7 @@ async def update_policy(
     policy_update: PolicyUpdate,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_user_with_demo_fallback),
 ) -> Policy:
     """Update an existing policy.
 
@@ -267,7 +272,7 @@ async def delete_policy(
     policy_id: UUID,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_user_with_demo_fallback),
 ) -> None:
     """Delete a policy (soft delete by setting status to CANCELLED).
 

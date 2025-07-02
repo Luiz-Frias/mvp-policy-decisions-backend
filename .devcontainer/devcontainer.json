@@ -94,7 +94,7 @@
     "github.github-vscode-theme"
   ],
   // Port forwarding when connected via SSH
-  "forwardPorts": [3000, 3001, 5000, 5173, 8000, 8080, 8888],
+  "forwardPorts": [3000, 3001, 5000, 5173, 8080, 8888],
   "portsAttributes": {
     "3000": {
       "label": "React/Next.js Dev Server",
@@ -112,12 +112,8 @@
       "label": "Vite Dev Server",
       "onAutoForward": "notify"
     },
-    "8000": {
-      "label": "Django/FastAPI Server",
-      "onAutoForward": "notify"
-    },
     "8080": {
-      "label": "Alternative Web Server",
+      "label": "FastAPI Server (Backend)",
       "onAutoForward": "notify"
     },
     "8888": {
