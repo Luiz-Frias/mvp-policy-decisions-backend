@@ -4,12 +4,14 @@ This module provides health check endpoints that verify the status
 of all system components including database, Redis, and external services.
 """
 
+import logging
+import time
 from collections.abc import AsyncGenerator
 from datetime import datetime
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
@@ -22,6 +24,10 @@ from ...schemas.health_details import (
     RedisHealthDetails,
 )
 from ..dependencies import get_db, get_redis
+
+# Configure logging for health endpoints
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
 
@@ -45,9 +51,6 @@ class ComponentHealthMap(BaseModel):
     """Strongly-typed model for component health mappings."""
 
     model_config = ConfigDict(frozen=True, extra="allow")
-
-    # We use extra="allow" to support dynamic component names
-    # but all values must be HealthStatus instances
 
     def __init__(self, **data: HealthStatus) -> None:
         """Initialize with validation that all values are HealthStatus instances."""
@@ -79,9 +82,29 @@ class HealthResponse(BaseModel):
 APP_START_TIME = datetime.utcnow()
 
 
+def log_request_details(request: Request, endpoint_name: str) -> str:
+    """Log detailed request information for debugging."""
+    request_id = f"{int(time.time())}-{id(request)}"
+
+    logger.info("=" * 80)
+    logger.info(f"HEALTH ENDPOINT DEBUG - {endpoint_name.upper()}")
+    logger.info(f"Request ID: {request_id}")
+    logger.info(f"Client IP: {request.client.host if request.client else 'Unknown'}")
+    logger.info(f"User Agent: {request.headers.get('user-agent', 'Unknown')}")
+    logger.info(f"Method: {request.method}")
+    logger.info(f"URL: {request.url}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Query params: {dict(request.query_params)}")
+    logger.info(f"Timestamp: {datetime.utcnow().isoformat()}")
+    logger.info("-" * 80)
+
+    return request_id
+
+
 @router.get("/health", response_model=HealthResponse)
 @beartype
 async def health_check(
+    request: Request,
     settings: Settings = Depends(get_settings),
 ) -> HealthResponse:
     """Perform basic health check endpoint.
@@ -89,38 +112,94 @@ async def health_check(
     Returns:
         HealthResponse: System health status
     """
-    uptime = (datetime.utcnow() - APP_START_TIME).total_seconds()
+    request_id = log_request_details(request, "basic_health")
+    start_time = time.time()
 
-    return HealthResponse(
-        status="healthy",
-        timestamp=datetime.utcnow(),
-        version="1.0.0",  # TODO: Get from package version
-        environment=settings.api_env,
-        components=ComponentHealthMap(
-            api=HealthStatus(
-                status="healthy", response_time_ms=0.1, message="API operational"
-            )
-        ),
-        uptime_seconds=uptime,
-        total_response_time_ms=0.1,
-    )
+    try:
+        logger.info(f"[{request_id}] Starting basic health check")
+        logger.info(f"[{request_id}] Settings loaded: api_env={settings.api_env}")
+
+        uptime = (datetime.utcnow() - APP_START_TIME).total_seconds()
+        logger.info(f"[{request_id}] Calculated uptime: {uptime} seconds")
+
+        response = HealthResponse(
+            status="healthy",
+            timestamp=datetime.utcnow(),
+            version="1.0.0",  # TODO: Get from package version
+            environment=settings.api_env,
+            components=ComponentHealthMap(
+                api=HealthStatus(
+                    status="healthy", response_time_ms=0.1, message="API operational"
+                )
+            ),
+            uptime_seconds=uptime,
+            total_response_time_ms=0.1,
+        )
+
+        processing_time = (time.time() - start_time) * 1000
+        logger.info(
+            f"[{request_id}] Health check completed successfully in {processing_time:.2f}ms"
+        )
+        logger.info(f"[{request_id}] Response status: {response.status}")
+        logger.info(f"[{request_id}] Response environment: {response.environment}")
+        logger.info(
+            f"[{request_id}] Response components: {list(response.components.__dict__.keys()) if hasattr(response.components, '__dict__') else 'N/A'}"
+        )
+        logger.info("=" * 80)
+
+        return response
+
+    except Exception as e:
+        processing_time = (time.time() - start_time) * 1000
+        logger.error(
+            f"[{request_id}] Health check failed after {processing_time:.2f}ms"
+        )
+        logger.error(f"[{request_id}] Error type: {type(e).__name__}")
+        logger.error(f"[{request_id}] Error message: {str(e)}")
+        logger.error(f"[{request_id}] Error details: {repr(e)}")
+        logger.error("=" * 80)
+        raise
 
 
 @router.get("/health/live", response_model=HealthStatus)
 @beartype
-async def liveness_check() -> HealthStatus:
+async def liveness_check(request: Request) -> HealthStatus:
     """Kubernetes liveness probe endpoint.
 
     Returns:
         HealthStatus: Simple liveness status
     """
-    return HealthStatus(
-        status="healthy", message="Application is running", response_time_ms=None
-    )
+    request_id = log_request_details(request, "liveness")
+    start_time = time.time()
+
+    try:
+        logger.info(f"[{request_id}] Starting liveness check")
+
+        response = HealthStatus(
+            status="healthy", message="Application is running", response_time_ms=None
+        )
+
+        processing_time = (time.time() - start_time) * 1000
+        logger.info(
+            f"[{request_id}] Liveness check completed in {processing_time:.2f}ms"
+        )
+        logger.info("=" * 80)
+
+        return response
+
+    except Exception as e:
+        processing_time = (time.time() - start_time) * 1000
+        logger.error(
+            f"[{request_id}] Liveness check failed after {processing_time:.2f}ms"
+        )
+        logger.error(f"[{request_id}] Error: {str(e)}")
+        logger.error("=" * 80)
+        raise
 
 
 @router.get("/health/ready", response_model=HealthResponse)
 async def readiness_check(
+    request: Request,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     settings: Settings = Depends(get_settings),
@@ -128,6 +207,7 @@ async def readiness_check(
     """Kubernetes readiness probe endpoint with dependency checks.
 
     Args:
+        request: FastAPI request object
         db: Database session
         redis: Redis client
         settings: Application settings
@@ -135,114 +215,169 @@ async def readiness_check(
     Returns:
         HealthResponse: Detailed system health with all components
     """
-    component_statuses = {}
-    total_response_time = 0.0
-    overall_status = "healthy"
+    request_id = log_request_details(request, "readiness")
+    start_time = time.time()
 
-    # Check database health
-    db_start = datetime.utcnow()
     try:
-        # Properly handle async generator from FastAPI dependency
-        async for connection in db:
-            await connection.fetchval("SELECT 1")
-            break  # Use the first (and only) yielded connection
-        db_response_time = (datetime.utcnow() - db_start).total_seconds() * 1000
+        logger.info(
+            f"[{request_id}] Starting readiness check with full dependency validation"
+        )
 
-        component_statuses["database"] = HealthStatus(
+        component_statuses = {}
+        total_response_time = 0.0
+        overall_status = "healthy"
+
+        # Check database health
+        logger.info(f"[{request_id}] Checking database connection...")
+        db_start = datetime.utcnow()
+        try:
+            # Properly handle async generator from FastAPI dependency
+            async for connection in db:
+                await connection.fetchval("SELECT 1")
+                break  # Use the first (and only) yielded connection
+            db_response_time = (datetime.utcnow() - db_start).total_seconds() * 1000
+            logger.info(
+                f"[{request_id}] Database check successful in {db_response_time:.2f}ms"
+            )
+
+            component_statuses["database"] = HealthStatus(
+                status="healthy",
+                response_time_ms=db_response_time,
+                message="PostgreSQL connection successful",
+                details=None,
+            )
+            total_response_time += db_response_time
+
+        except Exception as e:
+            db_response_time = (datetime.utcnow() - db_start).total_seconds() * 1000
+            logger.error(
+                f"[{request_id}] Database check failed in {db_response_time:.2f}ms: {str(e)}"
+            )
+
+            component_statuses["database"] = HealthStatus(
+                status="unhealthy",
+                response_time_ms=db_response_time,
+                message=f"Database connection failed: {str(e)}",
+                details=None,
+            )
+            overall_status = "unhealthy"
+            total_response_time += db_response_time
+
+        # Check Redis health
+        logger.info(f"[{request_id}] Checking Redis connection...")
+        redis_start = datetime.utcnow()
+        try:
+            await redis.ping()
+            redis_info = await redis.info()
+            redis_response_time = (
+                datetime.utcnow() - redis_start
+            ).total_seconds() * 1000
+            logger.info(
+                f"[{request_id}] Redis check successful in {redis_response_time:.2f}ms"
+            )
+
+            # Extract Redis info with type safety
+            redis_version = redis_info.get("redis_version")
+            redis_memory = redis_info.get("used_memory_human")
+
+            component_statuses["redis"] = HealthStatus(
+                status="healthy",
+                response_time_ms=redis_response_time,
+                message="Redis connection successful",
+                details=RedisHealthDetails(
+                    version=(
+                        redis_version if isinstance(redis_version, str) else "unknown"
+                    ),
+                    uptime_days=(
+                        int(redis_info.get("uptime_in_days", 0))
+                        if redis_info.get("uptime_in_days") is not None
+                        else None
+                    ),
+                    connected_clients=(
+                        int(redis_info.get("connected_clients", 0))
+                        if redis_info.get("connected_clients") is not None
+                        else None
+                    ),
+                    used_memory_human=(
+                        redis_memory if isinstance(redis_memory, str) else "unknown"
+                    ),
+                    used_memory_percent=None,
+                    total_commands_processed=None,
+                    instantaneous_ops_per_sec=None,
+                ),
+            )
+            total_response_time += redis_response_time
+
+        except Exception as e:
+            redis_response_time = (
+                datetime.utcnow() - redis_start
+            ).total_seconds() * 1000
+            logger.error(
+                f"[{request_id}] Redis check failed in {redis_response_time:.2f}ms: {str(e)}"
+            )
+
+            component_statuses["redis"] = HealthStatus(
+                status="unhealthy",
+                response_time_ms=redis_response_time,
+                message=f"Redis connection failed: {str(e)}",
+                details=None,
+            )
+            overall_status = "unhealthy"
+            total_response_time += redis_response_time
+
+        # Check OpenAI API (if configured)
+        if settings.openai_api_key:
+            logger.info(f"[{request_id}] OpenAI API key configured")
+            # TODO: Implement OpenAI health check
+            component_statuses["openai"] = HealthStatus(
+                status="healthy",
+                message="OpenAI API key configured",
+                response_time_ms=None,
+            )
+
+        # API component is always healthy if we reach this point
+        api_response_time = 0.5
+        component_statuses["api"] = HealthStatus(
             status="healthy",
-            response_time_ms=db_response_time,
-            message="PostgreSQL connection successful",
+            response_time_ms=api_response_time,
+            message="API endpoints operational",
             details=None,
         )
-        total_response_time += db_response_time
+        total_response_time += api_response_time
+
+        uptime = (datetime.utcnow() - APP_START_TIME).total_seconds()
+
+        response = HealthResponse(
+            status=overall_status,
+            timestamp=datetime.utcnow(),
+            version="1.0.0",  # TODO: Get from package version
+            environment=settings.api_env,
+            components=ComponentHealthMap(**component_statuses),
+            uptime_seconds=uptime,
+            total_response_time_ms=total_response_time,
+        )
+
+        processing_time = (time.time() - start_time) * 1000
+        logger.info(
+            f"[{request_id}] Readiness check completed in {processing_time:.2f}ms"
+        )
+        logger.info(f"[{request_id}] Overall status: {response.status}")
+        logger.info(
+            f"[{request_id}] Total response time: {response.total_response_time_ms:.2f}ms"
+        )
+        logger.info(f"[{request_id}] Components checked: {len(component_statuses)}")
+        logger.info("=" * 80)
+
+        return response
 
     except Exception as e:
-        db_response_time = (datetime.utcnow() - db_start).total_seconds() * 1000
-        component_statuses["database"] = HealthStatus(
-            status="unhealthy",
-            response_time_ms=db_response_time,
-            message=f"Database connection failed: {str(e)}",
-            details=None,
+        processing_time = (time.time() - start_time) * 1000
+        logger.error(
+            f"[{request_id}] Readiness check failed after {processing_time:.2f}ms"
         )
-        overall_status = "unhealthy"
-        total_response_time += db_response_time
-
-    # Check Redis health
-    redis_start = datetime.utcnow()
-    try:
-        await redis.ping()
-        redis_info = await redis.info()
-        redis_response_time = (datetime.utcnow() - redis_start).total_seconds() * 1000
-
-        # Extract Redis info with type safety
-        redis_version = redis_info.get("redis_version")
-        redis_memory = redis_info.get("used_memory_human")
-
-        component_statuses["redis"] = HealthStatus(
-            status="healthy",
-            response_time_ms=redis_response_time,
-            message="Redis connection successful",
-            details=RedisHealthDetails(
-                version=redis_version if isinstance(redis_version, str) else "unknown",
-                uptime_days=(
-                    int(redis_info.get("uptime_in_days", 0))
-                    if redis_info.get("uptime_in_days") is not None
-                    else None
-                ),
-                connected_clients=(
-                    int(redis_info.get("connected_clients", 0))
-                    if redis_info.get("connected_clients") is not None
-                    else None
-                ),
-                used_memory_human=(
-                    redis_memory if isinstance(redis_memory, str) else "unknown"
-                ),
-                used_memory_percent=None,
-                total_commands_processed=None,
-                instantaneous_ops_per_sec=None,
-            ),
-        )
-        total_response_time += redis_response_time
-
-    except Exception as e:
-        redis_response_time = (datetime.utcnow() - redis_start).total_seconds() * 1000
-        component_statuses["redis"] = HealthStatus(
-            status="unhealthy",
-            response_time_ms=redis_response_time,
-            message=f"Redis connection failed: {str(e)}",
-            details=None,
-        )
-        overall_status = "unhealthy"
-        total_response_time += redis_response_time
-
-    # Check OpenAI API (if configured)
-    if settings.openai_api_key:
-        # TODO: Implement OpenAI health check
-        component_statuses["openai"] = HealthStatus(
-            status="healthy", message="OpenAI API key configured", response_time_ms=None
-        )
-
-    # API component is always healthy if we reach this point
-    api_response_time = 0.5
-    component_statuses["api"] = HealthStatus(
-        status="healthy",
-        response_time_ms=api_response_time,
-        message="API endpoints operational",
-        details=None,
-    )
-    total_response_time += api_response_time
-
-    uptime = (datetime.utcnow() - APP_START_TIME).total_seconds()
-
-    return HealthResponse(
-        status=overall_status,
-        timestamp=datetime.utcnow(),
-        version="1.0.0",  # TODO: Get from package version
-        environment=settings.api_env,
-        components=ComponentHealthMap(**component_statuses),
-        uptime_seconds=uptime,
-        total_response_time_ms=total_response_time,
-    )
+        logger.error(f"[{request_id}] Error: {str(e)}")
+        logger.error("=" * 80)
+        raise
 
 
 @router.get("/health/detailed", response_model=HealthResponse)
