@@ -39,6 +39,34 @@ fi
 
 echo "✅ Node.js ready"
 
+# Function to kill processes using specific ports
+cleanup_ports() {
+    echo "🧹 Cleaning up any existing processes on ports 8000 and 3000..."
+
+    # Kill any process using port 8000 (backend)
+    if lsof -ti:8000 &> /dev/null; then
+        echo "  🔄 Killing existing process on port 8000..."
+        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+        sleep 2
+    fi
+
+    # Kill any process using port 3000 (frontend)
+    if lsof -ti:3000 &> /dev/null; then
+        echo "  🔄 Killing existing process on port 3000..."
+        lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+        sleep 2
+    fi
+
+    # Also kill any uvicorn or node processes that might be hanging
+    pkill -f "uvicorn.*pd_prime_demo" 2>/dev/null || true
+    pkill -f "node.*frontend" 2>/dev/null || true
+
+    echo "✅ Port cleanup complete"
+}
+
+# Clean up any existing processes
+cleanup_ports
+
 # Run database migrations with Doppler secrets
 echo "🔄 Running database migrations..."
 if ! doppler run -- uv run alembic upgrade head; then
