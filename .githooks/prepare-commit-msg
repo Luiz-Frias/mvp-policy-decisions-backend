@@ -1,0 +1,10 @@
+#!/bin/bash
+# Auto-configure GPG passphrase from Doppler for commits
+
+if command -v doppler >/dev/null 2>&1; then
+    export GPG_PASSPHRASE=$(doppler secrets get GPG_PASSPHRASE --plain --project mvp-policy-decision-backend --config dev 2>/dev/null)
+    if [ -n "$GPG_PASSPHRASE" ]; then
+        export GNUPGHOME=${GNUPGHOME:-$HOME/.gnupg}
+        export GPG_TTY=$(tty)
+    fi
+fi
