@@ -25,7 +25,6 @@ from sqlalchemy.pool import StaticPool
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
-    from redis.asyncio import Redis
 
 # Configure pytest-asyncio
 pytest_plugins = ["pytest_asyncio"]
@@ -136,12 +135,13 @@ def sync_session(sync_engine: Any) -> Generator[Session, None, None]:
 
 
 @pytest_asyncio.fixture  # type: ignore[misc]
-async def mock_redis() -> AsyncGenerator["Redis", None]:
+async def mock_redis() -> AsyncGenerator[Any, None]:
     """Create mock Redis client for testing."""
     # Use fakeredis for testing
     redis_client = FakeRedis()
     yield redis_client
-    await redis_client.close()
+    # FakeRedis.close() returns None and is not awaitable
+    redis_client.close()
 
 
 @pytest.fixture
