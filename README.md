@@ -1,21 +1,26 @@
-# $project_name
+# MVP Policy Decision Backend
 
-$description
+High-performance Python backend for an MVP policy decision and management system, built with enterprise-grade standards for the P&C insurance industry. This project enforces **first principles thinking** and **precision engineering** through automated validation and defensive programming patterns.
 
-[![CI](https://github.com/username/$project_name/workflows/CI/badge.svg)](https://github.com/username/$project_name/actions)
-[![Coverage](https://codecov.io/gh/username/$project_name/branch/main/graph/badge.svg)](https://codecov.io/gh/username/$project_name)
-[![PyPI version](https://badge.fury.io/py/$project_name.svg)](https://badge.fury.io/py/$project_name)
-[![Python versions](https://img.shields.io/pypi/pyversions/$project_name.svg)](https://pypi.org/project/$project_name/)
+[![CI](https://github.com/username/mvp-policy-decision-backend/workflows/CI/badge.svg)](https://github.com/username/mvp-policy-decision-backend/actions)
+[![Coverage](https://codecov.io/gh/username/mvp-policy-decision-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/username/mvp-policy-decision-backend)
+[![Python versions](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## 🚀 Features
 
-- ✨ Modern Python with strict type safety
-- 🔧 uv for fast dependency management
+- ✨ Modern Python 3.11+ with strict type safety
+- 🔧 uv for fast dependency management (Rust-based)
 - 🧪 pytest with performance benchmarking
 - 📦 Modern packaging with hatchling
-- 🐳 Docker support
-- 🔄 GitHub Actions CI/CD
-- 📚 Complete documentation
+- 🚀 FastAPI for high-performance async API
+- 🛡️ Pydantic v2 with Rust core for zero-copy operations
+- 🔒 Beartype runtime validation on all public functions
+- 🐳 Docker support with optimized images
+- 🔄 GitHub Actions CI/CD with quality gates
+- 📊 Real-time performance monitoring
+- 🤖 AI-powered underwriting and risk assessment
+- 📚 Complete documentation with architecture guides
 
 ## 🛡️ MASTER RULESET ENFORCEMENT
 
@@ -64,34 +69,39 @@ This project **ENFORCES FIRST PRINCIPLES** through automated validation:
 
 \`\`\`bash
 
-# From PyPI
+# Clone repository
 
-pip install $project_name
+git clone https://github.com/username/mvp-policy-decision-backend.git
+cd mvp-policy-decision-backend
 
-# From source
+# Install with uv (recommended)
 
-git clone https://github.com/username/$project_name.git
-cd $project_name
 uv sync --dev
+
+# Or use make command
+
+make dev
 \`\`\`
 
 ## 🛠️ Development
 
 ### Prerequisites
 
-- Python 3.8+
-- uv
+- Python 3.11+ (required for modern async features)
+- uv (Rust-based package manager)
+- Docker (optional, for containerized deployment)
+- PostgreSQL 14+ (for local development)
 
-### Setup
+### Quick Start
 
 \`\`\`bash
 
 # Clone repository
 
-git clone https://github.com/username/$project_name.git
-cd $project_name
+git clone https://github.com/username/mvp-policy-decision-backend.git
+cd mvp-policy-decision-backend
 
-# Install dependencies
+# Setup development environment
 
 make dev
 
@@ -99,9 +109,14 @@ make dev
 
 make test
 
-# Format code
+# Start development server
+
+uv run uvicorn src.pd_prime_demo.main:app --reload
+
+# Format and lint code
 
 make format
+make lint
 \`\`\`
 
 ### Available Commands
@@ -224,7 +239,45 @@ Example Python code implementing MASTER RULESET principles:
 - Result types for error handling without exceptions
 - Field constraints and validation on all data models
 
-See src/${project_name}/main.py for complete implementation examples.
+See `src/pd_prime_demo/main.py` for complete implementation examples.
+
+## 📚 Documentation
+
+- [Architecture Overview](docs/ARCHITECTURE.md) - System design and components
+- [API Documentation](docs/API.md) - REST API endpoints and schemas
+- [Development Guide](docs/DEVELOPMENT.md) - Detailed setup and workflow
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment instructions
+- [Performance Guide](docs/PERFORMANCE.md) - Optimization and benchmarking
+- [Security Guide](docs/SECURITY.md) - Security best practices
+
+## 🏗️ Project Structure
+
+```
+mvp-policy-decision-backend/
+├── src/
+│   └── pd_prime_demo/
+│       ├── __init__.py
+│       ├── main.py              # FastAPI application entry point
+│       └── core/
+│           ├── config.py        # Configuration management
+│           ├── database.py      # Database connection handling
+│           ├── security.py      # Security utilities
+│           └── cache.py         # Caching implementation
+├── tests/
+│   ├── unit/                    # Unit tests
+│   ├── integration/             # Integration tests
+│   └── benchmarks/              # Performance benchmarks
+├── scripts/
+│   ├── validate-master-ruleset.sh
+│   └── benchmark_validation.py
+├── docs/                        # Documentation
+├── .sage/                       # SAGE system configuration
+└── pyproject.toml              # Project configuration
+```
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## 📝 License
 
