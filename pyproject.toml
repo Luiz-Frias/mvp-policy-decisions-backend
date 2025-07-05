@@ -29,7 +29,7 @@ dependencies = [
     "pydantic-settings>=2.10.1",
     "psutil>=5.9.8",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 readme = "README.md"
 license = {text = "MIT"}
 keywords = ["python", "modern"]
@@ -174,7 +174,7 @@ ml = [
     "jupyter>=1.0,<2.0",
     "ipython>=8.0,<9.0",
     "polars>=0.20,<1.0",  # Fast DataFrame library
-    "duckdb>=0.9,<1.0",  # Fast analytics
+    "duckdb>=0.10.2,<1.0",  # Fast analytics – 0.10.2 includes fix for CVE-2024-41672
 ]
 
 # 🤖 LLM/AI pipeline stack
@@ -184,18 +184,18 @@ llm = [
     "langchain>=0.1,<1.0",
     "langchain-community>=0.0.10,<1.0",
     "tiktoken>=0.5,<1.0",
-    "sentence-transformers>=2.2,<3.0",
+    "sentence-transformers>=3.4.1,<4.0",  # Latest 3.x line
     "chromadb>=0.4,<1.0",
     "pinecone-client>=2.2,<3.0",
 ]
 
 # 📊 Data pipeline stack
 data = [
-    "duckdb>=0.9,<1.0",
+    "duckdb>=0.10.2,<1.0",
     "polars>=0.20,<1.0",
     "pyarrow>=14.0,<15.0",
     "dask>=2023.12,<2024.12",
-    "prefect>=2.14,<3.0",
+    "prefect>=2.19.10,<3.0",  # >=2.19.10 patches PVE-2024-73210 & PVE-2024-71644
     "great-expectations>=0.18,<1.0",
     "pandera>=0.17,<1.0",  # Data validation
 ]
