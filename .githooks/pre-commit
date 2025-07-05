@@ -24,8 +24,12 @@ print_status "Enforcing Defensive Programming & Performance First Principles..."
 # 1. MANDATORY: Pydantic Model Compliance Check
 print_status "🔍 MASTER RULE: Validating Pydantic model compliance..."
 # Find dict[ usage but exclude lines with SYSTEM_BOUNDARY comment
-PLAIN_DICTS=$(find src -name "*.py" -exec grep -l "dict\[" {} \; 2>/dev/null | \
-    xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null | wc -l)
+DICT_FILES=$(find src -name "*.py" -exec grep -l "dict\[" {} \; 2>/dev/null)
+if [ -n "$DICT_FILES" ]; then
+    PLAIN_DICTS=$(echo "$DICT_FILES" | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null | wc -l)
+else
+    PLAIN_DICTS=0
+fi
 if [ "$PLAIN_DICTS" -gt 0 ]; then
     print_error "❌ MASTER RULE VIOLATION: Found $PLAIN_DICTS files using plain dictionaries"
     print_error "🚨 ALL DATA STRUCTURES MUST USE PYDANTIC MODELS"
@@ -35,8 +39,12 @@ if [ "$PLAIN_DICTS" -gt 0 ]; then
 fi
 
 # Check for frozen=True in Pydantic models
-UNFROZEN_MODELS=$(find src -name "*.py" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null | \
-    xargs grep -L "frozen.*=.*True" 2>/dev/null | wc -l)
+BASEMODEL_FILES=$(find src -name "*.py" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null)
+if [ -n "$BASEMODEL_FILES" ]; then
+    UNFROZEN_MODELS=$(echo "$BASEMODEL_FILES" | xargs grep -L "frozen.*=.*True" 2>/dev/null | wc -l)
+else
+    UNFROZEN_MODELS=0
+fi
 if [ "$UNFROZEN_MODELS" -gt 0 ]; then
     print_error "❌ MASTER RULE VIOLATION: Found $UNFROZEN_MODELS Pydantic models without frozen=True"
     print_error "🚨 IMMUTABLE BY DEFAULT: All models must be frozen=True"

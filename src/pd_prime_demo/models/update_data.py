@@ -1,9 +1,12 @@
 """Models for handling update data structures.
 
-This module provides strongly-typed Pydantic models to replace generic dictionary
-usage in the codebase, enforcing type safety and validation.
+This module provides strongly-typed Pydantic models that replace generic
+dictionary usage in the codebase.
+
+The goal is to enforce type safety and runtime validation at every layer.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from beartype import beartype
@@ -13,7 +16,8 @@ from .base import BaseModelConfig
 
 
 @beartype
-class CustomerUpdateData(BaseModelConfig):  # Inherits frozen=True from BaseModelConfig
+# Inherits frozen=True from BaseModelConfig
+class CustomerUpdateData(BaseModelConfig):
     """Strongly-typed model for customer update data used in JSONB operations.
 
     This model represents the data structure that will be merged into the
@@ -23,13 +27,22 @@ class CustomerUpdateData(BaseModelConfig):  # Inherits frozen=True from BaseMode
 
     email: str | None = Field(None, description="Updated email address")
     phone_number: str | None = Field(None, description="Updated phone number")
-    address_line1: str | None = Field(None, description="Updated primary address line")
+    address_line1: str | None = Field(
+        None,
+        description="Updated primary address line",
+    )
     address_line2: str | None = Field(
         None, description="Updated secondary address line"
     )
     city: str | None = Field(None, description="Updated city name")
-    state_province: str | None = Field(None, description="Updated state or province")
-    postal_code: str | None = Field(None, description="Updated postal or ZIP code")
+    state_province: str | None = Field(
+        None,
+        description="Updated state or province",
+    )
+    postal_code: str | None = Field(
+        None,
+        description="Updated postal or ZIP code",
+    )
     marketing_consent: bool | None = Field(
         None, description="Updated marketing consent"
     )
@@ -53,15 +66,18 @@ class CustomerUpdateData(BaseModelConfig):  # Inherits frozen=True from BaseMode
 
     def model_dump_non_none(
         self,
-    ) -> dict[str, Any]:  # SYSTEM_BOUNDARY: PostgreSQL JSONB
+    ) -> Mapping[str, Any]:
+        # SYSTEM_BOUNDARY: PostgreSQL JSONB (read-only mapping)
         """Get model data excluding None values for JSONB operations.
 
         This method is used internally for database operations where we need
-        the raw dictionary representation without None values.
+        the raw dictionary representation without ``None`` values.
 
-        Note: This returns a dict[str, Any] at the system boundary for database
-        JSONB operations. This is the only acceptable use of dict[str, Any] as
-        it interfaces with the PostgreSQL driver's expectations.
+        Note: This returns a ``Mapping[str, Any]`` at the system boundary for
+        database JSONB operations. This is the only acceptable use of a raw
+        key/value mapping.
+
+        It interfaces directly with the PostgreSQL driver's expectations.
         """
         # System boundary: PostgreSQL JSONB expects dict format
         return {k: v for k, v in self.model_dump().items() if v is not None}
