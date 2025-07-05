@@ -164,6 +164,7 @@ safety-report.json
 profile_output/
 benchmarks/
 .benchmarks/
+benchmark-results.json
 
 # Memory profiling outputs
 *.prof
