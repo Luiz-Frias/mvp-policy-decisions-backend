@@ -2,10 +2,14 @@
 
 High-performance Python backend for an MVP policy decision and management system, built with enterprise-grade standards for the P&C insurance industry. This project enforces **first principles thinking** and **precision engineering** through automated validation and defensive programming patterns.
 
-[![CI](https://github.com/username/mvp-policy-decision-backend/workflows/CI/badge.svg)](https://github.com/username/mvp-policy-decision-backend/actions)
-[![Coverage](https://codecov.io/gh/username/mvp-policy-decision-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/username/mvp-policy-decision-backend)
-[![Python versions](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![CI][ci-badge]][ci-url]
+[![Release][release-badge]][release-url]
+[![Coverage][cov-badge]][cov-url]
+[![License][license-badge]][license-url]
+[![Python][python-badge]][python-url]
+[![Black][black-badge]][black-url]
+
+> We follow **Semantic Versioning 2.0** – every Git tag beginning with `v` generates a GitHub Release and corresponding changelog entry.
 
 ## 🚀 Features
 
@@ -21,6 +25,19 @@ High-performance Python backend for an MVP policy decision and management system
 - 📊 Real-time performance monitoring
 - 🤖 AI-powered underwriting and risk assessment
 - 📚 Complete documentation with architecture guides
+
+## 📄 Licensing
+
+**PolicyCore** is available under a **dual license structure** to accommodate both open source and commercial use cases:
+
+- **🔓 Open Source (AGPL-3.0)**: Free for research, education, and open source projects
+- **💼 Commercial License**: For proprietary applications and enterprise use
+
+Perfect for P&C insurance industry applications, enterprise policy management, and commercial SaaS solutions.
+
+**Commercial Licensing Contact:** luizf35@gmail.com | **Form F[x] Labs**
+
+For detailed licensing information, see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
 
 ## 🛡️ MASTER RULESET ENFORCEMENT
 
@@ -252,4 +269,51 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## 📝 License
 
-This project is licensed under the MIT License.
+This project is available under a **dual license structure**:
+
+### 🔓 Open Source License (AGPL-3.0)
+
+For non-commercial use, research, and educational projects:
+
+- ✅ Free to use and modify
+- ✅ Perfect for academic research and learning
+- ✅ Compatible with other AGPL-3.0 projects
+- ❗ Requires derivative works to be open source
+- ❗ Network services must provide source code access
+
+### 💼 Commercial License
+
+For commercial use, proprietary applications, and enterprise deployments:
+
+- ✅ No copyleft requirements
+- ✅ Keep your code proprietary
+- ✅ Commercial support available
+- ✅ Custom feature development
+- ✅ Priority support channels
+
+**Contact for Commercial Licensing:**
+📧 **Email:** luizf35@gmail.com
+📝 **Subject:** PolicyCore Commercial License Request
+🏢 **Organization:** Form F[x] Labs
+
+For detailed licensing information, see:
+
+- [LICENSE](LICENSE) - Full dual license terms
+- [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) - Commercial licensing guide
+
+**Choose the license that best fits your use case. If you're unsure, contact us for guidance.**
+
+<!-- Badge reference links -->
+
+[ci-badge]: https://github.com/Luiz-Frias/mvp-policy-decision-backend/actions/workflows/ci.yml/badge.svg?branch=main
+[ci-url]: https://github.com/Luiz-Frias/mvp-policy-decision-backend/actions/workflows/ci.yml
+[release-badge]: https://img.shields.io/github/v/release/Luiz-Frias/mvp-policy-decision-backend?sort=semver&label=release
+[release-url]: https://github.com/Luiz-Frias/mvp-policy-decision-backend/releases
+[cov-badge]: https://codecov.io/gh/Luiz-Frias/mvp-policy-decision-backend/branch/main/graph/badge.svg
+[cov-url]: https://codecov.io/gh/Luiz-Frias/mvp-policy-decision-backend
+[license-badge]: https://img.shields.io/github/license/Luiz-Frias/mvp-policy-decision-backend.svg
+[license-url]: LICENSE
+[python-badge]: https://img.shields.io/badge/python-3.11%2B-blue
+[python-url]: https://www.python.org/downloads/
+[black-badge]: https://img.shields.io/badge/style-black-000000.svg
+[black-url]: https://github.com/psf/black
