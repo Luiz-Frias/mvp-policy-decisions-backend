@@ -2,7 +2,7 @@
   // ===== ULTIMATE DEVELOPMENT ENVIRONMENT CONFIGURATION =====
   // Peak Excellence Standards for Python, Node.js/TypeScript, and Rust
   // === PYTHON CONFIGURATION (MODERN STACK) ===
-  "python.defaultInterpreterPath": "/opt/miniconda3/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   // 🚀 Modern Python with Ruff (replaces Black + isort + flake8 + more)
   "python.formatting.provider": "none", // Let Ruff handle everything
   "[python]": {
@@ -23,7 +23,7 @@
   // 🔒 Enhanced Python linting (comprehensive coverage)
   "python.linting.enabled": true,
   "python.linting.lintOnSave": true,
-  "python.linting.pylintEnabled": true,
+  "python.linting.pylintEnabled": false,
   "python.linting.pylintArgs": [
     "--max-line-length=88",
     "--disable=C0111,C0103", // Disable docstring and naming conventions
@@ -41,6 +41,9 @@
   ],
   "python.linting.banditEnabled": true,
   "python.linting.banditArgs": ["-r", ".", "-ll"],
+  "python.linting.ruffEnabled": true,
+  "python.linting.ruffArgs": ["--config=pyproject.toml"],
+  "python.linting.flake8Enabled": false,
   // 🚀 CODE PERFORMANCE OPTIMIZATION & PROFILING
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [

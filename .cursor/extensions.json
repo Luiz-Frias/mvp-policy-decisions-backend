@@ -3,9 +3,8 @@
     // Python Development
     "ms-python.python",
     "ms-python.vscode-pylance",
-    "ms-python.black-formatter",
-    "ms-python.isort",
-    "ms-python.flake8",
+    "charliermarsh.ruff",
+    "usernamehw.errorlens",
     // Node.js/TypeScript
     "ms-vscode.vscode-typescript-next",
     "esbenp.prettier-vscode",
