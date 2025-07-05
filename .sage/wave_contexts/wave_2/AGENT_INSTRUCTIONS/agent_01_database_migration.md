@@ -87,6 +87,105 @@ If ANY of these configurations are missing, you MUST:
 - All indexes support expected query patterns
 - All migrations have complete rollback procedures
 
+## ADDITIONAL GAPS TO WATCH
+
+### Similar Gaps (Database Domain)
+
+```python
+# ❌ WATCH FOR: Default constraint behaviors
+ALTER TABLE quotes ADD COLUMN status VARCHAR(20) DEFAULT 'draft';  # Business rule?
+# ✅ REQUIRED: Explicit business rule documentation
+-- Business Rule QUO-001: All quotes start in 'draft' status per underwriting workflow
+ALTER TABLE quotes ADD COLUMN status VARCHAR(20) NOT NULL
+    CONSTRAINT quotes_status_check CHECK (status IN ('draft', 'pending', 'approved', 'bound'))
+    DEFAULT 'draft';
+```
+
+### Lateral Gaps (Schema-Related Anti-Patterns)
+
+```python
+# ❌ WATCH FOR: Silent data type conversions
+CREATE TABLE premiums (amount FLOAT);  # Precision loss in financial calculations
+# ✅ REQUIRED: Explicit precision for financial data
+CREATE TABLE premiums (amount DECIMAL(10,2));  # Explicit penny precision
+
+# ❌ WATCH FOR: Missing audit trails
+DROP COLUMN deprecated_field;  # Data loss without audit
+# ✅ REQUIRED: Audit-safe deprecation
+ALTER TABLE policies ADD COLUMN deprecated_field_backup TEXT;
+UPDATE policies SET deprecated_field_backup = deprecated_field::TEXT;
+-- Create rollback procedure before dropping
+```
+
+### Inverted Gaps (Over-Engineering)
+
+```python
+# ❌ WATCH FOR: Over-normalization killing performance
+-- 47 tables for quote data that need 23 JOINs to reconstruct a quote
+CREATE TABLE quote_customer_addresses (id, quote_id, address_line_1_word_1, ...);
+
+# ✅ BALANCED: Performance vs normalization
+-- Keep related business data together for query efficiency
+CREATE TABLE quotes (
+    id UUID PRIMARY KEY,
+    customer_data JSONB,  -- For non-relational customer details
+    vehicle_data JSONB,   -- For complex vehicle attributes
+    -- Normalized only for business-critical relationships
+    policy_id UUID REFERENCES policies(id)
+);
+```
+
+### Meta-Gaps (Schema Validation Recursion)
+
+```python
+# ❌ WATCH FOR: Migration validation that can't validate itself
+-- Migration that adds validation but doesn't validate the validator
+CREATE OR REPLACE FUNCTION validate_policy_data(data JSONB) RETURNS BOOLEAN AS $$
+BEGIN
+    -- What validates this validation function?
+    RETURN (data->>'state' IS NOT NULL);
+END;
+$$ LANGUAGE plpgsql;
+
+# ✅ REQUIRED: Validator validation
+-- Migration includes tests for the validation function itself
+DO $$
+BEGIN
+    -- Test the validator with known good/bad data
+    IF NOT validate_policy_data('{"state": "CA"}'::JSONB) THEN
+        RAISE EXCEPTION 'Validation function failed self-test';
+    END IF;
+END $$;
+```
+
+### Scale-Based Gaps (Load-Dependent Failures)
+
+```python
+# ❌ WATCH FOR: Indexes that degrade under load
+CREATE INDEX quotes_created_at_idx ON quotes(created_at);  -- Hot partition issues
+# ✅ REQUIRED: Load-aware indexing strategy
+-- Consider partitioning for time-series data over 10M rows
+CREATE TABLE quotes_2024_q1 PARTITION OF quotes FOR VALUES FROM ('2024-01-01') TO ('2024-04-01');
+CREATE INDEX quotes_2024_q1_created_at_idx ON quotes_2024_q1(created_at);
+```
+
+### Time-Based Gaps (US Business Calendar)
+
+```python
+# ❌ WATCH FOR: Effective date assumptions
+-- Assumes immediate effectiveness without business rules
+UPDATE policies SET effective_date = CURRENT_TIMESTAMP WHERE status = 'approved';
+
+# ✅ REQUIRED: US business calendar integration
+-- Function to calculate next US business day for policy effectiveness
+CREATE OR REPLACE FUNCTION next_business_day(input_date DATE) RETURNS DATE AS $$
+BEGIN
+    -- Account for US federal holidays and weekends
+    RETURN calculate_next_us_business_day(input_date);
+END;
+$$ LANGUAGE plpgsql;
+```
+
 ## MANDATORY PRE-WORK
 
 1. Read ALL documents listed in AGENT_TEMPLATE.md FIRST
@@ -591,3 +690,58 @@ Add a new migration file:
 This should create all admin tables with proper relationships and indexes.
 
 Make sure all admin tables follow the same patterns as other tables and include proper audit trails!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Database Schema Anti-Patterns and Edge Cases
+
+**Over-Normalization vs Performance Trade-offs:**
+
+- **Similar Gap**: Over-normalizing user preferences tables leading to 15+ joins for simple user profile loads
+- **Lateral Gap**: Over-indexing low-cardinality columns (like boolean flags) causing index bloat and slower writes
+- **Inverted Gap**: Under-normalizing audit logs, storing redundant user data in every log entry instead of references
+- **Meta-Gap**: Not monitoring query execution plans after schema changes, missing cascade performance impacts
+
+**Schema Validation Recursion Traps:**
+
+- **Similar Gap**: Circular foreign key references in organizational hierarchies without proper depth limits
+- **Lateral Gap**: CHECK constraints that reference other tables, causing validation deadlocks under high concurrency
+- **Inverted Gap**: Missing constraints on critical business relationships (e.g., allowing policies without customers)
+- **Meta-Gap**: Not testing constraint violations with realistic data volumes, missing performance cliffs
+
+**Migration Rollback Validation Failures:**
+
+- **Similar Gap**: Creating rollback scripts that don't account for data mutations during migration window
+- **Lateral Gap**: Not testing rollbacks with foreign key constraints, causing cascade deletion surprises
+- **Inverted Gap**: Over-cautious rollbacks that leave orphaned data or half-updated states
+- **Meta-Gap**: Not validating rollback data integrity with production-size datasets
+
+**Time-Based Gaps:**
+
+- **Migration Windows**: Assuming 2AM deployments are "safe" without considering global user base
+- **Data Retention**: Not planning for table partition management when quote volumes reach millions
+- **Constraint Timing**: Adding NOT NULL constraints to large tables without proper batching strategies
+
+**Scale-Based Gaps:**
+
+- **Connection Pooling**: Designing for 100 connections but not testing with 10,000 concurrent sessions
+- **Index Strategy**: Optimizing for current data size without modeling growth to 100TB+ datasets
+- **Backup Recovery**: Testing backups with sample data but not validating 8-hour restore times for TB+ databases
+
+**Business Logic in Database Layer:**
+
+- **Similar Gap**: Putting complex quote calculation logic in database triggers instead of application layer
+- **Lateral Gap**: Using database-specific features (PostgreSQL arrays) that prevent future database platform changes
+- **Inverted Gap**: Avoiding all stored procedures and losing atomic transaction benefits for complex operations
+
+**Data Type Precision Traps:**
+
+- **Monetary Fields**: Using FLOAT for premium calculations instead of DECIMAL, causing rounding errors in financial calculations
+- **Timestamp Zones**: Not standardizing timezone handling, causing quote expiration calculation bugs across regions
+- **UUID Performance**: Using UUID primary keys without understanding impact on B-tree index fragmentation
+
+**Security Considerations:**
+
+- **PII Exposure**: Not implementing row-level security for customer data access patterns
+- **Audit Completeness**: Missing database-level audit trails for schema changes made outside application
+- **Encryption**: Not planning for at-rest encryption migration path when compliance requirements change

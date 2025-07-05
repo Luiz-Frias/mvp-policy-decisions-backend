@@ -569,3 +569,65 @@ class AdminAuthMiddleware:
 ```
 
 Make sure all admin services follow the same Result[T, E] pattern and include comprehensive audit logging!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Service Integration Anti-Patterns and Edge Cases
+
+**Circuit Breaker Pattern Misapplication:**
+
+- **Similar Gap**: Setting circuit breaker thresholds too aggressively, causing cascade failures during normal traffic spikes
+- **Lateral Gap**: Not implementing circuit breakers for database connections, allowing connection pool exhaustion to crash entire system
+- **Inverted Gap**: Over-engineering circuit breakers for internal services that should fail fast rather than degrade gracefully
+- **Meta-Gap**: Not monitoring circuit breaker state changes, missing early warning signs of service degradation
+
+**Dependency Health Check Blind Spots:**
+
+- **Similar Gap**: Health checks that only validate service availability but not functional correctness (e.g., database connected but read-only)
+- **Lateral Gap**: Shallow health checks missing downstream dependency failures (cache healthy but Redis cluster split-brain)
+- **Inverted Gap**: Over-comprehensive health checks causing timeout cascades when one check hangs
+- **Meta-Gap**: Not testing health check accuracy under various failure modes, leading to false positive/negative alerts
+
+**Service Discovery Validation Gaps:**
+
+- **Similar Gap**: Trusting service registry without validating actual service health, routing traffic to zombie instances
+- **Lateral Gap**: Not handling service discovery cache staleness, continuing to route to deregistered services
+- **Inverted Gap**: Over-eager service discovery updates causing connection thrashing and instability
+- **Meta-Gap**: Not monitoring service discovery convergence time, missing split-brain scenarios
+
+**Transaction Boundary Management:**
+
+- **Similar Gap**: Distributed transactions across services without proper compensation patterns for rollback
+- **Lateral Gap**: Mixing local database transactions with external API calls, causing partial failure states
+- **Inverted Gap**: Avoiding transactions entirely and losing data consistency guarantees
+- **Meta-Gap**: Not testing transaction rollback scenarios under concurrent load
+
+**Time-Based Integration Failures:**
+
+- **Service Startup Ordering**: Not handling dependency service startup races, causing initialization failures
+- **Retry Timing**: Using fixed retry intervals causing thundering herd when services recover
+- **Cache Expiration**: Cache TTL mismatches between services causing consistency windows
+
+**Scale-Based Integration Failures:**
+
+- **Connection Pool Sizing**: Configuring pools for single-instance but not multi-instance deployment scenarios
+- **Async Processing**: Using in-memory queues that don't survive restarts under high-throughput scenarios
+- **Service Fanout**: Not testing 1-to-many service call patterns under realistic load
+
+**Error Propagation Patterns:**
+
+- **Similar Gap**: Losing error context when wrapping service exceptions, making debugging impossible
+- **Lateral Gap**: Not correlating errors across service boundaries, missing distributed failure root causes
+- **Inverted Gap**: Over-logging service errors causing alert fatigue and missing critical failures
+
+**Authentication and Authorization Gaps:**
+
+- **Service-to-Service Auth**: Using same credentials for all service-to-service communication without principle of least privilege
+- **Token Refresh**: Not handling service-to-service token refresh automatically, causing periodic authentication failures
+- **Permission Validation**: Assuming internal service calls don't need authorization checks
+
+**Data Consistency Across Services:**
+
+- **Eventual Consistency**: Not properly handling read-after-write consistency for cross-service operations
+- **State Synchronization**: Assuming services will always agree on shared entity state without consensus mechanisms
+- **Event Ordering**: Not handling out-of-order events between services causing state corruption

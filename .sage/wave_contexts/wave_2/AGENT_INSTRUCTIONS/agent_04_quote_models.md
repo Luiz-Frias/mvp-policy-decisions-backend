@@ -842,3 +842,77 @@ class AdminDashboard(BaseModelConfig, IdentifiableModel):
 Create corresponding API schemas for admin endpoints following the existing pattern.
 
 Make sure all admin models use frozen=True and include proper validation!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Pydantic Model Validation Anti-Patterns and Edge Cases
+
+**Over-Validation Causing Performance Issues:**
+
+- **Similar Gap**: Complex field validators that perform database lookups during model instantiation, causing N+1 query problems
+- **Lateral Gap**: Regex validators that are CPU-intensive with large input strings, causing quote generation timeouts
+- **Inverted Gap**: Under-validation allowing invalid business states to persist, causing downstream calculation errors
+- **Meta-Gap**: Not profiling model validation performance under realistic data volumes and complexity
+
+**Business Rule Conflicts in Model Design:**
+
+- **Similar Gap**: State-specific insurance rules encoded in models without considering multi-state quote scenarios
+- **Lateral Gap**: Vehicle info validation rules that conflict between different insurance product types (auto vs commercial)
+- **Inverted Gap**: Over-generic validation that misses product-specific business rule enforcement
+- **Meta-Gap**: Not testing model validation consistency across different business rule combinations
+
+**Model Versioning and Migration Gaps:**
+
+- **Similar Gap**: Adding new required fields to quote models without migration strategy for existing quotes
+- **Lateral Gap**: Changing validation rules breaking backward compatibility with stored quote data
+- **Inverted Gap**: Never updating models causing drift between business requirements and code implementation
+- **Meta-Gap**: Not tracking model schema evolution impact on data analytics and reporting systems
+
+**Computed Field Dependency Management:**
+
+- **Similar Gap**: Computed fields that depend on external data sources causing model instantiation failures
+- **Lateral Gap**: Circular dependencies between computed fields causing infinite recursion
+- **Inverted Gap**: Missing computed fields for derived business values, forcing recalculation throughout application
+- **Meta-Gap**: Not monitoring computed field performance impact on model serialization
+
+**Time-Based Model Validation Issues:**
+
+- **Date/Time Boundaries**: Quote effective dates crossing timezone boundaries causing validation inconsistencies
+- **Business Hour Logic**: Driver license validation using business hours but not accounting for federal holidays
+- **Temporal Validation**: Age calculations that fail during daylight saving time transitions
+
+**Scale-Based Model Performance:**
+
+- **Large Driver Lists**: Quote models with 10+ drivers causing validation performance degradation
+- **Complex Vehicle Data**: Heavy vehicle information (extensive safety features, modifications) slowing quote serialization
+- **Nested Model Depth**: Deep nesting of coverage selections causing stack overflow in validation
+
+**Data Type Precision and Conversion:**
+
+- **Similar Gap**: Using float for monetary calculations in discount amounts causing precision errors
+- **Lateral Gap**: String formatting for VIN validation not handling international VIN format variations
+- **Inverted Gap**: Over-precise decimal validation rejecting valid monetary inputs due to rounding
+
+**Cross-Model Validation Dependencies:**
+
+- **Driver Age vs Vehicle Value**: Not validating business rules that span multiple model types (young driver, expensive car)
+- **Coverage Consistency**: Not ensuring coverage selections are compatible with vehicle type and state requirements
+- **Customer Risk Profile**: Models that don't validate consistency between stated risk factors and calculated premiums
+
+**Serialization and API Boundary Issues:**
+
+- **JSON Schema Drift**: Model changes that break API contract without proper versioning
+- **Null Handling**: Optional fields that become required in certain business contexts without conditional validation
+- **Enum Evolution**: Adding new enum values breaking clients that haven't updated their validation
+
+**Memory and Resource Management:**
+
+- **Model Caching**: Not implementing proper model instance caching causing repeated validation overhead
+- **Deep Copy Performance**: Frozen models causing expensive deep copy operations in quote versioning
+- **Validation Result Caching**: Not caching expensive validation results (VIN lookups, address validation)
+
+**Error Handling and User Experience:**
+
+- **Validation Error Clarity**: Technical validation errors not providing actionable feedback for quote modification
+- **Field-Level Attribution**: Validation errors not clearly identifying which specific field or business rule failed
+- **Progressive Validation**: All-or-nothing validation preventing partial quote saves and user workflow optimization

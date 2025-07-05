@@ -1272,3 +1272,83 @@ CREATE TABLE sso_group_sync_logs (
 ```
 
 Make sure all SSO configuration operations include proper admin authentication and audit logging!
+
+## ADDITIONAL GAPS TO WATCH
+
+### SSO Integration Security Anti-Patterns and Edge Cases
+
+**Over-Secure vs Usability Balance:**
+
+- **Similar Gap**: Implementing MFA requirements for SSO that create user friction without corresponding security benefit for low-risk operations
+- **Lateral Gap**: SSO token validation so strict it rejects legitimate tokens during provider certificate rotation periods
+- **Inverted Gap**: Under-securing SSO flows allowing token replay attacks or session hijacking
+- **Meta-Gap**: Not testing SSO security measures impact on user adoption and workflow efficiency
+
+**Provider Failover Logic and Redundancy:**
+
+- **Similar Gap**: SSO provider failover not properly testing secondary provider capability causing extended outages
+- **Lateral Gap**: Provider failover logic not maintaining user session context causing data loss during authentication switches
+- **Inverted Gap**: Over-aggressive failover causing unnecessary provider switching and user confusion
+- **Meta-Gap**: Not testing SSO provider failover under realistic load and failure scenarios
+
+**Group Mapping Conflicts and Authorization:**
+
+- **Similar Gap**: SSO group mappings not handling nested group structures or inheritance causing permission gaps
+- **Lateral Gap**: Group mapping conflicts between multiple SSO providers not resolved consistently
+- **Inverted Gap**: Over-simplified group mappings missing fine-grained permission requirements
+- **Meta-Gap**: Not monitoring group mapping accuracy against actual user permission needs over time
+
+**Token Lifecycle and Session Management:**
+
+- **Similar Gap**: SSO token refresh not properly coordinated with application session timeouts causing authentication loops
+- **Lateral Gap**: Token validation not accounting for clock skew between SSO provider and application servers
+- **Inverted Gap**: Over-long token lifetimes creating security exposure without operational benefit
+- **Meta-Gap**: Not testing token lifecycle management across different user session patterns
+
+**Time-Based SSO Integration Issues:**
+
+- **Certificate Rotation**: SSO provider certificate updates not properly automated causing authentication failures
+- **Token Expiration**: SSO token expiration not gracefully handled during long-running user sessions
+- **Provider Downtime**: SSO provider maintenance windows not coordinated with application availability requirements
+
+**Scale-Based SSO Performance:**
+
+- **High-Volume Authentication**: SSO integration not optimized for peak login periods (Monday morning, post-holiday)
+- **Provider Rate Limits**: SSO API calls not properly throttled causing authentication failures during traffic spikes
+- **Concurrent Sessions**: Multiple simultaneous SSO sessions for same user not properly handled
+
+**Cross-Domain and CORS Complications:**
+
+- **Subdomain SSO**: SSO integration not properly handling subdomain cookie and session management
+- **Cross-Origin Requests**: SSO redirect flows not working correctly with SPA applications and CORS policies
+- **Mobile App Integration**: SSO flows not optimized for mobile app authentication patterns
+
+**User Provisioning and Deprovisioning:**
+
+- **Automatic Provisioning**: User auto-creation from SSO not properly validated against company policies
+- **Role Assignment**: SSO-based role assignment not reflecting organizational changes in real-time
+- **Account Deactivation**: SSO user deactivation not properly propagated to application access controls
+
+**Compliance and Audit Requirements:**
+
+- **Audit Trail Completeness**: SSO authentication events not capturing sufficient detail for compliance audits
+- **Data Privacy**: SSO integration not properly handling GDPR/CCPA requirements for user data
+- **Regulatory Compliance**: SSO implementations not meeting industry-specific authentication requirements
+
+**Error Handling and User Experience:**
+
+- **Authentication Errors**: SSO error messages not providing actionable guidance for users
+- **Fallback Authentication**: SSO failures not gracefully falling back to alternative authentication methods
+- **Error Recovery**: SSO error states not properly recoverable without administrative intervention
+
+**Integration Testing and Validation:**
+
+- **Provider Compatibility**: SSO integration not tested against all claimed provider configurations
+- **Edge Case Scenarios**: SSO flows not tested for unusual but valid authentication scenarios
+- **Performance Impact**: SSO integration performance not validated under realistic user load patterns
+
+**Security Monitoring and Threat Detection:**
+
+- **Anomaly Detection**: SSO authentication patterns not monitored for suspicious behavior
+- **Attack Vector Awareness**: SSO integration not hardened against known attack patterns (SAML signature bypass, etc.)
+- **Incident Response**: SSO security incidents not integrated with overall security incident response procedures

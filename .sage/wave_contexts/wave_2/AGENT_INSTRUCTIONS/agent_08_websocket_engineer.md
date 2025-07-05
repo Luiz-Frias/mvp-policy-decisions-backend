@@ -51,6 +51,100 @@ Build comprehensive real-time infrastructure with WebSocket support for live quo
 
 4. **ROOM ACCESS CONTROL**: Never grant default room access without explicit permissions
 
+## ADDITIONAL GAPS TO WATCH
+
+### Similar Gaps (Real-Time Domain)
+
+```python
+# ❌ WATCH FOR: Message ordering assumptions
+await websocket.send(json.dumps({"type": "quote_update", "data": quote_data}))
+await websocket.send(json.dumps({"type": "premium_update", "data": premium_data}))
+# Order not guaranteed - client might see premium before quote!
+# ✅ REQUIRED: Explicit message sequencing
+message_sequence = await get_next_sequence_number(connection_id)
+await websocket.send(json.dumps({
+    "sequence": message_sequence,
+    "type": "quote_update",
+    "data": quote_data
+}))
+```
+
+### Lateral Gaps (Communication Anti-Patterns)
+
+```python
+# ❌ WATCH FOR: Broadcasting assumptions
+# Sending premium updates to all connected clients
+for connection in active_connections:
+    await connection.send(premium_update)  # Privacy violation!
+# ✅ REQUIRED: Explicit permission-based broadcasting
+authorized_connections = await filter_authorized_connections(
+    active_connections, "premium:view", premium_update.quote_id
+)
+for connection in authorized_connections:
+    await connection.send_authorized(premium_update)
+```
+
+### Inverted Gaps (Over-Broadcasting vs Under-Notification)
+
+```python
+# ❌ WATCH FOR: Notification spam
+# Sending every keystroke change to all collaborators
+for char in user_input:
+    await broadcast_to_room(f"user_typing:{char}")  # Network saturation
+# ✅ BALANCED: Debounced meaningful updates
+typing_debouncer = Debouncer(delay_ms=500)
+await typing_debouncer.schedule(
+    lambda: broadcast_to_room(f"user_typing_in:{field_name}")
+)
+```
+
+### Meta-Gaps (Connection Monitoring Recursion)
+
+```python
+# ❌ WATCH FOR: Health check loops
+async def monitor_connection_health():
+    for conn in connections:
+        try:
+            await conn.ping()  # What if ping monitoring fails?
+        except Exception:
+            await conn.disconnect()
+# ✅ REQUIRED: Health check health checking
+async def monitor_connection_health_with_meta_monitoring():
+    monitoring_health = await self_health_check()
+    if monitoring_health.is_err():
+        await alert_admin("WebSocket monitoring system failure")
+        return
+    # Proceed with connection monitoring
+```
+
+### Scale-Based Gaps (Connection Storms)
+
+```python
+# ❌ WATCH FOR: Thundering herd on reconnection
+# 10,000 clients reconnecting simultaneously after network blip
+async def handle_client_reconnect(client_id):
+    await establish_connection(client_id)  # All at once = death
+# ✅ REQUIRED: Backoff-based reconnection
+async def handle_client_reconnect(client_id, backoff_config: BackoffConfig):
+    delay = calculate_exponential_backoff(client_id, backoff_config)
+    await asyncio.sleep(delay)
+    return await establish_connection_with_circuit_breaker(client_id)
+```
+
+### Time-Based Gaps (US Business Hours)
+
+```python
+# ❌ WATCH FOR: 24/7 real-time assumptions
+# Sending rate update notifications at 3 AM EST
+await broadcast_rate_update(rate_change)  # Users sleeping!
+# ✅ REQUIRED: Business-hour-aware notifications
+us_business_hours = await get_us_business_hours()
+if us_business_hours.is_business_time(datetime.now()):
+    await broadcast_rate_update_immediate(rate_change)
+else:
+    await queue_for_business_hours(rate_change, next_business_morning())
+```
+
 ## MANDATORY PRE-WORK
 
 1. Read ALL documents listed in AGENT_TEMPLATE.md FIRST
@@ -1279,3 +1373,83 @@ CREATE TABLE websocket_connections (
 ```
 
 Make sure admin WebSocket connections are properly secured and monitored!
+
+## ADDITIONAL GAPS TO WATCH
+
+### WebSocket Real-Time Infrastructure Anti-Patterns and Edge Cases
+
+**Over-Broadcasting and Message Flood Management:**
+
+- **Similar Gap**: Broadcasting quote price changes to all connected users instead of only interested parties, causing network congestion
+- **Lateral Gap**: Real-time analytics updates sending full dataset instead of incremental changes, overwhelming client browsers
+- **Inverted Gap**: Under-broadcasting critical system alerts causing delayed response to production issues
+- **Meta-Gap**: Not monitoring message broadcast fan-out ratios and client processing capacity
+
+**Connection State Management Complexity:**
+
+- **Similar Gap**: Not properly handling WebSocket connection state during network interruptions causing ghost connections
+- **Lateral Gap**: Connection state persistence not coordinated with application session state causing authorization inconsistencies
+- **Inverted Gap**: Over-aggressive connection state cleanup terminating legitimate slow connections
+- **Meta-Gap**: Not testing connection state management under various network failure scenarios
+
+**Message Ordering Guarantees vs Performance:**
+
+- **Similar Gap**: Implementing strict message ordering causing performance bottlenecks for independent message streams
+- **Lateral Gap**: Message ordering not preserved across connection reconnections causing UI state corruption
+- **Inverted Gap**: No message ordering causing quote calculation progress updates to arrive out of sequence
+- **Meta-Gap**: Not testing message ordering requirements under high-concurrency scenarios
+
+**Room and Subscription Management Scaling:**
+
+- **Similar Gap**: Room-based subscriptions not properly cleaned up when users navigate away causing memory leaks
+- **Lateral Gap**: Subscription logic not handling user permission changes in real-time causing access control bypass
+- **Inverted Gap**: Over-granular room subscriptions creating excessive overhead for simple broadcast scenarios
+- **Meta-Gap**: Not modeling room subscription patterns under realistic user behavior scenarios
+
+**Time-Based WebSocket Operations:**
+
+- **Heartbeat Sensitivity**: Heartbeat intervals not tuned for mobile network conditions causing frequent reconnections
+- **Message Buffering**: Real-time updates not properly buffered during connection interruptions causing data loss
+- **Session Timeout**: WebSocket sessions not coordinated with HTTP session timeouts causing authentication edge cases
+
+**Scale-Based Real-Time Infrastructure:**
+
+- **Connection Limits**: WebSocket server not properly load-balanced causing connection distribution issues
+- **Memory Usage**: Large numbers of idle connections consuming excessive server memory
+- **Message Queue Scaling**: Real-time message queues not handling burst traffic from viral content or system alerts
+
+**Client-Side Resilience and Error Handling:**
+
+- **Reconnection Logic**: Client reconnection attempts not implementing exponential backoff causing server overload
+- **Message Deduplication**: Clients not handling duplicate messages during connection instability
+- **Offline Handling**: WebSocket clients not gracefully degrading when real-time features are unavailable
+
+**Security and Authentication Edge Cases:**
+
+- **Token Refresh**: WebSocket authentication tokens not refreshed causing connections to drop during long sessions
+- **Permission Validation**: Real-time permission checks not performed for ongoing WebSocket subscriptions
+- **Admin Privilege Escalation**: Admin WebSocket connections not properly isolated from regular user connections
+
+**Real-Time Data Consistency:**
+
+- **Eventually Consistent Updates**: Real-time updates not consistent with database state causing UI confusion
+- **Conflicting Updates**: Multiple users editing same data not properly coordinated through real-time updates
+- **Update Ordering**: Real-time updates not reflecting actual business operation order causing workflow confusion
+
+**Monitoring and Observability Gaps:**
+
+- **Connection Health**: Not monitoring WebSocket connection quality metrics (latency, packet loss, reconnection frequency)
+- **Message Performance**: Real-time message delivery not tracked for performance regressions
+- **Error Correlation**: WebSocket errors not properly correlated with backend service issues
+
+**Cross-Browser and Device Compatibility:**
+
+- **Mobile Performance**: WebSocket implementation not optimized for mobile device battery and network constraints
+- **Browser Differences**: WebSocket behavior not consistent across different browser implementations
+- **Proxy Handling**: WebSocket connections not properly handling corporate proxy and firewall configurations
+
+**Integration with Backend Services:**
+
+- **Service Coupling**: Real-time features tightly coupled to specific backend services causing failure cascades
+- **Event Sourcing**: WebSocket events not properly integrated with event sourcing systems for audit trails
+- **Circuit Breaker Integration**: Real-time services not implementing circuit breakers for backend dependencies

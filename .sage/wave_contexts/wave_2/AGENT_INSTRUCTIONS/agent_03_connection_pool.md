@@ -651,3 +651,71 @@ async def monitor_admin_query_performance(self) -> Dict[str, Any]:
 ```
 
 Make sure admin queries don't impact main application performance!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Connection Pool Optimization Anti-Patterns and Edge Cases
+
+**Pool Exhaustion Under Load Scenarios:**
+
+- **Similar Gap**: Configuring connection pools for average load without considering peak traffic multipliers (Black Friday, regulatory deadlines)
+- **Lateral Gap**: Not implementing connection pool prioritization, allowing admin queries to starve customer-facing operations
+- **Inverted Gap**: Over-provisioning connection pools causing database resource exhaustion and query queueing
+- **Meta-Gap**: Not monitoring connection pool metrics during traffic spikes, missing early warning signs of exhaustion
+
+**Connection Leak Detection Blind Spots:**
+
+- **Similar Gap**: Detecting connection leaks only after pool exhaustion rather than proactive monitoring of long-held connections
+- **Lateral Gap**: Not tracking connection lifecycle across async operations, missing leaked connections in Promise/Future chains
+- **Inverted Gap**: Over-aggressive connection timeout causing legitimate long-running queries to fail
+- **Meta-Gap**: Not correlating connection leaks with specific code paths or user behaviors
+
+**Health Check Recursion and Dependencies:**
+
+- **Similar Gap**: Health checks that require database connections causing circular dependency when pool is exhausted
+- **Lateral Gap**: Health check queries that lock tables or create contention with application queries
+- **Inverted Gap**: Shallow health checks missing connection pool internal state problems
+- **Meta-Gap**: Not testing health check behavior when database is under extreme load
+
+**Connection Pool Configuration Interactions:**
+
+- **Similar Gap**: Setting min/max pool sizes without considering connection lifetime and database max_connections limits
+- **Lateral Gap**: Not coordinating pool sizes across multiple application instances, exceeding database connection limits
+- **Inverted Gap**: Under-sizing pools for efficiency but creating connection establishment overhead
+- **Meta-Gap**: Not modeling connection pool behavior under various deployment scaling scenarios
+
+**Time-Based Pool Management Failures:**
+
+- **Connection Aging**: Not rotating long-lived connections causing memory leaks in database drivers
+- **Peak Traffic Preparation**: Not pre-warming connection pools before predictable traffic spikes
+- **Graceful Shutdown**: Not properly draining connection pools during deployments, causing transaction rollbacks
+
+**Scale-Based Pool Failures:**
+
+- **Horizontal Scaling**: Connection pool configuration that works for single-instance but fails with auto-scaling
+- **Database Failover**: Not testing connection pool behavior during database primary/replica failover scenarios
+- **Multi-Tenant Scaling**: Single connection pool serving multiple tenants without isolation guarantees
+
+**Query Performance Impact on Pool Management:**
+
+- **Similar Gap**: Long-running analytical queries blocking connection pool for OLTP operations
+- **Lateral Gap**: Not implementing query timeout at connection level, allowing runaway queries to hold connections indefinitely
+- **Inverted Gap**: Over-aggressive query timeouts killing legitimate batch operations
+
+**Administrative Operations Impact:**
+
+- **Database Maintenance**: Not planning connection pool behavior during database maintenance windows
+- **Schema Migrations**: Not isolating migration connections from application connection pools
+- **Backup Operations**: Not accounting for backup-induced I/O impact on connection pool performance
+
+**Monitoring and Observability Gaps:**
+
+- **Pool Metrics**: Not tracking connection pool efficiency metrics (active vs idle ratio, average hold time)
+- **Query Correlation**: Not correlating slow queries with connection pool utilization patterns
+- **Error Attribution**: Not identifying which application components are causing connection pool stress
+
+**Security and Connection Pool Boundaries:**
+
+- **Connection Reuse**: Not properly cleaning connection state between different user contexts
+- **Privilege Escalation**: Using admin-privileged connections for regular application queries
+- **Audit Trail**: Not logging connection pool usage for security audit requirements

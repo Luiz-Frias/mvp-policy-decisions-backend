@@ -59,6 +59,86 @@ Build a comprehensive rating engine with state-specific rules, multiple rating f
    - Where admin can fix it
    - What the system will do until fixed
 
+## ADDITIONAL GAPS TO WATCH
+
+### Similar Gaps (Rating Domain)
+
+```python
+# ❌ WATCH FOR: Coverage limit assumptions
+def calculate_liability_premium(coverage_limit: Optional[Decimal] = None):
+    limit = coverage_limit or Decimal("100000")  # Assumes $100k default
+# ✅ REQUIRED: State-specific minimum validation
+def calculate_liability_premium(coverage_limit: Decimal, state: str) -> Result[Decimal, str]:
+    state_minimums = await get_state_minimum_limits(state)
+    if coverage_limit < state_minimums['liability']:
+        return Err(f"Coverage ${coverage_limit} below {state} minimum ${state_minimums['liability']}")
+```
+
+### Lateral Gaps (Business Rule Anti-Patterns)
+
+```python
+# ❌ WATCH FOR: Discount expiration assumptions
+if customer.good_student and driver.age < 25:
+    discounts.append(GoodStudentDiscount())  # When does this expire?
+# ✅ REQUIRED: Explicit expiration logic
+good_student_eligibility = await validate_good_student_status(driver, current_term)
+if good_student_eligibility.is_valid():
+    discounts.append(GoodStudentDiscount(expires_at=good_student_eligibility.expiry_date))
+```
+
+### Inverted Gaps (Over-Precision vs Performance)
+
+```python
+# ❌ WATCH FOR: Actuarial precision killing performance
+# 47 decimal places for territory factors that take 500ms to calculate
+territory_factor = Decimal("1.234567890123456789012345678901234567890123456789")
+# ✅ BALANCED: Business precision vs performance requirement
+# 4 decimal places adequate for insurance, supports <50ms requirement
+territory_factor = territory_calculation.quantize(Decimal('0.0001'))
+```
+
+### Meta-Gaps (Rate Table Validation Recursion)
+
+```python
+# ❌ WATCH FOR: Rate validation that can't validate itself
+def validate_rate_table(rates: Dict[str, Decimal]) -> bool:
+    # What validates the validation rules?
+    return all(rate > 0 for rate in rates.values())
+# ✅ REQUIRED: Rate validation validation
+async def validate_rate_table(rates: Dict[str, Decimal], validation_config: RateValidationConfig):
+    # First validate the validation configuration itself
+    config_validation = validate_validation_config(validation_config)
+    if config_validation.is_err():
+        return Err(f"Rate validation config invalid: {config_validation.error}")
+```
+
+### Scale-Based Gaps (Pricing Under Load)
+
+```python
+# ❌ WATCH FOR: Rate calculation bottlenecks
+# Calculating rates for 10k concurrent quotes without caching
+for quote in concurrent_quotes:
+    premium = await calculate_complex_premium(quote)  # 200ms each = death
+# ✅ REQUIRED: Load-aware rate caching
+@lru_cache(maxsize=10000)
+async def get_cached_rate_factors(state: str, product_type: str, vehicle_class: str):
+    # Cache common rate combinations for <50ms performance
+    return await calculate_rate_factors(state, product_type, vehicle_class)
+```
+
+### Time-Based Gaps (Rate Effective Dates)
+
+```python
+# ❌ WATCH FOR: Rate table transition assumptions
+# Using old rates after new rates are supposedly effective
+current_rates = rate_tables['current']  # Which timezone? Effective when?
+# ✅ REQUIRED: US timezone-aware rate transitions
+rate_effective_time = datetime.now(tz=timezone.utc)
+active_rates = await get_active_rates_for_time(state, rate_effective_time)
+if not active_rates:
+    return Err(f"No active rate table for {state} at {rate_effective_time}")
+```
+
 ## MANDATORY PRE-WORK
 
 1. Read ALL documents listed in AGENT_TEMPLATE.md FIRST
@@ -1031,3 +1111,77 @@ CREATE TABLE rate_ab_tests (
 ```
 
 Make sure all rate management operations include proper admin authentication and audit logging!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Rating Engine Calculation Anti-Patterns and Edge Cases
+
+**Over-Precise Calculations vs Performance Trade-offs:**
+
+- **Similar Gap**: Using excessive decimal precision for intermediate calculations causing performance degradation without business value
+- **Lateral Gap**: Complex factor calculations that produce mathematically perfect results but violate actuarial filing constraints
+- **Inverted Gap**: Under-precise calculations causing premium rounding errors that compound across large customer bases
+- **Meta-Gap**: Not testing calculation precision requirements against real-world premium accuracy expectations
+
+**Rate Table Versioning Conflicts:**
+
+- **Similar Gap**: Multiple rate table versions active simultaneously causing inconsistent premium calculations for similar risks
+- **Lateral Gap**: Rate table effective dates not properly coordinated with policy effective dates causing coverage gaps
+- **Inverted Gap**: Too conservative rate table versioning preventing timely competitive rate adjustments
+- **Meta-Gap**: Not testing rate table transition periods under high quote volume scenarios
+
+**Pricing Rule Interaction Complexity:**
+
+- **Similar Gap**: Discount stacking rules that interact unpredictably with surcharge calculations
+- **Lateral Gap**: State-specific pricing rules that conflict with multi-state customer scenarios
+- **Inverted Gap**: Over-simplified pricing rules missing important risk differentiation factors
+- **Meta-Gap**: Not modeling pricing rule interactions across all possible customer risk profiles
+
+**Territory and Geographic Rating Issues:**
+
+- **Similar Gap**: ZIP code territory assignments not handling geographic boundary changes or new developments
+- **Lateral Gap**: Territory factors not accounting for micro-geographic risk variations (flood zones, crime patterns)
+- **Inverted Gap**: Over-granular territory rating creating excessive rate complexity without actuarial support
+- **Meta-Gap**: Not monitoring territory rating accuracy against actual loss experience data
+
+**Time-Based Rating Failures:**
+
+- **Rate Effective Periods**: Rating calculations using expired rate tables during high-traffic periods
+- **Anniversary Date Logic**: Multi-year policy rating not properly handling rate changes during policy terms
+- **Seasonal Adjustments**: Rating factors not accounting for seasonal risk variations (winter driving, hurricane season)
+
+**Scale-Based Rating Performance:**
+
+- **Concurrent Calculations**: Rating engine bottlenecks when processing thousands of simultaneous quote requests
+- **Complex Risk Profiles**: Rating calculations timing out for customers with extensive risk histories or complex vehicle fleets
+- **Bulk Rating Operations**: Admin bulk rating updates not efficiently handling large customer portfolios
+
+**Credit-Based Insurance Score Integration:**
+
+- **State Compliance**: Credit scoring rules varying by state not properly isolated in rating calculation flows
+- **Score Availability**: Rating calculations not gracefully handling missing or expired credit scores
+- **Score Accuracy**: Credit-based insurance scores not validated against actual credit report data freshness
+
+**Vehicle Classification and Rating:**
+
+- **VIN Decoding**: Vehicle characteristic lookups not handling custom modifications or rare vehicle types
+- **Safety Feature Recognition**: Rating discounts not properly updated when new safety technologies emerge
+- **Commercial vs Personal Use**: Vehicle usage classification not properly validated against actual customer use patterns
+
+**Driver Risk Assessment Gaps:**
+
+- **Multi-Driver Households**: Primary driver identification not handling complex household driving arrangements
+- **Experience Credit**: Years licensed calculations not accounting for international driving experience or military service
+- **Violation Aging**: Traffic violation impacts not properly aging out according to state-specific rules
+
+**AI Risk Scoring Integration:**
+
+- **Model Drift**: AI risk models not properly retrained causing score accuracy degradation over time
+- **Explainability**: AI risk factors not providing sufficient transparency for regulatory compliance
+- **Bias Detection**: AI scoring not monitored for demographic bias in risk assessment
+
+**Competitive Rate Analysis:**
+
+- **Market Positioning**: Rate calculations not considering competitive market position for retention optimization
+- **Price Elasticity**: Rating algorithms not accounting for customer price sensitivity in competitive markets
+- **A/B Testing Impact**: Rate experimentation affecting calculation consistency across customer segments

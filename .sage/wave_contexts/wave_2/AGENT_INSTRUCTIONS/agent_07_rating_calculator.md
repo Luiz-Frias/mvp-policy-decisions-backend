@@ -906,3 +906,77 @@ CREATE TABLE special_pricing_rules (
 ```
 
 Make sure all pricing operations include comprehensive audit logging and permission checks!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Rating Calculator Implementation Anti-Patterns and Edge Cases
+
+**Calculation Precision vs Speed Optimization:**
+
+- **Similar Gap**: Using float arithmetic for intermediate calculations then converting to Decimal, introducing precision errors in financial calculations
+- **Lateral Gap**: Over-optimizing calculation speed with caching that doesn't invalidate when underlying rate tables change
+- **Inverted Gap**: Over-engineering precision for non-monetary calculations (territory factors) causing unnecessary performance overhead
+- **Meta-Gap**: Not testing calculation precision consistency across different hardware architectures and Python versions
+
+**Discount Stacking Conflicts and Business Rules:**
+
+- **Similar Gap**: Multiple overlapping discounts not properly validated against state insurance regulations for maximum discount limits
+- **Lateral Gap**: Discount eligibility rules not properly coordinated with rating factor calculations causing double-counting benefits
+- **Inverted Gap**: Over-restrictive discount stacking preventing legitimate discount combinations customers expect
+- **Meta-Gap**: Not testing discount combinations across all possible customer and vehicle scenarios
+
+**AI Model Fallback and Error Handling:**
+
+- **Similar Gap**: AI risk scoring failures not gracefully falling back to traditional actuarial methods, causing quote failures
+- **Lateral Gap**: AI model predictions not properly validated against business rule constraints before applying to pricing
+- **Inverted Gap**: Over-reliance on AI scoring without maintaining traditional underwriting as backup validation
+- **Meta-Gap**: Not monitoring AI model prediction accuracy degradation over time affecting pricing competitiveness
+
+**Statistical Model Implementation Issues:**
+
+- **Similar Gap**: Using inappropriate statistical distributions for loss cost modeling causing rate inadequacy
+- **Lateral Gap**: Model coefficients not properly updated when underlying data patterns change causing pricing drift
+- **Inverted Gap**: Over-complex statistical models that can't be explained for regulatory filing requirements
+- **Meta-Gap**: Not validating statistical model assumptions against real-world claim experience data
+
+**Time-Based Calculation Dependencies:**
+
+- **Model Refresh Timing**: Statistical models not updated in sync with rate table changes causing calculation inconsistencies
+- **Real-Time vs Batch**: Real-time pricing calculations not consistent with batch recalculation results
+- **Calculation Caching**: Cached calculation results not properly invalidated when business rules change
+
+**Scale-Based Performance Optimization:**
+
+- **Vectorized Calculations**: Not leveraging NumPy vectorization for bulk pricing operations causing linear performance scaling
+- **Memory Management**: Large-scale pricing operations not properly managing memory for factor lookup tables
+- **Parallel Processing**: CPU-intensive calculations not utilizing multiple cores for concurrent quote processing
+
+**External Data Integration:**
+
+- **Credit Score Integration**: Credit-based insurance score calculations not handling API failures or stale data gracefully
+- **Vehicle Data Accuracy**: VIN decode services providing incomplete or incorrect data affecting pricing accuracy
+- **Geographic Data**: Territory rating data not updated when ZIP code boundaries or risk characteristics change
+
+**Regulatory Compliance in Calculations:**
+
+- **Filed vs Actual Rates**: Calculation algorithms not matching exactly with filed rating manuals causing regulatory compliance issues
+- **Audit Trail Requirements**: Calculation steps not sufficiently logged for regulatory examination requirements
+- **Rate Deviation Limits**: Calculated rates not validated against filed rate deviation tolerances
+
+**Cross-Product Calculation Consistency:**
+
+- **Auto vs Home Rating**: Shared calculation components (credit scores, customer factors) not consistent across product lines
+- **Commercial vs Personal**: Rating algorithm differences not properly isolated causing cross-contamination
+- **Multi-Policy Discounts**: Household-level calculations not properly coordinating across different insurance products
+
+**Performance Monitoring and Optimization:**
+
+- **Calculation Bottlenecks**: Not identifying which calculation steps are consuming disproportionate processing time
+- **Memory Profiling**: Calculation operations not monitored for memory leaks in long-running pricing services
+- **Concurrency Issues**: Thread-safety not properly implemented for shared calculation resources
+
+**Data Quality Impact on Calculations:**
+
+- **Input Validation**: Calculation algorithms not robust against edge cases in customer or vehicle data
+- **Missing Data Handling**: Calculation logic not properly handling partial or missing input data scenarios
+- **Data Transformation**: Input data normalization not consistent across different calculation pathways

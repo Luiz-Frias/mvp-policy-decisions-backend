@@ -1005,3 +1005,77 @@ CREATE TABLE quote_approvals (
 ```
 
 Make sure all admin operations are properly logged and have permission checks!
+
+## ADDITIONAL GAPS TO WATCH
+
+### Quote Service Business Logic Anti-Patterns and Edge Cases
+
+**Quote Workflow State Validation Failures:**
+
+- **Similar Gap**: Allowing quote status transitions that violate business rules (expired → bound without renewal validation)
+- **Lateral Gap**: Not validating quote modification permissions based on user role and quote ownership
+- **Inverted Gap**: Over-restrictive state transitions preventing legitimate business operations (emergency policy binding)
+- **Meta-Gap**: Not testing quote state transitions under concurrent modification scenarios
+
+**Business Hour Logic Inconsistencies:**
+
+- **Similar Gap**: Quote expiration calculations not accounting for business days vs calendar days in different states
+- **Lateral Gap**: Policy effective date validation using local business hours but serving national customer base
+- **Inverted Gap**: Ignoring business hours entirely for time-sensitive insurance deadlines
+- **Meta-Gap**: Not testing business hour logic across timezone boundaries and holiday schedules
+
+**Effective Date Calculation Edge Cases:**
+
+- **Similar Gap**: Not handling policy effective dates that fall on state holidays when DMV offices are closed
+- **Lateral Gap**: Quote effective dates that conflict with claim periods or other policy restrictions
+- **Inverted Gap**: Over-flexible effective date rules allowing coverage gaps or overlaps
+- **Meta-Gap**: Not validating effective date business rules across different insurance product types
+
+**Quote Version Management Complexity:**
+
+- **Similar Gap**: Quote versioning that loses critical audit trail information during major quote modifications
+- **Lateral Gap**: Not handling quote version conflicts when multiple agents modify the same quote simultaneously
+- **Inverted Gap**: Creating too many quote versions for minor changes, cluttering quote history
+- **Meta-Gap**: Not testing quote version management under high-concurrency agent workflows
+
+**Time-Based Service Operations:**
+
+- **Quote Expiration Processing**: Batch expiration jobs not handling timezone differences for multi-state quotes
+- **Real-Time Updates**: Quote change notifications not properly sequenced causing out-of-order updates
+- **Renewal Timing**: Quote renewal logic not accounting for state-specific renewal period requirements
+
+**Scale-Based Service Failures:**
+
+- **Bulk Quote Operations**: Admin bulk operations not implementing proper pagination and timeout handling
+- **Concurrent Quote Access**: Multiple agents working on same customer quotes without proper coordination
+- **Quote Search Performance**: Complex quote search filters not optimized for large quote databases
+
+**Payment and Financial Integration:**
+
+- **Similar Gap**: Quote-to-policy conversion not properly validating payment authorization timing and scope
+- **Lateral Gap**: Currency conversion and precision handling for international customers or multi-currency operations
+- **Inverted Gap**: Over-strict payment validation preventing legitimate policy binding scenarios
+
+**External Service Dependencies:**
+
+- **Rating Engine Integration**: Not handling rating engine failures gracefully, leaving quotes in calculating state indefinitely
+- **Document Generation**: Quote document generation failures not properly rolled back or retried
+- **Notification Services**: Failed quote notifications not queued for retry, causing customer communication gaps
+
+**Quote Analytics and Reporting:**
+
+- **Conversion Tracking**: Not properly attributing quote conversions when customers return through different channels
+- **Performance Metrics**: Quote service metrics not capturing business-relevant KPIs (time to quote, conversion rates)
+- **Data Consistency**: Quote analytics data not staying consistent with quote service data during high-volume periods
+
+**Security and Compliance Integration:**
+
+- **Data Privacy**: Quote PII handling not meeting state-specific privacy requirements
+- **Audit Requirements**: Quote modification audit logs not capturing sufficient detail for regulatory compliance
+- **Access Control**: Quote access permissions not properly inherited when quotes are transferred between agents
+
+**Integration with Admin Override Systems:**
+
+- **Override Validation**: Admin quote overrides not properly validated against business rule constraints
+- **Override Audit**: Admin override actions not creating sufficient audit trail for compliance review
+- **Override Scope**: Admin overrides affecting quote calculation consistency across similar customer scenarios

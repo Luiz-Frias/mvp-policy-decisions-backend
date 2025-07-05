@@ -49,6 +49,95 @@ Build a complete OAuth2 authorization server with client management, scope-based
 
 4. **CLIENT REGISTRATION**: Never auto-approve client registrations without admin review
 
+## ADDITIONAL GAPS TO WATCH
+
+### Similar Gaps (OAuth2 Domain)
+
+```python
+# ❌ WATCH FOR: Token lifetime assumptions
+access_token = jwt.encode(payload, secret, expires_in=3600)  # 1 hour default
+# ✅ REQUIRED: Client-specific token lifetimes
+client_config = await get_client_configuration(client_id)
+if not client_config.access_token_lifetime:
+    return Err("Client access token lifetime not configured")
+access_token = jwt.encode(payload, secret, expires_in=client_config.access_token_lifetime)
+```
+
+### Lateral Gaps (Security Anti-Patterns)
+
+```python
+# ❌ WATCH FOR: Scope creep assumptions
+# Granting broader scopes than requested
+requested_scopes = ["read:quotes"]
+granted_scopes = ["read:quotes", "write:quotes", "admin:all"]  # Dangerous!
+# ✅ REQUIRED: Exact scope validation
+if not all(scope in client.allowed_scopes for scope in requested_scopes):
+    return Err(f"Client not authorized for scopes: {requested_scopes}")
+granted_scopes = requested_scopes  # Grant exactly what was requested and authorized
+```
+
+### Inverted Gaps (Over-Secure vs Under-Secure)
+
+```python
+# ❌ WATCH FOR: Token validation paranoia
+# Validating tokens 47 times per request
+async def validate_request_token(token):
+    await validate_token_signature(token)
+    await validate_token_expiry(token)
+    await validate_token_audience(token)
+    await validate_token_issuer(token)
+    await validate_token_subject(token)
+    # ... 42 more validations taking 500ms total
+# ✅ BALANCED: Essential validation with caching
+@cache_result(ttl=300)  # Cache valid tokens for 5 minutes
+async def validate_essential_token_claims(token):
+    # Core validations only: signature, expiry, scope
+    return await fast_token_validation(token)
+```
+
+### Meta-Gaps (OAuth2 Server Validation)
+
+```python
+# ❌ WATCH FOR: Authorization server that can't authorize itself
+def authorize_client(client_id, scopes):
+    # What authorizes the authorization server to make this decision?
+    return generate_authorization_code(client_id, scopes)
+# ✅ REQUIRED: Authorization server authorization
+async def authorize_client_with_server_validation(client_id, scopes, server_authority):
+    # Validate that this server instance has authority to issue tokens
+    authority_validation = await validate_server_authority(server_authority)
+    if authority_validation.is_err():
+        return Err("Authorization server lacks authority to issue tokens")
+```
+
+### Scale-Based Gaps (Token Generation Under Load)
+
+```python
+# ❌ WATCH FOR: Crypto operations blocking event loop
+# Generating 10k tokens synchronously
+for request in token_requests:
+    token = jwt.encode(payload, rsa_private_key)  # CPU-intensive RSA signing
+# ✅ REQUIRED: Async token generation with proper pool
+async def generate_tokens_with_pool(token_requests, crypto_pool):
+    # Use dedicated thread pool for CPU-intensive crypto
+    tasks = [crypto_pool.submit(jwt.encode, req.payload, rsa_key) for req in token_requests]
+    return await asyncio.gather(*tasks)
+```
+
+### Time-Based Gaps (US Business Hours + Token Expiry)
+
+```python
+# ❌ WATCH FOR: Token expiration during business transactions
+# 1-hour tokens that expire mid-quote process
+token_lifetime = timedelta(hours=1)  # Might expire during complex workflow
+# ✅ REQUIRED: Business-process-aware token lifetimes
+if is_business_hours() and is_complex_workflow(scopes):
+    # Longer tokens during business hours for complex processes
+    token_lifetime = timedelta(hours=8)  # Full business day
+else:
+    token_lifetime = timedelta(hours=1)  # Standard lifetime
+```
+
 ## MANDATORY PRE-WORK
 
 1. Read ALL documents listed in AGENT_TEMPLATE.md FIRST
@@ -1513,3 +1602,83 @@ CREATE INDEX idx_oauth2_refresh_tokens_access ON oauth2_refresh_tokens(access_to
 ```
 
 Make sure all OAuth2 operations include proper admin authentication and comprehensive audit logging!
+
+## ADDITIONAL GAPS TO WATCH
+
+### OAuth2 Authorization Server Anti-Patterns and Edge Cases
+
+**Token Validation Extremes and Performance:**
+
+- **Similar Gap**: Over-validating JWT tokens with expensive cryptographic operations on every API call causing latency spikes
+- **Lateral Gap**: Token introspection not properly cached causing database bottlenecks during high-traffic periods
+- **Inverted Gap**: Under-validating token claims missing revoked tokens still in circulation
+- **Meta-Gap**: Not monitoring token validation performance impact on overall API response times
+
+**Scope Management and Permission Granularity:**
+
+- **Similar Gap**: Over-granular OAuth2 scopes creating complex permission matrices that are difficult to manage and audit
+- **Lateral Gap**: Scope inheritance not properly implemented causing permission gaps in related operations
+- **Inverted Gap**: Over-broad scopes violating principle of least privilege for API access
+- **Meta-Gap**: Not analyzing actual scope usage patterns against granted permissions to optimize scope design
+
+**Client Registration Workflow Security:**
+
+- **Similar Gap**: Automated client registration without proper business justification review allowing potentially malicious integrations
+- **Lateral Gap**: Client registration not properly integrated with organizational approval workflows
+- **Inverted Gap**: Over-restrictive client registration preventing legitimate business integrations
+- **Meta-Gap**: Not monitoring client registration patterns for potential security threats or abuse
+
+**Grant Type Implementation Edge Cases:**
+
+- **Similar Gap**: Authorization code flow not properly implementing PKCE causing mobile app security vulnerabilities
+- **Lateral Gap**: Client credentials flow not properly rate-limited allowing potential abuse
+- **Inverted Gap**: Disabling useful grant types due to security concerns without implementing proper controls
+- **Meta-Gap**: Not testing OAuth2 flow security against current attack patterns and vulnerabilities
+
+**Time-Based OAuth2 Security Issues:**
+
+- **Token Rotation**: Refresh token rotation not properly implemented causing session hijacking vulnerabilities
+- **Code Expiration**: Authorization codes not expiring quickly enough creating replay attack windows
+- **Token Lifetime**: Access token lifetimes not balanced between security and user experience
+
+**Scale-Based OAuth2 Performance:**
+
+- **Token Storage**: OAuth2 token storage not optimized for high-volume token issuance and validation
+- **Concurrent Flows**: Multiple simultaneous OAuth2 flows for same user not properly coordinated
+- **Rate Limiting**: OAuth2 endpoints not properly rate-limited causing potential DoS vulnerabilities
+
+**Cross-Application Integration Complexity:**
+
+- **Multi-Tenant Support**: OAuth2 server not properly isolating tenants in shared infrastructure
+- **API Gateway Integration**: OAuth2 tokens not properly validated at API gateway level
+- **Microservice Authorization**: Service-to-service OAuth2 communication not properly secured
+
+**Redirect URI Validation and Security:**
+
+- **Dynamic Redirects**: Redirect URI validation not handling dynamic subdomain scenarios securely
+- **Mobile Deep Links**: OAuth2 redirect handling not secure for mobile app custom URL schemes
+- **Localhost Development**: Development redirect URIs not properly isolated from production configurations
+
+**Token Revocation and Cleanup:**
+
+- **Bulk Revocation**: Mass token revocation not efficiently implemented for security incident response
+- **Automatic Cleanup**: Expired token cleanup not properly scheduled causing database bloat
+- **Cascading Revocation**: Token revocation not properly cascading to related sessions and derived tokens
+
+**Audit and Compliance Integration:**
+
+- **OAuth2 Event Logging**: Not capturing sufficient OAuth2 flow details for security audits
+- **Compliance Reporting**: OAuth2 usage patterns not properly tracked for regulatory compliance
+- **Data Retention**: OAuth2 audit logs not properly managed for privacy and compliance requirements
+
+**Error Handling and Security Disclosure:**
+
+- **Error Information Leakage**: OAuth2 error responses revealing too much information about system internals
+- **Client Error Handling**: OAuth2 errors not providing sufficient context for client troubleshooting
+- **Attack Surface**: OAuth2 error conditions not properly hardened against information disclosure attacks
+
+**Integration with External Identity Systems:**
+
+- **Federation Compatibility**: OAuth2 server not properly integrating with SAML or other federation protocols
+- **Identity Provider Sync**: OAuth2 user identity not properly synchronized with external identity sources
+- **Cross-Protocol Security**: OAuth2 and SSO integration not maintaining consistent security posture
