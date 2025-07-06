@@ -10,11 +10,10 @@ import asyncio
 import time
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 
 from pd_prime_demo.services.rating.calculators import (
     AIRiskScorer,
-    AdvancedPerformanceCalculator,
     CreditBasedInsuranceScorer,
     DiscountCalculator,
     ExternalDataIntegrator,
@@ -34,12 +33,12 @@ def print_header(title: str) -> None:
 
 def print_result(operation: str, result: Any, elapsed_ms: float) -> None:
     """Print operation result with timing."""
-    status = "✅ SUCCESS" if hasattr(result, 'is_ok') and result.is_ok() else "❌ ERROR"
+    status = "✅ SUCCESS" if hasattr(result, "is_ok") and result.is_ok() else "❌ ERROR"
     print(f"{operation:<40} {status:<10} {elapsed_ms:>8.2f}ms")
-    
-    if hasattr(result, 'is_err') and result.is_err():
+
+    if hasattr(result, "is_err") and result.is_err():
         print(f"  Error: {result.unwrap_err()}")
-    elif hasattr(result, 'unwrap'):
+    elif hasattr(result, "unwrap"):
         value = result.unwrap()
         if isinstance(value, (int, float, Decimal)):
             print(f"  Result: {value}")
@@ -61,7 +60,7 @@ def print_result(operation: str, result: Any, elapsed_ms: float) -> None:
 async def test_basic_premium_calculations() -> None:
     """Test basic premium calculation functionality."""
     print_header("BASIC PREMIUM CALCULATIONS")
-    
+
     # Test base premium calculation
     start_time = time.perf_counter()
     result = PremiumCalculator.calculate_base_premium(
@@ -71,7 +70,7 @@ async def test_basic_premium_calculations() -> None:
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Base Premium Calculation", result, elapsed_ms)
-    
+
     # Test factor application
     start_time = time.perf_counter()
     factors = {
@@ -87,7 +86,7 @@ async def test_basic_premium_calculations() -> None:
     result = PremiumCalculator.apply_multiplicative_factors(Decimal("1000.00"), factors)
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Factor Application", result, elapsed_ms)
-    
+
     # Test territory factor calculation
     start_time = time.perf_counter()
     territory_data = {
@@ -102,7 +101,7 @@ async def test_basic_premium_calculations() -> None:
 async def test_discount_calculations() -> None:
     """Test discount stacking functionality."""
     print_header("DISCOUNT CALCULATIONS")
-    
+
     # Test simple discount stacking
     start_time = time.perf_counter()
     base_premium = Decimal("1500.00")
@@ -115,7 +114,7 @@ async def test_discount_calculations() -> None:
     result = DiscountCalculator.calculate_stacked_discounts(base_premium, discounts)
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Discount Stacking", result, elapsed_ms)
-    
+
     # Test state-specific discount rules
     start_time = time.perf_counter()
     state_rules = {"max_discount": 0.35}  # CA limits to 35%
@@ -129,7 +128,7 @@ async def test_discount_calculations() -> None:
 async def test_credit_based_scoring() -> None:
     """Test credit-based insurance scoring."""
     print_header("CREDIT-BASED INSURANCE SCORING")
-    
+
     # Test credit factor calculation for allowed state
     start_time = time.perf_counter()
     result = CreditBasedInsuranceScorer.calculate_credit_factor(
@@ -137,7 +136,7 @@ async def test_credit_based_scoring() -> None:
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Credit Factor (TX)", result, elapsed_ms)
-    
+
     # Test credit factor for prohibited state
     start_time = time.perf_counter()
     result = CreditBasedInsuranceScorer.calculate_credit_factor(
@@ -145,7 +144,7 @@ async def test_credit_based_scoring() -> None:
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Credit Factor (CA - Prohibited)", result, elapsed_ms)
-    
+
     # Test insurance score calculation
     start_time = time.perf_counter()
     result = CreditBasedInsuranceScorer.calculate_insurance_score(
@@ -162,7 +161,7 @@ async def test_credit_based_scoring() -> None:
 async def test_external_data_integration() -> None:
     """Test external data integration features."""
     print_header("EXTERNAL DATA INTEGRATION")
-    
+
     # Test weather risk factor
     start_time = time.perf_counter()
     result = await ExternalDataIntegrator.get_weather_risk_factor(
@@ -170,13 +169,15 @@ async def test_external_data_integration() -> None:
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Weather Risk Factor", result, elapsed_ms)
-    
+
     # Test crime risk factor
     start_time = time.perf_counter()
-    result = await ExternalDataIntegrator.get_crime_risk_factor(zip_code="60601")  # Chicago
+    result = await ExternalDataIntegrator.get_crime_risk_factor(
+        zip_code="60601"
+    )  # Chicago
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Crime Risk Factor", result, elapsed_ms)
-    
+
     # Test VIN validation
     start_time = time.perf_counter()
     result = await ExternalDataIntegrator.validate_vehicle_data("4T1BF1FK0CU123456")
@@ -187,10 +188,10 @@ async def test_external_data_integration() -> None:
 async def test_ai_risk_scoring() -> None:
     """Test AI risk scoring functionality."""
     print_header("AI RISK SCORING")
-    
+
     # Test with models loaded
     ai_scorer = AIRiskScorer(load_models=True)
-    
+
     customer_data = {
         "policy_count": 2,
         "years_as_customer": 5,
@@ -210,14 +211,14 @@ async def test_ai_risk_scoring() -> None:
             "accidents_3_years": 0,
         }
     ]
-    
+
     start_time = time.perf_counter()
     result = await ai_scorer.calculate_ai_risk_score(
         customer_data, vehicle_data, driver_data
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("AI Risk Score (Models Loaded)", result, elapsed_ms)
-    
+
     # Test fallback behavior without models
     ai_scorer_no_models = AIRiskScorer(load_models=False)
     start_time = time.perf_counter()
@@ -231,7 +232,7 @@ async def test_ai_risk_scoring() -> None:
 async def test_statistical_models() -> None:
     """Test advanced statistical rating models."""
     print_header("STATISTICAL RATING MODELS")
-    
+
     # Test GLM calculation
     start_time = time.perf_counter()
     features = {"age": 30.0, "experience": 10.0, "violations": 1.0}
@@ -246,7 +247,7 @@ async def test_statistical_models() -> None:
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("GLM Factor Calculation", result, elapsed_ms)
-    
+
     # Test frequency/severity model
     start_time = time.perf_counter()
     driver_profile = {"age": 35, "prior_claims": 0}
@@ -257,13 +258,13 @@ async def test_statistical_models() -> None:
         "safety_features": ["abs", "airbags"],
     }
     territory_profile = {"urban": True}
-    
+
     result = StatisticalRatingModels.calculate_frequency_severity_model(
         driver_profile, vehicle_profile, territory_profile
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Frequency/Severity Model", result, elapsed_ms)
-    
+
     # Test catastrophe loading
     start_time = time.perf_counter()
     result = StatisticalRatingModels.calculate_catastrophe_loading(
@@ -277,7 +278,7 @@ async def test_statistical_models() -> None:
 async def test_regulatory_compliance() -> None:
     """Test regulatory compliance features."""
     print_header("REGULATORY COMPLIANCE")
-    
+
     # Test rate deviation validation
     start_time = time.perf_counter()
     result = RegulatoryComplianceCalculator.validate_rate_deviation(
@@ -288,7 +289,7 @@ async def test_regulatory_compliance() -> None:
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Rate Deviation Check (CA)", result, elapsed_ms)
-    
+
     # Test mandatory coverage application
     start_time = time.perf_counter()
     result = RegulatoryComplianceCalculator.apply_mandatory_coverages(
@@ -301,32 +302,32 @@ async def test_regulatory_compliance() -> None:
 async def test_performance_optimization() -> None:
     """Test performance optimization features."""
     print_header("PERFORMANCE OPTIMIZATION")
-    
+
     optimizer = RatingPerformanceOptimizer()
-    
+
     # Test cache warming
     start_time = time.perf_counter()
     optimizer.precompute_common_scenarios()
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print(f"Cache Warming                            ✅ SUCCESS  {elapsed_ms:>8.2f}ms")
-    
+
     # Test parallel calculation
     start_time = time.perf_counter()
-    
+
     async def mock_task():
         await asyncio.sleep(0.001)
         return 1.0
-    
+
     calculation_tasks = {
         "territory": mock_task,
         "driver": mock_task,
         "vehicle": mock_task,
     }
-    
+
     result = await optimizer.parallel_factor_calculation(calculation_tasks)
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Parallel Factor Calculation", result, elapsed_ms)
-    
+
     # Test optimized pipeline
     quote_data = {
         "state": "CA",
@@ -334,7 +335,7 @@ async def test_performance_optimization() -> None:
         "drivers": [{"age": 30, "years_licensed": 10}],
         "vehicles": [{"type": "sedan", "age": 5}],
     }
-    
+
     start_time = time.perf_counter()
     result = await optimizer.optimize_calculation_pipeline(quote_data)
     elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -344,32 +345,34 @@ async def test_performance_optimization() -> None:
 async def test_comprehensive_calculation() -> None:
     """Test a comprehensive end-to-end calculation."""
     print_header("COMPREHENSIVE CALCULATION TEST")
-    
+
     start_time = time.perf_counter()
-    
+
     # 1. Base premium
     base_result = PremiumCalculator.calculate_base_premium(
         coverage_limit=Decimal("100000"),
         base_rate=Decimal("0.005"),
     )
-    
+
     if base_result.is_err():
         print(f"Base calculation failed: {base_result.unwrap_err()}")
         return
-        
+
     base_premium = base_result.unwrap()
-    
+
     # 2. Territory factor
     territory_data = {
         "base_loss_cost": 100,
         "90210": {"loss_cost": 120, "credibility": 0.8},
     }
-    territory_result = PremiumCalculator.calculate_territory_factor("90210", territory_data)
-    
+    territory_result = PremiumCalculator.calculate_territory_factor(
+        "90210", territory_data
+    )
+
     # 3. Driver risk scoring
     driver_data = {"age": 30, "years_licensed": 10, "violations_3_years": 0}
     driver_result = PremiumCalculator.calculate_driver_risk_score(driver_data)
-    
+
     # 4. Vehicle risk scoring
     vehicle_data = {
         "type": "sedan",
@@ -378,15 +381,15 @@ async def test_comprehensive_calculation() -> None:
         "theft_rate": 1.0,
     }
     vehicle_result = PremiumCalculator.calculate_vehicle_risk_score(vehicle_data)
-    
+
     # 5. Credit factor (for allowed state)
     credit_result = CreditBasedInsuranceScorer.calculate_credit_factor(750, "TX")
-    
+
     # 6. External factors
     weather_result = await ExternalDataIntegrator.get_weather_risk_factor(
         "90210", datetime.now()
     )
-    
+
     # 7. Apply all factors
     all_factors = {}
     if territory_result.is_ok():
@@ -399,34 +402,36 @@ async def test_comprehensive_calculation() -> None:
         all_factors["driver_risk"] = 0.5 + driver_result.unwrap()[0] * 0.5
     if vehicle_result.is_ok():
         all_factors["vehicle_risk"] = vehicle_result.unwrap()
-    
-    factor_result = PremiumCalculator.apply_multiplicative_factors(base_premium, all_factors)
-    
+
+    factor_result = PremiumCalculator.apply_multiplicative_factors(
+        base_premium, all_factors
+    )
+
     if factor_result.is_err():
         print(f"Factor application failed: {factor_result.unwrap_err()}")
         return
-        
+
     factored_premium, impacts = factor_result.unwrap()
-    
+
     # 8. Apply discounts
     discounts = [
         {"rate": 0.10, "priority": 1, "stackable": True},  # Multi-policy
         {"rate": 0.05, "priority": 2, "stackable": True},  # Good driver
     ]
-    
+
     discount_result = DiscountCalculator.calculate_stacked_discounts(
         factored_premium, discounts
     )
-    
+
     if discount_result.is_err():
         print(f"Discount calculation failed: {discount_result.unwrap_err()}")
         return
-        
+
     applied_discounts, total_discount = discount_result.unwrap()
     final_premium = factored_premium - total_discount
-    
+
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    
+
     print(f"End-to-End Calculation               ✅ SUCCESS  {elapsed_ms:>8.2f}ms")
     print(f"  Base Premium:     ${base_premium}")
     print(f"  Factored Premium: ${factored_premium}")
@@ -439,40 +444,40 @@ async def test_comprehensive_calculation() -> None:
 async def run_performance_benchmark() -> None:
     """Run performance benchmark tests."""
     print_header("PERFORMANCE BENCHMARK")
-    
+
     # Test bulk calculations
     iterations = 100
     start_time = time.perf_counter()
-    
+
     for i in range(iterations):
         # Vary the inputs to prevent caching
         coverage = Decimal(str(50000 + i * 1000))
         rate = Decimal("0.005")
-        
+
         result = PremiumCalculator.calculate_base_premium(coverage, rate)
         if result.is_err():
             print(f"Calculation {i} failed: {result.unwrap_err()}")
-            
+
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     avg_ms = elapsed_ms / iterations
-    
+
     print(f"Bulk Calculations ({iterations}x)         ✅ SUCCESS  {elapsed_ms:>8.2f}ms")
     print(f"  Average per calculation: {avg_ms:.3f}ms")
     print(f"  Throughput: {iterations/(elapsed_ms/1000):.0f} calculations/second")
-    
+
     # Performance target validation
     if avg_ms < 1.0:  # Less than 1ms per calculation
         print("  ✅ PERFORMANCE TARGET MET: <1ms per calculation")
     else:
         print("  ❌ PERFORMANCE TARGET MISSED: >1ms per calculation")
-    
+
     # Test complex pipeline under load
     optimizer = RatingPerformanceOptimizer()
     optimizer.precompute_common_scenarios()
-    
+
     concurrent_calculations = 20
     start_time = time.perf_counter()
-    
+
     tasks = []
     for i in range(concurrent_calculations):
         quote_data = {
@@ -482,16 +487,20 @@ async def run_performance_benchmark() -> None:
             "vehicles": [{"type": "sedan", "age": i % 10}],
         }
         tasks.append(optimizer.optimize_calculation_pipeline(quote_data))
-    
+
     results = await asyncio.gather(*tasks, return_exceptions=True)
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    
-    success_count = sum(1 for r in results if hasattr(r, 'is_ok') and r.is_ok())
-    
-    print(f"Concurrent Load Test ({concurrent_calculations}x)      ✅ SUCCESS  {elapsed_ms:>8.2f}ms")
+
+    success_count = sum(1 for r in results if hasattr(r, "is_ok") and r.is_ok())
+
+    print(
+        f"Concurrent Load Test ({concurrent_calculations}x)      ✅ SUCCESS  {elapsed_ms:>8.2f}ms"
+    )
     print(f"  Success rate: {success_count}/{concurrent_calculations}")
-    print(f"  Throughput: {concurrent_calculations/(elapsed_ms/1000):.0f} calculations/second")
-    
+    print(
+        f"  Throughput: {concurrent_calculations/(elapsed_ms/1000):.0f} calculations/second"
+    )
+
     if elapsed_ms < 1000:  # Less than 1 second for 20 concurrent
         print("  ✅ PERFORMANCE TARGET MET: Concurrent processing")
     else:
@@ -503,7 +512,7 @@ async def main() -> None:
     print("🚀 RATING CALCULATOR IMPLEMENTATION AUDIT")
     print("Mission: Verify all pricing calculations work with <50ms performance")
     print(f"Timestamp: {datetime.now().isoformat()}")
-    
+
     # Run all test suites
     await test_basic_premium_calculations()
     await test_discount_calculations()
@@ -515,7 +524,7 @@ async def main() -> None:
     await test_performance_optimization()
     await test_comprehensive_calculation()
     await run_performance_benchmark()
-    
+
     print_header("AUDIT COMPLETION")
     print("✅ All rating calculator components tested")
     print("✅ Performance requirements verified (<50ms)")

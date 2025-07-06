@@ -15,7 +15,7 @@
 ### Plan
 1. Create comprehensive migration files for:
    - 002: Add users and quote system tables
-   - 003: Add rating engine tables  
+   - 003: Add rating engine tables
    - 004: Add security & compliance tables
    - 005: Add real-time analytics tables
    - 006: Add admin system tables

@@ -327,25 +327,31 @@ async def readiness_check(
 
         # Check OpenAI API (if configured)
         if settings.openai_api_key:
-            logger.info(f"[{request_id}] OpenAI API key configured - performing health check")
+            logger.info(
+                f"[{request_id}] OpenAI API key configured - performing health check"
+            )
             openai_start = datetime.utcnow()
             try:
                 import openai
-                
+
                 client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
                 # Simple API test with minimal cost
                 models = await client.models.list()
-                openai_response_time = (datetime.utcnow() - openai_start).total_seconds() * 1000
-                
-                logger.info(f"[{request_id}] OpenAI health check successful in {openai_response_time:.2f}ms")
-                
+                openai_response_time = (
+                    datetime.utcnow() - openai_start
+                ).total_seconds() * 1000
+
+                logger.info(
+                    f"[{request_id}] OpenAI health check successful in {openai_response_time:.2f}ms"
+                )
+
                 component_statuses["openai"] = HealthStatus(
                     status="healthy",
                     response_time_ms=openai_response_time,
                     message=f"OpenAI API accessible, {len(models.data)} models available",
                 )
                 total_response_time += openai_response_time
-                
+
             except ImportError:
                 logger.warning(f"[{request_id}] OpenAI package not available")
                 component_statuses["openai"] = HealthStatus(
@@ -354,7 +360,9 @@ async def readiness_check(
                     message="OpenAI package not installed",
                 )
             except Exception as e:
-                openai_response_time = (datetime.utcnow() - openai_start).total_seconds() * 1000
+                openai_response_time = (
+                    datetime.utcnow() - openai_start
+                ).total_seconds() * 1000
                 logger.error(f"[{request_id}] OpenAI health check failed: {str(e)}")
                 component_statuses["openai"] = HealthStatus(
                     status="unhealthy",
@@ -618,21 +626,21 @@ async def check_database_health(
     latency_threshold_ms: float = 10.0,
 ) -> tuple[HealthStatus, float]:
     """Check database connectivity and performance.
-    
+
     Args:
         db: Database connection
         latency_threshold_ms: Maximum acceptable latency in milliseconds
-        
+
     Returns:
         Tuple of (HealthStatus, response_time_ms)
     """
     start_time = time.time()
-    
+
     try:
         # Simple connectivity check
         result = await db.fetchval("SELECT 1")
         response_time = (time.time() - start_time) * 1000
-        
+
         if result != 1:
             return (
                 HealthStatus(
@@ -642,18 +650,18 @@ async def check_database_health(
                 ),
                 response_time,
             )
-        
+
         # Check response time
         status = "healthy"
         message = f"Database responding in {response_time:.2f}ms"
-        
+
         if response_time > latency_threshold_ms * 2:
             status = "unhealthy"
             message = f"Database latency critical: {response_time:.2f}ms"
         elif response_time > latency_threshold_ms:
             status = "degraded"
             message = f"Database latency high: {response_time:.2f}ms"
-        
+
         # Get connection pool stats if available
         pool_stats = None
         try:
@@ -668,7 +676,7 @@ async def check_database_health(
                 }
         except Exception:
             pass
-        
+
         return (
             HealthStatus(
                 status=status,
@@ -683,7 +691,7 @@ async def check_database_health(
             ),
             response_time,
         )
-        
+
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return (
@@ -708,37 +716,37 @@ async def check_redis_health(
     latency_threshold_ms: float = 5.0,
 ) -> tuple[HealthStatus, float]:
     """Check Redis connectivity and performance.
-    
+
     Args:
         redis: Redis client
         latency_threshold_ms: Maximum acceptable latency
-        
+
     Returns:
         Tuple of (HealthStatus, response_time_ms)
     """
     start_time = time.time()
-    
+
     try:
         # Ping Redis
         await redis.ping()
         response_time = (time.time() - start_time) * 1000
-        
+
         # Check response time
         status = "healthy"
         message = f"Redis responding in {response_time:.2f}ms"
-        
+
         if response_time > latency_threshold_ms * 2:
             status = "unhealthy"
             message = f"Redis latency critical: {response_time:.2f}ms"
         elif response_time > latency_threshold_ms:
             status = "degraded"
             message = f"Redis latency high: {response_time:.2f}ms"
-        
+
         # Get Redis info
         info = await redis.info()
         memory_used_mb = round(info.get("used_memory", 0) / (1024 * 1024), 2)
         connected_clients = info.get("connected_clients", 0)
-        
+
         return (
             HealthStatus(
                 status=status,
@@ -753,7 +761,7 @@ async def check_redis_health(
             ),
             response_time,
         )
-        
+
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return (

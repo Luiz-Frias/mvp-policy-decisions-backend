@@ -1,47 +1,44 @@
 """Admin quote management endpoints."""
 
-from fastapi import APIRouter, Depends, Query, HTTPException
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-from uuid import UUID
 import csv
 import io
 import json
+from datetime import datetime
+from typing import Any
+from uuid import UUID
 
 from beartype import beartype
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ....services.quote_service import QuoteService
+from ....models.admin import AdminUser
 from ....models.quote import Quote, QuoteOverrideRequest
 from ....schemas.quote import QuoteResponse
-from ...dependencies import get_quote_service, get_current_admin_user
-from ....models.admin import AdminUser
+from ....services.quote_service import QuoteService
+from ...dependencies import get_current_admin_user, get_quote_service
 
 router = APIRouter()
 
 
-@router.get("/search", response_model=List[QuoteResponse])
+@router.get("/search", response_model=list[QuoteResponse])
 @beartype
 async def admin_search_quotes(
     # Search filters
-    status: Optional[str] = None,
-    state: Optional[str] = None,
-    min_premium: Optional[float] = None,
-    max_premium: Optional[float] = None,
-    created_after: Optional[datetime] = None,
-    created_before: Optional[datetime] = None,
-    customer_email: Optional[str] = None,
-
+    status: str | None = None,
+    state: str | None = None,
+    min_premium: float | None = None,
+    max_premium: float | None = None,
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
+    customer_email: str | None = None,
     # Pagination
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-
     # PII control
     include_pii: bool = Query(False),
-
     # Dependencies
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> List[Quote]:
+) -> list[Quote]:
     """Search quotes with admin privileges."""
     filters = {
         "status": status,
@@ -94,18 +91,18 @@ async def override_quote(
 @beartype
 async def bulk_quote_operation(
     operation: str,
-    quote_ids: List[UUID],
-    parameters: Dict[str, Any] = None,
+    quote_ids: list[UUID],
+    parameters: dict[str, Any] = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Perform bulk operations on quotes."""
     # Validate operation
     allowed_operations = ["expire", "extend", "recalculate", "export"]
     if operation not in allowed_operations:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid operation. Allowed: {', '.join(allowed_operations)}"
+            detail=f"Invalid operation. Allowed: {', '.join(allowed_operations)}",
         )
 
     # Check permissions
@@ -115,37 +112,31 @@ async def bulk_quote_operation(
 
     # Process in batches
     batch_size = 50
-    results = {
-        "total": len(quote_ids),
-        "successful": 0,
-        "failed": 0,
-        "errors": []
-    }
+    results = {"total": len(quote_ids), "successful": 0, "failed": 0, "errors": []}
 
     for i in range(0, len(quote_ids), batch_size):
-        batch = quote_ids[i:i + batch_size]
-        
+        batch = quote_ids[i : i + batch_size]
+
         if operation == "expire":
             # Expire quotes
             for quote_id in batch:
                 try:
                     await quote_service._db.execute(
                         """
-                        UPDATE quotes 
-                        SET status = 'EXPIRED', 
-                            updated_at = CURRENT_TIMESTAMP 
+                        UPDATE quotes
+                        SET status = 'EXPIRED',
+                            updated_at = CURRENT_TIMESTAMP
                         WHERE id = $1 AND status != 'BOUND'
                         """,
-                        quote_id
+                        quote_id,
                     )
                     results["successful"] += 1
                 except Exception as e:
                     results["failed"] += 1
-                    results["errors"].append({
-                        "quote_id": str(quote_id),
-                        "error": str(e)
-                    })
-                    
+                    results["errors"].append(
+                        {"quote_id": str(quote_id), "error": str(e)}
+                    )
+
         elif operation == "extend":
             # Extend expiration
             days = parameters.get("days", 30) if parameters else 30
@@ -153,22 +144,21 @@ async def bulk_quote_operation(
                 try:
                     await quote_service._db.execute(
                         """
-                        UPDATE quotes 
+                        UPDATE quotes
                         SET expires_at = expires_at + INTERVAL '%s days',
-                            updated_at = CURRENT_TIMESTAMP 
+                            updated_at = CURRENT_TIMESTAMP
                         WHERE id = $1 AND status NOT IN ('BOUND', 'EXPIRED')
                         """,
                         days,
-                        quote_id
+                        quote_id,
                     )
                     results["successful"] += 1
                 except Exception as e:
                     results["failed"] += 1
-                    results["errors"].append({
-                        "quote_id": str(quote_id),
-                        "error": str(e)
-                    })
-                    
+                    results["errors"].append(
+                        {"quote_id": str(quote_id), "error": str(e)}
+                    )
+
         elif operation == "recalculate":
             # Trigger recalculation
             for quote_id in batch:
@@ -177,10 +167,9 @@ async def bulk_quote_operation(
                     results["successful"] += 1
                 else:
                     results["failed"] += 1
-                    results["errors"].append({
-                        "quote_id": str(quote_id),
-                        "error": result.error
-                    })
+                    results["errors"].append(
+                        {"quote_id": str(quote_id), "error": result.error}
+                    )
 
     return results
 
@@ -193,7 +182,7 @@ async def get_quote_analytics(
     group_by: str = Query("day", regex="^(hour|day|week|month)$"),
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get quote analytics for dashboards."""
     result = await quote_service.get_quote_analytics(
         date_from,
@@ -211,13 +200,13 @@ async def get_quote_analytics(
 @beartype
 async def export_quotes(
     format: str = Query("csv", regex="^(csv|json|excel)$"),
-    status: Optional[str] = None,
-    state: Optional[str] = None,
-    created_after: Optional[datetime] = None,
-    created_before: Optional[datetime] = None,
+    status: str | None = None,
+    state: str | None = None,
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Export quotes in various formats."""
     # Check permission
     if "quote:export" not in admin_user.effective_permissions:
@@ -254,11 +243,7 @@ async def export_quotes(
     # Format data based on requested format
     if format == "json":
         data = [dict(row) for row in rows]
-        return {
-            "format": "json",
-            "count": len(data),
-            "data": data
-        }
+        return {"format": "json", "count": len(data), "data": data}
     elif format == "csv":
         # Implement CSV export
         if not rows:
@@ -266,19 +251,19 @@ async def export_quotes(
                 "format": "csv",
                 "count": 0,
                 "data": "",
-                "message": "No quotes found for export"
+                "message": "No quotes found for export",
             }
-        
+
         # Create CSV output
         output = io.StringIO()
-        
+
         # Get column names from first row
         headers = list(rows[0].keys())
         writer = csv.DictWriter(output, fieldnames=headers)
-        
+
         # Write headers
         writer.writeheader()
-        
+
         # Write data rows
         for row in rows:
             # Convert row to dict and handle JSON/UUID fields
@@ -292,41 +277,41 @@ async def export_quotes(
                 else:
                     row_dict[key] = str(value)
             writer.writerow(row_dict)
-        
+
         csv_content = output.getvalue()
         output.close()
-        
+
         return {
             "format": "csv",
             "count": len(rows),
             "data": csv_content,
-            "filename": f"quotes_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            "filename": f"quotes_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         }
     else:
         # Implement Excel export using openpyxl
         try:
             import openpyxl
+            import pandas as pd
             from openpyxl.styles import Font, PatternFill
             from openpyxl.utils.dataframe import dataframe_to_rows
-            import pandas as pd
-            
+
         except ImportError:
             # Graceful fallback if Excel libraries not available
             return {
                 "format": "excel",
                 "count": len(rows),
                 "message": "Excel export requires openpyxl and pandas libraries. Please install with: pip install openpyxl pandas",
-                "fallback_csv": True
+                "fallback_csv": True,
             }
-        
+
         if not rows:
             return {
                 "format": "excel",
                 "count": 0,
                 "data": "",
-                "message": "No quotes found for export"
+                "message": "No quotes found for export",
             }
-        
+
         # Convert to DataFrame for easier Excel manipulation
         data = []
         for row in rows:
@@ -340,27 +325,29 @@ async def export_quotes(
                 else:
                     row_dict[key] = value
             data.append(row_dict)
-        
+
         df = pd.DataFrame(data)
-        
+
         # Create Excel workbook
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Quotes Export"
-        
+
         # Add headers with styling
         header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-        
+        header_fill = PatternFill(
+            start_color="366092", end_color="366092", fill_type="solid"
+        )
+
         # Write DataFrame to worksheet
         for r in dataframe_to_rows(df, index=False, header=True):
             ws.append(r)
-        
+
         # Style headers
         for cell in ws[1]:
             cell.font = header_font
             cell.fill = header_fill
-        
+
         # Auto-adjust column widths
         for column in ws.columns:
             max_length = 0
@@ -373,22 +360,23 @@ async def export_quotes(
                     pass
             adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
             ws.column_dimensions[column[0].column_letter].width = adjusted_width
-        
+
         # Save to binary buffer
         excel_buffer = io.BytesIO()
         wb.save(excel_buffer)
         excel_buffer.seek(0)
-        
+
         # Convert to base64 for JSON response
         import base64
-        excel_b64 = base64.b64encode(excel_buffer.getvalue()).decode('utf-8')
-        
+
+        excel_b64 = base64.b64encode(excel_buffer.getvalue()).decode("utf-8")
+
         return {
             "format": "excel",
             "count": len(rows),
             "data": excel_b64,
             "filename": f"quotes_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }
 
 
@@ -397,14 +385,14 @@ async def export_quotes(
 async def get_pending_approvals(
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Get quotes pending admin approval."""
     # Check permission
     if "quote:approve" not in admin_user.effective_permissions:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     query = """
-        SELECT 
+        SELECT
             qa.*,
             q.quote_number,
             q.total_premium,
@@ -417,7 +405,7 @@ async def get_pending_approvals(
     """
 
     rows = await quote_service._db.fetch(query)
-    
+
     return [dict(row) for row in rows]
 
 
@@ -426,13 +414,15 @@ async def get_pending_approvals(
 async def process_approval(
     approval_id: UUID,
     action: str,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Approve or reject a quote approval request."""
     if action not in ["approve", "reject"]:
-        raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
+        raise HTTPException(
+            status_code=400, detail="Action must be 'approve' or 'reject'"
+        )
 
     # Check permission
     if "quote:approve" not in admin_user.effective_permissions:
@@ -454,7 +444,7 @@ async def process_approval(
         status,
         admin_user.id,
         datetime.now(),
-        notes
+        notes,
     )
 
     return {
@@ -462,5 +452,5 @@ async def process_approval(
         "action": action,
         "status": status,
         "reviewed_by": str(admin_user.id),
-        "reviewed_at": datetime.now().isoformat()
+        "reviewed_at": datetime.now().isoformat(),
     }

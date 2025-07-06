@@ -2,7 +2,7 @@
 
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any
 
 import redis.asyncio as redis
 from attrs import field, frozen
@@ -208,7 +208,7 @@ class Cache:
         return int(result)
 
     @beartype
-    async def smembers(self, key: str) -> Set[str]:
+    async def smembers(self, key: str) -> set[str]:
         """Get all members of a set."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")

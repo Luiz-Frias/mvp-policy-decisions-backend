@@ -17,7 +17,14 @@ from redis.asyncio import Redis
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ...models.claim import Claim as ClaimModel, ClaimCreate as ServiceClaimCreate, ClaimStatus as ServiceClaimStatus, ClaimType as ServiceClaimType, ClaimUpdate as ServiceClaimUpdate, ClaimStatusUpdate as ServiceClaimStatusUpdate, ClaimPriority
+from ...models.claim import ClaimCreate as ServiceClaimCreate
+from ...models.claim import (
+    ClaimPriority,
+)
+from ...models.claim import ClaimStatus as ServiceClaimStatus
+from ...models.claim import ClaimStatusUpdate as ServiceClaimStatusUpdate
+from ...models.claim import ClaimType as ServiceClaimType
+from ...models.claim import ClaimUpdate as ServiceClaimUpdate
 from ...schemas.auth import CurrentUser
 from ...services.claim_service import ClaimService
 from ...services.result import Err
@@ -265,11 +272,11 @@ async def list_claims(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = ClaimService(database, cache)
-    
+
     # Convert API filters to service parameters
     result = await service.list(
         policy_id=filters.policy_id,
@@ -277,43 +284,45 @@ async def list_claims(
         limit=pagination.limit,
         offset=pagination.skip,
     )
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(result.error),
         )
-    
+
     claim_models = result.unwrap()
-    
+
     # Convert ClaimModel to API Claim
     claims = []
     for cm in claim_models:
-        claims.append(Claim(
-            id=cm.id,
-            claim_number=cm.claim_number,
-            created_at=cm.created_at,
-            updated_at=cm.updated_at,
-            policy_id=cm.policy_id,
-            claim_type=ClaimType(cm.claim_type.value),
-            incident_date=cm.incident_date,
-            reported_date=cm.incident_date,  # Using incident_date as reported_date
-            amount_claimed=cm.claimed_amount,
-            description=cm.description,
-            incident_location=cm.incident_location,
-            status=ClaimStatus(cm.status.value),
-            customer_id=uuid4(),  # Will be fetched from policy
-            contact_phone="",  # Not in model
-            contact_email="",  # Not in model
-            adjuster_id=cm.adjuster_id,
-            adjuster_notes=cm.adjuster_notes,
-            approved_amount=cm.approved_amount,
-            paid_amount=cm.paid_amount,
-            approved_at=cm.approved_at,
-            paid_at=cm.paid_at,
-            closed_at=cm.closed_at,
-        ))
-    
+        claims.append(
+            Claim(
+                id=cm.id,
+                claim_number=cm.claim_number,
+                created_at=cm.created_at,
+                updated_at=cm.updated_at,
+                policy_id=cm.policy_id,
+                claim_type=ClaimType(cm.claim_type.value),
+                incident_date=cm.incident_date,
+                reported_date=cm.incident_date,  # Using incident_date as reported_date
+                amount_claimed=cm.claimed_amount,
+                description=cm.description,
+                incident_location=cm.incident_location,
+                status=ClaimStatus(cm.status.value),
+                customer_id=uuid4(),  # Will be fetched from policy
+                contact_phone="",  # Not in model
+                contact_email="",  # Not in model
+                adjuster_id=cm.adjuster_id,
+                adjuster_notes=cm.adjuster_notes,
+                approved_amount=cm.approved_amount,
+                paid_amount=cm.paid_amount,
+                approved_at=cm.approved_at,
+                paid_at=cm.paid_at,
+                closed_at=cm.closed_at,
+            )
+        )
+
     # Get total count
     count_result = await service.list(
         policy_id=filters.policy_id,
@@ -321,9 +330,9 @@ async def list_claims(
         limit=1000000,
         offset=0,
     )
-    
+
     total = len(count_result.unwrap()) if count_result.is_ok() else 0
-    
+
     response = ClaimListResponse(
         items=claims, total=total, skip=pagination.skip, limit=pagination.limit
     )
@@ -362,11 +371,11 @@ async def create_claim(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(db)
         cache = Cache(redis)
         service = ClaimService(database, cache)
-        
+
         # Convert API model to service model
         service_claim_data = ServiceClaimCreate(
             policy_id=claim_data.policy_id,
@@ -380,23 +389,23 @@ async def create_claim(
             contact_phone=claim_data.contact_phone,
             contact_email=claim_data.contact_email,
         )
-        
+
         # Create claim using service
         result = await service.create(service_claim_data, claim_data.policy_id)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.error),
             )
-        
+
         claim_model = result.unwrap()
-        
+
         # Invalidate relevant caches
         pattern = "claims:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
-        
+
         # Convert back to API model
         claim = Claim(
             id=claim_model.id,
@@ -422,7 +431,7 @@ async def create_claim(
             paid_at=claim_model.paid_at,
             closed_at=claim_model.closed_at,
         )
-        
+
         return claim
 
     except Exception as e:
@@ -466,27 +475,26 @@ async def get_claim(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = ClaimService(database, cache)
-    
+
     # Get claim using service
     result = await service.get(claim_id)
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(result.error),
         )
-    
+
     claim_model = result.unwrap()
     if not claim_model:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Claim {claim_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
         )
-    
+
     # Convert to API model
     claim = Claim(
         id=claim_model.id,
@@ -512,10 +520,10 @@ async def get_claim(
         paid_at=claim_model.paid_at,
         closed_at=claim_model.closed_at,
     )
-    
+
     # Cache the result
     await redis.setex(cache_key, 300, claim.model_dump_json())
-    
+
     return claim
 
 
@@ -548,32 +556,31 @@ async def update_claim(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = ClaimService(database, cache)
-    
+
     # Convert to service update model
     service_update = ServiceClaimUpdate(
         supporting_documents=[],  # Not exposed in API update
     )
-    
+
     # Update claim using service
     result = await service.update(claim_id, service_update)
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.error),
         )
-    
+
     claim_model = result.unwrap()
     if not claim_model:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Claim {claim_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
         )
-    
+
     # If status update requested, handle separately
     if claim_update.status:
         status_result = await service.update_status(
@@ -582,23 +589,23 @@ async def update_claim(
                 status=ServiceClaimStatus(claim_update.status.value),
                 amount_approved=claim_update.approved_amount,
                 notes=claim_update.adjuster_notes,
-            )
+            ),
         )
-        
+
         if isinstance(status_result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(status_result.error),
             )
-        
+
         claim_model = status_result.unwrap()
-    
+
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
     pattern = "claims:list:*"
     async for key in redis.scan_iter(match=pattern):
         await redis.delete(key)
-    
+
     # Convert to API model
     claim = Claim(
         id=claim_model.id,
@@ -624,7 +631,7 @@ async def update_claim(
         paid_at=claim_model.paid_at,
         closed_at=claim_model.closed_at,
     )
-    
+
     return claim
 
 
@@ -657,11 +664,11 @@ async def update_claim_status(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = ClaimService(database, cache)
-    
+
     # Update claim status using service
     result = await service.update_status(
         claim_id,
@@ -669,28 +676,27 @@ async def update_claim_status(
             status=ServiceClaimStatus(status_update.status.value),
             amount_approved=None,  # Not in this API
             notes=status_update.notes,
-        )
+        ),
     )
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.error),
         )
-    
+
     claim_model = result.unwrap()
     if not claim_model:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Claim {claim_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
         )
-    
+
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
     pattern = "claims:list:*"
     async for key in redis.scan_iter(match=pattern):
         await redis.delete(key)
-    
+
     # Convert to API model
     claim = Claim(
         id=claim_model.id,
@@ -716,7 +722,7 @@ async def update_claim_status(
         paid_at=claim_model.paid_at,
         closed_at=claim_model.closed_at,
     )
-    
+
     return claim
 
 
@@ -744,25 +750,24 @@ async def delete_claim(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = ClaimService(database, cache)
-    
+
     # Delete claim using service
     result = await service.delete(claim_id)
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.error),
         )
-    
+
     deleted = result.unwrap()
     if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Claim {claim_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
         )
     # This is a placeholder implementation
 

@@ -3,7 +3,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -25,8 +25,8 @@ class OAuth2Error(Exception):
     def __init__(
         self,
         error: str,
-        error_description: Optional[str] = None,
-        error_uri: Optional[str] = None,
+        error_description: str | None = None,
+        error_uri: str | None = None,
         status_code: int = 400,
     ) -> None:
         """Initialize OAuth2 error."""
@@ -36,7 +36,7 @@ class OAuth2Error(Exception):
         self.status_code = status_code
         super().__init__(error_description or error)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to OAuth2 error response."""
         response = {"error": self.error}
         if self.error_description:
@@ -80,20 +80,20 @@ class OAuth2Server:
     async def create_client(
         self,
         client_name: str,
-        redirect_uris: List[str],
-        allowed_grant_types: List[str],
-        allowed_scopes: List[str],
+        redirect_uris: list[str],
+        allowed_grant_types: list[str],
+        allowed_scopes: list[str],
         client_type: str = "confidential",  # or "public"
-    ) -> Result[Dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:
         """Create a new OAuth2 client.
-        
+
         Args:
             client_name: Name of the client application
             redirect_uris: List of allowed redirect URIs
             allowed_grant_types: List of allowed OAuth2 grant types
             allowed_scopes: List of allowed OAuth2 scopes
             client_type: Type of client ("confidential" or "public")
-            
+
         Returns:
             Result containing client details or error message
         """
@@ -102,7 +102,7 @@ class OAuth2Server:
             invalid_grants = set(allowed_grant_types) - set(self._supported_grant_types)
             if invalid_grants:
                 return Err(f"Invalid grant types: {invalid_grants}")
-            
+
             # Validate that grant types are explicitly specified
             if not allowed_grant_types:
                 return Err(
@@ -149,7 +149,9 @@ class OAuth2Server:
 
             if client_secret:
                 result["client_secret"] = client_secret  # pragma: allowlist secret
-                result["client_secret_note"] = "Store this securely. It cannot be retrieved later."  # pragma: allowlist secret
+                result["client_secret_note"] = (
+                    "Store this securely. It cannot be retrieved later."  # pragma: allowlist secret
+                )
 
             return Ok(result)
 
@@ -163,13 +165,13 @@ class OAuth2Server:
         client_id: str,
         redirect_uri: str,
         scope: str,
-        state: Optional[str] = None,
-        user_id: Optional[UUID] = None,
-        code_challenge: Optional[str] = None,
-        code_challenge_method: Optional[str] = None,
-    ) -> Result[Dict[str, Any], OAuth2Error]:
+        state: str | None = None,
+        user_id: UUID | None = None,
+        code_challenge: str | None = None,
+        code_challenge_method: str | None = None,
+    ) -> Result[dict[str, Any], OAuth2Error]:
         """Handle authorization request.
-        
+
         Args:
             response_type: OAuth2 response type ("code" or "token")
             client_id: Client identifier
@@ -179,7 +181,7 @@ class OAuth2Server:
             user_id: Authenticated user ID (required for "code" flow)
             code_challenge: PKCE code challenge
             code_challenge_method: PKCE challenge method ("S256" or "plain")
-            
+
         Returns:
             Result containing authorization response or OAuth2Error
         """
@@ -199,28 +201,36 @@ class OAuth2Server:
 
             # Validate scope - EXPLICIT validation, no defaults
             if not scope:
-                return Err(OAuth2Error(
-                    "invalid_request",
-                    "OAuth2 error: scope parameter is required. "
-                    "Required action: Include 'scope' in authorization request."
-                ))
-            
+                return Err(
+                    OAuth2Error(
+                        "invalid_request",
+                        "OAuth2 error: scope parameter is required. "
+                        "Required action: Include 'scope' in authorization request.",
+                    )
+                )
+
             requested_scopes = scope.split()
             if not requested_scopes:
-                return Err(OAuth2Error(
-                    "invalid_scope",
-                    "OAuth2 error: at least one scope must be specified. "
-                    "Required action: Include valid scopes in the request."
-                ))
-            
+                return Err(
+                    OAuth2Error(
+                        "invalid_scope",
+                        "OAuth2 error: at least one scope must be specified. "
+                        "Required action: Include valid scopes in the request.",
+                    )
+                )
+
             # Validate all requested scopes are allowed for this client
             if not all(s in client["allowed_scopes"] for s in requested_scopes):
-                invalid_scopes = [s for s in requested_scopes if s not in client["allowed_scopes"]]
-                return Err(OAuth2Error(
-                    "invalid_scope",
-                    f"Client not authorized for scopes: {', '.join(invalid_scopes)}. "
-                    f"Allowed scopes: {', '.join(client['allowed_scopes'])}"
-                ))
+                invalid_scopes = [
+                    s for s in requested_scopes if s not in client["allowed_scopes"]
+                ]
+                return Err(
+                    OAuth2Error(
+                        "invalid_scope",
+                        f"Client not authorized for scopes: {', '.join(invalid_scopes)}. "
+                        f"Allowed scopes: {', '.join(client['allowed_scopes'])}",
+                    )
+                )
 
             # Require user authentication for authorization code flow
             if response_type == "code" and not user_id:
@@ -237,18 +247,22 @@ class OAuth2Server:
                     code_challenge_method,
                 )
 
-                return Ok({
-                    "code": code,
-                    "state": state,
-                })
+                return Ok(
+                    {
+                        "code": code,
+                        "state": state,
+                    }
+                )
 
             # Implicit flow (token response type)
             elif response_type == "token":
                 if client["client_type"] != "public":
-                    return Err(OAuth2Error(
-                        "unauthorized_client",
-                        "Implicit flow not allowed for confidential clients"
-                    ))
+                    return Err(
+                        OAuth2Error(
+                            "unauthorized_client",
+                            "Implicit flow not allowed for confidential clients",
+                        )
+                    )
 
                 tokens = await self._generate_tokens(
                     client_id,
@@ -256,13 +270,15 @@ class OAuth2Server:
                     requested_scopes,
                 )
 
-                return Ok({
-                    "access_token": tokens["access_token"],
-                    "token_type": "Bearer",
-                    "expires_in": int(self._access_token_expire.total_seconds()),
-                    "scope": scope,
-                    "state": state,
-                })
+                return Ok(
+                    {
+                        "access_token": tokens["access_token"],
+                        "token_type": "Bearer",
+                        "expires_in": int(self._access_token_expire.total_seconds()),
+                        "scope": scope,
+                        "state": state,
+                    }
+                )
 
         except OAuth2Error as e:
             return Err(e)
@@ -273,18 +289,18 @@ class OAuth2Server:
     async def token(
         self,
         grant_type: str,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        code: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
-        refresh_token: Optional[str] = None,
-        scope: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        code_verifier: Optional[str] = None,
-    ) -> Result[Dict[str, Any], OAuth2Error]:
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        code: str | None = None,
+        redirect_uri: str | None = None,
+        refresh_token: str | None = None,
+        scope: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        code_verifier: str | None = None,
+    ) -> Result[dict[str, Any], OAuth2Error]:
         """Handle token request.
-        
+
         Args:
             grant_type: OAuth2 grant type
             client_id: Client identifier
@@ -296,7 +312,7 @@ class OAuth2Server:
             username: Username (for password grant)
             password: Password (for password grant)
             code_verifier: PKCE code verifier
-            
+
         Returns:
             Result containing token response or OAuth2Error
         """
@@ -322,9 +338,7 @@ class OAuth2Server:
                 )
 
             elif grant_type == "client_credentials":
-                return await self._handle_client_credentials_grant(
-                    client, scope
-                )
+                return await self._handle_client_credentials_grant(client, scope)
 
             elif grant_type == "password":
                 return await self._handle_password_grant(
@@ -343,18 +357,18 @@ class OAuth2Server:
     async def introspect(
         self,
         token: str,
-        token_type_hint: Optional[str] = None,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        token_type_hint: str | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+    ) -> dict[str, Any]:
         """Introspect a token.
-        
+
         Args:
             token: Token to introspect
             token_type_hint: Hint about token type
             client_id: Client identifier for authentication
             client_secret: Client secret for authentication
-            
+
         Returns:
             Token introspection response
         """
@@ -374,7 +388,9 @@ class OAuth2Server:
 
             # Check if token is still valid
             exp = payload.get("exp", 0)
-            if datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+            if datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(
+                timezone.utc
+            ):
                 return {"active": False}
 
             # Check if token is revoked
@@ -401,18 +417,18 @@ class OAuth2Server:
     async def revoke(
         self,
         token: str,
-        token_type_hint: Optional[str] = None,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
+        token_type_hint: str | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
     ) -> Result[bool, str]:
         """Revoke a token.
-        
+
         Args:
             token: Token to revoke
             token_type_hint: Hint about token type
             client_id: Client identifier for authentication
             client_secret: Client secret for authentication
-            
+
         Returns:
             Result indicating success or error
         """
@@ -464,7 +480,7 @@ class OAuth2Server:
         return secrets.token_urlsafe(32)
 
     @beartype
-    async def _get_client(self, client_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_client(self, client_id: str) -> dict[str, Any] | None:
         """Get client configuration from database."""
         row = await self._db.fetchrow(
             """
@@ -473,39 +489,37 @@ class OAuth2Server:
             FROM oauth2_clients
             WHERE client_id = $1 AND is_active = true
             """,
-            client_id
+            client_id,
         )
-        
+
         if not row:
             return None
-            
+
         return dict(row)
 
     @beartype
     async def _authenticate_client(
-        self, 
-        client_id: Optional[str], 
-        client_secret: Optional[str]
-    ) -> Optional[Dict[str, Any]]:
+        self, client_id: str | None, client_secret: str | None
+    ) -> dict[str, Any] | None:
         """Authenticate OAuth2 client."""
         if not client_id:
             return None
-            
+
         client = await self._get_client(client_id)
         if not client:
             return None
-            
+
         # Public clients don't have secrets
         if client["client_type"] == "public":
             return client
-            
+
         # Confidential clients must provide valid secret
         if not client_secret or not client.get("client_secret_hash"):
             return None
-            
+
         if not pwd_context.verify(client_secret, client["client_secret_hash"]):
             return None
-            
+
         return client
 
     @beartype
@@ -514,9 +528,9 @@ class OAuth2Server:
         client_id: str,
         user_id: UUID,
         redirect_uri: str,
-        scopes: List[str],
-        code_challenge: Optional[str] = None,
-        code_challenge_method: Optional[str] = None,
+        scopes: list[str],
+        code_challenge: str | None = None,
+        code_challenge_method: str | None = None,
     ) -> str:
         """Generate and store authorization code."""
         code = secrets.token_urlsafe(32)
@@ -542,15 +556,15 @@ class OAuth2Server:
     async def _generate_tokens(
         self,
         client_id: str,
-        user_id: Optional[UUID],
-        scopes: List[str],
-    ) -> Dict[str, str]:
+        user_id: UUID | None,
+        scopes: list[str],
+    ) -> dict[str, str]:
         """Generate access and refresh tokens."""
         # Get client configuration for token lifetime
         client = await self._get_client(client_id)
         if not client:
             raise OAuth2Error("invalid_client", "Client not found")
-        
+
         # Use client-specific token lifetime if configured
         token_lifetime = client.get("token_lifetime")
         if not token_lifetime:
@@ -558,11 +572,11 @@ class OAuth2Server:
             raise OAuth2Error(
                 "server_error",
                 "OAuth2 error: Client access token lifetime not configured. "
-                "Required action: Configure token_lifetime for client."
+                "Required action: Configure token_lifetime for client.",
             )
-        
+
         access_token_expire = timedelta(seconds=token_lifetime)
-        
+
         # Access token
         now = datetime.now(timezone.utc)
         jti = str(uuid4())
@@ -614,29 +628,33 @@ class OAuth2Server:
     @beartype
     async def _handle_authorization_code_grant(
         self,
-        code: Optional[str],
-        redirect_uri: Optional[str],
-        client_id: Optional[str],
-        code_verifier: Optional[str] = None,
-    ) -> Result[Dict[str, Any], OAuth2Error]:
+        code: str | None,
+        redirect_uri: str | None,
+        client_id: str | None,
+        code_verifier: str | None = None,
+    ) -> Result[dict[str, Any], OAuth2Error]:
         """Handle authorization code grant type with enhanced PKCE validation."""
         if not code:
             return Err(OAuth2Error("invalid_request", "Missing authorization code"))
-        
+
         if not redirect_uri:
             return Err(OAuth2Error("invalid_request", "Missing redirect_uri"))
-        
+
         if not client_id:
             return Err(OAuth2Error("invalid_request", "Missing client_id"))
 
         # Retrieve code details
         code_data = await self._cache.get(f"auth_code:{code}")
         if not code_data:
-            return Err(OAuth2Error("invalid_grant", "Invalid or expired authorization code"))
+            return Err(
+                OAuth2Error("invalid_grant", "Invalid or expired authorization code")
+            )
 
         # Validate client
         if code_data["client_id"] != client_id:
-            return Err(OAuth2Error("invalid_grant", "Code was issued to a different client"))
+            return Err(
+                OAuth2Error("invalid_grant", "Code was issued to a different client")
+            )
 
         # Validate redirect URI
         if code_data["redirect_uri"] != redirect_uri:
@@ -647,30 +665,52 @@ class OAuth2Server:
         if code_challenge:
             # PKCE is mandatory when challenge was provided
             if not code_verifier:
-                return Err(OAuth2Error("invalid_request", "Code verifier required for PKCE"))
-            
+                return Err(
+                    OAuth2Error("invalid_request", "Code verifier required for PKCE")
+                )
+
             challenge_method = code_data.get("code_challenge_method", "plain")
-            
+
             if challenge_method == "S256":
                 # Compute SHA256 hash of verifier and base64url encode it
                 import base64
-                
-                verifier_hash = hashlib.sha256(code_verifier.encode('ascii')).digest()
-                computed_challenge = base64.urlsafe_b64encode(verifier_hash).decode('ascii').rstrip('=')
-                
+
+                verifier_hash = hashlib.sha256(code_verifier.encode("ascii")).digest()
+                computed_challenge = (
+                    base64.urlsafe_b64encode(verifier_hash).decode("ascii").rstrip("=")
+                )
+
                 if computed_challenge != code_challenge:
-                    return Err(OAuth2Error("invalid_grant", "PKCE code verifier validation failed"))
-                    
+                    return Err(
+                        OAuth2Error(
+                            "invalid_grant", "PKCE code verifier validation failed"
+                        )
+                    )
+
             elif challenge_method == "plain":
                 # Plain method: verifier must match challenge exactly
                 if code_verifier != code_challenge:
-                    return Err(OAuth2Error("invalid_grant", "PKCE code verifier validation failed"))
+                    return Err(
+                        OAuth2Error(
+                            "invalid_grant", "PKCE code verifier validation failed"
+                        )
+                    )
             else:
-                return Err(OAuth2Error("invalid_request", f"Unsupported PKCE challenge method: {challenge_method}"))
-        
+                return Err(
+                    OAuth2Error(
+                        "invalid_request",
+                        f"Unsupported PKCE challenge method: {challenge_method}",
+                    )
+                )
+
         # Check if code verifier provided but no challenge (PKCE downgrade attack prevention)
         elif code_verifier:
-            return Err(OAuth2Error("invalid_request", "Code verifier provided but no PKCE challenge was used"))
+            return Err(
+                OAuth2Error(
+                    "invalid_request",
+                    "Code verifier provided but no PKCE challenge was used",
+                )
+            )
 
         # Delete code to prevent reuse (one-time use enforcement)
         await self._cache.delete(f"auth_code:{code}")
@@ -685,27 +725,26 @@ class OAuth2Server:
 
         # Log successful token exchange for security monitoring
         await self._log_token_exchange(
-            client_id, 
-            user_id, 
-            "authorization_code", 
-            code_data["scopes"]
+            client_id, user_id, "authorization_code", code_data["scopes"]
         )
 
-        return Ok({
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-            "token_type": "Bearer",
-            "expires_in": int(self._access_token_expire.total_seconds()),
-            "scope": " ".join(code_data["scopes"]),
-        })
+        return Ok(
+            {
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "token_type": "Bearer",
+                "expires_in": int(self._access_token_expire.total_seconds()),
+                "scope": " ".join(code_data["scopes"]),
+            }
+        )
 
     @beartype
     async def _handle_refresh_token_grant(
         self,
-        refresh_token: Optional[str],
-        scope: Optional[str],
-        client: Dict[str, Any],
-    ) -> Result[Dict[str, Any], OAuth2Error]:
+        refresh_token: str | None,
+        scope: str | None,
+        client: dict[str, Any],
+    ) -> Result[dict[str, Any], OAuth2Error]:
         """Handle refresh token grant type."""
         if not refresh_token:
             return Err(OAuth2Error("invalid_request", "Missing refresh token"))
@@ -720,7 +759,7 @@ class OAuth2Server:
             FROM oauth2_refresh_tokens
             WHERE token_hash = $1 AND revoked_at IS NULL
             """,
-            token_hash
+            token_hash,
         )
 
         if not row:
@@ -732,17 +771,23 @@ class OAuth2Server:
 
         # Validate client
         if row["client_id"] != client["client_id"]:
-            return Err(OAuth2Error("invalid_grant", "Token was issued to a different client"))
+            return Err(
+                OAuth2Error("invalid_grant", "Token was issued to a different client")
+            )
 
         # Handle scope narrowing
         if scope:
             requested_scopes = scope.split()
             original_scopes = row["scopes"]
-            
+
             # Ensure requested scopes are subset of original
             if not all(s in original_scopes for s in requested_scopes):
-                return Err(OAuth2Error("invalid_scope", "Cannot request scopes not in original grant"))
-            
+                return Err(
+                    OAuth2Error(
+                        "invalid_scope", "Cannot request scopes not in original grant"
+                    )
+                )
+
             scopes = requested_scopes
         else:
             scopes = row["scopes"]
@@ -763,43 +808,55 @@ class OAuth2Server:
             WHERE token_hash = $1
             """,
             token_hash,
-            datetime.now(timezone.utc)
+            datetime.now(timezone.utc),
         )
 
-        return Ok({
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-            "token_type": "Bearer",
-            "expires_in": int(self._access_token_expire.total_seconds()),
-            "scope": " ".join(scopes),
-        })
+        return Ok(
+            {
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "token_type": "Bearer",
+                "expires_in": int(self._access_token_expire.total_seconds()),
+                "scope": " ".join(scopes),
+            }
+        )
 
     @beartype
     async def _handle_client_credentials_grant(
         self,
-        client: Dict[str, Any],
-        scope: Optional[str],
-    ) -> Result[Dict[str, Any], OAuth2Error]:
+        client: dict[str, Any],
+        scope: str | None,
+    ) -> Result[dict[str, Any], OAuth2Error]:
         """Handle client credentials grant type."""
         # Validate grant type is allowed
         if "client_credentials" not in client["allowed_grant_types"]:
-            return Err(OAuth2Error("unauthorized_client", "Client not authorized for this grant type"))
+            return Err(
+                OAuth2Error(
+                    "unauthorized_client", "Client not authorized for this grant type"
+                )
+            )
 
         # Validate scope
         if not scope:
-            return Err(OAuth2Error(
-                "invalid_request",
-                "OAuth2 error: scope parameter is required for client_credentials grant. "
-                "Required action: Include 'scope' in token request."
-            ))
-        
+            return Err(
+                OAuth2Error(
+                    "invalid_request",
+                    "OAuth2 error: scope parameter is required for client_credentials grant. "
+                    "Required action: Include 'scope' in token request.",
+                )
+            )
+
         requested_scopes = scope.split()
         if not all(s in client["allowed_scopes"] for s in requested_scopes):
-            invalid_scopes = [s for s in requested_scopes if s not in client["allowed_scopes"]]
-            return Err(OAuth2Error(
-                "invalid_scope",
-                f"Client not authorized for scopes: {', '.join(invalid_scopes)}"
-            ))
+            invalid_scopes = [
+                s for s in requested_scopes if s not in client["allowed_scopes"]
+            ]
+            return Err(
+                OAuth2Error(
+                    "invalid_scope",
+                    f"Client not authorized for scopes: {', '.join(invalid_scopes)}",
+                )
+            )
 
         # Generate tokens (no user_id for client credentials)
         tokens = await self._generate_tokens(
@@ -809,25 +866,31 @@ class OAuth2Server:
         )
 
         # Client credentials don't get refresh tokens
-        return Ok({
-            "access_token": tokens["access_token"],
-            "token_type": "Bearer",
-            "expires_in": int(self._access_token_expire.total_seconds()),
-            "scope": " ".join(requested_scopes),
-        })
+        return Ok(
+            {
+                "access_token": tokens["access_token"],
+                "token_type": "Bearer",
+                "expires_in": int(self._access_token_expire.total_seconds()),
+                "scope": " ".join(requested_scopes),
+            }
+        )
 
     @beartype
     async def _handle_password_grant(
         self,
-        username: Optional[str],
-        password: Optional[str],
-        scope: Optional[str],
-        client: Dict[str, Any],
-    ) -> Result[Dict[str, Any], OAuth2Error]:
+        username: str | None,
+        password: str | None,
+        scope: str | None,
+        client: dict[str, Any],
+    ) -> Result[dict[str, Any], OAuth2Error]:
         """Handle password grant type (only for trusted clients)."""
         # This grant type should only be used by highly trusted clients
         if "password" not in client["allowed_grant_types"]:
-            return Err(OAuth2Error("unauthorized_client", "Client not authorized for password grant"))
+            return Err(
+                OAuth2Error(
+                    "unauthorized_client", "Client not authorized for password grant"
+                )
+            )
 
         if not username or not password:
             return Err(OAuth2Error("invalid_request", "Username and password required"))
@@ -846,11 +909,13 @@ class OAuth2Server:
             scopes = requested_scopes
         else:
             # No default scopes - must be explicit
-            return Err(OAuth2Error(
-                "invalid_request",
-                "OAuth2 error: scope parameter is required. "
-                "Required action: Include 'scope' in token request."
-            ))
+            return Err(
+                OAuth2Error(
+                    "invalid_request",
+                    "OAuth2 error: scope parameter is required. "
+                    "Required action: Include 'scope' in token request.",
+                )
+            )
 
         # Generate tokens
         tokens = await self._generate_tokens(
@@ -859,22 +924,24 @@ class OAuth2Server:
             scopes,
         )
 
-        return Ok({
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-            "token_type": "Bearer",
-            "expires_in": int(self._access_token_expire.total_seconds()),
-            "scope": " ".join(scopes),
-        })
+        return Ok(
+            {
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "token_type": "Bearer",
+                "expires_in": int(self._access_token_expire.total_seconds()),
+                "scope": " ".join(scopes),
+            }
+        )
 
     @beartype
-    async def _authenticate_user(self, username: str, password: str) -> Optional[UUID]:
+    async def _authenticate_user(self, username: str, password: str) -> UUID | None:
         """Authenticate user credentials against customer database.
-        
+
         Args:
             username: Email address used as username
             password: User password
-            
+
         Returns:
             User ID if authentication successful, None otherwise
         """
@@ -884,30 +951,30 @@ class OAuth2Server:
                 """
                 SELECT id, data->>'password_hash' as password_hash,
                        data->>'status' as status
-                FROM customers 
+                FROM customers
                 WHERE data->>'email' = $1
                 """,
-                username.lower().strip()
+                username.lower().strip(),
             )
-            
+
             if not customer_row:
                 return None
-            
+
             # Check if customer is active
             if customer_row.get("status") != "ACTIVE":
                 return None
-            
+
             # Verify password if password hash exists
             password_hash = customer_row.get("password_hash")
             if not password_hash:
                 # Customer doesn't have password set (might use SSO only)
                 return None
-            
+
             if not pwd_context.verify(password, password_hash):
                 return None
-            
+
             return customer_row["id"]
-            
+
         except Exception:
             # Authentication failure should not expose internal errors
             return None
@@ -919,25 +986,25 @@ class OAuth2Server:
         return revoked is not None
 
     @beartype
-    async def _introspect_refresh_token(self, token: str) -> Dict[str, Any]:
+    async def _introspect_refresh_token(self, token: str) -> dict[str, Any]:
         """Introspect a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        
+
         row = await self._db.fetchrow(
             """
             SELECT client_id, user_id, scopes, expires_at, created_at
             FROM oauth2_refresh_tokens
             WHERE token_hash = $1 AND revoked_at IS NULL
             """,
-            token_hash
+            token_hash,
         )
-        
+
         if not row:
             return {"active": False}
-            
+
         if row["expires_at"] < datetime.now(timezone.utc):
             return {"active": False}
-            
+
         return {
             "active": True,
             "scope": " ".join(row["scopes"]),
@@ -952,7 +1019,7 @@ class OAuth2Server:
     async def _revoke_refresh_token(self, token: str) -> Result[bool, str]:
         """Revoke a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        
+
         result = await self._db.execute(
             """
             UPDATE oauth2_refresh_tokens
@@ -960,9 +1027,9 @@ class OAuth2Server:
             WHERE token_hash = $1 AND revoked_at IS NULL
             """,
             token_hash,
-            datetime.now(timezone.utc)
+            datetime.now(timezone.utc),
         )
-        
+
         # Check if any row was updated
         if result and "UPDATE" in result:
             return Ok(True)
@@ -973,12 +1040,12 @@ class OAuth2Server:
     async def _log_token_exchange(
         self,
         client_id: str,
-        user_id: Optional[UUID],
+        user_id: UUID | None,
         grant_type: str,
-        scopes: List[str],
+        scopes: list[str],
     ) -> None:
         """Log token exchange for security monitoring and analytics.
-        
+
         Args:
             client_id: OAuth2 client ID
             user_id: User ID (if applicable)
@@ -992,24 +1059,28 @@ class OAuth2Server:
                     client_id, user_id, grant_type, scopes, created_at
                 ) VALUES ($1, $2, $3, $4, $5)
                 """,
-                client_id, user_id, grant_type, scopes, datetime.now(timezone.utc)
+                client_id,
+                user_id,
+                grant_type,
+                scopes,
+                datetime.now(timezone.utc),
             )
         except Exception:
             # Don't fail token exchange if logging fails
             pass
 
-    @beartype 
+    @beartype
     async def validate_client_rate_limit(
         self,
         client_id: str,
         operation: str = "token_request",
     ) -> Result[bool, str]:
         """Validate client-specific rate limiting.
-        
+
         Args:
             client_id: OAuth2 client ID
             operation: Type of operation being rate limited
-            
+
         Returns:
             Result indicating if operation is within limits
         """
@@ -1017,35 +1088,37 @@ class OAuth2Server:
         client = await self._get_client(client_id)
         if not client:
             return Err("Client not found")
-        
+
         # Default rate limits per operation type
         rate_limits = {
             "token_request": 300,  # 300 requests per minute
             "authorization": 100,  # 100 authorization requests per minute
             "introspection": 600,  # 600 introspection requests per minute
         }
-        
+
         limit = rate_limits.get(operation, 60)
-        
+
         # Check rate limit using sliding window
         now = datetime.now(timezone.utc)
         window_key = f"rate_limit:{client_id}:{operation}:{now.strftime('%Y%m%d%H%M')}"
-        
+
         current_count = await self._cache.incr(window_key)
-        
+
         # Set expiration on first increment
         if current_count == 1:
             await self._cache.expire(window_key, 60)
-        
+
         if current_count > limit:
-            return Err(f"Rate limit exceeded for {operation}: {current_count}/{limit} per minute")
-        
+            return Err(
+                f"Rate limit exceeded for {operation}: {current_count}/{limit} per minute"
+            )
+
         return Ok(True)
 
     @beartype
-    async def get_server_health(self) -> Dict[str, Any]:
+    async def get_server_health(self) -> dict[str, Any]:
         """Get OAuth2 server health metrics.
-        
+
         Returns:
             Health metrics including token counts, active clients, etc.
         """
@@ -1053,27 +1126,27 @@ class OAuth2Server:
             # Active tokens count
             active_tokens = await self._db.fetchval(
                 """
-                SELECT COUNT(*) FROM oauth2_tokens 
+                SELECT COUNT(*) FROM oauth2_tokens
                 WHERE expires_at > $1 AND revoked_at IS NULL
                 """,
-                datetime.now(timezone.utc)
+                datetime.now(timezone.utc),
             )
-            
+
             # Active clients count
             active_clients = await self._db.fetchval(
                 "SELECT COUNT(*) FROM oauth2_clients WHERE is_active = true"
             )
-            
+
             # Token requests in last hour
             one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
             recent_tokens = await self._db.fetchval(
                 """
-                SELECT COUNT(*) FROM oauth2_token_logs 
+                SELECT COUNT(*) FROM oauth2_token_logs
                 WHERE created_at > $1
                 """,
-                one_hour_ago
+                one_hour_ago,
             )
-            
+
             return {
                 "status": "healthy",
                 "active_tokens": active_tokens or 0,
@@ -1083,7 +1156,7 @@ class OAuth2Server:
                 "supported_flows": self._supported_grant_types,
                 "supported_response_types": self._supported_response_types,
             }
-            
+
         except Exception as e:
             return {
                 "status": "unhealthy",

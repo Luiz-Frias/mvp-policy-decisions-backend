@@ -1,0 +1,29 @@
+name: performance-budget
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+
+jobs:
+  perf-check:
+    if: contains(github.event.pull_request.labels.*.name, 'perf')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install requirements
+        run: |
+          pip install uv locust pytest pytest-benchmark
+      - name: Spin API with uvicorn (background)
+        run: |
+          nohup uv -q run uvicorn src.pd_prime_demo.main:app --port 8000 &
+      - name: Warm-up wait
+        run: sleep 5
+      - name: Run Locust smoke
+        run: |
+          locust -f tests/load/locustfile.py --headless -u 200 -r 50 -t 1m --csv perf
+      - name: Check Perf Budgets
+        run: python scripts/ci/check_perf_budget.py perf_stats.csv 

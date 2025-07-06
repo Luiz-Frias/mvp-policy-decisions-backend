@@ -1,9 +1,9 @@
 """Admin activity logging service."""
 
-from typing import Any, Dict, Optional
-from uuid import UUID
-from datetime import datetime
 import json
+from datetime import datetime
+from typing import Any
+from uuid import UUID
 
 from beartype import beartype
 
@@ -15,9 +15,9 @@ class AdminActivityLogger:
 
     def __init__(self, db: Database) -> None:
         """Initialize activity logger with dependency validation."""
-        if not db or not hasattr(db, 'execute'):
+        if not db or not hasattr(db, "execute"):
             raise ValueError("Database connection required and must be active")
-        
+
         self._db = db
 
     @beartype
@@ -26,19 +26,19 @@ class AdminActivityLogger:
         admin_user_id: UUID,
         action: str,
         resource_type: str,
-        resource_id: Optional[UUID] = None,
-        old_values: Optional[Dict[str, Any]] = None,
-        new_values: Optional[Dict[str, Any]] = None,
+        resource_id: UUID | None = None,
+        old_values: dict[str, Any] | None = None,
+        new_values: dict[str, Any] | None = None,
         status: str = "success",
-        error_message: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        additional_context: Optional[Dict[str, Any]] = None,
+        error_message: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        additional_context: dict[str, Any] | None = None,
     ) -> None:
         """Log admin activity asynchronously.
-        
+
         This is a fire-and-forget operation that should not fail the main operation.
-        
+
         Args:
             admin_user_id: Admin performing the action
             action: Action performed (e.g., 'create', 'update', 'delete', 'login')
@@ -72,7 +72,7 @@ class AdminActivityLogger:
                 ip_address,
                 user_agent,
                 json.dumps(additional_context) if additional_context else None,
-                datetime.utcnow()
+                datetime.utcnow(),
             )
         except Exception:
             # Silently fail - logging should not break main operations
@@ -83,12 +83,12 @@ class AdminActivityLogger:
         self,
         admin_user_id: UUID,
         success: bool,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        error_reason: Optional[str] = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        error_reason: str | None = None,
     ) -> None:
         """Log admin login attempt.
-        
+
         Args:
             admin_user_id: Admin attempting to log in
             success: Whether login was successful
@@ -107,18 +107,18 @@ class AdminActivityLogger:
             additional_context={
                 "login_time": datetime.utcnow().isoformat(),
                 "success": success,
-            }
+            },
         )
 
     @beartype
     async def log_logout(
         self,
         admin_user_id: UUID,
-        session_duration_seconds: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        session_duration_seconds: int | None = None,
+        ip_address: str | None = None,
     ) -> None:
         """Log admin logout.
-        
+
         Args:
             admin_user_id: Admin logging out
             session_duration_seconds: Length of session
@@ -132,7 +132,7 @@ class AdminActivityLogger:
             additional_context={
                 "logout_time": datetime.utcnow().isoformat(),
                 "session_duration_seconds": session_duration_seconds,
-            }
+            },
         )
 
     @beartype
@@ -142,10 +142,10 @@ class AdminActivityLogger:
         resource: str,
         action: str,
         allowed: bool,
-        ip_address: Optional[str] = None,
+        ip_address: str | None = None,
     ) -> None:
         """Log permission check (for security auditing).
-        
+
         Args:
             admin_user_id: Admin being checked
             resource: Resource being accessed
@@ -164,7 +164,7 @@ class AdminActivityLogger:
                 "action": action,
                 "allowed": allowed,
                 "check_time": datetime.utcnow().isoformat(),
-            }
+            },
         )
 
     @beartype
@@ -173,11 +173,11 @@ class AdminActivityLogger:
         admin_user_id: UUID,
         export_type: str,
         record_count: int,
-        filters: Optional[Dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
+        filters: dict[str, Any] | None = None,
+        ip_address: str | None = None,
     ) -> None:
         """Log data export for compliance.
-        
+
         Args:
             admin_user_id: Admin performing export
             export_type: Type of data exported
@@ -194,7 +194,7 @@ class AdminActivityLogger:
                 "export_time": datetime.utcnow().isoformat(),
                 "record_count": record_count,
                 "filters": filters,
-            }
+            },
         )
 
     @beartype
@@ -206,10 +206,10 @@ class AdminActivityLogger:
         affected_count: int,
         success_count: int,
         failure_count: int,
-        ip_address: Optional[str] = None,
+        ip_address: str | None = None,
     ) -> None:
         """Log bulk operations.
-        
+
         Args:
             admin_user_id: Admin performing operation
             operation: Type of bulk operation
@@ -220,7 +220,7 @@ class AdminActivityLogger:
             ip_address: Client IP address
         """
         status = "success" if failure_count == 0 else "partial"
-        
+
         await self.log_activity(
             admin_user_id=admin_user_id,
             action=f"bulk_{operation}",
@@ -232,26 +232,26 @@ class AdminActivityLogger:
                 "affected_count": affected_count,
                 "success_count": success_count,
                 "failure_count": failure_count,
-            }
+            },
         )
 
     @beartype
     async def get_activity_summary(
         self,
-        admin_user_id: Optional[UUID] = None,
+        admin_user_id: UUID | None = None,
         days: int = 7,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get activity summary for dashboards.
-        
+
         Args:
             admin_user_id: Filter by specific admin (None for all)
             days: Number of days to look back
-            
+
         Returns:
             Summary statistics of admin activities
         """
         query = """
-            SELECT 
+            SELECT
                 action,
                 resource_type,
                 status,
@@ -259,40 +259,40 @@ class AdminActivityLogger:
             FROM admin_activity_logs
             WHERE created_at > NOW() - INTERVAL '%s days'
         """
-        
+
         params = [days]
-        
+
         if admin_user_id:
             query += " AND admin_user_id = $2"
             params.append(admin_user_id)
-        
+
         query += " GROUP BY action, resource_type, status"
-        
+
         rows = await self._db.fetch(query, *params)
-        
+
         summary = {
             "total_activities": 0,
             "by_action": {},
             "by_resource": {},
             "by_status": {"success": 0, "failure": 0, "partial": 0},
         }
-        
+
         for row in rows:
             count = row["count"]
             summary["total_activities"] += count
-            
+
             action = row["action"]
             if action not in summary["by_action"]:
                 summary["by_action"][action] = 0
             summary["by_action"][action] += count
-            
+
             resource = row["resource_type"]
             if resource not in summary["by_resource"]:
                 summary["by_resource"][resource] = 0
             summary["by_resource"][resource] += count
-            
+
             status = row["status"]
             if status in summary["by_status"]:
                 summary["by_status"][status] += count
-        
+
         return summary

@@ -1,9 +1,7 @@
 """Unit tests for WebSocket Manager functionality."""
 
-import asyncio
 from datetime import datetime
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -13,7 +11,6 @@ from starlette.websockets import WebSocketState
 from src.pd_prime_demo.websocket.manager import (
     ConnectionManager,
     WebSocketMessage,
-    ConnectionMetadata,
 )
 
 
@@ -27,44 +24,44 @@ def create_mock_websocket():
     mock.client.host = "127.0.0.1"
     mock.headers = {"user-agent": "test"}
     mock.state = WebSocketState.CONNECTED
-    
+
     # Setup async methods
     async def mock_accept():
         mock.state = WebSocketState.CONNECTED
-    
+
     async def mock_send_json(data):
         if not mock.is_connected:
             raise Exception("Connection closed")
         mock.messages_sent.append(data)
-    
+
     async def mock_close(code=1000, reason=""):
         mock.is_connected = False
         mock.state = WebSocketState.DISCONNECTED
-    
+
     mock.accept = mock_accept
     mock.send_json = mock_send_json
     mock.close = mock_close
-    
+
     return mock
 
 
 class MockCache:
     """Mock cache for testing."""
-    
+
     def __init__(self):
         self.data = {}
-    
+
     async def sadd(self, key: str, value: str):
         """Mock sadd."""
         if key not in self.data:
             self.data[key] = set()
         self.data[key].add(value)
-    
+
     async def srem(self, key: str, value: str):
         """Mock srem."""
         if key in self.data:
             self.data[key].discard(value)
-    
+
     async def setex(self, key: str, ttl: int, value: str):
         """Mock setex."""
         self.data[key] = value
@@ -72,18 +69,18 @@ class MockCache:
 
 class MockDatabase:
     """Mock database for testing."""
-    
+
     def __init__(self):
         self.executed_queries = []
-    
+
     async def execute(self, query: str, *args):
         """Mock execute."""
         self.executed_queries.append((query, args))
-    
+
     async def fetchrow(self, query: str, *args):
         """Mock fetchrow."""
         return None
-    
+
     async def fetch(self, query: str, *args):
         """Mock fetch."""
         return []
@@ -119,9 +116,7 @@ class TestConnectionManager:
         """Test WebSocket message validation."""
         # Valid message
         msg = WebSocketMessage(
-            type="test",
-            data={"key": "value"},
-            timestamp=datetime.now()
+            type="test", data={"key": "value"}, timestamp=datetime.now()
         )
         assert msg.type == "test"
         assert msg.data == {"key": "value"}
@@ -137,14 +132,14 @@ class TestConnectionManager:
             websocket,
             connection_id,
             user_id=user_id,
-            metadata={"ip_address": "127.0.0.1"}
+            metadata={"ip_address": "127.0.0.1"},
         )
 
         assert result.is_ok()
         assert connection_id in connection_manager._connections
         assert user_id in connection_manager._user_connections
         assert len(websocket.messages_sent) > 0  # Welcome message
-        
+
         # Verify welcome message
         welcome_msg = websocket.messages_sent[0]
         assert welcome_msg["type"] == "connection"
@@ -186,7 +181,9 @@ class TestConnectionManager:
         assert connection_id in connection_manager._room_subscriptions[room_id]
 
         # Unsubscribe from room
-        unsub_result = await connection_manager.unsubscribe_from_room(connection_id, room_id)
+        unsub_result = await connection_manager.unsubscribe_from_room(
+            connection_id, room_id
+        )
         assert unsub_result.is_ok()
 
     async def test_message_sending(self, connection_manager):
@@ -199,7 +196,7 @@ class TestConnectionManager:
         # Send a test message
         test_msg = WebSocketMessage(type="test", data={"content": "hello"})
         result = await connection_manager.send_personal_message(connection_id, test_msg)
-        
+
         assert result.is_ok()
         assert len(websocket.messages_sent) >= 2  # Welcome + test message
 
@@ -223,17 +220,19 @@ class TestConnectionManager:
         for i in range(3):
             websocket = create_mock_websocket()
             connection_id = f"conn_{i}"
-            
+
             await connection_manager.connect(websocket, connection_id)
             await connection_manager.subscribe_to_room(connection_id, room_id)
-            
+
             connections.append(websocket)
             connection_ids.append(connection_id)
 
         # Broadcast message to room
-        broadcast_msg = WebSocketMessage(type="broadcast", data={"message": "hello room"})
+        broadcast_msg = WebSocketMessage(
+            type="broadcast", data={"message": "hello room"}
+        )
         result = await connection_manager.send_to_room(room_id, broadcast_msg)
-        
+
         assert result.is_ok()
         assert result.unwrap() == 3  # Should send to all 3 connections
 
@@ -253,9 +252,9 @@ class TestConnectionManager:
         for i in range(3):
             websocket = create_mock_websocket()
             connection_id = f"limit_conn_{i}"
-            
+
             result = await connection_manager.connect(websocket, connection_id)
-            
+
             if i < 2:
                 assert result.is_ok()
                 connections.append((websocket, connection_id))
@@ -287,10 +286,10 @@ class TestConnectionManager:
 
         # Should have at least welcome message + 3 test messages with sequences
         assert len(sequences) >= 4
-        
+
         # Sequences should be incrementing
         for i in range(1, len(sequences)):
-            assert sequences[i] > sequences[i-1]
+            assert sequences[i] > sequences[i - 1]
 
     async def test_error_handling_invalid_connection(self, connection_manager):
         """Test error handling for invalid connection operations."""
@@ -313,7 +312,7 @@ class TestConnectionManager:
         # Send ping message
         ping_data = {"type": "ping", "timestamp": "2024-01-01T00:00:00Z"}
         result = await connection_manager.handle_message(connection_id, ping_data)
-        
+
         assert result.is_ok()
 
         # Should receive pong response
@@ -328,12 +327,12 @@ class TestConnectionManager:
         for i in range(3):
             websocket = create_mock_websocket()
             connection_id = f"stats_conn_{i}"
-            
+
             await connection_manager.connect(websocket, connection_id)
             await connection_manager.subscribe_to_room(connection_id, f"room_{i}")
 
         stats = await connection_manager.get_connection_stats()
-        
+
         assert stats["total_connections"] == 3
         assert stats["unique_users"] == 0  # No users specified
         assert stats["total_rooms"] == 3
@@ -349,7 +348,7 @@ class TestConnectionManager:
 
         # Connection should fail during welcome message
         result = await connection_manager.connect(websocket, connection_id)
-        
+
         # Should handle the failure gracefully
         assert result.is_err()
         assert connection_id not in connection_manager._connections

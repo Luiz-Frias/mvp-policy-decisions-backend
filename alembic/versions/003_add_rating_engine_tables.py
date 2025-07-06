@@ -27,7 +27,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create rating engine tables."""
-    
+
     # Create rate tables for base rates
     op.create_table(
         "rate_tables",
@@ -144,7 +144,7 @@ def upgrade() -> None:
             name=op.f("ck_rate_tables_min_max_premium_order"),
         ),
     )
-    
+
     # Create indexes for rate tables
     op.create_index(
         op.f("ix_rate_tables_state_product"),
@@ -164,7 +164,7 @@ def upgrade() -> None:
         ["state", "product_type", "coverage_type", "effective_date"],
         unique=False,
     )
-    
+
     # Create discount rules table
     op.create_table(
         "discount_rules",
@@ -248,7 +248,7 @@ def upgrade() -> None:
             name=op.f("ck_discount_rules_max_discount_amount_positive"),
         ),
     )
-    
+
     # Create indexes for discount rules
     op.create_index(
         op.f("ix_discount_rules_code"),
@@ -262,7 +262,7 @@ def upgrade() -> None:
         ["effective_date"],
         unique=False,
     )
-    
+
     # Create surcharge rules table
     op.create_table(
         "surcharge_rules",
@@ -339,7 +339,7 @@ def upgrade() -> None:
             name=op.f("ck_surcharge_rules_max_surcharge_amount_positive"),
         ),
     )
-    
+
     # Create indexes for surcharge rules
     op.create_index(
         op.f("ix_surcharge_rules_code"),
@@ -353,7 +353,7 @@ def upgrade() -> None:
         ["effective_date"],
         unique=False,
     )
-    
+
     # Create territory factors table
     op.create_table(
         "territory_factors",
@@ -425,7 +425,7 @@ def upgrade() -> None:
             name=op.f("ck_territory_factors_catastrophe_factor_positive"),
         ),
     )
-    
+
     # Create indexes for territory factors
     op.create_index(
         op.f("ix_territory_factors_state_zip"),
@@ -445,7 +445,7 @@ def upgrade() -> None:
         ["state", "zip_code", "product_type", "effective_date"],
         unique=False,
     )
-    
+
     # Add update triggers
     op.execute(
         """
@@ -455,7 +455,7 @@ def upgrade() -> None:
         EXECUTE FUNCTION update_updated_at_column();
         """
     )
-    
+
     # Create function to validate rate table factors
     op.execute(
         """
@@ -466,7 +466,7 @@ def upgrade() -> None:
             IF factors IS NULL THEN
                 RETURN TRUE;
             END IF;
-            
+
             -- Check if all values in the JSONB are numeric and positive
             RETURN NOT EXISTS (
                 SELECT 1
@@ -478,7 +478,7 @@ def upgrade() -> None:
         $$ LANGUAGE plpgsql IMMUTABLE;
         """
     )
-    
+
     # Add validation constraints for JSONB factors
     op.create_check_constraint(
         "ck_rate_tables_territory_factors_valid",
@@ -504,19 +504,19 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop rating engine tables and related objects."""
-    
+
     # Drop constraints first
     op.drop_constraint("ck_rate_tables_territory_factors_valid", "rate_tables")
     op.drop_constraint("ck_rate_tables_vehicle_factors_valid", "rate_tables")
     op.drop_constraint("ck_rate_tables_driver_factors_valid", "rate_tables")
     op.drop_constraint("ck_rate_tables_credit_factors_valid", "rate_tables")
-    
+
     # Drop trigger
     op.execute("DROP TRIGGER IF EXISTS update_rate_tables_updated_at ON rate_tables;")
-    
+
     # Drop function
     op.execute("DROP FUNCTION IF EXISTS validate_rate_factors(JSONB);")
-    
+
     # Drop tables
     op.drop_table("territory_factors")
     op.drop_table("surcharge_rules")

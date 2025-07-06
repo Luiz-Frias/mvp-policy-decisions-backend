@@ -138,7 +138,8 @@ class QuoteWebSocketHandler:
 
         # Release any field locks
         locked_fields = [
-            field for field, owner in self._field_locks.items()
+            field
+            for field, owner in self._field_locks.items()
             if owner == connection_id and field.startswith(f"{quote_id}:")
         ]
         for field in locked_fields:
@@ -154,7 +155,9 @@ class QuoteWebSocketHandler:
             await self._manager.send_to_room(room_id, unlock_msg)
 
         # Unsubscribe from room
-        unsubscribe_result = await self._manager.unsubscribe_from_room(connection_id, room_id)
+        unsubscribe_result = await self._manager.unsubscribe_from_room(
+            connection_id, room_id
+        )
 
         # Notify others of editor leaving
         if quote_id in self._active_quote_sessions:
@@ -178,7 +181,7 @@ class QuoteWebSocketHandler:
         # Deduplication check
         dedup_key = f"{quote_id}:{update_data.update_type}:{update_data.field}"
         now = datetime.now()
-        
+
         if dedup_key in self._recent_updates:
             last_update = self._recent_updates[dedup_key]
             if (now - last_update).total_seconds() < 0.5:  # 500ms deduplication window
@@ -214,7 +217,10 @@ class QuoteWebSocketHandler:
         field_key = f"{quote_id}:{field}"
 
         # Check field lock
-        if field_key in self._field_locks and self._field_locks[field_key] != connection_id:
+        if (
+            field_key in self._field_locks
+            and self._field_locks[field_key] != connection_id
+        ):
             lock_owner = self._field_locks[field_key]
             error_msg = WebSocketMessage(
                 type="edit_rejected",
@@ -264,11 +270,17 @@ class QuoteWebSocketHandler:
 
     @beartype
     async def stream_calculation_progress(
-        self, quote_id: UUID, progress: float, stage: str, details: dict[str, Any] | None = None
+        self,
+        quote_id: UUID,
+        progress: float,
+        stage: str,
+        details: dict[str, Any] | None = None,
     ) -> Result[int, str]:
         """Stream calculation progress to subscribers."""
         if not 0 <= progress <= 100:
-            return Err(f"Invalid progress value: {progress}. Must be between 0 and 100.")
+            return Err(
+                f"Invalid progress value: {progress}. Must be between 0 and 100."
+            )
 
         room_id = f"quote:{quote_id}"
 
@@ -287,7 +299,11 @@ class QuoteWebSocketHandler:
 
     @beartype
     async def notify_quote_status_change(
-        self, quote_id: UUID, old_status: str, new_status: str, reason: str | None = None
+        self,
+        quote_id: UUID,
+        old_status: str,
+        new_status: str,
+        reason: str | None = None,
     ) -> Result[int, str]:
         """Notify subscribers of quote status changes."""
         room_id = f"quote:{quote_id}"
@@ -314,7 +330,9 @@ class QuoteWebSocketHandler:
 
         # Get user info
         metadata = self._manager._connection_metadata.get(connection_id)
-        user_id = str(metadata.user_id) if metadata and metadata.user_id else "anonymous"
+        user_id = (
+            str(metadata.user_id) if metadata and metadata.user_id else "anonymous"
+        )
 
         focus_msg = WebSocketMessage(
             type="field_focus",
@@ -344,7 +362,9 @@ class QuoteWebSocketHandler:
 
         # Get user info
         metadata = self._manager._connection_metadata.get(connection_id)
-        user_id = str(metadata.user_id) if metadata and metadata.user_id else "anonymous"
+        user_id = (
+            str(metadata.user_id) if metadata and metadata.user_id else "anonymous"
+        )
 
         cursor_msg = WebSocketMessage(
             type="cursor_position",
@@ -361,16 +381,21 @@ class QuoteWebSocketHandler:
         await self._manager.send_to_room(room_id, cursor_msg, exclude=[connection_id])
         return Ok(None)
 
-    async def _auto_release_lock(self, field_key: str, connection_id: str, delay: float) -> None:
+    async def _auto_release_lock(
+        self, field_key: str, connection_id: str, delay: float
+    ) -> None:
         """Automatically release field lock after delay."""
         await asyncio.sleep(delay)
-        if field_key in self._field_locks and self._field_locks[field_key] == connection_id:
+        if (
+            field_key in self._field_locks
+            and self._field_locks[field_key] == connection_id
+        ):
             del self._field_locks[field_key]
-            
+
             # Parse field key
             quote_id, field = field_key.split(":", 1)
             room_id = f"quote:{quote_id}"
-            
+
             unlock_msg = WebSocketMessage(
                 type="field_unlocked",
                 data={
@@ -385,14 +410,15 @@ class QuoteWebSocketHandler:
         """Clean up resources when a connection is lost."""
         # Release all field locks held by this connection
         locked_fields = [
-            field for field, owner in self._field_locks.items()
+            field
+            for field, owner in self._field_locks.items()
             if owner == connection_id
         ]
-        
+
         for field_key in locked_fields:
             del self._field_locks[field_key]
             quote_id, field = field_key.split(":", 1)
-            
+
             unlock_msg = WebSocketMessage(
                 type="field_unlocked",
                 data={

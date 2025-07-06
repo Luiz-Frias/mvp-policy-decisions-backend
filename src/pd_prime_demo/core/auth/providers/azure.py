@@ -22,7 +22,7 @@ class AzureADSSOProvider(OIDCProvider):
         scopes: list[str] | None = None,
     ) -> None:
         """Initialize Azure AD SSO provider.
-        
+
         Args:
             client_id: Azure AD application (client) ID
             client_secret: Azure AD client secret
@@ -53,12 +53,12 @@ class AzureADSSOProvider(OIDCProvider):
         **kwargs: Any,
     ) -> Result[str, str]:
         """Get Azure AD authorization URL.
-        
+
         Args:
             state: State parameter for CSRF protection
             nonce: Nonce for OIDC
             **kwargs: Additional parameters like prompt, domain_hint
-            
+
         Returns:
             Result containing authorization URL or error
         """
@@ -95,7 +95,7 @@ class AzureADSSOProvider(OIDCProvider):
             auth_endpoint = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/authorize"
 
             return Ok(f"{auth_endpoint}?{urlencode(params)}")
-            
+
         except Exception as e:
             return Err(f"Failed to generate authorization URL: {str(e)}")
 
@@ -106,16 +106,18 @@ class AzureADSSOProvider(OIDCProvider):
         state: str,
     ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
-        
+
         Args:
             code: Authorization code from Azure AD
             state: State parameter for validation
-            
+
         Returns:
             Result containing tokens or error
         """
         try:
-            token_endpoint = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+            token_endpoint = (
+                f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+            )
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -130,10 +132,12 @@ class AzureADSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token exchange failed: {error_msg}")
 
             tokens = response.json()
@@ -146,7 +150,7 @@ class AzureADSSOProvider(OIDCProvider):
                 tokens["id_token_claims"] = validation_result.value
 
             return Ok(tokens)
-            
+
         except httpx.TimeoutException:
             return Err("Token exchange request timed out")
         except httpx.RequestError as e:
@@ -160,10 +164,10 @@ class AzureADSSOProvider(OIDCProvider):
         access_token: str,
     ) -> Result[SSOUserInfo, str]:
         """Get user information from Azure AD.
-        
+
         Args:
             access_token: Azure AD access token
-            
+
         Returns:
             Result containing user info or error
         """
@@ -177,9 +181,11 @@ class AzureADSSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch user info: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch user info: HTTP {response.status_code}"
+                    )
 
             user_data = response.json()
 
@@ -207,7 +213,7 @@ class AzureADSSOProvider(OIDCProvider):
                     raw_claims=user_data,
                 )
             )
-            
+
         except httpx.TimeoutException:
             return Err("User info request timed out")
         except httpx.RequestError as e:
@@ -221,15 +227,17 @@ class AzureADSSOProvider(OIDCProvider):
         refresh_token: str,
     ) -> Result[dict[str, Any], str]:
         """Refresh Azure AD access token.
-        
+
         Args:
             refresh_token: Azure AD refresh token
-            
+
         Returns:
             Result containing new tokens or error
         """
         try:
-            token_endpoint = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+            token_endpoint = (
+                f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+            )
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -243,14 +251,16 @@ class AzureADSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token refresh failed: {error_msg}")
 
             return Ok(response.json())
-            
+
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
         except httpx.RequestError as e:
@@ -265,14 +275,14 @@ class AzureADSSOProvider(OIDCProvider):
         token_type: str = "access_token",
     ) -> Result[bool, str]:
         """Revoke Azure AD token.
-        
+
         Note: Azure AD doesn't support token revocation via API.
         Tokens expire naturally based on their lifetime.
-        
+
         Args:
             token: Token to revoke (ignored)
             token_type: Type of token (ignored)
-            
+
         Returns:
             Result indicating success (always returns True for Azure AD)
         """
@@ -287,10 +297,10 @@ class AzureADSSOProvider(OIDCProvider):
         access_token: str,
     ) -> Result[list[str], str]:
         """Get user's Azure AD groups.
-        
+
         Args:
             access_token: Azure AD access token with group read permissions
-            
+
         Returns:
             Result containing list of group names or error
         """
@@ -307,25 +317,25 @@ class AzureADSSOProvider(OIDCProvider):
                 if response.status_code == 403:
                     # No permission to read groups
                     return Ok([])
-                    
+
                 if response.status_code != 200:
                     return Err(f"Failed to fetch groups: HTTP {response.status_code}")
 
             data = response.json()
             groups = []
-            
+
             for group in data.get("value", []):
                 # Only include security groups and Microsoft 365 groups
                 if group.get("@odata.type") in [
                     "#microsoft.graph.group",
-                    "#microsoft.graph.directoryRole"
+                    "#microsoft.graph.directoryRole",
                 ]:
                     group_name = group.get("displayName", "")
                     if group_name:
                         groups.append(group_name)
-                        
+
             return Ok(groups)
-            
+
         except Exception:
             # Groups are optional, don't fail the entire auth
             return Ok([])
@@ -336,10 +346,10 @@ class AzureADSSOProvider(OIDCProvider):
         access_token: str,
     ) -> Result[dict[str, Any], str]:
         """Get Azure AD tenant information.
-        
+
         Args:
             access_token: Azure AD access token
-            
+
         Returns:
             Result containing tenant info or error
         """
@@ -352,15 +362,17 @@ class AzureADSSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch tenant info: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch tenant info: HTTP {response.status_code}"
+                    )
 
             data = response.json()
             if data.get("value"):
                 return Ok(data["value"][0])
             else:
                 return Err("No tenant information found")
-                
+
         except Exception as e:
             return Err(f"Failed to get tenant info: {str(e)}")

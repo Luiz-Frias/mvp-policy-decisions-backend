@@ -5,7 +5,6 @@ with proper validation, caching, and error handling.
 """
 
 import json
-from datetime import datetime, timezone
 from uuid import UUID
 
 import asyncpg
@@ -94,65 +93,65 @@ async def list_customers(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = CustomerService(database, cache)
-    
+
     # Build query with filters
     where_clauses = []
     params = []
-    
+
     if filters.search:
         where_clauses.append(
             "(data->>'first_name' ILIKE $1 OR data->>'last_name' ILIKE $1 OR data->>'email' ILIKE $1)"
         )
         params.append(f"%{filters.search}%")
-    
+
     if filters.state_province:
         param_num = len(params) + 1
         where_clauses.append(f"data->>'state_province' = ${param_num}")
         params.append(filters.state_province)
-    
+
     if filters.country_code:
         param_num = len(params) + 1
         where_clauses.append(f"data->>'country_code' = ${param_num}")
         params.append(filters.country_code)
-    
+
     if filters.is_active is not None:
         param_num = len(params) + 1
         status = "ACTIVE" if filters.is_active else "INACTIVE"
         where_clauses.append(f"data->>'status' = ${param_num}")
         params.append(status)
-    
+
     # Build count query
     count_query = "SELECT COUNT(*) FROM customers"
     if where_clauses:
         count_query += " WHERE " + " AND ".join(where_clauses)
-    
+
     # Get total count
     total = await db.fetchval(count_query, *params)
-    
+
     # Build main query with pagination
     query = "SELECT * FROM customers"
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)
-    
+
     query += " ORDER BY created_at DESC"
-    
+
     # Add pagination params
     param_num = len(params) + 1
     query += f" LIMIT ${param_num}"
     params.append(pagination.limit)
-    
+
     param_num = len(params) + 1
     query += f" OFFSET ${param_num}"
     params.append(pagination.skip)
-    
+
     # Execute query
     rows = await db.fetch(query, *params)
     customers = [service._row_to_customer(row) for row in rows]
-    
+
     response = CustomerListResponse(
         items=customers, total=total or 0, skip=pagination.skip, limit=pagination.limit
     )
@@ -191,27 +190,27 @@ async def create_customer(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(db)
         cache = Cache(redis)
         service = CustomerService(database, cache)
-        
+
         # Create customer using service
         result = await service.create(customer_data)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.error),
             )
-        
+
         customer = result.unwrap()
-        
+
         # Invalidate relevant caches
         pattern = "customers:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
-        
+
         return customer
 
     except Exception as e:
@@ -255,30 +254,30 @@ async def get_customer(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = CustomerService(database, cache)
-    
+
     # Get customer using service
     result = await service.get(customer_id)
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(result.error),
         )
-    
+
     customer = result.unwrap()
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Customer not found",
         )
-    
+
     # Cache the result
     await redis.setex(cache_key, 300, customer.model_dump_json())
-    
+
     return customer
 
 
@@ -312,33 +311,33 @@ async def update_customer(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(db)
         cache = Cache(redis)
         service = CustomerService(database, cache)
-        
+
         # Update customer using service
         result = await service.update(customer_id, customer_update)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.error),
             )
-        
+
         customer = result.unwrap()
         if not customer:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Customer not found",
             )
-        
+
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
         pattern = "customers:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
-        
+
         return customer
 
     except HTTPException:
@@ -375,27 +374,27 @@ async def delete_customer(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(db)
         cache = Cache(redis)
         service = CustomerService(database, cache)
-        
+
         # Delete customer using service
         result = await service.delete(customer_id)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.error),
             )
-        
+
         deleted = result.unwrap()
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Customer not found",
             )
-        
+
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
         pattern = "customers:list:*"
@@ -451,20 +450,20 @@ async def get_customer_policies(
         raise ValueError("Database connection required and must be active")
     if not redis:
         raise ValueError("Cache connection required and must be available")
-    
+
     database = Database(db)
     cache = Cache(redis)
     service = CustomerService(database, cache)
-    
+
     # Get customer policies using service
     result = await service.get_policies(customer_id)
-    
+
     if isinstance(result, Err):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(result.error),
         )
-    
+
     policies = result.unwrap()
 
     # Cache the result for 300 seconds (5 minutes)

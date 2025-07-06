@@ -1,7 +1,7 @@
 """Real-time notification handler for push notifications and alerts."""
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -20,7 +20,9 @@ class NotificationConfig(BaseModel):
 
     notification_type: str = Field(..., min_length=1, max_length=50)
     priority: str = Field(..., pattern="^(low|normal|high|urgent)$")
-    channel: str = Field(default="websocket", pattern="^(websocket|email|sms|push|in_app)$")
+    channel: str = Field(
+        default="websocket", pattern="^(websocket|email|sms|push|in_app)$"
+    )
     expires_at: datetime | None = Field(default=None)
     action_url: str | None = Field(default=None)
     requires_acknowledgment: bool = Field(default=False)
@@ -57,14 +59,14 @@ class NotificationHandler:
         """Initialize notification handler."""
         self._manager = manager
         self._db = db
-        
+
         # Notification queue management
         self._pending_notifications: dict[UUID, NotificationConfig] = {}
         self._notification_delivery_tasks: dict[str, asyncio.Task[None]] = {}
-        
+
         # System alert tracking
         self._active_alerts: dict[str, SystemAlert] = {}
-        
+
         # Delivery statistics
         self._delivery_stats = {
             "total_sent": 0,
@@ -109,28 +111,32 @@ class NotificationHandler:
                 "sound": notification.sound,
                 "action_url": config.action_url,
                 "requires_acknowledgment": config.requires_acknowledgment,
-                "expires_at": config.expires_at.isoformat() if config.expires_at else None,
+                "expires_at": (
+                    config.expires_at.isoformat() if config.expires_at else None
+                ),
                 "delivered_at": datetime.now().isoformat(),
             },
         )
 
         # Send to user
         send_result = await self._manager.send_to_user(user_id, notification_msg)
-        
+
         if send_result.is_ok():
             self._delivery_stats["total_sent"] += 1
             if send_result.unwrap() > 0:
                 self._delivery_stats["successful_deliveries"] += 1
-                
+
                 # Store successful delivery in database
                 await self._record_notification_delivery(
                     notification_id, user_id, notification, config, "delivered"
                 )
-                
+
                 # Set up expiration if needed
                 if config.expires_at:
                     asyncio.create_task(
-                        self._handle_notification_expiration(notification_id, config.expires_at)
+                        self._handle_notification_expiration(
+                            notification_id, config.expires_at
+                        )
                     )
             else:
                 self._delivery_stats["failed_deliveries"] += 1
@@ -153,8 +159,10 @@ class NotificationHandler:
         target_roles: list[str] | None = None,
     ) -> Result[int, str]:
         """Broadcast system alert to all relevant users."""
-        alert_id = f"alert_{alert.alert_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+        alert_id = (
+            f"alert_{alert.alert_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
+
         # Store alert
         self._active_alerts[alert_id] = alert
 
@@ -186,7 +194,7 @@ class NotificationHandler:
             # Send to users with specific roles
             target_users = await self._get_users_by_roles(target_roles)
             successful_sends = 0
-            
+
             for user_id in target_users:
                 send_result = await self._manager.send_to_user(user_id, alert_msg)
                 if send_result.is_ok() and send_result.unwrap() > 0:
@@ -250,7 +258,9 @@ class NotificationHandler:
             requires_acknowledgment=priority in ["high", "urgent"],
         )
 
-        return await self.send_personal_notification(customer_user_id, notification, config)
+        return await self.send_personal_notification(
+            customer_user_id, notification, config
+        )
 
     @beartype
     async def send_policy_renewal_reminder(
@@ -277,7 +287,9 @@ class NotificationHandler:
             requires_acknowledgment=days_until_renewal <= 3,
         )
 
-        return await self.send_personal_notification(customer_user_id, notification, config)
+        return await self.send_personal_notification(
+            customer_user_id, notification, config
+        )
 
     @beartype
     async def handle_notification_acknowledgment(
@@ -285,11 +297,13 @@ class NotificationHandler:
     ) -> Result[None, str]:
         """Handle user acknowledgment of notification."""
         if notification_id not in self._pending_notifications:
-            return Err(f"Notification {notification_id} not found or already acknowledged")
+            return Err(
+                f"Notification {notification_id} not found or already acknowledged"
+            )
 
         # Remove from pending
         config = self._pending_notifications.pop(notification_id)
-        
+
         # Update statistics
         self._delivery_stats["acknowledgments_received"] += 1
 
@@ -312,7 +326,7 @@ class NotificationHandler:
                 "acknowledged_at": datetime.now().isoformat(),
             },
         )
-        
+
         await self._manager.send_personal_message(connection_id, confirm_msg)
         return Ok(None)
 
@@ -345,7 +359,8 @@ class NotificationHandler:
         """Clean up resources when connection is lost."""
         # Cancel any pending delivery tasks for this connection
         tasks_to_cancel = [
-            key for key in self._notification_delivery_tasks.keys()
+            key
+            for key in self._notification_delivery_tasks.keys()
             if connection_id in key
         ]
 
@@ -439,9 +454,9 @@ class NotificationHandler:
             await self._db.execute(
                 """
                 INSERT INTO notification_queue
-                (id, notification_type, priority, channel, user_id, title, message, data, 
+                (id, notification_type, priority, channel, user_id, title, message, data,
                  action_url, status, delivered_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                         CASE WHEN $10 = 'delivered' THEN CURRENT_TIMESTAMP ELSE NULL END)
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
@@ -512,7 +527,9 @@ class NotificationHandler:
             notification_id,
         )
 
-    async def _cleanup_resolved_alert(self, alert_id: str, resolution_time: datetime) -> None:
+    async def _cleanup_resolved_alert(
+        self, alert_id: str, resolution_time: datetime
+    ) -> None:
         """Clean up resolved system alert."""
         wait_time = (resolution_time - datetime.now()).total_seconds()
         if wait_time > 0:
@@ -521,7 +538,7 @@ class NotificationHandler:
         # Remove from active alerts
         if alert_id in self._active_alerts:
             alert = self._active_alerts.pop(alert_id)
-            
+
             # Send resolution notification
             resolution_msg = WebSocketMessage(
                 type="alert_resolved",
@@ -531,5 +548,5 @@ class NotificationHandler:
                     "resolved_at": datetime.now().isoformat(),
                 },
             )
-            
+
             await self._manager.broadcast(resolution_msg)

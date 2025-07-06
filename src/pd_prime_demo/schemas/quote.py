@@ -2,88 +2,92 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Optional, List, Dict
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, Field
 
 from ..models.quote import (
-    QuoteStatus, VehicleInfo, DriverInfo,
-    CoverageSelection, Discount, ProductType, ContactMethod
+    CoverageSelection,
+    Discount,
+    DriverInfo,
+    QuoteStatus,
+    VehicleInfo,
 )
 
-
 # Request schemas
+
 
 @beartype
 class QuoteCreateRequest(BaseModel):
     """Request schema for creating a quote."""
-    
-    customer_id: Optional[UUID] = None
-    product_type: str = Field(..., pattern=r'^(auto|home|commercial)$')
-    state: str = Field(..., pattern=r'^[A-Z]{2}$')
-    zip_code: str = Field(..., pattern=r'^\d{5}(-\d{4})?$')
+
+    customer_id: UUID | None = None
+    product_type: str = Field(..., pattern=r"^(auto|home|commercial)$")
+    state: str = Field(..., pattern=r"^[A-Z]{2}$")
+    zip_code: str = Field(..., pattern=r"^\d{5}(-\d{4})?$")
     effective_date: date
-    email: Optional[str] = Field(None, pattern=r'^[\w\.-]+@[\w\.-]+\.\w+$')
-    phone: Optional[str] = Field(None, pattern=r'^\+?1?\d{10,14}$')
-    preferred_contact: str = Field(default="email", pattern=r'^(email|phone|text)$')
-    vehicle_info: Optional[VehicleInfo] = None
-    drivers: List[DriverInfo] = Field(default_factory=list)
-    coverage_selections: List[CoverageSelection] = Field(default_factory=list)
+    email: str | None = Field(None, pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$")
+    phone: str | None = Field(None, pattern=r"^\+?1?\d{10,14}$")
+    preferred_contact: str = Field(default="email", pattern=r"^(email|phone|text)$")
+    vehicle_info: VehicleInfo | None = None
+    drivers: list[DriverInfo] = Field(default_factory=list)
+    coverage_selections: list[CoverageSelection] = Field(default_factory=list)
 
 
 @beartype
 class QuoteUpdateRequest(BaseModel):
     """Request schema for updating a quote."""
-    
-    vehicle_info: Optional[VehicleInfo] = None
-    drivers: Optional[List[DriverInfo]] = None
-    coverage_selections: Optional[List[CoverageSelection]] = None
-    effective_date: Optional[date] = None
-    email: Optional[str] = Field(None, pattern=r'^[\w\.-]+@[\w\.-]+\.\w+$')
-    phone: Optional[str] = Field(None, pattern=r'^\+?1?\d{10,14}$')
-    preferred_contact: Optional[str] = Field(None, pattern=r'^(email|phone|text)$')
+
+    vehicle_info: VehicleInfo | None = None
+    drivers: list[DriverInfo] | None = None
+    coverage_selections: list[CoverageSelection] | None = None
+    effective_date: date | None = None
+    email: str | None = Field(None, pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$")
+    phone: str | None = Field(None, pattern=r"^\+?1?\d{10,14}$")
+    preferred_contact: str | None = Field(None, pattern=r"^(email|phone|text)$")
 
 
 # Response schemas
 
+
 @beartype
 class QuoteResponse(BaseModel):
     """Response schema for quote details."""
-    
+
     id: UUID
     quote_number: str
-    customer_id: Optional[UUID]
+    customer_id: UUID | None
     status: QuoteStatus
     product_type: str
     state: str
     zip_code: str
     effective_date: date
-    email: Optional[str]
-    phone: Optional[str]
+    email: str | None
+    phone: str | None
     preferred_contact: str
-    
+
     # Details
-    vehicle_info: Optional[VehicleInfo]
-    drivers: List[DriverInfo]
-    coverage_selections: List[CoverageSelection]
-    
+    vehicle_info: VehicleInfo | None
+    drivers: list[DriverInfo]
+    coverage_selections: list[CoverageSelection]
+
     # Pricing
-    base_premium: Optional[Decimal]
-    total_premium: Optional[Decimal]
-    monthly_premium: Optional[Decimal]
-    discounts_applied: List[Discount]
-    surcharges_applied: List[Dict[str, Any]]
-    total_discount_amount: Optional[Decimal]
-    total_surcharge_amount: Optional[Decimal]
-    
+    base_premium: Decimal | None
+    total_premium: Decimal | None
+    monthly_premium: Decimal | None
+    discounts_applied: list[Discount]
+    surcharges_applied: list[dict[str, Any]]
+    total_discount_amount: Decimal | None
+    total_surcharge_amount: Decimal | None
+
     # Rating
-    rating_factors: Optional[Dict[str, Any]]
-    rating_tier: Optional[str]
-    ai_risk_score: Optional[Decimal]
-    ai_risk_factors: Optional[Dict[str, Any]]
-    
+    rating_factors: dict[str, Any] | None
+    rating_tier: str | None
+    ai_risk_score: Decimal | None
+    ai_risk_factors: dict[str, Any] | None
+
     # Metadata
     expires_at: datetime
     is_expired: bool
@@ -97,8 +101,8 @@ class QuoteResponse(BaseModel):
 @beartype
 class QuoteSearchResponse(BaseModel):
     """Response schema for quote search results."""
-    
-    quotes: List[QuoteResponse]
+
+    quotes: list[QuoteResponse]
     total: int
     limit: int
     offset: int
@@ -107,43 +111,44 @@ class QuoteSearchResponse(BaseModel):
 @beartype
 class QuoteConversionResponse(BaseModel):
     """Response schema for quote to policy conversion."""
-    
+
     quote_id: UUID
     policy_id: UUID
     policy_number: str
     effective_date: date
     premium: Decimal
-    payment_confirmation: Dict[str, Any]
+    payment_confirmation: dict[str, Any]
 
 
 # Wizard schemas
 
+
 @beartype
 class WizardStepResponse(BaseModel):
     """Response schema for wizard step information."""
-    
+
     step_id: str
     title: str
     description: str
-    fields: List[str]
-    validations: Dict[str, Any]
-    next_step: Optional[str]
-    previous_step: Optional[str]
+    fields: list[str]
+    validations: dict[str, Any]
+    next_step: str | None
+    previous_step: str | None
     is_conditional: bool
-    condition_field: Optional[str]
-    condition_value: Optional[Any]
+    condition_field: str | None
+    condition_value: Any | None
 
 
 @beartype
 class WizardSessionResponse(BaseModel):
     """Response schema for wizard session state."""
-    
+
     session_id: UUID
-    quote_id: Optional[UUID]
+    quote_id: UUID | None
     current_step: str
-    completed_steps: List[str]
-    data: Dict[str, Any]
-    validation_errors: Dict[str, List[str]]
+    completed_steps: list[str]
+    data: dict[str, Any]
+    validation_errors: dict[str, list[str]]
     started_at: datetime
     last_updated: datetime
     expires_at: datetime
@@ -154,19 +159,20 @@ class WizardSessionResponse(BaseModel):
 @beartype
 class WizardValidationResponse(BaseModel):
     """Response schema for wizard validation results."""
-    
+
     is_valid: bool
-    errors: Dict[str, List[str]]
-    warnings: Dict[str, List[str]]
+    errors: dict[str, list[str]]
+    warnings: dict[str, list[str]]
 
 
 # Additional schemas for complete API coverage
 
+
 @beartype
 class QuoteListResponse(BaseModel):
     """Response schema for listing quotes."""
-    
-    quotes: List[QuoteResponse]
+
+    quotes: list[QuoteResponse]
     total: int
     page: int = Field(ge=1)
     page_size: int = Field(ge=1, le=100)
@@ -177,7 +183,7 @@ class QuoteListResponse(BaseModel):
 @beartype
 class QuoteCalculateRequest(BaseModel):
     """Request schema for calculating quote premium."""
-    
+
     quote_id: UUID
     force_recalculate: bool = Field(default=False)
 
@@ -185,77 +191,82 @@ class QuoteCalculateRequest(BaseModel):
 @beartype
 class QuoteCalculateResponse(BaseModel):
     """Response schema for quote calculation results."""
-    
+
     quote_id: UUID
     base_premium: Decimal
     total_premium: Decimal
     monthly_premium: Decimal
-    discounts_applied: List[Discount]
-    surcharges_applied: List[Dict[str, Any]]
-    rating_factors: Dict[str, Any]
+    discounts_applied: list[Discount]
+    surcharges_applied: list[dict[str, Any]]
+    rating_factors: dict[str, Any]
     calculation_timestamp: datetime
 
 
 @beartype
 class QuoteCompareRequest(BaseModel):
     """Request schema for comparing quotes."""
-    
-    quote_ids: List[UUID] = Field(..., min_items=2, max_items=5)
-    comparison_type: str = Field(default="premium", pattern=r'^(premium|coverage|features)$')
+
+    quote_ids: list[UUID] = Field(..., min_items=2, max_items=5)
+    comparison_type: str = Field(
+        default="premium", pattern=r"^(premium|coverage|features)$"
+    )
 
 
 @beartype
 class QuoteCompareResponse(BaseModel):
     """Response schema for quote comparison."""
-    
-    quotes: List[QuoteResponse]
-    comparison_matrix: Dict[str, Dict[str, Any]]
-    recommendation: Optional[str]
-    best_value_quote_id: Optional[UUID]
+
+    quotes: list[QuoteResponse]
+    comparison_matrix: dict[str, dict[str, Any]]
+    recommendation: str | None
+    best_value_quote_id: UUID | None
 
 
 @beartype
 class QuoteConvertRequest(BaseModel):
     """Request schema for converting quote to policy."""
-    
+
     quote_id: UUID
-    payment_method: str = Field(..., pattern=r'^(credit_card|bank_transfer|check)$')
-    payment_info: Dict[str, Any]
-    effective_date: Optional[date] = None
+    payment_method: str = Field(..., pattern=r"^(credit_card|bank_transfer|check)$")
+    payment_info: dict[str, Any]
+    effective_date: date | None = None
 
 
 @beartype
 class QuoteConvertResponse(BaseModel):
     """Response schema for quote to policy conversion."""
-    
+
     quote_id: UUID
     policy_id: UUID
     policy_number: str
     effective_date: date
     premium: Decimal
-    payment_confirmation: Dict[str, Any]
+    payment_confirmation: dict[str, Any]
     conversion_timestamp: datetime
 
 
 @beartype
 class QuoteSearchRequest(BaseModel):
     """Request schema for searching quotes."""
-    
-    customer_id: Optional[UUID] = None
-    status: Optional[List[QuoteStatus]] = None
-    product_type: Optional[str] = Field(None, pattern=r'^(auto|home|commercial)$')
-    state: Optional[str] = Field(None, pattern=r'^[A-Z]{2}$')
-    created_after: Optional[datetime] = None
-    created_before: Optional[datetime] = None
-    expires_after: Optional[datetime] = None
-    expires_before: Optional[datetime] = None
-    min_premium: Optional[Decimal] = None
-    max_premium: Optional[Decimal] = None
-    
+
+    customer_id: UUID | None = None
+    status: list[QuoteStatus] | None = None
+    product_type: str | None = Field(None, pattern=r"^(auto|home|commercial)$")
+    state: str | None = Field(None, pattern=r"^[A-Z]{2}$")
+    created_after: datetime | None = None
+    created_before: datetime | None = None
+    expires_after: datetime | None = None
+    expires_before: datetime | None = None
+    min_premium: Decimal | None = None
+    max_premium: Decimal | None = None
+
     # Sorting
-    sort_by: str = Field(default="created_at", pattern=r'^(created_at|updated_at|expires_at|total_premium|quote_number)$')
-    sort_order: str = Field(default="desc", pattern=r'^(asc|desc)$')
-    
+    sort_by: str = Field(
+        default="created_at",
+        pattern=r"^(created_at|updated_at|expires_at|total_premium|quote_number)$",
+    )
+    sort_order: str = Field(default="desc", pattern=r"^(asc|desc)$")
+
     # Pagination
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
@@ -264,22 +275,22 @@ class QuoteSearchRequest(BaseModel):
 @beartype
 class QuoteBulkActionRequest(BaseModel):
     """Request schema for bulk quote actions."""
-    
-    quote_ids: List[UUID] = Field(..., min_items=1, max_items=100)
-    action: str = Field(..., pattern=r'^(expire|archive|delete|assign_agent)$')
-    action_data: Optional[Dict[str, Any]] = None
-    reason: Optional[str] = Field(None, max_length=500)
+
+    quote_ids: list[UUID] = Field(..., min_items=1, max_items=100)
+    action: str = Field(..., pattern=r"^(expire|archive|delete|assign_agent)$")
+    action_data: dict[str, Any] | None = None
+    reason: str | None = Field(None, max_length=500)
 
 
 @beartype
 class QuoteBulkActionResponse(BaseModel):
     """Response schema for bulk quote actions."""
-    
+
     total_requested: int
     successful: int
     failed: int
-    results: List[Dict[str, Any]]
-    errors: List[Dict[str, str]]
+    results: list[dict[str, Any]]
+    errors: list[dict[str, str]]
 
 
 # All quote API schemas are defined above.

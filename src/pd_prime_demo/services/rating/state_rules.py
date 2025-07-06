@@ -6,7 +6,7 @@ California Proposition 103 compliance and other state regulations.
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 
@@ -18,17 +18,17 @@ class StateRatingRules(ABC):
     """Base class for state-specific rating rules."""
 
     @abstractmethod
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Validate and adjust factors per state regulations."""
         pass
 
     @abstractmethod
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """Get state-mandated coverages."""
         pass
 
     @abstractmethod
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """Get state minimum coverage limits."""
         pass
 
@@ -52,7 +52,7 @@ class CaliforniaRules(StateRatingRules):
         return "CA"
 
     @beartype
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply California-specific factor limits per Prop 103."""
         # Prop 103: Driving record, miles driven, years of experience
         # are primary factors (must account for 80%+ of rating variation)
@@ -100,7 +100,7 @@ class CaliforniaRules(StateRatingRules):
         return adjusted
 
     @beartype
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """California required coverages."""
         return [
             "bodily_injury",  # 15/30
@@ -109,7 +109,7 @@ class CaliforniaRules(StateRatingRules):
         ]
 
     @beartype
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """California minimum liability limits."""
         return {
             "bodily_injury_per_person": Decimal("15000"),
@@ -144,14 +144,14 @@ class TexasRules(StateRatingRules):
         return "TX"
 
     @beartype
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Texas allows most rating factors with few restrictions."""
         # Texas has fewer restrictions than California
         # Credit scoring is allowed, occupation is allowed, etc.
         return factors
 
     @beartype
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """Texas required coverages."""
         return [
             "bodily_injury",  # 30/60
@@ -159,7 +159,7 @@ class TexasRules(StateRatingRules):
         ]
 
     @beartype
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """Texas minimum liability limits."""
         return {
             "bodily_injury_per_person": Decimal("30000"),
@@ -188,7 +188,7 @@ class NewYorkRules(StateRatingRules):
         return "NY"
 
     @beartype
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply New York-specific factor limits."""
         adjusted = factors.copy()
 
@@ -205,7 +205,7 @@ class NewYorkRules(StateRatingRules):
         return adjusted
 
     @beartype
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """New York required coverages."""
         return [
             "bodily_injury",  # 25/50
@@ -215,7 +215,7 @@ class NewYorkRules(StateRatingRules):
         ]
 
     @beartype
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """New York minimum liability limits."""
         return {
             "bodily_injury_per_person": Decimal("25000"),
@@ -247,7 +247,7 @@ class FloridaRules(StateRatingRules):
         return "FL"
 
     @beartype
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply Florida-specific factor limits."""
         adjusted = factors.copy()
 
@@ -273,7 +273,7 @@ class FloridaRules(StateRatingRules):
         return adjusted
 
     @beartype
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """Florida required coverages."""
         return [
             "property_damage",  # 10k minimum
@@ -281,7 +281,7 @@ class FloridaRules(StateRatingRules):
         ]
 
     @beartype
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """Florida minimum liability limits."""
         return {
             "property_damage": Decimal("10000"),
@@ -309,7 +309,7 @@ class MichiganRules(StateRatingRules):
         return "MI"
 
     @beartype
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply Michigan-specific factor limits."""
         adjusted = factors.copy()
 
@@ -322,7 +322,7 @@ class MichiganRules(StateRatingRules):
         return adjusted
 
     @beartype
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """Michigan required coverages."""
         return [
             "bodily_injury",  # 20/40 minimum
@@ -332,7 +332,7 @@ class MichiganRules(StateRatingRules):
         ]
 
     @beartype
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """Michigan minimum liability limits."""
         return {
             "bodily_injury_per_person": Decimal("20000"),
@@ -366,7 +366,7 @@ class PennsylvaniaRules(StateRatingRules):
         return "PA"
 
     @beartype
-    def validate_factors(self, factors: Dict[str, float]) -> Dict[str, float]:
+    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply Pennsylvania-specific factor limits."""
         adjusted = factors.copy()
 
@@ -382,7 +382,7 @@ class PennsylvaniaRules(StateRatingRules):
         return adjusted
 
     @beartype
-    def get_required_coverages(self) -> List[str]:
+    def get_required_coverages(self) -> list[str]:
         """Pennsylvania required coverages."""
         return [
             "bodily_injury",  # 15/30 minimum
@@ -391,7 +391,7 @@ class PennsylvaniaRules(StateRatingRules):
         ]
 
     @beartype
-    def get_minimum_limits(self) -> Dict[str, Decimal]:
+    def get_minimum_limits(self) -> dict[str, Decimal]:
         """Pennsylvania minimum liability limits."""
         return {
             "bodily_injury_per_person": Decimal("15000"),
@@ -437,7 +437,7 @@ def get_state_rules(state: str) -> Result[StateRatingRules, str]:
 
 @beartype
 def validate_coverage_limits(
-    state: str, coverage_selections: List[Any]
+    state: str, coverage_selections: list[Any]
 ) -> Result[bool, str]:
     """Validate that coverage selections meet state minimums."""
     state_rules_result = get_state_rules(state)
@@ -453,11 +453,11 @@ def validate_coverage_limits(
         # Map coverage types to minimum requirement keys
         # Handle both enum and string values for coverage_type
         coverage_type_str = (
-            selection.coverage_type.value 
-            if hasattr(selection.coverage_type, 'value') 
+            selection.coverage_type.value
+            if hasattr(selection.coverage_type, "value")
             else str(selection.coverage_type)
         )
-        
+
         if coverage_type_str == "bodily_injury":
             # Assuming split limits
             coverage_map["bodily_injury_per_person"] = selection.limit

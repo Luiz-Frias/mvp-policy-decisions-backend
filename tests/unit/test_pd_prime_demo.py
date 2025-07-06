@@ -11,9 +11,9 @@ def test_version() -> None:
     """Test version is defined following MASTER RULESET security standards."""
     # Use pytest-style assertions (secure, not disabled by -O optimization)
     assert __version__ is not None, "Version should be defined"
-    assert isinstance(__version__, str), (
-        f"Version should be string, got {type(__version__)}"
-    )
+    assert isinstance(
+        __version__, str
+    ), f"Version should be string, got {type(__version__)}"
 
 
 def test_result_ok() -> None:
@@ -29,9 +29,9 @@ def test_result_err() -> None:
     result: Result[str, str] = Err("failure")
     assert result.is_err(), "Result should be error"
     assert not result.is_ok(), "Result should not be ok"
-    assert result.unwrap_err() == "failure", (
-        f"Expected 'failure', got {result.unwrap_err()}"
-    )
+    assert (
+        result.unwrap_err() == "failure"
+    ), f"Expected 'failure', got {result.unwrap_err()}"
 
 
 def test_result_unwrap_panic() -> None:

@@ -1,17 +1,16 @@
 """Admin user management service."""
 
-from typing import List, Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
 
 from beartype import beartype
 from passlib.context import CryptContext
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ...models.admin import AdminUser, AdminUserCreate, AdminRole, Permission
-from ..result import Result, Ok, Err
+from ...models.admin import AdminUser, AdminUserCreate
 from ..cache_keys import CacheKeys
+from ..result import Err, Ok, Result
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
@@ -21,11 +20,11 @@ class AdminUserService:
 
     def __init__(self, db: Database, cache: Cache) -> None:
         """Initialize admin user service with dependency validation."""
-        if not db or not hasattr(db, 'execute'):
+        if not db or not hasattr(db, "execute"):
             raise ValueError("Database connection required and must be active")
-        if not cache or not hasattr(cache, 'get'):
+        if not cache or not hasattr(cache, "get"):
             raise ValueError("Cache connection required and must be available")
-        
+
         self._db = db
         self._cache = cache
         self._cache_ttl = 3600  # 1 hour
@@ -37,11 +36,11 @@ class AdminUserService:
         created_by: UUID,
     ) -> Result[AdminUser, str]:
         """Create new admin user with role assignment.
-        
+
         Args:
             admin_data: Admin user creation data
             created_by: UUID of admin creating this user
-            
+
         Returns:
             Result with created admin user or error message
         """
@@ -51,21 +50,20 @@ class AdminUserService:
         )
         if isinstance(has_permission, Err):
             return has_permission
-        
+
         if not has_permission.unwrap():
             return Err("Insufficient permissions to create admin users")
-        
+
         # Check if email already exists
         existing = await self._db.fetchrow(
-            "SELECT id FROM admin_users WHERE email = $1",
-            admin_data.email
+            "SELECT id FROM admin_users WHERE email = $1", admin_data.email
         )
         if existing:
             return Err(f"Admin user with email {admin_data.email} already exists")
-        
+
         # Hash password
         password_hash = pwd_context.hash(admin_data.password)
-        
+
         # Create admin user
         query = """
             INSERT INTO admin_users (
@@ -76,7 +74,7 @@ class AdminUserService:
                       is_active, is_super_admin, created_at, updated_at,
                       last_login_at, created_by
         """
-        
+
         try:
             row = await self._db.fetchrow(
                 query,
@@ -88,10 +86,10 @@ class AdminUserService:
                 True,  # is_active
                 created_by,
             )
-            
+
             if not row:
                 return Err("Failed to create admin user")
-            
+
             admin_user = AdminUser(
                 id=row["id"],
                 email=row["email"],
@@ -105,7 +103,7 @@ class AdminUserService:
                 last_login_at=row["last_login_at"],
                 created_by=row["created_by"],
             )
-            
+
             # Log activity
             await self._log_activity(
                 created_by,
@@ -115,9 +113,9 @@ class AdminUserService:
                 None,
                 {"email": admin_user.email, "role_id": str(admin_user.role_id)},
             )
-            
+
             return Ok(admin_user)
-            
+
         except Exception as e:
             return Err(f"Database error: {str(e)}")
 
@@ -129,12 +127,12 @@ class AdminUserService:
         updated_by: UUID,
     ) -> Result[AdminUser, str]:
         """Update admin user's role.
-        
+
         Args:
             admin_id: Admin user to update
             role_id: New role ID
             updated_by: Admin performing the update
-            
+
         Returns:
             Result with updated admin user or error
         """
@@ -144,23 +142,23 @@ class AdminUserService:
         )
         if isinstance(has_permission, Err):
             return has_permission
-        
+
         if not has_permission.unwrap():
             return Err("Insufficient permissions to update admin roles")
-        
+
         # Get current admin data
         current = await self.get_admin(admin_id)
         if isinstance(current, Err):
             return current
-        
+
         admin = current.unwrap()
         if not admin:
             return Err("Admin user not found")
-        
+
         # Cannot change super admin role
         if admin.is_super_admin:
             return Err("Cannot change super admin role")
-        
+
         # Update role
         query = """
             UPDATE admin_users
@@ -170,11 +168,11 @@ class AdminUserService:
                       is_active, is_super_admin, created_at, updated_at,
                       last_login_at, created_by
         """
-        
+
         row = await self._db.fetchrow(query, role_id, admin_id)
         if not row:
             return Err("Failed to update admin role")
-        
+
         updated_admin = AdminUser(
             id=row["id"],
             email=row["email"],
@@ -188,11 +186,11 @@ class AdminUserService:
             last_login_at=row["last_login_at"],
             created_by=row["created_by"],
         )
-        
+
         # Invalidate cache
         await self._cache.delete(CacheKeys.admin_user_by_id(admin_id))
         await self._cache.delete(CacheKeys.admin_permissions(admin_id))
-        
+
         # Log activity
         await self._log_activity(
             updated_by,
@@ -202,7 +200,7 @@ class AdminUserService:
             {"role_id": str(admin.role_id)},
             {"role_id": str(role_id)},
         )
-        
+
         return Ok(updated_admin)
 
     @beartype
@@ -213,37 +211,37 @@ class AdminUserService:
         action: str,
     ) -> Result[bool, str]:
         """Check if admin has specific permission.
-        
+
         Args:
             admin_id: Admin user ID
             resource: Resource name (e.g., 'policies', 'customers')
             action: Action name (e.g., 'create', 'update', 'delete')
-            
+
         Returns:
             Result with boolean indicating permission or error
         """
         # Check cache first
         cache_key = CacheKeys.admin_permissions(admin_id)
         cached = await self._cache.get(cache_key)
-        
+
         if cached:
             permissions = cached.get("permissions", [])
             permission_key = f"{resource}:{action}"
             return Ok(permission_key in permissions)
-        
+
         # Get admin user
         admin_result = await self.get_admin(admin_id)
         if isinstance(admin_result, Err):
             return admin_result
-        
+
         admin = admin_result.unwrap()
         if not admin:
             return Err("Admin user not found")
-        
+
         # Super admin has all permissions
         if admin.is_super_admin:
             return Ok(True)
-        
+
         # Check role permissions
         query = """
             SELECT p.resource, p.action
@@ -251,10 +249,10 @@ class AdminUserService:
             JOIN admin_role_permissions rp ON p.id = rp.permission_id
             WHERE rp.role_id = $1 AND p.resource = $2 AND p.action = $3
         """
-        
+
         row = await self._db.fetchrow(query, admin.role_id, resource, action)
         has_permission = row is not None
-        
+
         # Cache all permissions for this admin
         all_permissions_query = """
             SELECT p.resource, p.action
@@ -262,35 +260,33 @@ class AdminUserService:
             JOIN admin_role_permissions rp ON p.id = rp.permission_id
             WHERE rp.role_id = $1
         """
-        
+
         rows = await self._db.fetch(all_permissions_query, admin.role_id)
         permissions = [f"{row['resource']}:{row['action']}" for row in rows]
-        
+
         await self._cache.setex(
-            cache_key,
-            self._cache_ttl,
-            {"permissions": permissions}
+            cache_key, self._cache_ttl, {"permissions": permissions}
         )
-        
+
         return Ok(has_permission)
 
     @beartype
-    async def get_admin(self, admin_id: UUID) -> Result[Optional[AdminUser], str]:
+    async def get_admin(self, admin_id: UUID) -> Result[AdminUser | None, str]:
         """Get admin user by ID.
-        
+
         Args:
             admin_id: Admin user ID
-            
+
         Returns:
             Result with admin user or None if not found
         """
         # Check cache
         cache_key = CacheKeys.admin_user_by_id(admin_id)
         cached = await self._cache.get(cache_key)
-        
+
         if cached:
             return Ok(AdminUser(**cached))
-        
+
         # Query database
         query = """
             SELECT id, email, first_name, last_name, role_id,
@@ -299,11 +295,11 @@ class AdminUserService:
             FROM admin_users
             WHERE id = $1
         """
-        
+
         row = await self._db.fetchrow(query, admin_id)
         if not row:
             return Ok(None)
-        
+
         admin = AdminUser(
             id=row["id"],
             email=row["email"],
@@ -317,14 +313,12 @@ class AdminUserService:
             last_login_at=row["last_login_at"],
             created_by=row["created_by"],
         )
-        
+
         # Cache result
         await self._cache.setex(
-            cache_key,
-            self._cache_ttl,
-            admin.model_dump(mode="json")
+            cache_key, self._cache_ttl, admin.model_dump(mode="json")
         )
-        
+
         return Ok(admin)
 
     @beartype
@@ -333,9 +327,9 @@ class AdminUserService:
         admin_user_id: UUID,
         action: str,
         resource_type: str,
-        resource_id: Optional[UUID] = None,
-        old_values: Optional[dict] = None,
-        new_values: Optional[dict] = None,
+        resource_id: UUID | None = None,
+        old_values: dict | None = None,
+        new_values: dict | None = None,
     ) -> None:
         """Log admin activity (fire and forget)."""
         try:
@@ -346,8 +340,13 @@ class AdminUserService:
                     old_values, new_values, created_at
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
                 """,
-                admin_user_id, action, resource_type, resource_id,
-                old_values, new_values, datetime.utcnow()
+                admin_user_id,
+                action,
+                resource_type,
+                resource_id,
+                old_values,
+                new_values,
+                datetime.utcnow(),
             )
         except Exception:
             # Log errors but don't fail the main operation

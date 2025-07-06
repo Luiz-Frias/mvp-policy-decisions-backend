@@ -1,13 +1,12 @@
 """WebSocket connection and room management."""
 
 import asyncio
-import json
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.cache import Cache
@@ -87,7 +86,7 @@ class ConnectionManager:
         """Stop background tasks and close all connections."""
         # Stop monitoring first
         await self._monitor.stop_monitoring()
-        
+
         # Cancel background tasks
         for task in [self._heartbeat_task, self._health_monitor_task]:
             if task:
@@ -209,7 +208,12 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def disconnect(self, connection_id: str, reason: str = "Unknown", skip_notification: bool = False) -> Result[None, str]:
+    async def disconnect(
+        self,
+        connection_id: str,
+        reason: str = "Unknown",
+        skip_notification: bool = False,
+    ) -> Result[None, str]:
         """Disconnect and cleanup a WebSocket connection with explicit tracking."""
         if connection_id not in self._connections:
             return Err(
@@ -260,7 +264,9 @@ class ConnectionManager:
         # Close WebSocket
         websocket = self._connections[connection_id]
         try:
-            await websocket.close(code=1000, reason=reason[:123])  # Reason limited to 123 bytes
+            await websocket.close(
+                code=1000, reason=reason[:123]
+            )  # Reason limited to 123 bytes
         except Exception:
             # Connection already closed
             pass
@@ -295,12 +301,17 @@ class ConnectionManager:
         # Validate room access permissions
         metadata = self._connection_metadata.get(connection_id)
         if metadata and metadata.user_id:
-            permission_result = await self._validate_room_access(metadata.user_id, room_id)
+            permission_result = await self._validate_room_access(
+                metadata.user_id, room_id
+            )
             if permission_result.is_err():
                 return permission_result
 
         # Check if already subscribed
-        if room_id in self._room_subscriptions and connection_id in self._room_subscriptions[room_id]:
+        if (
+            room_id in self._room_subscriptions
+            and connection_id in self._room_subscriptions[room_id]
+        ):
             return Ok(None)  # Already subscribed, idempotent operation
 
         # Subscribe to room
@@ -326,7 +337,9 @@ class ConnectionManager:
                 "event": "member_joined",
                 "room_id": room_id,
                 "connection_id": connection_id,
-                "user_id": str(metadata.user_id) if metadata and metadata.user_id else None,
+                "user_id": (
+                    str(metadata.user_id) if metadata and metadata.user_id else None
+                ),
                 "member_count": member_count,
             },
         )
@@ -362,14 +375,17 @@ class ConnectionManager:
             )
 
         # Check if subscribed
-        if room_id not in self._room_subscriptions or connection_id not in self._room_subscriptions[room_id]:
+        if (
+            room_id not in self._room_subscriptions
+            or connection_id not in self._room_subscriptions[room_id]
+        ):
             return Ok(None)  # Not subscribed, idempotent operation
 
         await self._leave_room_internal(connection_id, room_id)
-        
+
         # Record room unsubscription in monitoring
         await self._monitor.record_room_subscription(connection_id, room_id, False)
-        
+
         return Ok(None)
 
     @beartype
@@ -387,16 +403,18 @@ class ConnectionManager:
 
         # Set sequence number if not provided
         if message.sequence is None:
-            message = message.model_copy(update={"sequence": self._get_next_sequence(connection_id)})
+            message = message.model_copy(
+                update={"sequence": self._get_next_sequence(connection_id)}
+            )
 
         try:
             message_data = message.model_dump()
             await websocket.send_json(message_data)
-            
+
             # Record message sending in monitoring
             message_size = len(str(message_data))
             await self._monitor.record_message_sent(connection_id, message_size)
-            
+
             # Update last activity
             if connection_id in self._connection_metadata:
                 self._connection_metadata[connection_id] = self._connection_metadata[
@@ -405,7 +423,9 @@ class ConnectionManager:
             return Ok(None)
         except Exception as e:
             # Connection failed, disconnect (skip notification to prevent recursion)
-            await self.disconnect(connection_id, f"Send failed: {str(e)}", skip_notification=True)
+            await self.disconnect(
+                connection_id, f"Send failed: {str(e)}", skip_notification=True
+            )
             return Err(
                 f"Failed to send message to connection {connection_id}: {str(e)}. "
                 "Connection has been terminated."
@@ -556,13 +576,15 @@ class ConnectionManager:
     async def get_connection_stats(self) -> dict[str, Any]:
         """Get current connection statistics."""
         room_sizes = {
-            room_id: len(members) for room_id, members in self._room_subscriptions.items()
+            room_id: len(members)
+            for room_id, members in self._room_subscriptions.items()
         }
 
         return {
             "total_connections": self._active_connection_count,
             "max_connections": self._max_connections_allowed,
-            "utilization": self._active_connection_count / self._max_connections_allowed,
+            "utilization": self._active_connection_count
+            / self._max_connections_allowed,
             "unique_users": len(self._user_connections),
             "total_rooms": len(self._room_subscriptions),
             "room_sizes": room_sizes,
@@ -574,7 +596,7 @@ class ConnectionManager:
         """Get comprehensive performance metrics including monitoring data."""
         basic_stats = await self.get_connection_stats()
         monitoring_summary = await self._monitor.get_metrics_summary()
-        
+
         return {
             **basic_stats,
             "monitoring": monitoring_summary,
@@ -649,7 +671,7 @@ class ConnectionManager:
         """Get next message sequence number for a connection."""
         if connection_id not in self._message_sequences:
             self._message_sequences[connection_id] = 0
-        
+
         self._message_sequences[connection_id] += 1
         return self._message_sequences[connection_id]
 
@@ -674,7 +696,9 @@ class ConnectionManager:
                 "event": "member_left",
                 "room_id": room_id,
                 "connection_id": connection_id,
-                "user_id": str(metadata.user_id) if metadata and metadata.user_id else None,
+                "user_id": (
+                    str(metadata.user_id) if metadata and metadata.user_id else None
+                ),
                 "member_count": member_count,
             },
         )
@@ -688,7 +712,9 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def _validate_room_access(self, user_id: UUID, room_id: str) -> Result[None, str]:
+    async def _validate_room_access(
+        self, user_id: UUID, room_id: str
+    ) -> Result[None, str]:
         """Validate user has permission to access a specific room."""
         # Room access patterns:
         # - quote:{quote_id} - user must own quote or be assigned agent
@@ -725,7 +751,9 @@ class ConnectionManager:
             return Err(f"Failed to update room cache: {str(e)}")
 
     @beartype
-    async def _store_connection(self, metadata: ConnectionMetadata) -> Result[None, str]:
+    async def _store_connection(
+        self, metadata: ConnectionMetadata
+    ) -> Result[None, str]:
         """Store connection info in database."""
         try:
             await self._db.execute(
@@ -759,6 +787,6 @@ class ConnectionManager:
                 datetime.now(),
             )
             return Ok(None)
-        except Exception as e:
+        except Exception:
             # Non-critical error, connection already cleaned up locally
             return Ok(None)

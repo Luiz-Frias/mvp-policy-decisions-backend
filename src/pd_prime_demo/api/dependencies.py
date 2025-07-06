@@ -13,7 +13,8 @@ from fastapi import Depends, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 
-from ..core.cache import get_redis_client
+from ..core.auth.sso_manager import SSOManager
+from ..core.cache import Cache, get_redis_client
 from ..core.config import Settings, get_settings
 from ..core.database import get_db_session
 from ..core.security import verify_jwt_token
@@ -21,8 +22,6 @@ from ..models.admin import AdminUser
 from ..schemas.auth import CurrentUser
 from ..services.admin.oauth2_admin_service import OAuth2AdminService
 from ..services.admin.sso_admin_service import SSOAdminService
-from ..core.auth.sso_manager import SSOManager
-from ..core.cache import Cache
 
 # Security scheme
 security = HTTPBearer()
@@ -94,7 +93,9 @@ async def get_current_user(
             user_id=payload.sub,
             username=payload.sub,  # In real app, fetch from DB
             email=f"{payload.sub}@example.com",  # In real app, fetch from DB
-            client_id=getattr(payload, 'client_id', f"client_{payload.sub}"),  # Extract client_id from token
+            client_id=getattr(
+                payload, "client_id", f"client_{payload.sub}"
+            ),  # Extract client_id from token
             scopes=payload.scopes,
         )
     except Exception as e:
@@ -306,7 +307,7 @@ async def get_current_admin_user(
 
     try:
         payload = await verify_jwt_token(token, settings.jwt_secret)
-        
+
         # Get admin user from database
         user_row = await db.fetchrow(
             """
@@ -315,27 +316,27 @@ async def get_current_admin_user(
             LEFT JOIN admin_roles r ON u.role_id = r.id
             WHERE u.id = $1 AND u.deactivated_at IS NULL
             """,
-            payload.sub
+            payload.sub,
         )
-        
+
         if not user_row:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized as admin",
             )
-        
+
         # Convert row to AdminUser model
         user_data = dict(user_row)
-        permissions = user_data.pop('permissions', [])
-        
+        permissions = user_data.pop("permissions", [])
+
         admin_user = AdminUser(**user_data)
-        
+
         # For now, set effective permissions from the role
         # In production, this would be computed properly
         admin_user._effective_permissions = permissions or []
-        
+
         return admin_user
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -360,13 +361,12 @@ async def get_oauth2_admin_service(
     Returns:
         OAuth2AdminService: Service instance for OAuth2 admin operations
     """
-    from ..core.cache import Cache
     from ..core.database import Database
-    
+
     # Wrap connections in our database/cache interfaces
     database = Database(db)
     cache = Cache(redis)
-    
+
     return OAuth2AdminService(database, cache)
 
 
@@ -384,14 +384,13 @@ async def get_quote_service(
     Returns:
         QuoteService: Service instance for quote operations
     """
-    from ..core.cache import Cache
     from ..core.database import Database
     from ..services.quote_service import QuoteService
-    
+
     # Wrap connections in our database/cache interfaces
     database = Database(db)
     cache = Cache(redis)
-    
+
     # Note: Rating engine will be injected when Agent 06 creates it
     return QuoteService(database, cache, rating_engine=None)
 
@@ -408,12 +407,11 @@ async def get_wizard_service(
     Returns:
         QuoteWizardService: Service instance for wizard operations
     """
-    from ..core.cache import Cache
     from ..services.quote_wizard import QuoteWizardService
-    
+
     # Wrap redis in our cache interface
     cache = Cache(redis)
-    
+
     return QuoteWizardService(cache)
 
 
@@ -431,13 +429,12 @@ async def get_sso_admin_service(
     Returns:
         SSOAdminService: Service instance for SSO admin operations
     """
-    from ..core.cache import Cache
     from ..core.database import Database
-    
+
     # Wrap connections in our database/cache interfaces
     database = Database(db)
     cache = Cache(redis)
-    
+
     return SSOAdminService(database, cache)
 
 
@@ -455,15 +452,14 @@ async def get_sso_manager(
     Returns:
         SSOManager: Service instance for SSO operations
     """
-    from ..core.cache import Cache
     from ..core.database import Database
-    
+
     # Wrap connections in our database/cache interfaces
     database = Database(db)
     cache = Cache(redis)
-    
+
     # Initialize the SSO manager
     sso_manager = SSOManager(database, cache)
     await sso_manager.initialize()
-    
+
     return sso_manager

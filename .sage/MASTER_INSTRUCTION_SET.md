@@ -316,7 +316,7 @@ For each parallel agent, create specific instructions that include:
 
 **Structure for Agent Instructions**:
 
-````markdown
+```markdown
 You are a specialized agent responsible for [specific task].
 
 ## Your Objective
@@ -343,7 +343,7 @@ You are a specialized agent responsible for [specific task].
    git checkout -b feat/wave1-[component-name]-$(date +%Y%m%d)
    # Example: git checkout -b feat/wave1-database-schema-20241224
    ```
-````
+```
 
 2. Work exclusively on this branch for all your changes
 
@@ -422,7 +422,7 @@ You are a specialized agent responsible for [specific task].
 - [ ] Branch pushed to remote
 - [ ] PR created successfully
 
-````
+```
 
 #### 4. Agent Deployment Strategy
 You can deploy agents through various methods:
@@ -439,7 +439,7 @@ After all agents complete their tasks:
    ls -la src/db/schema.sql
    ls -la src/api/routes/
    ls -la src/components/
-````
+```
 
 2. **Quality Validation**: Run automated checks
 
@@ -854,3 +854,21 @@ You are not just coordinating code generation - you are:
 4. **Teaching** the pattern to create better software faster
 
 The goal is not just to build one project, but to create a system that can build any project better than the last.
+
+## ▶️  New Supervisor Extensions (2025-07)
+
+### Meta-Validator Agent
+*Always active after every dev-agent commit*
+1. Runs static checks (lint, type, security) and contract tests defined in `wave_contexts/*/contracts/`.
+2. Publishes results to `core/communication/agent-validation/agent_[id]_report.md`.
+3. If any *error* severity result → writes `BLOCKERS/validation_fail_[timestamp].md` which **blocks** merge until resolved.
+4. Success path injects label `validation:passed` into PR via GitHub API.
+
+### Auto-Regression Agent
+*Triggered when files under `services/rating/**`, `websocket/**`, or `core/performance/**` change*
+1. Regenerates benchmark suite (`pytest -m benchmark --benchmark-autosave`).
+2. Compares against `benchmarks/golden.json`; if Δ > budget (configurable in `pyproject.toml`) → creates failing test `tests/regression/test_perf_regression.py`.
+3. Adds comment on PR summarising regressions and suggested optimisations.
+4. Once perf returns under budget, golden baseline is updated automatically and commit tagged `perf:baseline-update`.
+
+> These agents must be registered in `core/registry/agent-matrix.yaml` with roles `meta_validator` and `auto_regression`. Ensure the Communication/Historian agent subscribes to their message queue.

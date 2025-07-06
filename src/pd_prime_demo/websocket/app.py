@@ -8,10 +8,9 @@ from beartype import beartype
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from ..api.dependencies import get_db, get_redis
-from ..core.cache import Cache, get_cache
+from ..core.cache import get_cache
 from ..core.config import get_settings
-from ..core.database import Database, get_database
+from ..core.database import get_database
 from ..services.quote_service import QuoteService
 from ..services.result import Err, Ok, Result
 from .handlers.admin_dashboard import AdminDashboardHandler
@@ -20,13 +19,13 @@ from .handlers.notifications import NotificationHandler
 from .handlers.quotes import CollaborativeEditRequest, QuoteWebSocketHandler
 from .manager import ConnectionManager, WebSocketMessage
 
-
 # Create WebSocket app
 websocket_app = FastAPI(
     title="PD Prime WebSocket API",
     description="Real-time WebSocket endpoints for quotes and analytics",
     version="1.0.0",
 )
+
 
 # Defer CORS setup to startup
 @websocket_app.on_event("startup")
@@ -44,6 +43,7 @@ async def setup_cors():
     except Exception:
         # During testing, settings might not be available
         pass
+
 
 # Initialize global instances
 _manager: ConnectionManager | None = None
@@ -71,7 +71,7 @@ def get_quote_handler() -> QuoteWebSocketHandler:
         db = get_database()
         cache = get_cache()
         quote_service = QuoteService(db, cache)
-        
+
         _quote_handler = QuoteWebSocketHandler(get_manager(), quote_service)
     return _quote_handler
 
@@ -99,7 +99,9 @@ def get_admin_handler() -> AdminDashboardHandler:
     """Get admin dashboard WebSocket handler instance."""
     global _admin_handler
     if _admin_handler is None:
-        _admin_handler = AdminDashboardHandler(get_manager(), get_database(), get_cache())
+        _admin_handler = AdminDashboardHandler(
+            get_manager(), get_database(), get_cache()
+        )
     return _admin_handler
 
 
@@ -132,12 +134,12 @@ async def validate_websocket_token(token: str | None) -> Result[UUID | None, str
     if not token:
         # Allow anonymous connections for demo
         return Ok(None)
-    
+
     # In production, validate JWT token
     # For now, accept any non-empty token as demo user
     if token == "demo":
         return Ok(UUID("00000000-0000-0000-0000-000000000000"))
-    
+
     try:
         # Try to parse as UUID for testing
         user_id = UUID(token)
@@ -158,15 +160,17 @@ async def websocket_endpoint(
     analytics_handler = get_analytics_handler()
     notification_handler = get_notification_handler()
     admin_handler = get_admin_handler()
-    
+
     # Validate token
     auth_result = await validate_websocket_token(token)
     if auth_result.is_err():
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=auth_result.unwrap_err())
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason=auth_result.unwrap_err()
+        )
         return
-    
+
     user_id = auth_result.unwrap()
-    
+
     # Accept connection
     connect_result = await manager.connect(
         websocket,
@@ -175,13 +179,13 @@ async def websocket_endpoint(
         metadata={
             "ip_address": websocket.client.host if websocket.client else None,
             "user_agent": websocket.headers.get("user-agent"),
-        }
+        },
     )
-    
+
     if connect_result.is_err():
         await websocket.close(
             code=status.WS_1013_TRY_AGAIN_LATER,
-            reason=connect_result.unwrap_err()[:123]  # Reason limited to 123 bytes
+            reason=connect_result.unwrap_err()[:123],  # Reason limited to 123 bytes
         )
         return
 
@@ -196,66 +200,74 @@ async def websocket_endpoint(
                     type="error",
                     data={
                         "error": "Invalid JSON format",
-                        "received": raw_data[:100] if 'raw_data' in locals() else "unknown",
-                    }
+                        "received": (
+                            raw_data[:100] if "raw_data" in locals() else "unknown"
+                        ),
+                    },
                 )
                 await manager.send_personal_message(connection_id, error_msg)
                 continue
-            except ValueError as e:
+            except ValueError:
                 # WebSocket closed or invalid data
                 break
 
             # Handle base message types
             message_type = data.get("type")
-            
+
             if message_type in ["ping", "subscribe", "unsubscribe"]:
                 # Base manager handles these
                 await manager.handle_message(connection_id, data)
-                
+
             # Quote-specific messages
             elif message_type == "quote_subscribe":
                 quote_id = data.get("quote_id")
                 if not quote_id:
                     error_msg = WebSocketMessage(
                         type="error",
-                        data={"error": "quote_id required for quote_subscribe"}
+                        data={"error": "quote_id required for quote_subscribe"},
                     )
                     await manager.send_personal_message(connection_id, error_msg)
                     continue
-                
+
                 try:
                     quote_uuid = UUID(quote_id)
-                    await quote_handler.handle_quote_subscribe(connection_id, quote_uuid)
+                    await quote_handler.handle_quote_subscribe(
+                        connection_id, quote_uuid
+                    )
                 except ValueError:
                     error_msg = WebSocketMessage(
                         type="error",
-                        data={"error": f"Invalid quote_id format: {quote_id}"}
+                        data={"error": f"Invalid quote_id format: {quote_id}"},
                     )
                     await manager.send_personal_message(connection_id, error_msg)
-                    
+
             elif message_type == "quote_unsubscribe":
                 quote_id = data.get("quote_id")
                 if quote_id:
                     try:
                         quote_uuid = UUID(quote_id)
-                        await quote_handler.handle_quote_unsubscribe(connection_id, quote_uuid)
+                        await quote_handler.handle_quote_unsubscribe(
+                            connection_id, quote_uuid
+                        )
                     except ValueError:
                         pass  # Ignore invalid UUID on unsubscribe
-                        
+
             elif message_type == "quote_edit":
                 try:
                     edit_request = CollaborativeEditRequest(**data.get("data", {}))
-                    await quote_handler.handle_collaborative_edit(connection_id, edit_request)
+                    await quote_handler.handle_collaborative_edit(
+                        connection_id, edit_request
+                    )
                 except Exception as e:
                     await send_error_message(
                         manager, connection_id, f"Invalid edit request: {str(e)}"
                     )
-                    
+
             elif message_type == "field_focus":
                 quote_id = data.get("quote_id")
                 field = data.get("field")
                 focused = data.get("focused", False)
-                
+
                 if quote_id and field:
                     try:
                         quote_uuid = UUID(quote_id)
@@ -264,12 +276,12 @@ async def websocket_endpoint(
                         )
                     except ValueError:
                         pass
-                        
+
             elif message_type == "cursor_position":
                 quote_id = data.get("quote_id")
                 field = data.get("field")
                 position = data.get("position", 0)
-                
+
                 if quote_id and field and isinstance(position, int):
                     try:
                         quote_uuid = UUID(quote_id)
@@ -278,7 +290,7 @@ async def websocket_endpoint(
                         )
                     except ValueError:
                         pass
-                        
+
             # Analytics messages
             elif message_type == "start_analytics":
                 dashboard_type = data.get("dashboard_type")
@@ -287,7 +299,7 @@ async def websocket_endpoint(
                         manager, connection_id, "dashboard_type required for analytics"
                     )
                     continue
-                    
+
                 try:
                     config = DashboardConfig(
                         dashboard_type=dashboard_type,
@@ -296,17 +308,21 @@ async def websocket_endpoint(
                         metrics=data.get("metrics", []),
                         time_range_hours=data.get("time_range_hours", 24),
                     )
-                    await analytics_handler.start_analytics_stream(connection_id, config)
+                    await analytics_handler.start_analytics_stream(
+                        connection_id, config
+                    )
                 except Exception as e:
                     await send_error_message(
                         manager, connection_id, f"Invalid analytics config: {str(e)}"
                     )
-                    
+
             elif message_type == "stop_analytics":
                 dashboard_type = data.get("dashboard_type")
                 if dashboard_type:
-                    await analytics_handler.stop_analytics_stream(connection_id, dashboard_type)
-                    
+                    await analytics_handler.stop_analytics_stream(
+                        connection_id, dashboard_type
+                    )
+
             # Notification messages
             elif message_type == "notification_acknowledge":
                 notification_id = data.get("notification_id")
@@ -318,46 +334,54 @@ async def websocket_endpoint(
                         )
                     except ValueError:
                         await send_error_message(
-                            manager, connection_id, f"Invalid notification_id format: {notification_id}"
+                            manager,
+                            connection_id,
+                            f"Invalid notification_id format: {notification_id}",
                         )
-                        
+
             # Admin dashboard messages
             elif message_type == "start_admin_monitoring":
                 if not user_id:
                     await send_error_message(
-                        manager, connection_id, "Authentication required for admin monitoring"
+                        manager,
+                        connection_id,
+                        "Authentication required for admin monitoring",
                     )
                     continue
-                    
+
                 dashboard_config = data.get("config", {})
                 await admin_handler.start_system_monitoring(
                     connection_id, user_id, dashboard_config
                 )
-                
+
             elif message_type == "start_user_activity":
                 if not user_id:
                     await send_error_message(
-                        manager, connection_id, "Authentication required for user activity monitoring"
+                        manager,
+                        connection_id,
+                        "Authentication required for user activity monitoring",
                     )
                     continue
-                    
+
                 filters = data.get("filters", {})
                 await admin_handler.start_user_activity_monitoring(
                     connection_id, user_id, filters
                 )
-                
+
             elif message_type == "start_performance_monitoring":
                 if not user_id:
                     await send_error_message(
-                        manager, connection_id, "Authentication required for performance monitoring"
+                        manager,
+                        connection_id,
+                        "Authentication required for performance monitoring",
                     )
                     continue
-                    
+
                 metrics = data.get("metrics", [])
                 await admin_handler.start_performance_monitoring(
                     connection_id, user_id, metrics
                 )
-                    
+
             else:
                 # Unknown message type
                 error_msg = WebSocketMessage(
@@ -365,14 +389,22 @@ async def websocket_endpoint(
                     data={
                         "error": f"Unknown message type: {message_type}",
                         "supported_types": [
-                            "ping", "subscribe", "unsubscribe",
-                            "quote_subscribe", "quote_unsubscribe", "quote_edit",
-                            "field_focus", "cursor_position",
-                            "start_analytics", "stop_analytics",
+                            "ping",
+                            "subscribe",
+                            "unsubscribe",
+                            "quote_subscribe",
+                            "quote_unsubscribe",
+                            "quote_edit",
+                            "field_focus",
+                            "cursor_position",
+                            "start_analytics",
+                            "stop_analytics",
                             "notification_acknowledge",
-                            "start_admin_monitoring", "start_user_activity", "start_performance_monitoring"
+                            "start_admin_monitoring",
+                            "start_user_activity",
+                            "start_performance_monitoring",
                         ],
-                    }
+                    },
                 )
                 await manager.send_personal_message(connection_id, error_msg)
 
@@ -386,7 +418,7 @@ async def websocket_endpoint(
                 data={
                     "error": f"Unexpected error: {str(e)}",
                     "fatal": True,
-                }
+                },
             )
             await manager.send_personal_message(connection_id, error_msg)
         except:
@@ -405,7 +437,7 @@ async def websocket_health() -> dict[str, Any]:
     """WebSocket service health check."""
     manager = get_manager()
     stats = await manager.get_connection_stats()
-    
+
     return {
         "status": "healthy",
         "service": "websocket",

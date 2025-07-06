@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS user_sso_links (
     profile_data JSONB DEFAULT '{}', -- Raw user data from provider
     last_login_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Ensure one link per provider per user
     UNIQUE(user_id, provider),
     -- Ensure unique provider user ID per provider
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS sso_group_mappings (
     auto_assign BOOLEAN DEFAULT true,
     created_by UUID, -- References admin_users(id) when available
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Ensure unique group mapping per provider
     UNIQUE(provider_id, sso_group_name)
 );
@@ -202,7 +202,7 @@ INSERT INTO sso_provider_configs (
     allowed_domains,
     default_role,
     is_enabled
-) VALUES 
+) VALUES
 (
     'google',
     'oidc',
@@ -267,8 +267,8 @@ INSERT INTO sso_group_mappings (
     sso_group_name,
     internal_role,
     auto_assign
-) 
-SELECT 
+)
+SELECT
     id,
     'Administrators',
     'admin',
@@ -282,8 +282,8 @@ INSERT INTO sso_group_mappings (
     sso_group_name,
     internal_role,
     auto_assign
-) 
-SELECT 
+)
+SELECT
     id,
     'Underwriters',
     'underwriter',
@@ -301,7 +301,7 @@ INSERT INTO user_provisioning_rules (
     is_enabled,
     priority
 )
-SELECT 
+SELECT
     id,
     'Default User Provisioning',
     '{

@@ -6,8 +6,7 @@ versioning, A/B testing, and analytics.
 
 import json
 from datetime import date, datetime
-from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -32,11 +31,11 @@ class RateManagementService:
     async def create_rate_table_version(
         self,
         table_name: str,
-        rate_data: Dict[str, Any],
+        rate_data: dict[str, Any],
         admin_user_id: UUID,
         effective_date: date,
-        notes: Optional[str] = None,
-    ) -> Result[Dict[str, Any], str]:
+        notes: str | None = None,
+    ) -> Result[dict[str, Any], str]:
         """Create new version of rate table requiring approval."""
         # Validate admin permissions
         has_permission = await self._check_permission(admin_user_id, "rate:write")
@@ -86,7 +85,7 @@ class RateManagementService:
         self,
         version_id: UUID,
         admin_user_id: UUID,
-        approval_notes: Optional[str] = None,
+        approval_notes: str | None = None,
     ) -> Result[bool, str]:
         """Approve rate table version."""
         # Check approval permissions
@@ -175,7 +174,7 @@ class RateManagementService:
     @beartype
     async def get_rate_comparison(
         self, version_id_1: UUID, version_id_2: UUID
-    ) -> Result[Dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:
         """Compare two rate table versions with impact analysis."""
         comparison_result = await self._rate_table_service.compare_rate_versions(
             version_id_1, version_id_2
@@ -187,9 +186,7 @@ class RateManagementService:
         comparison = comparison_result.value
 
         # Add business impact analysis
-        impact_analysis = await self._analyze_rate_impact(
-            comparison["differences"]
-        )
+        impact_analysis = await self._analyze_rate_impact(comparison["differences"])
         comparison["business_impact"] = impact_analysis
 
         return Ok(comparison)
@@ -224,9 +221,7 @@ class RateManagementService:
             if isinstance(version, Err):
                 return version
             if version.value.status not in ["approved", "active"]:
-                return Err(
-                    f"Version {version_id} must be approved before A/B testing"
-                )
+                return Err(f"Version {version_id} must be approved before A/B testing")
 
         # Create A/B test
         test_id = uuid4()
@@ -270,7 +265,7 @@ class RateManagementService:
     @beartype
     async def get_rate_analytics(
         self, table_name: str, date_from: date, date_to: date
-    ) -> Result[Dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:
         """Get comprehensive rate analytics for admin dashboards."""
         try:
             # Get quote volume by rate version
@@ -314,10 +309,10 @@ class RateManagementService:
     @beartype
     async def get_pending_approvals(
         self, admin_user_id: UUID
-    ) -> Result[List[Dict[str, Any]], str]:
+    ) -> Result[list[dict[str, Any]], str]:
         """Get pending rate approvals for admin user."""
         query = """
-            SELECT 
+            SELECT
                 rtv.id,
                 rtv.table_name,
                 rtv.version_number,
@@ -354,9 +349,7 @@ class RateManagementService:
         return Ok(approvals)
 
     @beartype
-    async def _check_permission(
-        self, admin_user_id: UUID, permission: str
-    ) -> bool:
+    async def _check_permission(self, admin_user_id: UUID, permission: str) -> bool:
         """Check if admin user has specific permission."""
         query = """
             SELECT COUNT(*) > 0 as has_permission
@@ -368,9 +361,7 @@ class RateManagementService:
         return row["has_permission"] if row else False
 
     @beartype
-    async def _check_rate_creator(
-        self, version_id: UUID, admin_user_id: UUID
-    ) -> bool:
+    async def _check_rate_creator(self, version_id: UUID, admin_user_id: UUID) -> bool:
         """Check if admin user created the rate version."""
         query = """
             SELECT created_by = $2 as is_creator
@@ -448,7 +439,7 @@ class RateManagementService:
         admin_user_id: UUID,
         action: str,
         target_id: UUID,
-        details: Dict[str, Any],
+        details: dict[str, Any],
     ) -> None:
         """Log rate management activity for audit trail."""
         query = """
@@ -478,9 +469,7 @@ class RateManagementService:
         print(f"Rate version {version_id} approved by {approved_by}")
 
     @beartype
-    async def _analyze_rate_impact(
-        self, differences: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _analyze_rate_impact(self, differences: dict[str, Any]) -> dict[str, Any]:
         """Analyze business impact of rate changes."""
         modified = differences.get("modified", {})
 
@@ -523,7 +512,7 @@ class RateManagementService:
     @beartype
     async def _get_quote_analytics_by_rate(
         self, table_name: str, date_from: date, date_to: date
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get quote analytics grouped by rate version."""
         query = """
             SELECT
@@ -550,7 +539,7 @@ class RateManagementService:
     @beartype
     async def _get_conversion_metrics(
         self, table_name: str, date_from: date, date_to: date
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get conversion funnel metrics."""
         query = """
             SELECT
@@ -570,7 +559,9 @@ class RateManagementService:
         if not row:
             return {}
 
-        total = sum(row[k] or 0 for k in ["drafts", "quoted", "bound", "expired", "declined"])
+        total = sum(
+            row[k] or 0 for k in ["drafts", "quoted", "bound", "expired", "declined"]
+        )
 
         return {
             "total_quotes": total,
@@ -588,7 +579,7 @@ class RateManagementService:
     @beartype
     async def _get_ab_test_performance(
         self, table_name: str, date_from: date, date_to: date
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get A/B test performance metrics."""
         query = """
             SELECT
@@ -665,9 +656,7 @@ class RateManagementService:
         return results
 
     @beartype
-    async def _get_competitive_position(
-        self, table_name: str
-    ) -> Dict[str, Any]:
+    async def _get_competitive_position(self, table_name: str) -> dict[str, Any]:
         """Get competitive positioning analysis."""
         # In production, this would pull from competitive intelligence data
         # For now, return mock data
@@ -680,9 +669,9 @@ class RateManagementService:
     @beartype
     async def _calculate_rate_summary(
         self,
-        quote_analytics: List[Dict[str, Any]],
-        conversion_metrics: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        quote_analytics: list[dict[str, Any]],
+        conversion_metrics: dict[str, Any],
+    ) -> dict[str, Any]:
         """Calculate summary statistics."""
         if not quote_analytics:
             return {
@@ -700,13 +689,15 @@ class RateManagementService:
         return {
             "total_quotes": total_quotes,
             "total_premium": round(total_premium, 2),
-            "avg_premium": round(total_premium / total_quotes, 2) if total_quotes > 0 else 0,
+            "avg_premium": (
+                round(total_premium / total_quotes, 2) if total_quotes > 0 else 0
+            ),
             "conversion_rate": conversion_metrics.get("conversion_rate", 0),
             "performance_trend": self._calculate_trend(quote_analytics),
         }
 
     @beartype
-    def _calculate_trend(self, quote_analytics: List[Dict[str, Any]]) -> str:
+    def _calculate_trend(self, quote_analytics: list[dict[str, Any]]) -> str:
         """Calculate performance trend."""
         if len(quote_analytics) < 2:
             return "insufficient_data"

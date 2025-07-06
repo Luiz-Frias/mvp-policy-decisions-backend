@@ -20,44 +20,44 @@ from src.pd_prime_demo.services.rating_engine import RatingEngine
 def create_mock_db() -> MagicMock:
     """Create mock database for testing."""
     db = MagicMock()
-    
+
     # Mock rate table data
     db.fetch.return_value = [
         {
             "state": "CA",
             "product_type": "auto",
-            "coverage_type": "bodily_injury", 
+            "coverage_type": "bodily_injury",
             "base_rate": "0.85"
         },
         {
-            "state": "CA", 
+            "state": "CA",
             "product_type": "auto",
             "coverage_type": "property_damage",
             "base_rate": "0.65"
         },
         {
             "state": "CA",
-            "product_type": "auto", 
+            "product_type": "auto",
             "coverage_type": "comprehensive",
             "base_rate": "0.45"
         },
         {
             "state": "CA",
             "product_type": "auto",
-            "coverage_type": "collision", 
+            "coverage_type": "collision",
             "base_rate": "0.55"
         }
     ]
-    
+
     # Mock individual fetchrow calls
     db.fetchrow.side_effect = [
         {"minimum_premium": "500.00"},
         {"policy_count": 0},
         {"first_policy_date": None},
-        {"lapse_count": 0}, 
+        {"lapse_count": 0},
         {"claim_count": 0}
     ]
-    
+
     return db
 
 
@@ -157,32 +157,32 @@ def create_test_coverages() -> List[CoverageSelection]:
 async def test_rating_engine():
     """Test the rating engine with simple data."""
     print("🧪 Testing Rating Engine...")
-    
+
     # Create mocks
     mock_db = create_mock_db()
     mock_cache = create_mock_cache()
-    
+
     # Create rating engine
     engine = RatingEngine(mock_db, mock_cache)
-    
+
     # Initialize
     print("📊 Initializing rating engine...")
     init_result = await engine.initialize()
     if init_result.is_err():
         print(f"❌ Initialization failed: {init_result.error}")
         return False
-    
+
     print("✅ Rating engine initialized successfully")
-    
+
     # Create test data
     vehicle = create_test_vehicle()
     drivers = [create_test_driver()]
     coverages = create_test_coverages()
-    
+
     # Calculate premium
     print("💰 Calculating premium...")
     start_time = asyncio.get_event_loop().time()
-    
+
     result = await engine.calculate_premium(
         state="CA",
         product_type="auto",
@@ -190,17 +190,17 @@ async def test_rating_engine():
         drivers=drivers,
         coverage_selections=coverages,
     )
-    
+
     end_time = asyncio.get_event_loop().time()
     calculation_time = (end_time - start_time) * 1000
-    
+
     if result.is_err():
         print(f"❌ Rating calculation failed: {result.error}")
         return False
-    
+
     rating_result = result.value
-    
-    print("✅ Premium calculation successful\!")
+
+    print(r"✅ Premium calculation successful\!")
     print(f"⏱️  Calculation time: {calculation_time:.2f}ms")
     print(f"💵 Base Premium: ${rating_result.base_premium}")
     print(f"💵 Total Premium: ${rating_result.total_premium}")
@@ -208,30 +208,30 @@ async def test_rating_engine():
     print(f"📈 Rating Factors: {rating_result.factors}")
     print(f"💸 Discounts: {len(rating_result.discounts)}")
     print(f"⚠️  Surcharges: {len(rating_result.surcharges)}")
-    
+
     # Verify performance requirement
     if rating_result.calculation_time_ms > 50:
         print(f"⚠️  WARNING: Calculation took {rating_result.calculation_time_ms}ms (>50ms target)")
     else:
         print(f"🚀 Performance target met: {rating_result.calculation_time_ms}ms (<50ms)")
-    
+
     # Test state-specific rules
     print("\n🏛️  Testing state-specific rules...")
-    
+
     # Test CA rules (should work)
     ca_result = await engine.calculate_premium(
         state="CA",
-        product_type="auto", 
+        product_type="auto",
         vehicle_info=vehicle,
         drivers=drivers,
         coverage_selections=coverages,
     )
-    
+
     if ca_result.is_ok():
         print("✅ California rules work correctly")
     else:
         print(f"❌ California rules failed: {ca_result.error}")
-    
+
     # Test unsupported state (should fail fast)
     unsupported_result = await engine.calculate_premium(
         state="ZZ",  # Invalid state
@@ -240,13 +240,13 @@ async def test_rating_engine():
         drivers=drivers,
         coverage_selections=coverages,
     )
-    
+
     if unsupported_result.is_err():
         print("✅ Unsupported state fails fast as expected")
         print(f"📋 Error message: {unsupported_result.error}")
     else:
         print("❌ ERROR: Unsupported state should have failed")
-    
+
     return True
 
 
@@ -254,9 +254,9 @@ async def main():
     """Main test function."""
     print("🎯 Starting Rating Engine Audit...")
     print("=" * 50)
-    
+
     success = await test_rating_engine()
-    
+
     print("\n" + "=" * 50)
     if success:
         print("✅ Rating Engine Audit PASSED")

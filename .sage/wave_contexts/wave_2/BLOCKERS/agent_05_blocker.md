@@ -18,43 +18,43 @@ CREATE TABLE quotes (
     state VARCHAR(2) NOT NULL,
     zip_code VARCHAR(10) NOT NULL,
     effective_date DATE NOT NULL,
-    
+
     -- Contact info for non-customers
     email VARCHAR(100),
     phone VARCHAR(20),
     preferred_contact VARCHAR(10) DEFAULT 'EMAIL',
-    
+
     -- Vehicle and driver info (JSONB)
     vehicle_info JSONB,
     drivers JSONB,
     coverage_selections JSONB,
-    
+
     -- Pricing
     base_premium DECIMAL(10,2),
     total_premium DECIMAL(10,2),
     monthly_premium DECIMAL(10,2),
-    
+
     -- Discounts and surcharges
     discounts_applied JSONB,
     surcharges_applied JSONB,
     total_discount_amount DECIMAL(10,2),
     total_surcharge_amount DECIMAL(10,2),
-    
+
     -- Rating info
     rating_factors JSONB,
     rating_tier VARCHAR(20),
     ai_risk_score DECIMAL(5,2),
     ai_risk_factors JSONB,
-    
+
     -- Lifecycle
     expires_at TIMESTAMPTZ NOT NULL,
     converted_to_policy_id UUID,
     converted_at TIMESTAMPTZ,
-    
+
     -- Versioning
     version INT DEFAULT 1,
     parent_quote_id UUID REFERENCES quotes(id),
-    
+
     -- Tracking
     referral_source VARCHAR(50),
     created_by UUID,

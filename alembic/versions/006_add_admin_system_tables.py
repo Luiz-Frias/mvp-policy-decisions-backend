@@ -30,7 +30,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create admin system tables."""
-    
+
     # Create admin roles table first (referenced by admin_users)
     op.create_table(
         "admin_roles",
@@ -97,7 +97,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_admin_roles")),
         sa.UniqueConstraint("name", name=op.f("uq_admin_roles_name")),
     )
-    
+
     # Create admin users table (extends regular users)
     op.create_table(
         "admin_users",
@@ -249,7 +249,7 @@ def upgrade() -> None:
             name=op.f("ck_admin_users_deactivation_reason_required"),
         ),
     )
-    
+
     # Create admin permissions registry
     op.create_table(
         "admin_permissions",
@@ -317,7 +317,7 @@ def upgrade() -> None:
             name=op.f("ck_admin_permissions_risk_level"),
         ),
     )
-    
+
     # Create system settings table
     op.create_table(
         "system_settings",
@@ -447,7 +447,7 @@ def upgrade() -> None:
             name=op.f("ck_system_settings_category"),
         ),
     )
-    
+
     # Create admin activity logs table
     op.create_table(
         "admin_activity_logs",
@@ -592,7 +592,7 @@ def upgrade() -> None:
             name=op.f("ck_admin_activity_logs_risk_score_range"),
         ),
     )
-    
+
     # Create admin dashboards configuration
     op.create_table(
         "admin_dashboards",
@@ -709,7 +709,7 @@ def upgrade() -> None:
             name=op.f("ck_admin_dashboards_refresh_interval_min"),
         ),
     )
-    
+
     # Create rate approval workflow table
     op.create_table(
         "admin_rate_approvals",
@@ -882,9 +882,9 @@ def upgrade() -> None:
             name=op.f("ck_admin_rate_approvals_rejection_reason_required"),
         ),
     )
-    
+
     # Create indexes for admin tables
-    
+
     # Admin users indexes
     op.create_index(
         op.f("ix_admin_users_role_id"),
@@ -904,7 +904,7 @@ def upgrade() -> None:
         ["department"],
         unique=False,
     )
-    
+
     # System settings indexes
     op.create_index(
         op.f("ix_system_settings_category"),
@@ -918,7 +918,7 @@ def upgrade() -> None:
         ["is_sensitive"],
         unique=False,
     )
-    
+
     # Admin activity logs indexes
     op.create_index(
         op.f("ix_admin_activity_logs_admin_user_id"),
@@ -952,7 +952,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("risk_score >= 70"),
     )
-    
+
     # Admin rate approvals indexes
     op.create_index(
         op.f("ix_admin_rate_approvals_status"),
@@ -980,11 +980,11 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("status = 'pending'"),
     )
-    
+
     # Add Row Level Security (RLS) policies
     op.execute("ALTER TABLE admin_activity_logs ENABLE ROW LEVEL SECURITY;")
     op.execute("ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;")
-    
+
     # Create RLS policy for activity logs (admins can only see their own unless super admin)
     op.execute(
         """
@@ -1000,7 +1000,7 @@ def upgrade() -> None:
         );
         """
     )
-    
+
     # Create RLS policy for system settings (sensitive settings require special permission)
     op.execute(
         """
@@ -1020,9 +1020,15 @@ def upgrade() -> None:
         );
         """
     )
-    
+
     # Add update triggers
-    for table in ["admin_roles", "admin_users", "system_settings", "admin_dashboards", "admin_rate_approvals"]:
+    for table in [
+        "admin_roles",
+        "admin_users",
+        "system_settings",
+        "admin_dashboards",
+        "admin_rate_approvals",
+    ]:
         op.execute(
             f"""
             CREATE TRIGGER update_{table}_updated_at
@@ -1031,7 +1037,7 @@ def upgrade() -> None:
             EXECUTE FUNCTION update_updated_at_column();
             """
         )
-    
+
     # Create function to calculate admin risk score
     op.execute(
         """
@@ -1053,7 +1059,7 @@ def upgrade() -> None:
                 WHEN p_action LIKE '%update%' THEN 20
                 ELSE 10
             END;
-            
+
             -- Adjust by resource type
             v_risk_score := v_risk_score + CASE p_resource_type
                 WHEN 'admin_users' THEN 30
@@ -1062,22 +1068,22 @@ def upgrade() -> None:
                 WHEN 'policies' THEN 15
                 ELSE 5
             END;
-            
+
             -- Add risk for bulk changes
             IF p_old_values IS NOT NULL AND jsonb_array_length(p_old_values) > 10 THEN
                 v_risk_score := v_risk_score + 20;
             END IF;
-            
+
             -- Cap at 100
             RETURN LEAST(v_risk_score, 100);
         END;
         $$ LANGUAGE plpgsql IMMUTABLE;
         """
     )
-    
+
     # Create function to validate admin permissions
     op.execute(
-        """
+        r"""
         CREATE OR REPLACE FUNCTION validate_admin_permissions(permissions JSONB)
         RETURNS BOOLEAN AS $$
         DECLARE
@@ -1088,7 +1094,7 @@ def upgrade() -> None:
             IF permissions IS NULL OR jsonb_array_length(permissions) = 0 THEN
                 RETURN TRUE; -- Empty permissions are valid
             END IF;
-            
+
             -- Check each permission format
             FOR perm IN SELECT jsonb_array_elements_text(permissions)
             LOOP
@@ -1096,11 +1102,11 @@ def upgrade() -> None:
                 IF perm !~ '^[a-z_]+\.[a-z_]+$' THEN
                     RETURN FALSE;
                 END IF;
-                
+
                 -- Extract resource and action
                 resource := split_part(perm, '.', 1);
                 action := split_part(perm, '.', 2);
-                
+
                 -- Verify permission exists in registry
                 IF NOT EXISTS (
                     SELECT 1 FROM admin_permissions
@@ -1110,20 +1116,20 @@ def upgrade() -> None:
                     RETURN FALSE;
                 END IF;
             END LOOP;
-            
+
             RETURN TRUE;
         END;
         $$ LANGUAGE plpgsql;
         """
     )
-    
+
     # Add validation constraint for role permissions
     op.create_check_constraint(
         "ck_admin_roles_permissions_valid",
         "admin_roles",
         sa.text("validate_admin_permissions(permissions)"),
     )
-    
+
     # Insert default admin permissions
     op.execute(
         """
@@ -1134,52 +1140,52 @@ def upgrade() -> None:
         ('quotes', 'write', 'Create/update quotes', 'medium', false),
         ('quotes', 'delete', 'Delete quotes', 'high', true),
         ('quotes', 'approve', 'Approve high-value quotes', 'high', true),
-        
+
         -- Policy permissions
         ('policies', 'read', 'View policies', 'low', false),
         ('policies', 'write', 'Create/update policies', 'medium', false),
         ('policies', 'delete', 'Delete policies', 'high', true),
         ('policies', 'cancel', 'Cancel active policies', 'high', true),
-        
+
         -- Rate table permissions
         ('rate_tables', 'read', 'View rate tables', 'low', false),
         ('rate_tables', 'write', 'Create/update rate tables', 'high', true),
         ('rate_tables', 'approve', 'Approve rate changes', 'critical', true),
         ('rate_tables', 'delete', 'Delete rate tables', 'critical', true),
-        
+
         -- User management permissions
         ('users', 'read', 'View users', 'low', false),
         ('users', 'write', 'Create/update users', 'medium', false),
         ('users', 'delete', 'Delete users', 'high', true),
-        
+
         -- Admin management permissions
         ('admin_users', 'read', 'View admin users', 'medium', false),
         ('admin_users', 'write', 'Create/update admin users', 'critical', true),
         ('admin_users', 'delete', 'Delete admin users', 'critical', true),
-        
+
         -- System settings permissions
         ('system_settings', 'read', 'View system settings', 'medium', false),
         ('system_settings', 'write', 'Update system settings', 'high', true),
         ('system_settings', 'read_sensitive', 'View sensitive settings', 'high', true),
-        
+
         -- Audit log permissions
         ('audit_logs', 'read', 'View audit logs', 'medium', false),
         ('audit_logs', 'export', 'Export audit logs', 'high', true),
-        
+
         -- Dashboard permissions
         ('dashboards', 'read', 'View dashboards', 'low', false),
         ('dashboards', 'write', 'Create/update dashboards', 'low', false),
         ('dashboards', 'delete', 'Delete dashboards', 'medium', false);
         """
     )
-    
+
     # Insert default admin roles
     op.execute(
         """
         INSERT INTO admin_roles (name, description, permissions, is_system_role)
         VALUES
         ('Super Admin', 'Full system access', '[]'::jsonb, true),
-        ('Rate Manager', 'Manage rate tables and approvals', 
+        ('Rate Manager', 'Manage rate tables and approvals',
          '["rate_tables.read", "rate_tables.write", "rate_tables.approve", "quotes.read", "policies.read"]'::jsonb, true),
         ('Underwriter', 'Review and approve quotes/policies',
          '["quotes.read", "quotes.write", "quotes.approve", "policies.read", "policies.write", "users.read"]'::jsonb, true),
@@ -1193,26 +1199,38 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop admin system tables and related objects."""
-    
+
     # Drop RLS policies
-    op.execute("DROP POLICY IF EXISTS admin_activity_logs_access_policy ON admin_activity_logs;")
-    op.execute("DROP POLICY IF EXISTS system_settings_access_policy ON system_settings;")
-    
+    op.execute(
+        "DROP POLICY IF EXISTS admin_activity_logs_access_policy ON admin_activity_logs;"
+    )
+    op.execute(
+        "DROP POLICY IF EXISTS system_settings_access_policy ON system_settings;"
+    )
+
     # Disable RLS
     op.execute("ALTER TABLE admin_activity_logs DISABLE ROW LEVEL SECURITY;")
     op.execute("ALTER TABLE system_settings DISABLE ROW LEVEL SECURITY;")
-    
+
     # Drop constraint
     op.drop_constraint("ck_admin_roles_permissions_valid", "admin_roles")
-    
+
     # Drop triggers
-    for table in ["admin_roles", "admin_users", "system_settings", "admin_dashboards", "admin_rate_approvals"]:
+    for table in [
+        "admin_roles",
+        "admin_users",
+        "system_settings",
+        "admin_dashboards",
+        "admin_rate_approvals",
+    ]:
         op.execute(f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};")
-    
+
     # Drop functions
-    op.execute("DROP FUNCTION IF EXISTS calculate_admin_risk_score(TEXT, TEXT, JSONB, JSONB);")
+    op.execute(
+        "DROP FUNCTION IF EXISTS calculate_admin_risk_score(TEXT, TEXT, JSONB, JSONB);"
+    )
     op.execute("DROP FUNCTION IF EXISTS validate_admin_permissions(JSONB);")
-    
+
     # Drop tables in correct order (due to foreign keys)
     op.drop_table("admin_rate_approvals")
     op.drop_table("admin_dashboards")

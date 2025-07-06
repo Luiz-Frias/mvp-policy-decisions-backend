@@ -317,47 +317,47 @@ def mock_http_client() -> MagicMock:
 async def rating_engine(mock_db: MagicMock, mock_cache: MagicMock) -> Any:
     """Create rating engine instance for testing."""
     from src.pd_prime_demo.services.rating_engine import RatingEngine
-    
+
     # Set up mock database responses for rating data
     mock_db.fetch.return_value = [
         {
             "state": "CA",
-            "product_type": "auto", 
+            "product_type": "auto",
             "coverage_type": "bodily_injury",
-            "base_rate": "0.85"
+            "base_rate": "0.85",
         },
         {
             "state": "CA",
             "product_type": "auto",
-            "coverage_type": "property_damage", 
-            "base_rate": "0.65"
+            "coverage_type": "property_damage",
+            "base_rate": "0.65",
         },
         {
             "state": "CA",
             "product_type": "auto",
             "coverage_type": "comprehensive",
-            "base_rate": "0.45"
+            "base_rate": "0.45",
         },
         {
             "state": "CA",
             "product_type": "auto",
             "coverage_type": "collision",
-            "base_rate": "0.55"
+            "base_rate": "0.55",
         },
     ]
-    
+
     # Mock state rules data
     mock_db.fetchrow.side_effect = [
         {"minimum_premium": "500.00"},  # Minimum premium
-        {"policy_count": 0},            # Customer policy count
-        {"first_policy_date": None},    # Customer tenure
-        {"lapse_count": 0},             # Coverage lapse check
-        {"claim_count": 0},             # Claims history
+        {"policy_count": 0},  # Customer policy count
+        {"first_policy_date": None},  # Customer tenure
+        {"lapse_count": 0},  # Coverage lapse check
+        {"claim_count": 0},  # Claims history
     ]
-    
+
     engine = RatingEngine(mock_db, mock_cache)
-    
+
     # Initialize with mock data
     await engine.initialize()
-    
+
     return engine

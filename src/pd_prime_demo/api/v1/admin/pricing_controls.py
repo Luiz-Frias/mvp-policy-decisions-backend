@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from ....core.security import AdminUser, get_current_admin_user
 from ....services.admin.pricing_override_service import PricingOverrideService
-from ...dependencies import get_database, get_cache
+from ...dependencies import get_cache, get_database
 
 router = APIRouter(prefix="/admin/pricing", tags=["admin-pricing"])
 
@@ -21,8 +21,8 @@ class PricingOverrideRequest(BaseModel):
     """Request model for pricing override."""
 
     override_type: str = Field(
-        ..., 
-        description="Type of override: premium_adjustment, discount_override, special_rate"
+        ...,
+        description="Type of override: premium_adjustment, discount_override, special_rate",
     )
     original_amount: Decimal = Field(..., ge=0, decimal_places=2)
     new_amount: Decimal = Field(..., ge=0, decimal_places=2)
@@ -35,29 +35,29 @@ class ManualDiscountRequest(BaseModel):
 
     discount_amount: Decimal = Field(..., gt=0, decimal_places=2)
     reason: str = Field(..., min_length=10, max_length=500)
-    expires_at: Optional[datetime] = Field(default=None)
+    expires_at: datetime | None = Field(default=None)
 
 
 class SpecialPricingRuleRequest(BaseModel):
     """Request model for special pricing rule."""
 
     rule_name: str = Field(..., min_length=3, max_length=100)
-    conditions: Dict[str, Any] = Field(..., description="Rule conditions")
-    adjustments: Dict[str, Any] = Field(..., description="Pricing adjustments")
+    conditions: dict[str, Any] = Field(..., description="Rule conditions")
+    adjustments: dict[str, Any] = Field(..., description="Pricing adjustments")
     effective_date: datetime = Field(...)
-    expiration_date: Optional[datetime] = Field(default=None)
+    expiration_date: datetime | None = Field(default=None)
 
 
 class ApprovalRequest(BaseModel):
     """Request model for override approval."""
 
-    approval_notes: Optional[str] = Field(default=None, max_length=500)
+    approval_notes: str | None = Field(default=None, max_length=500)
 
 
 # Helper dependency
 async def get_pricing_service(
-    database = Depends(get_database),
-    cache = Depends(get_cache),
+    database=Depends(get_database),
+    cache=Depends(get_cache),
 ) -> PricingOverrideService:
     """Get pricing override service instance."""
     return PricingOverrideService(database, cache)
@@ -70,9 +70,9 @@ async def create_pricing_override(
     override_request: PricingOverrideRequest,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create pricing override for quote.
-    
+
     Requires 'quote:override' permission.
     """
     if "quote:override" not in admin_user.effective_permissions:
@@ -101,9 +101,9 @@ async def apply_manual_discount(
     discount_request: ManualDiscountRequest,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """Apply manual discount to quote.
-    
+
     Requires 'quote:discount' permission.
     """
     if "quote:discount" not in admin_user.effective_permissions:
@@ -129,9 +129,9 @@ async def create_special_pricing_rule(
     rule_request: SpecialPricingRuleRequest,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create special pricing rule.
-    
+
     Requires 'pricing:rule:create' permission.
     """
     if "pricing:rule:create" not in admin_user.effective_permissions:
@@ -157,9 +157,9 @@ async def create_special_pricing_rule(
 async def get_pending_overrides(
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Get pending pricing overrides for approval.
-    
+
     Requires 'pricing:override:approve' permission.
     """
     if "pricing:override:approve" not in admin_user.effective_permissions:
@@ -180,9 +180,9 @@ async def approve_pricing_override(
     approval_request: ApprovalRequest,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """Approve a pending pricing override.
-    
+
     Requires 'pricing:override:approve' permission.
     """
     if "pricing:override:approve" not in admin_user.effective_permissions:
@@ -207,9 +207,9 @@ async def reject_pricing_override(
     rejection_reason: str,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """Reject a pending pricing override.
-    
+
     Requires 'pricing:override:approve' permission.
     """
     if "pricing:override:approve" not in admin_user.effective_permissions:
@@ -218,6 +218,5 @@ async def reject_pricing_override(
     # In production, implement rejection logic
     # For now, return not implemented
     raise HTTPException(
-        status_code=501, 
-        detail="Rejection functionality not yet implemented"
+        status_code=501, detail="Rejection functionality not yet implemented"
     )

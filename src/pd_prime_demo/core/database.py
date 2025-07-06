@@ -18,7 +18,7 @@ from .database_enhanced import (
 
 __all__ = [
     "Database",
-    "DatabaseConfig", 
+    "DatabaseConfig",
     "PoolConfig",
     "PoolMetrics",
     "RecoveryConfig",

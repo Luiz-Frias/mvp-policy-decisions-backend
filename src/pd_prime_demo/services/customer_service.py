@@ -20,11 +20,11 @@ class CustomerService:
 
     def __init__(self, db: Database, cache: Cache) -> None:
         """Initialize customer service with dependency validation."""
-        if not db or not hasattr(db, 'execute'):
+        if not db or not hasattr(db, "execute"):
             raise ValueError("Database connection required and must be active")
-        if not cache or not hasattr(cache, 'get'):
+        if not cache or not hasattr(cache, "get"):
             raise ValueError("Cache connection required and must be available")
-        
+
         self._db = db
         self._cache = cache
         self._cache_ttl = 3600  # 1 hour

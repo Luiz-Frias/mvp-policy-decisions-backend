@@ -18,7 +18,7 @@ from .sso_base import SSOProvider, SSOUserInfo
 
 class User(BaseModelConfig):
     """User model for SSO integration."""
-    
+
     id: UUID
     email: str
     first_name: str
@@ -36,7 +36,7 @@ class SSOManager:
         cache: Cache,
     ) -> None:
         """Initialize SSO manager.
-        
+
         Args:
             db: Database instance
             cache: Cache instance
@@ -49,7 +49,7 @@ class SSOManager:
     @beartype
     async def initialize(self) -> Result[None, str]:
         """Load SSO provider configurations from database.
-        
+
         Returns:
             Result indicating success or error
         """
@@ -83,20 +83,20 @@ class SSOManager:
                 provider_result = await self._create_provider(
                     provider_name, provider_type, config
                 )
-                
+
                 if isinstance(provider_result, Err):
                     # Log error but continue loading other providers
                     continue
-                    
+
                 self._providers[provider_name] = provider_result.value
                 self._provider_configs[provider_name] = config
                 configs[provider_name] = config
 
             # Cache configurations
             await self._cache.set("sso:provider_configs", configs, ttl=3600)
-            
+
             return Ok(None)
-            
+
         except Exception as e:
             return Err(f"Failed to initialize SSO providers: {str(e)}")
 
@@ -108,12 +108,12 @@ class SSOManager:
         config: dict[str, Any],
     ) -> Result[SSOProvider, str]:
         """Create SSO provider instance.
-        
+
         Args:
             provider_name: Name of the provider
             provider_type: Type of provider (google, azure, okta, auth0)
             config: Provider configuration
-            
+
         Returns:
             Result containing provider instance or error
         """
@@ -125,7 +125,7 @@ class SSOManager:
             if provider_type == "google":
                 if not all(k in config for k in ["client_id", "client_secret"]):
                     return Err(f"Missing required Google config for {provider_name}")
-                    
+
                 return Ok(
                     GoogleSSOProvider(
                         client_id=config["client_id"],
@@ -134,11 +134,13 @@ class SSOManager:
                         hosted_domain=config.get("hosted_domain"),
                     )
                 )
-                
+
             elif provider_type == "azure":
-                if not all(k in config for k in ["client_id", "client_secret", "tenant_id"]):
+                if not all(
+                    k in config for k in ["client_id", "client_secret", "tenant_id"]
+                ):
                     return Err(f"Missing required Azure AD config for {provider_name}")
-                    
+
                 return Ok(
                     AzureADSSOProvider(
                         client_id=config["client_id"],
@@ -147,25 +149,31 @@ class SSOManager:
                         tenant_id=config["tenant_id"],
                     )
                 )
-                
+
             elif provider_type == "okta":
-                if not all(k in config for k in ["client_id", "client_secret", "okta_domain"]):
+                if not all(
+                    k in config for k in ["client_id", "client_secret", "okta_domain"]
+                ):
                     return Err(f"Missing required Okta config for {provider_name}")
-                    
+
                 return Ok(
                     OktaSSOProvider(
                         client_id=config["client_id"],
                         client_secret=config["client_secret"],
                         redirect_uri=redirect_uri,
                         okta_domain=config["okta_domain"],
-                        authorization_server_id=config.get("authorization_server_id", "default"),
+                        authorization_server_id=config.get(
+                            "authorization_server_id", "default"
+                        ),
                     )
                 )
-                
+
             elif provider_type == "auth0":
-                if not all(k in config for k in ["client_id", "client_secret", "auth0_domain"]):
+                if not all(
+                    k in config for k in ["client_id", "client_secret", "auth0_domain"]
+                ):
                     return Err(f"Missing required Auth0 config for {provider_name}")
-                    
+
                 return Ok(
                     Auth0SSOProvider(
                         client_id=config["client_id"],
@@ -175,20 +183,20 @@ class SSOManager:
                         audience=config.get("audience"),
                     )
                 )
-                
+
             else:
                 return Err(f"Unsupported provider type: {provider_type}")
-                
+
         except Exception as e:
             return Err(f"Failed to create provider {provider_name}: {str(e)}")
 
     @beartype
     def get_provider(self, provider_name: str) -> SSOProvider | None:
         """Get SSO provider by name.
-        
+
         Args:
             provider_name: Name of the provider
-            
+
         Returns:
             SSO provider instance or None if not found
         """
@@ -197,7 +205,7 @@ class SSOManager:
     @beartype
     def list_providers(self) -> list[str]:
         """List all configured SSO providers.
-        
+
         Returns:
             List of provider names
         """
@@ -210,11 +218,11 @@ class SSOManager:
         provider_name: str,
     ) -> Result[User, str]:
         """Create or update user from SSO information.
-        
+
         Args:
             sso_info: SSO user information
             provider_name: Name of the SSO provider
-            
+
         Returns:
             Result containing user or error
         """
@@ -241,22 +249,18 @@ class SSOManager:
                 if existing:
                     # Update user info
                     user = await self._update_user_from_sso(
-                        UUID(existing["id"]),
-                        sso_info
+                        UUID(existing["id"]), sso_info
                     )
                 else:
                     # Check if email already exists
                     email_user = await self._db.fetchrow(
-                        "SELECT * FROM users WHERE email = $1",
-                        sso_info.email
+                        "SELECT * FROM users WHERE email = $1", sso_info.email
                     )
 
                     if email_user:
                         # Link existing user to SSO
                         user = await self._link_user_to_sso(
-                            UUID(email_user["id"]),
-                            provider_name,
-                            sso_info
+                            UUID(email_user["id"]), provider_name, sso_info
                         )
                     else:
                         # Check if auto-provisioning is allowed
@@ -264,15 +268,12 @@ class SSOManager:
                         auto_create = await self._check_auto_provisioning(
                             provider_name, sso_info, config
                         )
-                        
+
                         if isinstance(auto_create, Err):
                             return auto_create
 
                         # Create new user
-                        user = await self._create_user_from_sso(
-                            sso_info,
-                            provider_name
-                        )
+                        user = await self._create_user_from_sso(sso_info, provider_name)
 
                 # Update groups/roles
                 await self._sync_user_groups(user.id, provider_name, sso_info.groups)
@@ -286,9 +287,7 @@ class SSOManager:
 
         except Exception as e:
             # Log failed authentication
-            await self._log_auth_event(
-                None, "sso", provider_name, "failed", str(e)
-            )
+            await self._log_auth_event(None, "sso", provider_name, "failed", str(e))
             return Err(f"Failed to create/update user: {str(e)}")
 
     @beartype
@@ -299,21 +298,21 @@ class SSOManager:
         config: dict[str, Any],
     ) -> Result[bool, str]:
         """Check if user auto-provisioning is allowed.
-        
+
         Args:
             provider_name: Name of the SSO provider
             sso_info: SSO user information
             config: Provider configuration
-            
+
         Returns:
             Result indicating if provisioning is allowed or error
         """
         # Check if auto-create is enabled
         provider_row = await self._db.fetchrow(
             "SELECT auto_create_users, allowed_domains, default_role FROM sso_provider_configs WHERE provider_name = $1",
-            provider_name
+            provider_name,
         )
-        
+
         if not provider_row or not provider_row["auto_create_users"]:
             return Err(
                 f"User provisioning not allowed for provider '{provider_name}'. "
@@ -325,7 +324,9 @@ class SSOManager:
         # Check domain restrictions
         allowed_domains = provider_row.get("allowed_domains", [])
         if allowed_domains:
-            email_domain = sso_info.email.split("@")[-1] if "@" in sso_info.email else ""
+            email_domain = (
+                sso_info.email.split("@")[-1] if "@" in sso_info.email else ""
+            )
             if email_domain not in allowed_domains:
                 return Err(
                     f"Email domain '{email_domain}' not allowed for {provider_name}. "
@@ -342,30 +343,31 @@ class SSOManager:
         provider_name: str,
     ) -> User:
         """Create new user from SSO information.
-        
+
         Args:
             sso_info: SSO user information
             provider_name: Name of the SSO provider
-            
+
         Returns:
             Created user
         """
         # Extract name parts
         first_name = sso_info.given_name or ""
         last_name = sso_info.family_name or ""
-        
+
         if not first_name and not last_name and sso_info.name:
             # Split full name
             name_parts = sso_info.name.split(" ", 1)
             first_name = name_parts[0]
             last_name = name_parts[1] if len(name_parts) > 1 else ""
-        
+
         if not first_name:
             # Use email username as fallback
             first_name = sso_info.email.split("@")[0]
 
         # Create user with random password (won't be used with SSO)
         import secrets
+
         random_password = secrets.token_urlsafe(32)
 
         user_id = await self._db.fetchval(
@@ -395,10 +397,7 @@ class SSOManager:
         )
 
         # Get full user record
-        row = await self._db.fetchrow(
-            "SELECT * FROM users WHERE id = $1",
-            user_id
-        )
+        row = await self._db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
 
         return User(
             id=user_id,
@@ -416,11 +415,11 @@ class SSOManager:
         sso_info: SSOUserInfo,
     ) -> User:
         """Update existing user from SSO information.
-        
+
         Args:
             user_id: User ID
             sso_info: SSO user information
-            
+
         Returns:
             Updated user
         """
@@ -438,15 +437,11 @@ class SSOManager:
 
         # Update user last login
         await self._db.execute(
-            "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1",
-            user_id
+            "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1", user_id
         )
 
         # Get updated user
-        row = await self._db.fetchrow(
-            "SELECT * FROM users WHERE id = $1",
-            user_id
-        )
+        row = await self._db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
 
         return User(
             id=user_id,
@@ -465,12 +460,12 @@ class SSOManager:
         sso_info: SSOUserInfo,
     ) -> User:
         """Link existing user to SSO provider.
-        
+
         Args:
             user_id: User ID
             provider_name: Name of the SSO provider
             sso_info: SSO user information
-            
+
         Returns:
             Linked user
         """
@@ -500,7 +495,7 @@ class SSOManager:
         sso_groups: list[str],
     ) -> None:
         """Synchronize user groups from SSO provider.
-        
+
         Args:
             user_id: User ID
             provider_name: Name of the SSO provider
@@ -510,9 +505,9 @@ class SSOManager:
             # Get provider ID
             provider_id = await self._db.fetchval(
                 "SELECT id FROM sso_provider_configs WHERE provider_name = $1",
-                provider_name
+                provider_name,
             )
-            
+
             if not provider_id:
                 return
 
@@ -523,7 +518,7 @@ class SSOManager:
                 FROM sso_group_mappings
                 WHERE provider_id = $1 AND auto_assign = true
                 """,
-                provider_id
+                provider_id,
             )
 
             # Map SSO groups to internal roles
@@ -537,11 +532,9 @@ class SSOManager:
                 # Use highest privilege role
                 role_priority = {"system": 4, "admin": 3, "underwriter": 2, "agent": 1}
                 highest_role = max(mapped_roles, key=lambda r: role_priority.get(r, 0))
-                
+
                 await self._db.execute(
-                    "UPDATE users SET role = $1 WHERE id = $2",
-                    highest_role,
-                    user_id
+                    "UPDATE users SET role = $1 WHERE id = $2", highest_role, user_id
                 )
 
             # Log group sync
@@ -579,7 +572,7 @@ class SSOManager:
         error_message: str | None,
     ) -> None:
         """Log authentication event.
-        
+
         Args:
             user_id: User ID (None if auth failed)
             auth_method: Authentication method (password, sso, api_key)
@@ -607,12 +600,12 @@ class SSOManager:
     @beartype
     async def _decrypt_secret(self, encrypted_secret: str) -> str:
         """Decrypt client secret.
-        
+
         In production, this would use KMS or similar service.
-        
+
         Args:
             encrypted_secret: Encrypted secret
-            
+
         Returns:
             Decrypted secret
         """
@@ -626,7 +619,7 @@ class SSOManager:
         configs: dict[str, dict[str, Any]],
     ) -> None:
         """Load providers from cached configurations.
-        
+
         Args:
             configs: Provider configurations
         """
@@ -635,7 +628,7 @@ class SSOManager:
             provider_result = await self._create_provider(
                 provider_name, provider_type, config
             )
-            
+
             if isinstance(provider_result, Ok):
                 self._providers[provider_name] = provider_result.value
                 self._provider_configs[provider_name] = config

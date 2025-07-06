@@ -6,8 +6,7 @@ regulatory requirements.
 """
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Set
-from uuid import UUID
+from typing import Any
 
 from beartype import beartype
 
@@ -24,11 +23,11 @@ class BusinessRuleViolation:
         rule_id: str,
         severity: str,  # "error", "warning", "info"
         message: str,
-        field: Optional[str] = None,
-        suggested_action: Optional[str] = None,
+        field: str | None = None,
+        suggested_action: str | None = None,
     ):
         """Initialize business rule violation.
-        
+
         Args:
             rule_id: Unique identifier for the rule
             severity: Severity level of the violation
@@ -42,7 +41,7 @@ class BusinessRuleViolation:
         self.field = field
         self.suggested_action = suggested_action
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "rule_id": self.rule_id,
@@ -63,21 +62,21 @@ class RatingBusinessRules:
         self._max_factor_limits = {
             "driver_age": 3.0,  # 300% maximum
             "violations": 2.5,  # 250% maximum
-            "accidents": 3.0,   # 300% maximum
-            "dui": 4.0,         # 400% maximum
+            "accidents": 3.0,  # 300% maximum
+            "dui": 4.0,  # 400% maximum
             "vehicle_age": 1.5,  # 150% maximum
-            "territory": 2.0,    # 200% maximum
-            "credit": 1.5,       # 150% maximum
+            "territory": 2.0,  # 200% maximum
+            "credit": 1.5,  # 150% maximum
         }
-        
+
         # Define minimum factor limits to prevent unrealistic discounts
         self._min_factor_limits = {
-            "driver_age": 0.6,   # 40% minimum (60% discount max)
-            "violations": 0.8,   # 20% discount max for clean record
-            "accidents": 0.8,    # 20% discount max for no accidents
+            "driver_age": 0.6,  # 40% minimum (60% discount max)
+            "violations": 0.8,  # 20% discount max for clean record
+            "accidents": 0.8,  # 20% discount max for no accidents
             "vehicle_age": 0.7,  # 30% discount max for older vehicles
-            "territory": 0.5,    # 50% minimum (very low risk areas)
-            "credit": 0.7,       # 30% discount max for excellent credit
+            "territory": 0.5,  # 50% minimum (very low risk areas)
+            "credit": 0.7,  # 30% discount max for excellent credit
         }
 
     @beartype
@@ -85,17 +84,17 @@ class RatingBusinessRules:
         self,
         state: str,
         product_type: str,
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
-        coverage_selections: List[CoverageSelection],
-        factors: Dict[str, float],
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
+        coverage_selections: list[CoverageSelection],
+        factors: dict[str, float],
         base_premium: Decimal,
         total_premium: Decimal,
-        discounts: List[Any],
-        surcharges: List[Dict[str, Any]],
-    ) -> Result[List[BusinessRuleViolation], str]:
+        discounts: list[Any],
+        surcharges: list[dict[str, Any]],
+    ) -> Result[list[BusinessRuleViolation], str]:
         """Validate complete premium calculation against business rules.
-        
+
         Args:
             state: State code
             product_type: Product type (auto, home, etc.)
@@ -107,71 +106,73 @@ class RatingBusinessRules:
             total_premium: Final calculated premium
             discounts: Applied discounts
             surcharges: Applied surcharges
-            
+
         Returns:
             Result containing list of violations or error
         """
         violations = []
-        
+
         try:
             # Validate factor ranges
             factor_violations = await self._validate_factor_ranges(factors)
             violations.extend(factor_violations)
-            
+
             # Validate premium reasonableness
             premium_violations = await self._validate_premium_reasonableness(
                 base_premium, total_premium, factors
             )
             violations.extend(premium_violations)
-            
+
             # Validate discount stacking
             discount_violations = await self._validate_discount_stacking(
                 discounts, base_premium
             )
             violations.extend(discount_violations)
-            
+
             # Validate surcharge logic
             surcharge_violations = await self._validate_surcharge_logic(
                 surcharges, drivers, vehicle_info
             )
             violations.extend(surcharge_violations)
-            
+
             # Validate coverage appropriateness
             coverage_violations = await self._validate_coverage_appropriateness(
                 coverage_selections, vehicle_info, drivers, state
             )
             violations.extend(coverage_violations)
-            
+
             # Validate driver eligibility
             if drivers:
-                driver_violations = await self._validate_driver_eligibility(drivers, state)
+                driver_violations = await self._validate_driver_eligibility(
+                    drivers, state
+                )
                 violations.extend(driver_violations)
-            
+
             # Validate vehicle eligibility
             if vehicle_info:
                 vehicle_violations = await self._validate_vehicle_eligibility(
                     vehicle_info, state
                 )
                 violations.extend(vehicle_violations)
-            
+
             # Validate regulatory compliance
             regulatory_violations = await self._validate_regulatory_compliance(
                 state, factors, total_premium, coverage_selections
             )
             violations.extend(regulatory_violations)
-            
+
             return Ok(violations)
-            
+
         except Exception as e:
             return Err(f"Business rule validation failed: {str(e)}")
 
     @beartype
     async def _validate_factor_ranges(
-        self, factors: Dict[str, float]
-    ) -> List[BusinessRuleViolation]:
+        self, factors: dict[str, float]
+    ) -> list[BusinessRuleViolation]:
         """Validate that all factors are within acceptable ranges."""
         violations = []
-        
+
         for factor_name, factor_value in factors.items():
             # Check maximum limits
             max_limit = self._max_factor_limits.get(factor_name)
@@ -185,7 +186,7 @@ class RatingBusinessRules:
                         suggested_action=f"Cap factor at maximum value {max_limit}",
                     )
                 )
-            
+
             # Check minimum limits
             min_limit = self._min_factor_limits.get(factor_name)
             if min_limit and factor_value < min_limit:
@@ -198,7 +199,7 @@ class RatingBusinessRules:
                         suggested_action=f"Set factor to minimum value {min_limit}",
                     )
                 )
-            
+
             # Check for extreme values that might indicate calculation errors
             if factor_value <= 0:
                 violations.append(
@@ -220,7 +221,7 @@ class RatingBusinessRules:
                         suggested_action="Review factor calculation for accuracy",
                     )
                 )
-        
+
         return violations
 
     @beartype
@@ -228,11 +229,11 @@ class RatingBusinessRules:
         self,
         base_premium: Decimal,
         total_premium: Decimal,
-        factors: Dict[str, float],
-    ) -> List[BusinessRuleViolation]:
+        factors: dict[str, float],
+    ) -> list[BusinessRuleViolation]:
         """Validate that premiums are within reasonable ranges."""
         violations = []
-        
+
         # Check for negative premiums
         if total_premium < 0:
             violations.append(
@@ -244,7 +245,7 @@ class RatingBusinessRules:
                     suggested_action="Check discount calculations and factor applications",
                 )
             )
-        
+
         # Check for zero premiums (unless legitimately free)
         if total_premium == 0:
             violations.append(
@@ -256,7 +257,7 @@ class RatingBusinessRules:
                     suggested_action="Review calculation logic for zero premium scenarios",
                 )
             )
-        
+
         # Check for extremely high premiums
         if total_premium > Decimal("50000"):
             violations.append(
@@ -268,11 +269,11 @@ class RatingBusinessRules:
                     suggested_action="Review high-risk factors and verify calculation accuracy",
                 )
             )
-        
+
         # Check for unreasonable premium changes from base
         if base_premium > 0:
             premium_ratio = float(total_premium / base_premium)
-            
+
             if premium_ratio > 5.0:
                 violations.append(
                     BusinessRuleViolation(
@@ -293,28 +294,28 @@ class RatingBusinessRules:
                         suggested_action="Review discount applications for excessive reduction",
                     )
                 )
-        
+
         return violations
 
     @beartype
     async def _validate_discount_stacking(
         self,
-        discounts: List[Any],
+        discounts: list[Any],
         base_premium: Decimal,
-    ) -> List[BusinessRuleViolation]:
+    ) -> list[BusinessRuleViolation]:
         """Validate discount stacking rules."""
         violations = []
-        
+
         if not discounts:
             return violations
-        
+
         # Calculate total discount percentage
         total_discount_amount = sum(d.amount for d in discounts)
         if base_premium > 0:
             total_discount_pct = float(total_discount_amount / base_premium * 100)
         else:
             total_discount_pct = 0
-        
+
         # Check maximum total discount limit
         if total_discount_pct > 50:
             violations.append(
@@ -326,10 +327,10 @@ class RatingBusinessRules:
                     suggested_action="Apply discount capping rules to limit total to 50%",
                 )
             )
-        
+
         # Check for conflicting discount types
         discount_types = {d.discount_type.value for d in discounts}
-        
+
         # Good student and senior discounts shouldn't stack
         if "good_student" in discount_types and "senior" in discount_types:
             violations.append(
@@ -341,11 +342,11 @@ class RatingBusinessRules:
                     suggested_action="Apply only the applicable discount based on driver age",
                 )
             )
-        
+
         # Check individual discount limits
         for discount in discounts:
             discount_pct = float(discount.percentage)
-            
+
             if discount_pct > 25:  # No single discount should exceed 25%
                 violations.append(
                     BusinessRuleViolation(
@@ -356,23 +357,23 @@ class RatingBusinessRules:
                         suggested_action="Review discount calculation for this type",
                     )
                 )
-        
+
         return violations
 
     @beartype
     async def _validate_surcharge_logic(
         self,
-        surcharges: List[Dict[str, Any]],
-        drivers: List[DriverInfo],
-        vehicle_info: Optional[VehicleInfo],
-    ) -> List[BusinessRuleViolation]:
+        surcharges: list[dict[str, Any]],
+        drivers: list[DriverInfo],
+        vehicle_info: VehicleInfo | None,
+    ) -> list[BusinessRuleViolation]:
         """Validate surcharge application logic."""
         violations = []
-        
+
         # Check SR-22 surcharge logic
         sr22_surcharges = [s for s in surcharges if s.get("type") == "sr22_filing"]
         has_dui_drivers = any(d.dui_convictions > 0 for d in drivers)
-        
+
         if sr22_surcharges and not has_dui_drivers:
             violations.append(
                 BusinessRuleViolation(
@@ -383,7 +384,7 @@ class RatingBusinessRules:
                     suggested_action="Remove SR-22 surcharge or verify DUI history",
                 )
             )
-        
+
         if has_dui_drivers and not sr22_surcharges:
             violations.append(
                 BusinessRuleViolation(
@@ -394,14 +395,13 @@ class RatingBusinessRules:
                     suggested_action="Add required SR-22 filing surcharge",
                 )
             )
-        
+
         # Check high-risk surcharge logic
         high_risk_surcharges = [s for s in surcharges if s.get("type") == "high_risk"]
         high_risk_drivers = [
-            d for d in drivers
-            if d.violations_3_years > 3 or d.accidents_3_years > 2
+            d for d in drivers if d.violations_3_years > 3 or d.accidents_3_years > 2
         ]
-        
+
         if high_risk_surcharges and not high_risk_drivers:
             violations.append(
                 BusinessRuleViolation(
@@ -412,24 +412,24 @@ class RatingBusinessRules:
                     suggested_action="Review high-risk criteria and driver records",
                 )
             )
-        
+
         return violations
 
     @beartype
     async def _validate_coverage_appropriateness(
         self,
-        coverage_selections: List[CoverageSelection],
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
+        coverage_selections: list[CoverageSelection],
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
         state: str,
-    ) -> List[BusinessRuleViolation]:
+    ) -> list[BusinessRuleViolation]:
         """Validate coverage selections are appropriate."""
         violations = []
-        
+
         # Check for extremely high coverage on old vehicles
         if vehicle_info:
             vehicle_age = 2024 - vehicle_info.year
-            
+
             for coverage in coverage_selections:
                 if coverage.coverage_type.value in ["collision", "comprehensive"]:
                     if vehicle_age > 10 and coverage.limit > Decimal("20000"):
@@ -442,13 +442,12 @@ class RatingBusinessRules:
                                 suggested_action="Consider reducing coverage limits for older vehicles",
                             )
                         )
-        
+
         # Check for suspiciously low liability limits
         liability_coverages = [
-            c for c in coverage_selections
-            if c.coverage_type.value == "liability"
+            c for c in coverage_selections if c.coverage_type.value == "liability"
         ]
-        
+
         for liability in liability_coverages:
             if liability.limit < Decimal("100000"):
                 violations.append(
@@ -460,10 +459,10 @@ class RatingBusinessRules:
                         suggested_action="Consider increasing liability coverage for better protection",
                     )
                 )
-        
+
         # Check for missing recommended coverages
         coverage_types = {c.coverage_type.value for c in coverage_selections}
-        
+
         if "uninsured_motorist" not in coverage_types:
             violations.append(
                 BusinessRuleViolation(
@@ -474,19 +473,19 @@ class RatingBusinessRules:
                     suggested_action="Consider adding uninsured motorist protection",
                 )
             )
-        
+
         return violations
 
     @beartype
     async def _validate_driver_eligibility(
-        self, drivers: List[DriverInfo], state: str
-    ) -> List[BusinessRuleViolation]:
+        self, drivers: list[DriverInfo], state: str
+    ) -> list[BusinessRuleViolation]:
         """Validate driver eligibility and risk factors."""
         violations = []
-        
+
         for i, driver in enumerate(drivers):
             driver_field = f"drivers[{i}]"
-            
+
             # Age validation
             if driver.age < 16:
                 violations.append(
@@ -508,7 +507,7 @@ class RatingBusinessRules:
                         suggested_action="Verify driver age and consider additional restrictions",
                     )
                 )
-            
+
             # License validation
             if driver.years_licensed > (driver.age - 15):
                 violations.append(
@@ -520,7 +519,7 @@ class RatingBusinessRules:
                         suggested_action="Verify years licensed data",
                     )
                 )
-            
+
             # Excessive violations
             if driver.violations_3_years > 10:
                 violations.append(
@@ -532,7 +531,7 @@ class RatingBusinessRules:
                         suggested_action="Review driver record and consider policy restrictions",
                     )
                 )
-            
+
             # Multiple DUIs
             if driver.dui_convictions > 2:
                 violations.append(
@@ -544,16 +543,16 @@ class RatingBusinessRules:
                         suggested_action="Consider declining coverage or special underwriting",
                     )
                 )
-        
+
         return violations
 
     @beartype
     async def _validate_vehicle_eligibility(
         self, vehicle_info: VehicleInfo, state: str
-    ) -> List[BusinessRuleViolation]:
+    ) -> list[BusinessRuleViolation]:
         """Validate vehicle eligibility and characteristics."""
         violations = []
-        
+
         # Vehicle age validation
         vehicle_age = 2024 - vehicle_info.year
         if vehicle_age > 30:
@@ -566,7 +565,7 @@ class RatingBusinessRules:
                     suggested_action="Verify vehicle condition and consider coverage limitations",
                 )
             )
-        
+
         # Mileage validation
         if vehicle_info.annual_mileage > 50000:
             violations.append(
@@ -588,20 +587,20 @@ class RatingBusinessRules:
                     suggested_action="Consider low-mileage discount programs",
                 )
             )
-        
+
         return violations
 
     @beartype
     async def _validate_regulatory_compliance(
         self,
         state: str,
-        factors: Dict[str, float],
+        factors: dict[str, float],
         total_premium: Decimal,
-        coverage_selections: List[CoverageSelection],
-    ) -> List[BusinessRuleViolation]:
+        coverage_selections: list[CoverageSelection],
+    ) -> list[BusinessRuleViolation]:
         """Validate regulatory compliance for specific states."""
         violations = []
-        
+
         # California Prop 103 compliance
         if state == "CA":
             # Check for prohibited factors
@@ -617,15 +616,17 @@ class RatingBusinessRules:
                             suggested_action=f"Remove {factor} factor from California calculations",
                         )
                     )
-            
+
             # Check primary factor dominance (simplified check)
             primary_factors = ["violations", "accidents", "experience"]
             primary_impact = 1.0
             for factor in primary_factors:
                 if factor in factors:
                     primary_impact *= factors[factor]
-            
-            if abs(1.0 - primary_impact) < 0.1:  # Very little impact from primary factors
+
+            if (
+                abs(1.0 - primary_impact) < 0.1
+            ):  # Very little impact from primary factors
                 violations.append(
                     BusinessRuleViolation(
                         rule_id="CA_PROP103_PRIMARY_FACTORS",
@@ -635,14 +636,15 @@ class RatingBusinessRules:
                         suggested_action="Ensure primary factors account for majority of rating variation",
                     )
                 )
-        
+
         # Michigan no-fault requirements
         elif state == "MI":
             pip_coverages = [
-                c for c in coverage_selections
+                c
+                for c in coverage_selections
                 if c.coverage_type.value == "personal_injury_protection"
             ]
-            
+
             if not pip_coverages:
                 violations.append(
                     BusinessRuleViolation(
@@ -653,26 +655,26 @@ class RatingBusinessRules:
                         suggested_action="Add required PIP coverage",
                     )
                 )
-        
+
         return violations
 
     @beartype
     def get_critical_violations(
-        self, violations: List[BusinessRuleViolation]
-    ) -> List[BusinessRuleViolation]:
+        self, violations: list[BusinessRuleViolation]
+    ) -> list[BusinessRuleViolation]:
         """Get only critical (error-level) violations that must be fixed."""
         return [v for v in violations if v.severity == "error"]
 
     @beartype
     def format_violations_report(
-        self, violations: List[BusinessRuleViolation]
-    ) -> Dict[str, Any]:
+        self, violations: list[BusinessRuleViolation]
+    ) -> dict[str, Any]:
         """Format violations into a comprehensive report."""
         by_severity = {"error": [], "warning": [], "info": []}
-        
+
         for violation in violations:
             by_severity[violation.severity].append(violation.to_dict())
-        
+
         return {
             "total_violations": len(violations),
             "critical_violations": len(by_severity["error"]),

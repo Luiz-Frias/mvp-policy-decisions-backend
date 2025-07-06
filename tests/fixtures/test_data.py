@@ -392,10 +392,10 @@ def create_test_coverage_selections(**kwargs: Any) -> list[CoverageSelection]:
             selected=True,
         ),
     ]
-    
+
     # Apply any overrides
     custom_coverages = kwargs.get("coverages", [])
     if custom_coverages:
         return custom_coverages
-    
+
     return defaults

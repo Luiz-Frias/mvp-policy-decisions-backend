@@ -4,11 +4,10 @@
 import asyncio
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-import asyncpg
 from beartype import beartype
 
 # Add project root to path
@@ -34,7 +33,7 @@ class DatabaseHealthMonitor:
     async def check_connection_pool_health(self) -> dict[str, Any]:
         """Check connection pool utilization and health."""
         stats = await self.db.get_pool_stats()
-        
+
         health_status = {
             "pool_size": stats.size,
             "free_connections": stats.free_size,
@@ -44,43 +43,45 @@ class DatabaseHealthMonitor:
             "status": "healthy",
             "issues": [],
         }
-        
+
         # Calculate utilization
         if stats.size > 0:
             utilization = (stats.size - stats.free_size) / stats.size
             health_status["utilization_percent"] = utilization * 100
-            
+
             # Check thresholds
             if utilization > 0.9:
                 health_status["status"] = "critical"
                 health_status["issues"].append(
                     f"Pool utilization critically high: {utilization:.1%}"
                 )
-                self.alerts.append({
-                    "severity": "critical",
-                    "component": "connection_pool",
-                    "message": f"Connection pool at {utilization:.1%} capacity",
-                    "timestamp": datetime.utcnow(),
-                })
+                self.alerts.append(
+                    {
+                        "severity": "critical",
+                        "component": "connection_pool",
+                        "message": f"Connection pool at {utilization:.1%} capacity",
+                        "timestamp": datetime.utcnow(),
+                    }
+                )
             elif utilization > 0.7:
                 health_status["status"] = "warning"
                 health_status["issues"].append(
                     f"Pool utilization high: {utilization:.1%}"
                 )
-        
+
         # Check exhaustion events
         if stats.pool_exhausted_count > 0:
             health_status["issues"].append(
                 f"Pool exhausted {stats.pool_exhausted_count} times"
             )
-        
+
         return health_status
 
     @beartype
     async def check_query_performance(self) -> dict[str, Any]:
         """Check query performance metrics."""
         stats = await self.db.get_pool_stats()
-        
+
         perf_status = {
             "average_query_time_ms": stats.average_query_time_ms,
             "slow_queries_count": stats.queries_slow,
@@ -89,18 +90,16 @@ class DatabaseHealthMonitor:
             "status": "healthy",
             "issues": [],
         }
-        
+
         # Calculate slow query rate
         if stats.queries_total > 0:
             slow_rate = stats.queries_slow / stats.queries_total
             perf_status["slow_query_rate"] = slow_rate * 100
-            
+
             if slow_rate > 0.05:  # More than 5% slow queries
                 perf_status["status"] = "warning"
-                perf_status["issues"].append(
-                    f"High slow query rate: {slow_rate:.1%}"
-                )
-                
+                perf_status["issues"].append(f"High slow query rate: {slow_rate:.1%}")
+
                 # Get specific slow queries
                 slow_queries_result = await self.optimizer.analyze_slow_queries(
                     threshold_ms=1000, limit=5
@@ -108,20 +107,24 @@ class DatabaseHealthMonitor:
                 if slow_queries_result.is_ok():
                     perf_status["top_slow_queries"] = [
                         {
-                            "query": sq.query[:100] + "..." if len(sq.query) > 100 else sq.query,
+                            "query": (
+                                sq.query[:100] + "..."
+                                if len(sq.query) > 100
+                                else sq.query
+                            ),
                             "mean_time_ms": sq.mean_time_ms,
                             "calls": sq.calls,
                         }
                         for sq in slow_queries_result.ok_value
                     ]
-        
+
         # Check average query time
         if stats.average_query_time_ms > 100:
             perf_status["status"] = "warning"
             perf_status["issues"].append(
                 f"High average query time: {stats.average_query_time_ms:.1f}ms"
             )
-        
+
         return perf_status
 
     @beartype
@@ -129,47 +132,47 @@ class DatabaseHealthMonitor:
         """Check cache hit rates and effectiveness."""
         # Query PostgreSQL cache statistics
         cache_query = """
-            SELECT 
+            SELECT
                 sum(heap_blks_read) as heap_read,
                 sum(heap_blks_hit) as heap_hit,
                 sum(idx_blks_read) as idx_read,
                 sum(idx_blks_hit) as idx_hit,
-                CASE 
+                CASE
                     WHEN sum(heap_blks_hit) + sum(heap_blks_read) > 0
                     THEN sum(heap_blks_hit)::float / (sum(heap_blks_hit) + sum(heap_blks_read))
                     ELSE 0
                 END as heap_hit_rate,
-                CASE 
+                CASE
                     WHEN sum(idx_blks_hit) + sum(idx_blks_read) > 0
                     THEN sum(idx_blks_hit)::float / (sum(idx_blks_hit) + sum(idx_blks_read))
                     ELSE 0
                 END as idx_hit_rate
             FROM pg_statio_user_tables
         """
-        
+
         async with self.db.acquire_read() as conn:
             cache_stats = await conn.fetchrow(cache_query)
-        
+
         cache_status = {
             "heap_hit_rate": float(cache_stats["heap_hit_rate"]) * 100,
             "index_hit_rate": float(cache_stats["idx_hit_rate"]) * 100,
             "status": "healthy",
             "issues": [],
         }
-        
+
         # Check thresholds
         if cache_stats["heap_hit_rate"] < 0.9:
             cache_status["status"] = "warning"
             cache_status["issues"].append(
                 f"Low heap cache hit rate: {cache_stats['heap_hit_rate']:.1%}"
             )
-        
+
         if cache_stats["idx_hit_rate"] < 0.95:
             cache_status["status"] = "warning"
             cache_status["issues"].append(
                 f"Low index cache hit rate: {cache_stats['idx_hit_rate']:.1%}"
             )
-        
+
         return cache_status
 
     @beartype
@@ -181,21 +184,21 @@ class DatabaseHealthMonitor:
             "status": "healthy",
             "issues": [],
         }
-        
+
         # Check replication status
         replication_query = """
-            SELECT 
+            SELECT
                 client_addr,
                 state,
                 sync_state,
                 EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) as lag_seconds
             FROM pg_stat_replication
         """
-        
+
         try:
             async with self.db.acquire_admin() as conn:
                 replicas = await conn.fetch(replication_query)
-                
+
                 for replica in replicas:
                     lag = replica["lag_seconds"] or 0
                     replica_info = {
@@ -205,10 +208,10 @@ class DatabaseHealthMonitor:
                         "lag_seconds": lag,
                     }
                     replication_status["replicas"].append(replica_info)
-                    
+
                     if lag > replication_status["max_lag_seconds"]:
                         replication_status["max_lag_seconds"] = lag
-                    
+
                     # Check lag thresholds
                     if lag > 10:
                         replication_status["status"] = "critical"
@@ -220,10 +223,12 @@ class DatabaseHealthMonitor:
                         replication_status["issues"].append(
                             f"Replication lag on {replica['client_addr']}: {lag:.1f}s"
                         )
-                        
+
         except Exception as e:
-            replication_status["issues"].append(f"Failed to check replication: {str(e)}")
-        
+            replication_status["issues"].append(
+                f"Failed to check replication: {str(e)}"
+            )
+
         return replication_status
 
     @beartype
@@ -235,10 +240,10 @@ class DatabaseHealthMonitor:
             "status": "healthy",
             "issues": [],
         }
-        
+
         # Find unused indexes
         unused_query = """
-            SELECT 
+            SELECT
                 schemaname,
                 tablename,
                 indexname,
@@ -250,88 +255,92 @@ class DatabaseHealthMonitor:
             AND pg_relation_size(indexrelid) > 1000000  -- Only indexes > 1MB
             ORDER BY pg_relation_size(indexrelid) DESC
         """
-        
+
         async with self.db.acquire_read() as conn:
             unused = await conn.fetch(unused_query)
-            
+
             for idx in unused:
-                index_status["unused_indexes"].append({
-                    "table": f"{idx['schemaname']}.{idx['tablename']}",
-                    "index": idx["indexname"],
-                    "size": idx["index_size"],
-                })
-        
+                index_status["unused_indexes"].append(
+                    {
+                        "table": f"{idx['schemaname']}.{idx['tablename']}",
+                        "index": idx["indexname"],
+                        "size": idx["index_size"],
+                    }
+                )
+
         # Check for missing indexes on important tables
         important_tables = ["quotes", "policies", "customers", "claims"]
         for table in important_tables:
             suggestions_result = await self.optimizer.suggest_indexes(table)
             if suggestions_result.is_ok() and suggestions_result.ok_value:
                 for suggestion in suggestions_result.ok_value[:3]:  # Top 3 per table
-                    index_status["missing_indexes"].append({
-                        "table": table,
-                        "column": suggestion.column_name,
-                        "type": suggestion.index_type,
-                        "reason": suggestion.estimated_improvement,
-                    })
-        
+                    index_status["missing_indexes"].append(
+                        {
+                            "table": table,
+                            "column": suggestion.column_name,
+                            "type": suggestion.index_type,
+                            "reason": suggestion.estimated_improvement,
+                        }
+                    )
+
         # Update status based on findings
         if len(index_status["unused_indexes"]) > 5:
             index_status["status"] = "warning"
             index_status["issues"].append(
                 f"Found {len(index_status['unused_indexes'])} unused indexes"
             )
-        
+
         if len(index_status["missing_indexes"]) > 0:
             index_status["status"] = "warning"
             index_status["issues"].append(
                 f"Found {len(index_status['missing_indexes'])} missing indexes"
             )
-        
+
         return index_status
 
     @beartype
     async def check_table_bloat(self) -> dict[str, Any]:
         """Check for table bloat."""
         bloat_result = await self.optimizer.check_table_bloat(threshold_percent=20.0)
-        
+
         bloat_status = {
             "bloated_tables": [],
             "total_wasted_space": 0,
             "status": "healthy",
             "issues": [],
         }
-        
+
         if bloat_result.is_ok():
             bloated = bloat_result.ok_value
             bloat_status["bloated_tables"] = bloated
-            
+
             if len(bloated) > 0:
                 bloat_status["status"] = "warning"
-                bloat_status["issues"].append(
-                    f"Found {len(bloated)} bloated tables"
-                )
-                
+                bloat_status["issues"].append(f"Found {len(bloated)} bloated tables")
+
                 # Alert on severely bloated tables
                 for table in bloated:
                     if table["bloat_percent"] > 40:
-                        self.alerts.append({
-                            "severity": "warning",
-                            "component": "table_bloat",
-                            "message": f"Table {table['table']} is {table['bloat_percent']}% bloated",
-                            "timestamp": datetime.utcnow(),
-                            "action": table["action"],
-                        })
-        
+                        self.alerts.append(
+                            {
+                                "severity": "warning",
+                                "component": "table_bloat",
+                                "message": f"Table {table['table']} is {table['bloat_percent']}% bloated",
+                                "timestamp": datetime.utcnow(),
+                                "action": table["action"],
+                            }
+                        )
+
         return bloat_status
 
     @beartype
     async def generate_health_report(self) -> dict[str, Any]:
         """Generate comprehensive health report."""
         print("🏥 Starting database health check...")
-        
+
         # Initialize database connection
         await self.db.connect()
-        
+
         try:
             # Run all health checks
             connection_health = await self.check_connection_pool_health()
@@ -340,7 +349,7 @@ class DatabaseHealthMonitor:
             replication_health = await self.check_replication_lag()
             index_health = await self.check_index_usage()
             bloat_health = await self.check_table_bloat()
-            
+
             # Determine overall health
             all_statuses = [
                 connection_health["status"],
@@ -350,14 +359,14 @@ class DatabaseHealthMonitor:
                 index_health["status"],
                 bloat_health["status"],
             ]
-            
+
             if "critical" in all_statuses:
                 overall_status = "critical"
             elif "warning" in all_statuses:
                 overall_status = "warning"
             else:
                 overall_status = "healthy"
-            
+
             report = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "overall_status": overall_status,
@@ -372,9 +381,9 @@ class DatabaseHealthMonitor:
                 "alerts": self.alerts,
                 "recommendations": self._generate_recommendations(all_statuses),
             }
-            
+
             return report
-            
+
         finally:
             await self.db.disconnect()
 
@@ -382,7 +391,7 @@ class DatabaseHealthMonitor:
     def _generate_recommendations(self, component_statuses: list[str]) -> list[str]:
         """Generate actionable recommendations based on health status."""
         recommendations = []
-        
+
         # Connection pool recommendations
         if any(alert["component"] == "connection_pool" for alert in self.alerts):
             recommendations.append(
@@ -391,7 +400,7 @@ class DatabaseHealthMonitor:
             recommendations.append(
                 "Review pgBouncer configuration for optimal connection multiplexing"
             )
-        
+
         # Query performance recommendations
         if any(alert.get("component") == "query_performance" for alert in self.alerts):
             recommendations.append(
@@ -400,7 +409,7 @@ class DatabaseHealthMonitor:
             recommendations.append(
                 "Consider adding missing indexes identified in the index health check"
             )
-        
+
         # General recommendations
         if "warning" in component_statuses or "critical" in component_statuses:
             recommendations.append(
@@ -412,7 +421,7 @@ class DatabaseHealthMonitor:
             recommendations.append(
                 "Enable query performance monitoring with pg_stat_statements"
             )
-        
+
         return recommendations
 
     @beartype
@@ -421,37 +430,43 @@ class DatabaseHealthMonitor:
         print("\n" + "=" * 80)
         print(f"DATABASE HEALTH REPORT - {report['timestamp']}")
         print("=" * 80)
-        
+
         # Overall status with emoji
         status_emoji = {
             "healthy": "✅",
             "warning": "⚠️",
             "critical": "🚨",
         }
-        print(f"\nOverall Status: {status_emoji.get(report['overall_status'], '❓')} {report['overall_status'].upper()}")
-        
+        print(
+            f"\nOverall Status: {status_emoji.get(report['overall_status'], '❓')} {report['overall_status'].upper()}"
+        )
+
         # Component summaries
         print("\nComponent Health:")
         for component, health in report["components"].items():
             emoji = status_emoji.get(health["status"], "❓")
-            print(f"  {emoji} {component.replace('_', ' ').title()}: {health['status']}")
+            print(
+                f"  {emoji} {component.replace('_', ' ').title()}: {health['status']}"
+            )
             for issue in health.get("issues", []):
                 print(f"     - {issue}")
-        
+
         # Alerts
         if report["alerts"]:
             print("\n🚨 ALERTS:")
             for alert in report["alerts"]:
-                print(f"  [{alert['severity'].upper()}] {alert['component']}: {alert['message']}")
+                print(
+                    f"  [{alert['severity'].upper()}] {alert['component']}: {alert['message']}"
+                )
                 if "action" in alert:
                     print(f"    Action: {alert['action']}")
-        
+
         # Recommendations
         if report["recommendations"]:
             print("\n💡 RECOMMENDATIONS:")
             for i, rec in enumerate(report["recommendations"], 1):
                 print(f"  {i}. {rec}")
-        
+
         print("\n" + "=" * 80)
 
 
@@ -460,17 +475,17 @@ async def main() -> None:
     """Run health monitoring."""
     monitor = DatabaseHealthMonitor()
     report = await monitor.generate_health_report()
-    
+
     # Print human-readable report
     monitor.print_report(report)
-    
+
     # Save JSON report
     report_path = Path("db_health_report.json")
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2, default=str)
-    
+
     print(f"\n📄 Full report saved to: {report_path}")
-    
+
     # Exit with appropriate code
     if report["overall_status"] == "critical":
         sys.exit(2)

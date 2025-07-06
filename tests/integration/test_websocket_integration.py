@@ -9,9 +9,8 @@ Tests end-to-end WebSocket functionality including:
 """
 
 import asyncio
-import json
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,7 +18,6 @@ from fastapi.websockets import WebSocketDisconnect
 
 from src.pd_prime_demo.main import app
 from src.pd_prime_demo.websocket.app import websocket_app
-from src.pd_prime_demo.websocket.manager import WebSocketMessage
 
 
 @pytest.fixture
@@ -187,8 +185,10 @@ class TestQuoteWebSocketIntegration:
         quote_id = str(uuid4())
 
         # Simulate two users editing the same quote
-        with websocket_client.websocket_connect("/ws?token=demo") as ws1, \
-             websocket_client.websocket_connect("/ws?token=demo") as ws2:
+        with (
+            websocket_client.websocket_connect("/ws?token=demo") as ws1,
+            websocket_client.websocket_connect("/ws?token=demo") as ws2,
+        ):
 
             # Skip connection messages
             ws1.receive_json()
@@ -203,12 +203,14 @@ class TestQuoteWebSocketIntegration:
             ws2.receive_json()
 
             # User 1 focuses on a field
-            ws1.send_json({
-                "type": "field_focus",
-                "quote_id": quote_id,
-                "field": "customer_name",
-                "focused": True
-            })
+            ws1.send_json(
+                {
+                    "type": "field_focus",
+                    "quote_id": quote_id,
+                    "field": "customer_name",
+                    "focused": True,
+                }
+            )
 
             # User 2 should receive focus notification
             try:
@@ -251,14 +253,16 @@ class TestAnalyticsWebSocketIntegration:
             websocket.receive_json()
 
             # Start analytics dashboard
-            websocket.send_json({
-                "type": "start_analytics",
-                "dashboard_type": "quotes",
-                "update_interval": 5,
-                "filters": {},
-                "metrics": [],
-                "time_range_hours": 24
-            })
+            websocket.send_json(
+                {
+                    "type": "start_analytics",
+                    "dashboard_type": "quotes",
+                    "update_interval": 5,
+                    "filters": {},
+                    "metrics": [],
+                    "time_range_hours": 24,
+                }
+            )
 
             # Should receive initial analytics data
             message = websocket.receive_json()
@@ -269,10 +273,7 @@ class TestAnalyticsWebSocketIntegration:
                 assert "metrics" in message["data"]
 
             # Stop analytics
-            websocket.send_json({
-                "type": "stop_analytics",
-                "dashboard_type": "quotes"
-            })
+            websocket.send_json({"type": "stop_analytics", "dashboard_type": "quotes"})
 
     def test_analytics_permission_validation(
         self, websocket_client: TestClient
@@ -283,11 +284,13 @@ class TestAnalyticsWebSocketIntegration:
             websocket.receive_json()
 
             # Try to access admin analytics without proper permissions
-            websocket.send_json({
-                "type": "start_analytics",
-                "dashboard_type": "admin",
-                "update_interval": 5
-            })
+            websocket.send_json(
+                {
+                    "type": "start_analytics",
+                    "dashboard_type": "admin",
+                    "update_interval": 5,
+                }
+            )
 
             # Should receive error or data based on permissions
             message = websocket.receive_json()
@@ -306,10 +309,9 @@ class TestNotificationWebSocketIntegration:
 
             # Acknowledge a notification (would normally be received first)
             notification_id = str(uuid4())
-            websocket.send_json({
-                "type": "notification_acknowledge",
-                "notification_id": notification_id
-            })
+            websocket.send_json(
+                {"type": "notification_acknowledge", "notification_id": notification_id}
+            )
 
             # Should receive acknowledgment response or error
             message = websocket.receive_json()
@@ -328,17 +330,16 @@ class TestAdminWebSocketIntegration:
             websocket.receive_json()
 
             # Start system monitoring
-            websocket.send_json({
-                "type": "start_admin_monitoring",
-                "config": {"update_interval": 5}
-            })
+            websocket.send_json(
+                {"type": "start_admin_monitoring", "config": {"update_interval": 5}}
+            )
 
             # Should receive monitoring data or permission error
             message = websocket.receive_json()
             assert message["type"] in [
                 "admin_monitoring_started",
                 "permission_error",
-                "error"
+                "error",
             ]
 
     def test_user_activity_monitoring(self, websocket_client: TestClient) -> None:
@@ -348,17 +349,16 @@ class TestAdminWebSocketIntegration:
             websocket.receive_json()
 
             # Start user activity monitoring
-            websocket.send_json({
-                "type": "start_user_activity",
-                "filters": {"action": "login"}
-            })
+            websocket.send_json(
+                {"type": "start_user_activity", "filters": {"action": "login"}}
+            )
 
             # Should receive response
             message = websocket.receive_json()
             assert message["type"] in [
                 "user_activity_batch",
                 "permission_error",
-                "error"
+                "error",
             ]
 
     def test_performance_monitoring(self, websocket_client: TestClient) -> None:
@@ -368,17 +368,19 @@ class TestAdminWebSocketIntegration:
             websocket.receive_json()
 
             # Start performance monitoring
-            websocket.send_json({
-                "type": "start_performance_monitoring",
-                "metrics": ["api_response_times", "active_sessions"]
-            })
+            websocket.send_json(
+                {
+                    "type": "start_performance_monitoring",
+                    "metrics": ["api_response_times", "active_sessions"],
+                }
+            )
 
             # Should receive response
             message = websocket.receive_json()
             assert message["type"] in [
                 "performance_metrics",
                 "permission_error",
-                "error"
+                "error",
             ]
 
 
@@ -407,14 +409,16 @@ class TestWebSocketEndToEnd:
 
             # Have one client make an edit
             if clients:
-                clients[0].send_json({
-                    "type": "quote_edit",
-                    "data": {
-                        "quote_id": quote_id,
-                        "field": "customer_name",
-                        "value": "John Doe"
+                clients[0].send_json(
+                    {
+                        "type": "quote_edit",
+                        "data": {
+                            "quote_id": quote_id,
+                            "field": "customer_name",
+                            "value": "John Doe",
+                        },
                     }
-                })
+                )
 
                 # Other clients should potentially receive updates
                 # (depends on whether quote exists)
@@ -452,9 +456,7 @@ class TestWebSocketEndToEnd:
                 except Exception:
                     pass
 
-    def test_connection_recovery_simulation(
-        self, websocket_client: TestClient
-    ) -> None:
+    def test_connection_recovery_simulation(self, websocket_client: TestClient) -> None:
         """Test connection recovery scenarios."""
         with websocket_client.websocket_connect("/ws?token=demo") as websocket:
             # Skip connection message

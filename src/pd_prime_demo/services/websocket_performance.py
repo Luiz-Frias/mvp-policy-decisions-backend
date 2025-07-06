@@ -1,7 +1,6 @@
 """WebSocket performance monitoring and optimization service."""
 
 import asyncio
-import time
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -11,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.cache import Cache
 from ..core.database import Database
-from ..services.result import Err, Ok, Result
 
 
 class ConnectionMetrics(BaseModel):
@@ -67,11 +65,11 @@ class WebSocketPerformanceService:
         """Initialize performance service."""
         self._db = db
         self._cache = cache
-        
+
         # Performance tracking
         self._connection_metrics: dict[str, ConnectionMetrics] = {}
         self._room_metrics: dict[str, RoomMetrics] = {}
-        
+
         # Performance thresholds
         self._thresholds = {
             "max_connections": 10000,
@@ -81,12 +79,12 @@ class WebSocketPerformanceService:
             "max_memory_usage_mb": 1000,
             "max_cpu_usage_percent": 80,
         }
-        
+
         # Performance optimization settings
         self._optimization_enabled = True
         self._auto_scaling_enabled = True
         self._circuit_breaker_enabled = True
-        
+
         # Background tasks
         self._monitoring_task: asyncio.Task[None] | None = None
         self._cleanup_task: asyncio.Task[None] | None = None
@@ -94,8 +92,10 @@ class WebSocketPerformanceService:
     async def start_monitoring(self) -> None:
         """Start performance monitoring tasks."""
         if self._monitoring_task is None:
-            self._monitoring_task = asyncio.create_task(self._performance_monitoring_loop())
-        
+            self._monitoring_task = asyncio.create_task(
+                self._performance_monitoring_loop()
+            )
+
         if self._cleanup_task is None:
             self._cleanup_task = asyncio.create_task(self._cleanup_loop())
 
@@ -108,7 +108,7 @@ class WebSocketPerformanceService:
             except asyncio.CancelledError:
                 pass
             self._monitoring_task = None
-            
+
         if self._cleanup_task:
             self._cleanup_task.cancel()
             try:
@@ -130,12 +130,12 @@ class WebSocketPerformanceService:
             last_activity=now,
         )
         self._connection_metrics[connection_id] = metrics
-        
+
         # Store in cache for distributed tracking
         await self._cache.setex(
             f"ws:connection:{connection_id}",
             3600,  # 1 hour TTL
-            metrics.model_dump_json()
+            metrics.model_dump_json(),
         )
 
     @beartype
@@ -143,10 +143,10 @@ class WebSocketPerformanceService:
         """Record when a connection ends."""
         if connection_id in self._connection_metrics:
             metrics = self._connection_metrics.pop(connection_id)
-            
+
             # Store final metrics in database
             await self._store_connection_metrics(metrics)
-            
+
             # Remove from cache
             await self._cache.delete(f"ws:connection:{connection_id}")
 
@@ -157,15 +157,20 @@ class WebSocketPerformanceService:
         """Record a message being sent."""
         if connection_id in self._connection_metrics:
             current = self._connection_metrics[connection_id]
-            updated = current.model_copy(update={
-                "message_count": current.message_count + 1,
-                "bytes_sent": current.bytes_sent + message_size,
-                "last_activity": datetime.now(),
-                "avg_response_time_ms": (
-                    (current.avg_response_time_ms * current.message_count + response_time_ms)
-                    / (current.message_count + 1)
-                ),
-            })
+            updated = current.model_copy(
+                update={
+                    "message_count": current.message_count + 1,
+                    "bytes_sent": current.bytes_sent + message_size,
+                    "last_activity": datetime.now(),
+                    "avg_response_time_ms": (
+                        (
+                            current.avg_response_time_ms * current.message_count
+                            + response_time_ms
+                        )
+                        / (current.message_count + 1)
+                    ),
+                }
+            )
             self._connection_metrics[connection_id] = updated
 
     @beartype
@@ -175,10 +180,12 @@ class WebSocketPerformanceService:
         """Record a message being received."""
         if connection_id in self._connection_metrics:
             current = self._connection_metrics[connection_id]
-            updated = current.model_copy(update={
-                "bytes_received": current.bytes_received + message_size,
-                "last_activity": datetime.now(),
-            })
+            updated = current.model_copy(
+                update={
+                    "bytes_received": current.bytes_received + message_size,
+                    "last_activity": datetime.now(),
+                }
+            )
             self._connection_metrics[connection_id] = updated
 
     @beartype
@@ -186,10 +193,12 @@ class WebSocketPerformanceService:
         """Record a connection error."""
         if connection_id in self._connection_metrics:
             current = self._connection_metrics[connection_id]
-            updated = current.model_copy(update={
-                "error_count": current.error_count + 1,
-                "last_activity": datetime.now(),
-            })
+            updated = current.model_copy(
+                update={
+                    "error_count": current.error_count + 1,
+                    "last_activity": datetime.now(),
+                }
+            )
             self._connection_metrics[connection_id] = updated
 
     @beartype
@@ -198,20 +207,25 @@ class WebSocketPerformanceService:
     ) -> None:
         """Record room activity."""
         now = datetime.now()
-        
+
         if room_id in self._room_metrics:
             current = self._room_metrics[room_id]
-            updated = current.model_copy(update={
-                "subscriber_count": subscriber_count,
-                "message_count": current.message_count + 1,
-                "bytes_transferred": current.bytes_transferred + message_size,
-                "avg_message_size": (
-                    (current.avg_message_size * current.message_count + message_size)
-                    / (current.message_count + 1)
-                ),
-                "peak_subscribers": max(current.peak_subscribers, subscriber_count),
-                "last_activity": now,
-            })
+            updated = current.model_copy(
+                update={
+                    "subscriber_count": subscriber_count,
+                    "message_count": current.message_count + 1,
+                    "bytes_transferred": current.bytes_transferred + message_size,
+                    "avg_message_size": (
+                        (
+                            current.avg_message_size * current.message_count
+                            + message_size
+                        )
+                        / (current.message_count + 1)
+                    ),
+                    "peak_subscribers": max(current.peak_subscribers, subscriber_count),
+                    "last_activity": now,
+                }
+            )
             self._room_metrics[room_id] = updated
         else:
             metrics = RoomMetrics(
@@ -231,7 +245,7 @@ class WebSocketPerformanceService:
         """Get current performance summary."""
         total_connections = len(self._connection_metrics)
         total_rooms = len(self._room_metrics)
-        
+
         # Calculate aggregate metrics
         if self._connection_metrics:
             avg_response_time = sum(
@@ -244,7 +258,7 @@ class WebSocketPerformanceService:
         else:
             avg_response_time = 0.0
             error_rate = 0.0
-        
+
         # Room statistics
         if self._room_metrics:
             avg_room_size = sum(
@@ -254,7 +268,7 @@ class WebSocketPerformanceService:
         else:
             avg_room_size = 0.0
             largest_room = 0
-        
+
         return {
             "connections": {
                 "total": total_connections,
@@ -276,59 +290,67 @@ class WebSocketPerformanceService:
         """Check for performance issues and generate alerts."""
         alerts = []
         summary = await self.get_performance_summary()
-        
+
         # Check connection utilization
         connection_utilization = summary["connections"]["utilization"]
         if connection_utilization > 0.9:
-            alerts.append(PerformanceAlert(
-                alert_type="high_connection_utilization",
-                severity="critical" if connection_utilization > 0.95 else "high",
-                threshold_value=0.9,
-                current_value=connection_utilization,
-                metric_name="connection_utilization",
-                description=f"WebSocket connection utilization at {connection_utilization:.1%}",
-                recommended_action="Scale WebSocket servers or implement connection limiting",
-            ))
-        
+            alerts.append(
+                PerformanceAlert(
+                    alert_type="high_connection_utilization",
+                    severity="critical" if connection_utilization > 0.95 else "high",
+                    threshold_value=0.9,
+                    current_value=connection_utilization,
+                    metric_name="connection_utilization",
+                    description=f"WebSocket connection utilization at {connection_utilization:.1%}",
+                    recommended_action="Scale WebSocket servers or implement connection limiting",
+                )
+            )
+
         # Check response time
         avg_response_time = summary["connections"]["avg_response_time_ms"]
         if avg_response_time > self._thresholds["max_response_time_ms"]:
-            alerts.append(PerformanceAlert(
-                alert_type="high_response_time",
-                severity="medium" if avg_response_time < 200 else "high",
-                threshold_value=self._thresholds["max_response_time_ms"],
-                current_value=avg_response_time,
-                metric_name="avg_response_time_ms",
-                description=f"Average response time is {avg_response_time:.1f}ms",
-                recommended_action="Optimize message processing or scale infrastructure",
-            ))
-        
+            alerts.append(
+                PerformanceAlert(
+                    alert_type="high_response_time",
+                    severity="medium" if avg_response_time < 200 else "high",
+                    threshold_value=self._thresholds["max_response_time_ms"],
+                    current_value=avg_response_time,
+                    metric_name="avg_response_time_ms",
+                    description=f"Average response time is {avg_response_time:.1f}ms",
+                    recommended_action="Optimize message processing or scale infrastructure",
+                )
+            )
+
         # Check error rate
         error_rate = summary["connections"]["error_rate"]
         if error_rate > self._thresholds["max_error_rate"]:
-            alerts.append(PerformanceAlert(
-                alert_type="high_error_rate",
-                severity="critical" if error_rate > 0.1 else "high",
-                threshold_value=self._thresholds["max_error_rate"],
-                current_value=error_rate,
-                metric_name="error_rate",
-                description=f"Error rate is {error_rate:.1%}",
-                recommended_action="Investigate connection stability and error causes",
-            ))
-        
+            alerts.append(
+                PerformanceAlert(
+                    alert_type="high_error_rate",
+                    severity="critical" if error_rate > 0.1 else "high",
+                    threshold_value=self._thresholds["max_error_rate"],
+                    current_value=error_rate,
+                    metric_name="error_rate",
+                    description=f"Error rate is {error_rate:.1%}",
+                    recommended_action="Investigate connection stability and error causes",
+                )
+            )
+
         # Check room sizes
         largest_room = summary["rooms"]["largest_room"]
         if largest_room > self._thresholds["max_room_size"]:
-            alerts.append(PerformanceAlert(
-                alert_type="large_room_detected",
-                severity="medium" if largest_room < 2000 else "high",
-                threshold_value=self._thresholds["max_room_size"],
-                current_value=largest_room,
-                metric_name="largest_room_size",
-                description=f"Room with {largest_room} subscribers detected",
-                recommended_action="Consider room partitioning or optimization",
-            ))
-        
+            alerts.append(
+                PerformanceAlert(
+                    alert_type="large_room_detected",
+                    severity="medium" if largest_room < 2000 else "high",
+                    threshold_value=self._thresholds["max_room_size"],
+                    current_value=largest_room,
+                    metric_name="largest_room_size",
+                    description=f"Room with {largest_room} subscribers detected",
+                    recommended_action="Consider room partitioning or optimization",
+                )
+            )
+
         return alerts
 
     @beartype
@@ -336,26 +358,26 @@ class WebSocketPerformanceService:
         """Apply automatic performance optimizations."""
         if not self._optimization_enabled:
             return ["Performance optimization is disabled"]
-        
+
         optimizations_applied = []
         alerts = await self.check_performance_alerts()
-        
+
         for alert in alerts:
             if alert.alert_type == "high_connection_utilization":
                 # Implement connection throttling
                 await self._enable_connection_throttling()
                 optimizations_applied.append("Enabled connection throttling")
-                
+
             elif alert.alert_type == "high_response_time":
                 # Enable message batching
                 await self._enable_message_batching()
                 optimizations_applied.append("Enabled message batching")
-                
+
             elif alert.alert_type == "large_room_detected":
                 # Implement room partitioning suggestions
                 await self._suggest_room_partitioning(alert.current_value)
                 optimizations_applied.append("Suggested room partitioning")
-        
+
         return optimizations_applied or ["No optimizations needed"]
 
     async def _performance_monitoring_loop(self) -> None:
@@ -363,26 +385,24 @@ class WebSocketPerformanceService:
         while True:
             try:
                 await asyncio.sleep(30)  # Check every 30 seconds
-                
+
                 # Check for alerts
                 alerts = await self.check_performance_alerts()
-                
+
                 if alerts:
                     # Store alerts for admin review
                     await self._store_performance_alerts(alerts)
-                    
+
                     # Apply automatic optimizations
                     if self._optimization_enabled:
                         await self.optimize_performance()
-                
+
                 # Update performance metrics in cache
                 summary = await self.get_performance_summary()
                 await self._cache.setex(
-                    "ws:performance:summary",
-                    60,  # 1 minute TTL
-                    str(summary)
+                    "ws:performance:summary", 60, str(summary)  # 1 minute TTL
                 )
-                
+
             except asyncio.CancelledError:
                 break
             except Exception:
@@ -394,26 +414,28 @@ class WebSocketPerformanceService:
         while True:
             try:
                 await asyncio.sleep(3600)  # Run every hour
-                
+
                 # Clean up old connection metrics
                 cutoff = datetime.now() - timedelta(hours=24)
                 expired_connections = [
-                    conn_id for conn_id, metrics in self._connection_metrics.items()
+                    conn_id
+                    for conn_id, metrics in self._connection_metrics.items()
                     if metrics.last_activity < cutoff
                 ]
-                
+
                 for conn_id in expired_connections:
                     self._connection_metrics.pop(conn_id, None)
-                
+
                 # Clean up old room metrics
                 expired_rooms = [
-                    room_id for room_id, metrics in self._room_metrics.items()
+                    room_id
+                    for room_id, metrics in self._room_metrics.items()
                     if metrics.last_activity < cutoff and metrics.subscriber_count == 0
                 ]
-                
+
                 for room_id in expired_rooms:
                     self._room_metrics.pop(room_id, None)
-                
+
             except asyncio.CancelledError:
                 break
             except Exception:
@@ -427,7 +449,7 @@ class WebSocketPerformanceService:
             await self._db.execute(
                 """
                 INSERT INTO websocket_performance_logs
-                (connection_id, user_id, connected_at, disconnected_at, 
+                (connection_id, user_id, connected_at, disconnected_at,
                  message_count, bytes_sent, bytes_received, avg_response_time_ms,
                  error_count, reconnection_count)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -483,26 +505,16 @@ class WebSocketPerformanceService:
     async def _enable_connection_throttling(self) -> None:
         """Enable connection throttling to reduce load."""
         # Store throttling configuration in cache
-        await self._cache.setex(
-            "ws:throttling:enabled",
-            3600,  # 1 hour
-            "true"
-        )
+        await self._cache.setex("ws:throttling:enabled", 3600, "true")  # 1 hour
 
     async def _enable_message_batching(self) -> None:
         """Enable message batching to improve efficiency."""
         # Store batching configuration in cache
-        await self._cache.setex(
-            "ws:batching:enabled",
-            3600,  # 1 hour
-            "true"
-        )
+        await self._cache.setex("ws:batching:enabled", 3600, "true")  # 1 hour
 
     async def _suggest_room_partitioning(self, room_size: float) -> None:
         """Suggest room partitioning for large rooms."""
         # Store partitioning suggestion in cache
         await self._cache.setex(
-            "ws:room_partitioning:suggested",
-            3600,  # 1 hour
-            f"room_size:{room_size}"
+            "ws:room_partitioning:suggested", 3600, f"room_size:{room_size}"  # 1 hour
         )

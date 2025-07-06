@@ -10,7 +10,7 @@ Successfully optimized database performance with advanced connection pooling, qu
 - **File**: `src/pd_prime_demo/core/database_enhanced.py`
 - **Features**:
   - Intelligent capacity-based pool sizing
-  - Read replica support for query distribution  
+  - Read replica support for query distribution
   - Dedicated admin pool for complex queries
   - Health monitoring with metrics collection
   - Automatic retry with exponential backoff
@@ -46,7 +46,7 @@ Successfully optimized database performance with advanced connection pooling, qu
   - `/monitoring/health/database` - Health checks
 
 ### 5. PgBouncer Configuration ✅
-- **Files**: 
+- **Files**:
   - `config/pgbouncer.ini` - Production-ready config
   - `config/pgbouncer.service` - Systemd service
   - `config/pgbouncer_userlist.txt.example` - User template

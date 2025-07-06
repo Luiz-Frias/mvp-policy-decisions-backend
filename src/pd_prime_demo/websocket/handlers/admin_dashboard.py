@@ -61,7 +61,7 @@ class AdminDashboardHandler:
         self._db = db
         self._cache = cache
         self._active_streams: dict[str, asyncio.Task[None]] = {}
-        
+
         # Circuit breakers for system protection
         self._error_counts: dict[str, int] = {}
         self._circuit_breaker_threshold = 5
@@ -76,7 +76,9 @@ class AdminDashboardHandler:
     ) -> Result[None, str]:
         """Start real-time system monitoring for admin with explicit permission check."""
         # Verify admin permissions
-        permission_result = await self._check_admin_permissions(admin_user_id, "analytics:read")
+        permission_result = await self._check_admin_permissions(
+            admin_user_id, "analytics:read"
+        )
         if permission_result.is_err():
             await self._send_permission_error(connection_id, "analytics:read")
             return permission_result
@@ -129,7 +131,9 @@ class AdminDashboardHandler:
     ) -> Result[None, str]:
         """Start real-time user activity monitoring with audit permissions."""
         # Verify audit permissions
-        permission_result = await self._check_admin_permissions(admin_user_id, "audit:read")
+        permission_result = await self._check_admin_permissions(
+            admin_user_id, "audit:read"
+        )
         if permission_result.is_err():
             await self._send_permission_error(connection_id, "audit:read")
             return permission_result
@@ -160,7 +164,9 @@ class AdminDashboardHandler:
     ) -> Result[None, str]:
         """Start real-time performance monitoring."""
         # Verify performance monitoring permissions
-        permission_result = await self._check_admin_permissions(admin_user_id, "performance:read")
+        permission_result = await self._check_admin_permissions(
+            admin_user_id, "performance:read"
+        )
         if permission_result.is_err():
             await self._send_permission_error(connection_id, "performance:read")
             return permission_result
@@ -174,7 +180,7 @@ class AdminDashboardHandler:
             "database_performance",
             "cache_performance",
         }
-        
+
         invalid_metrics = [m for m in metrics if m not in valid_metrics]
         if invalid_metrics:
             return Err(
@@ -207,22 +213,24 @@ class AdminDashboardHandler:
         """Stream system health metrics with circuit breaker protection."""
         update_interval = config.get("update_interval", 5)
         error_count = 0
-        
+
         try:
             while True:
                 # Check circuit breaker
                 if self._is_circuit_open("system_monitoring"):
-                    await self._send_circuit_breaker_alert(connection_id, "system_monitoring")
+                    await self._send_circuit_breaker_alert(
+                        connection_id, "system_monitoring"
+                    )
                     await asyncio.sleep(30)  # Wait longer when circuit is open
                     continue
 
                 # Collect metrics
                 metrics_result = await self._collect_system_metrics()
-                
+
                 if metrics_result.is_err():
                     error_count += 1
                     self._record_error("system_monitoring")
-                    
+
                     if error_count > 3:
                         error_msg = WebSocketMessage(
                             type="monitoring_error",
@@ -231,8 +239,10 @@ class AdminDashboardHandler:
                                 "consecutive_errors": error_count,
                             },
                         )
-                        await self._manager.send_personal_message(connection_id, error_msg)
-                    
+                        await self._manager.send_personal_message(
+                            connection_id, error_msg
+                        )
+
                     await asyncio.sleep(update_interval * 2)  # Back off on errors
                     continue
 
@@ -244,8 +254,10 @@ class AdminDashboardHandler:
                     type="system_metrics",
                     data=metrics,
                 )
-                
-                send_result = await self._manager.send_personal_message(connection_id, update_msg)
+
+                send_result = await self._manager.send_personal_message(
+                    connection_id, update_msg
+                )
                 if send_result.is_err():
                     break  # Connection lost
 
@@ -278,12 +290,14 @@ class AdminDashboardHandler:
 
             # Stream new activities
             last_check = datetime.now()
-            
+
             while True:
                 await asyncio.sleep(2)  # Check every 2 seconds
-                
+
                 # Get activities since last check
-                new_activities = await self._get_user_activity_since(last_check, filters)
+                new_activities = await self._get_user_activity_since(
+                    last_check, filters
+                )
                 if new_activities.is_ok() and new_activities.unwrap():
                     activity_msg = WebSocketMessage(
                         type="user_activity",
@@ -292,11 +306,13 @@ class AdminDashboardHandler:
                             "is_incremental": True,
                         },
                     )
-                    
-                    send_result = await self._manager.send_personal_message(connection_id, activity_msg)
+
+                    send_result = await self._manager.send_personal_message(
+                        connection_id, activity_msg
+                    )
                     if send_result.is_err():
                         break
-                
+
                 last_check = datetime.now()
 
         except asyncio.CancelledError:
@@ -314,14 +330,16 @@ class AdminDashboardHandler:
             while True:
                 # Collect requested metrics
                 perf_data = await self._collect_performance_metrics(metrics)
-                
+
                 if perf_data.is_ok():
                     perf_msg = WebSocketMessage(
                         type="performance_metrics",
                         data=perf_data.unwrap(),
                     )
-                    
-                    send_result = await self._manager.send_personal_message(connection_id, perf_msg)
+
+                    send_result = await self._manager.send_personal_message(
+                        connection_id, perf_msg
+                    )
                     if send_result.is_err():
                         break
 
@@ -345,20 +363,28 @@ class AdminDashboardHandler:
 
             # Cache stats
             cache_stats_result = await self._get_cache_stats()
-            cache_stats = cache_stats_result.unwrap() if cache_stats_result.is_ok() else {}
+            cache_stats = (
+                cache_stats_result.unwrap() if cache_stats_result.is_ok() else {}
+            )
 
             # Recent error stats
             error_stats_result = await self._get_error_statistics()
-            error_stats = error_stats_result.unwrap() if error_stats_result.is_ok() else {}
+            error_stats = (
+                error_stats_result.unwrap() if error_stats_result.is_ok() else {}
+            )
 
-            return Ok({
-                "database": db_stats,
-                "websockets": ws_stats,
-                "cache": cache_stats,
-                "errors": error_stats,
-                "timestamp": datetime.now().isoformat(),
-                "health_status": self._calculate_health_status(db_stats, ws_stats, cache_stats, error_stats),
-            })
+            return Ok(
+                {
+                    "database": db_stats,
+                    "websockets": ws_stats,
+                    "cache": cache_stats,
+                    "errors": error_stats,
+                    "timestamp": datetime.now().isoformat(),
+                    "health_status": self._calculate_health_status(
+                        db_stats, ws_stats, cache_stats, error_stats
+                    ),
+                }
+            )
         except Exception as e:
             return Err(f"Failed to collect system metrics: {str(e)}")
 
@@ -392,11 +418,17 @@ class AdminDashboardHandler:
                 """
             )
 
-            return Ok({
-                "pool": dict(pool_stats) if pool_stats else {},
-                "performance": dict(query_stats) if query_stats else {},
-                "status": "healthy" if pool_stats and pool_stats["active_connections"] < 100 else "warning",
-            })
+            return Ok(
+                {
+                    "pool": dict(pool_stats) if pool_stats else {},
+                    "performance": dict(query_stats) if query_stats else {},
+                    "status": (
+                        "healthy"
+                        if pool_stats and pool_stats["active_connections"] < 100
+                        else "warning"
+                    ),
+                }
+            )
         except Exception as e:
             return Err(f"Database stats error: {str(e)}")
 
@@ -412,13 +444,18 @@ class AdminDashboardHandler:
             info = await redis_client.info()
             memory_info = await redis_client.info("memory")
 
-            return Ok({
-                "connected_clients": info.get("connected_clients", 0),
-                "used_memory_mb": memory_info.get("used_memory", 0) / (1024 * 1024),
-                "hit_rate": info.get("keyspace_hits", 0) / max(info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0), 1),
-                "total_keys": await redis_client.dbsize(),
-                "status": "healthy",
-            })
+            return Ok(
+                {
+                    "connected_clients": info.get("connected_clients", 0),
+                    "used_memory_mb": memory_info.get("used_memory", 0) / (1024 * 1024),
+                    "hit_rate": info.get("keyspace_hits", 0)
+                    / max(
+                        info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0), 1
+                    ),
+                    "total_keys": await redis_client.dbsize(),
+                    "status": "healthy",
+                }
+            )
         except Exception as e:
             return Err(f"Cache stats error: {str(e)}")
 
@@ -452,14 +489,17 @@ class AdminDashboardHandler:
                 """
             )
 
-            return Ok({
-                "by_type": [dict(row) for row in error_counts],
-                "trend": dict(error_trend) if error_trend else {},
-                "circuit_breakers": {
-                    name: "open" for name, count in self._error_counts.items()
-                    if count >= self._circuit_breaker_threshold
-                },
-            })
+            return Ok(
+                {
+                    "by_type": [dict(row) for row in error_counts],
+                    "trend": dict(error_trend) if error_trend else {},
+                    "circuit_breakers": {
+                        name: "open"
+                        for name, count in self._error_counts.items()
+                        if count >= self._circuit_breaker_threshold
+                    },
+                }
+            )
         except Exception as e:
             return Err(f"Error stats error: {str(e)}")
 
@@ -472,11 +512,11 @@ class AdminDashboardHandler:
             # Build query with filters
             where_clauses = ["aal.created_at > NOW() - INTERVAL '30 minutes'"]
             params = []
-            
+
             if "action" in filters:
                 params.append(filters["action"])
                 where_clauses.append(f"aal.action = ${len(params)}")
-            
+
             if "resource_type" in filters:
                 params.append(filters["resource_type"])
                 where_clauses.append(f"aal.resource_type = ${len(params)}")
@@ -512,11 +552,11 @@ class AdminDashboardHandler:
         try:
             where_clauses = ["aal.created_at > $1"]
             params = [since]
-            
+
             if "action" in filters:
                 params.append(filters["action"])
                 where_clauses.append(f"aal.action = ${len(params)}")
-            
+
             if "resource_type" in filters:
                 params.append(filters["resource_type"])
                 where_clauses.append(f"aal.resource_type = ${len(params)}")
@@ -600,8 +640,8 @@ class AdminDashboardHandler:
                     SELECT
                         COUNT(*) FILTER (WHERE status >= 400) as errors,
                         COUNT(*) as total,
-                        CASE 
-                            WHEN COUNT(*) > 0 
+                        CASE
+                            WHEN COUNT(*) > 0
                             THEN COUNT(*) FILTER (WHERE status >= 400)::float / COUNT(*)::float
                             ELSE 0
                         END as error_rate
@@ -647,7 +687,7 @@ class AdminDashboardHandler:
         pattern = "admin:system_monitoring:*"
         # Note: In production, implement pattern-based room sending
         # For now, track admin rooms separately
-        
+
         return Ok(None)
 
     @beartype
@@ -655,8 +695,7 @@ class AdminDashboardHandler:
         """Clean up when admin disconnects."""
         # Cancel all active streams for this connection
         streams_to_cancel = [
-            key for key in self._active_streams.keys()
-            if connection_id in key
+            key for key in self._active_streams.keys() if connection_id in key
         ]
 
         for stream_key in streams_to_cancel:
@@ -676,7 +715,7 @@ class AdminDashboardHandler:
                 FROM admin_users
                 WHERE id = $1
                 """,
-                admin_user_id
+                admin_user_id,
             )
 
             if not admin_user:
@@ -688,7 +727,12 @@ class AdminDashboardHandler:
             # Check role-based permissions
             role = admin_user["role"]
             permission_map = {
-                "super_admin": ["analytics:read", "audit:read", "performance:read", "system:manage"],
+                "super_admin": [
+                    "analytics:read",
+                    "audit:read",
+                    "performance:read",
+                    "system:manage",
+                ],
                 "admin": ["analytics:read", "audit:read", "performance:read"],
                 "analyst": ["analytics:read", "performance:read"],
                 "auditor": ["audit:read"],
@@ -770,7 +814,9 @@ class AdminDashboardHandler:
                 pass
 
     @beartype
-    async def _send_permission_error(self, connection_id: str, required_permission: str) -> None:
+    async def _send_permission_error(
+        self, connection_id: str, required_permission: str
+    ) -> None:
         """Send permission error message."""
         error_msg = WebSocketMessage(
             type="permission_error",
@@ -783,7 +829,9 @@ class AdminDashboardHandler:
         await self._manager.send_personal_message(connection_id, error_msg)
 
     @beartype
-    async def _send_circuit_breaker_alert(self, connection_id: str, service: str) -> None:
+    async def _send_circuit_breaker_alert(
+        self, connection_id: str, service: str
+    ) -> None:
         """Send circuit breaker alert."""
         alert_msg = WebSocketMessage(
             type="circuit_breaker_alert",
@@ -791,13 +839,16 @@ class AdminDashboardHandler:
                 "service": service,
                 "status": "open",
                 "message": f"Circuit breaker open for {service}. Too many errors detected.",
-                "reset_time": datetime.now() + timedelta(seconds=self._circuit_breaker_reset_time),
+                "reset_time": datetime.now()
+                + timedelta(seconds=self._circuit_breaker_reset_time),
             },
         )
         await self._manager.send_personal_message(connection_id, alert_msg)
 
     @beartype
-    async def _send_stream_error(self, connection_id: str, stream_type: str, error: str) -> None:
+    async def _send_stream_error(
+        self, connection_id: str, stream_type: str, error: str
+    ) -> None:
         """Send streaming error message."""
         error_msg = WebSocketMessage(
             type="stream_error",

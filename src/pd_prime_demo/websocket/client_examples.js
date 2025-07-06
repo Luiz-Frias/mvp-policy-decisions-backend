@@ -1,6 +1,6 @@
 /**
  * WebSocket Client Examples for PD Prime Demo
- * 
+ *
  * These examples show how to integrate with the WebSocket API
  * for real-time quotes, analytics, and notifications.
  */
@@ -20,7 +20,7 @@ class PDPrimeWebSocketClient {
         this.messageSequence = 0;
         this.messageHandlers = new Map();
         this.connectionPromise = null;
-        
+
         // Message acknowledgment tracking
         this.pendingAcks = new Map();
         this.ackTimeout = 5000; // 5 seconds
@@ -42,7 +42,7 @@ class PDPrimeWebSocketClient {
                 }
 
                 this.ws = new WebSocket(wsUrl.toString());
-                
+
                 this.ws.onopen = () => {
                     console.log('WebSocket connected');
                     this.reconnectAttempts = 0;
@@ -59,7 +59,7 @@ class PDPrimeWebSocketClient {
                     console.log('WebSocket disconnected:', event.code, event.reason);
                     this.connectionPromise = null;
                     this._cleanup();
-                    
+
                     if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
                         this._scheduleReconnect();
                     }
@@ -268,9 +268,9 @@ class PDPrimeWebSocketClient {
     _scheduleReconnect() {
         this.reconnectAttempts++;
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-        
+
         console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-        
+
         setTimeout(() => {
             this.connect().catch(error => {
                 console.error('Reconnection failed:', error);
@@ -283,7 +283,7 @@ class PDPrimeWebSocketClient {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
         }
-        
+
         // Clear pending acknowledgments
         this.pendingAcks.forEach(({ reject }) => {
             reject(new Error('Connection closed'));
@@ -323,7 +323,7 @@ class QuoteCollaborationManager {
         this.activeEditors = new Map();
         this.fieldLocks = new Map();
         this.cursors = new Map();
-        
+
         this._setupEventHandlers();
     }
 
@@ -441,7 +441,7 @@ class AnalyticsDashboardManager {
         this.dashboardType = dashboardType;
         this.isActive = false;
         this.currentData = null;
-        
+
         this._setupEventHandlers();
     }
 
@@ -519,13 +519,13 @@ class NotificationManager {
         this.client = client;
         this.activeNotifications = new Map();
         this.notificationHistory = [];
-        
+
         this._setupEventHandlers();
     }
 
     async acknowledgeNotification(notificationId) {
         await this.client.acknowledgeNotification(notificationId);
-        
+
         if (this.activeNotifications.has(notificationId)) {
             const notification = this.activeNotifications.get(notificationId);
             notification.acknowledged = true;
@@ -536,19 +536,19 @@ class NotificationManager {
     // Event callbacks (override these)
     onNotification(notification) {
         console.log('New notification:', notification);
-        
+
         this.activeNotifications.set(notification.id, {
             ...notification,
             receivedAt: new Date(),
             acknowledged: false
         });
-        
+
         this.notificationHistory.push(notification);
     }
 
     onSystemAlert(alert) {
         console.log('System alert:', alert);
-        
+
         // Auto-acknowledge low severity alerts
         if (alert.severity === 'low' && !alert.requires_action) {
             // Could auto-dismiss after a timeout
@@ -557,7 +557,7 @@ class NotificationManager {
 
     onNotificationAcknowledged(ack) {
         console.log('Notification acknowledged:', ack);
-        
+
         if (this.activeNotifications.has(ack.notification_id)) {
             this.activeNotifications.delete(ack.notification_id);
         }
@@ -589,31 +589,31 @@ class NotificationManager {
 // Example 1: Basic connection and quote collaboration
 async function exampleQuoteCollaboration() {
     const client = new PDPrimeWebSocketClient('ws://localhost:8000/ws', 'demo-token');
-    
+
     try {
         await client.connect();
-        
+
         const quoteManager = new QuoteCollaborationManager(client, 'quote-123');
-        
+
         // Override callbacks
         quoteManager.onQuoteUpdate = (update) => {
             console.log('Quote field updated:', update.field, '=', update.new_value);
             // Update UI here
         };
-        
+
         quoteManager.onEditorJoined = (editor) => {
             console.log('New collaborator joined');
             // Show user avatar in UI
         };
-        
+
         await quoteManager.initialize();
-        
+
         // Edit a field
         await quoteManager.editField('customer_name', 'John Doe');
-        
+
         // Focus on a field (for collaborative awareness)
         await quoteManager.focusField('vehicle_year');
-        
+
     } catch (error) {
         console.error('Error:', error);
     }
@@ -622,12 +622,12 @@ async function exampleQuoteCollaboration() {
 // Example 2: Real-time analytics dashboard
 async function exampleAnalyticsDashboard() {
     const client = new PDPrimeWebSocketClient('ws://localhost:8000/ws', 'admin-token');
-    
+
     try {
         await client.connect();
-        
+
         const dashboard = new AnalyticsDashboardManager(client, 'quotes');
-        
+
         // Override callbacks
         dashboard.onDataUpdate = (data) => {
             console.log('Dashboard updated:', data);
@@ -635,18 +635,18 @@ async function exampleAnalyticsDashboard() {
             updateQuoteMetrics(data.summary);
             updateQuoteTimeline(data.timeline);
         };
-        
+
         dashboard.onEvent = (event) => {
             console.log('Real-time event:', event);
             // Animate new data point
         };
-        
+
         await dashboard.start({
             updateInterval: 5,
             timeRangeHours: 24,
             filters: { state: 'CA' }
         });
-        
+
     } catch (error) {
         console.error('Error:', error);
     }
@@ -655,12 +655,12 @@ async function exampleAnalyticsDashboard() {
 // Example 3: Notification handling
 async function exampleNotifications() {
     const client = new PDPrimeWebSocketClient('ws://localhost:8000/ws', 'user-token');
-    
+
     try {
         await client.connect();
-        
+
         const notifications = new NotificationManager(client);
-        
+
         // Override callbacks
         notifications.onNotification = (notification) => {
             // Show toast notification
@@ -669,12 +669,12 @@ async function exampleNotifications() {
                 icon: notification.icon,
                 action: notification.action_url
             });
-            
+
             // Play sound if specified
             if (notification.sound) {
                 playNotificationSound(notification.sound);
             }
-            
+
             // Auto-acknowledge low priority notifications
             if (notification.priority === 'low' && !notification.requires_acknowledgment) {
                 setTimeout(() => {
@@ -682,17 +682,17 @@ async function exampleNotifications() {
                 }, 5000);
             }
         };
-        
+
         notifications.onSystemAlert = (alert) => {
             // Show system alert banner
             showSystemAlert(alert.message, alert.severity);
-            
+
             // Log for admin review
             if (alert.severity === 'critical') {
                 console.error('CRITICAL ALERT:', alert);
             }
         };
-        
+
     } catch (error) {
         console.error('Error:', error);
     }

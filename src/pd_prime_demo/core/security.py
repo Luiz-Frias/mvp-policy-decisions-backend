@@ -234,15 +234,15 @@ async def create_jwt_token(payload: dict[str, Any], secret: str) -> str:
         str: Encoded JWT token
     """
     security = get_security()
-    
+
     # Extract required fields
     subject = payload.get("sub", "")
     scopes = payload.get("scopes", [])
-    
+
     # Use the security instance to create token
     token_data = security.create_access_token(
         subject=subject,
         scopes=scopes,
     )
-    
+
     return token_data.access_token

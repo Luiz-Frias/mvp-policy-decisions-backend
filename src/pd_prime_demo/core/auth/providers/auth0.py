@@ -23,7 +23,7 @@ class Auth0SSOProvider(OIDCProvider):
         audience: str | None = None,
     ) -> None:
         """Initialize Auth0 SSO provider.
-        
+
         Args:
             client_id: Auth0 application client ID
             client_secret: Auth0 application client secret
@@ -34,7 +34,7 @@ class Auth0SSOProvider(OIDCProvider):
         """
         # Ensure domain doesn't include protocol
         auth0_domain = auth0_domain.replace("https://", "").replace("http://", "")
-        
+
         issuer = f"https://{auth0_domain}/"
         super().__init__(
             client_id=client_id,
@@ -59,12 +59,12 @@ class Auth0SSOProvider(OIDCProvider):
         **kwargs: Any,
     ) -> Result[str, str]:
         """Get Auth0 authorization URL.
-        
+
         Args:
             state: State parameter for CSRF protection
             nonce: Nonce for OIDC
             **kwargs: Additional parameters like prompt, connection, organization
-            
+
         Returns:
             Result containing authorization URL or error
         """
@@ -84,7 +84,7 @@ class Auth0SSOProvider(OIDCProvider):
                 params["audience"] = self.audience
 
             # Auth0-specific parameters
-            
+
             # Prompt parameter
             if "prompt" in kwargs:
                 params["prompt"] = kwargs["prompt"]
@@ -113,7 +113,7 @@ class Auth0SSOProvider(OIDCProvider):
             auth_endpoint = f"https://{self.auth0_domain}/authorize"
 
             return Ok(f"{auth_endpoint}?{urlencode(params)}")
-            
+
         except Exception as e:
             return Err(f"Failed to generate authorization URL: {str(e)}")
 
@@ -124,11 +124,11 @@ class Auth0SSOProvider(OIDCProvider):
         state: str,
     ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
-        
+
         Args:
             code: Authorization code from Auth0
             state: State parameter for validation
-            
+
         Returns:
             Result containing tokens or error
         """
@@ -150,10 +150,12 @@ class Auth0SSOProvider(OIDCProvider):
                     headers={"Content-Type": "application/json"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token exchange failed: {error_msg}")
 
             tokens = response.json()
@@ -166,7 +168,7 @@ class Auth0SSOProvider(OIDCProvider):
                 tokens["id_token_claims"] = validation_result.value
 
             return Ok(tokens)
-            
+
         except httpx.TimeoutException:
             return Err("Token exchange request timed out")
         except httpx.RequestError as e:
@@ -180,10 +182,10 @@ class Auth0SSOProvider(OIDCProvider):
         access_token: str,
     ) -> Result[SSOUserInfo, str]:
         """Get user information from Auth0.
-        
+
         Args:
             access_token: Auth0 access token
-            
+
         Returns:
             Result containing user info or error
         """
@@ -196,16 +198,18 @@ class Auth0SSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch user info: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch user info: HTTP {response.status_code}"
+                    )
 
             user_data = response.json()
 
             # Extract custom claims and roles
             groups = []
             roles = []
-            
+
             # Auth0 custom namespace for roles/groups
             for key, value in user_data.items():
                 if key.endswith("/roles") and isinstance(value, list):
@@ -215,7 +219,10 @@ class Auth0SSOProvider(OIDCProvider):
 
             # Auth0 may use different fields for email verification
             email_verified = user_data.get("email_verified", False)
-            if "email_verified" not in user_data and user_data.get("verified_email") is not None:
+            if (
+                "email_verified" not in user_data
+                and user_data.get("verified_email") is not None
+            ):
                 email_verified = user_data["verified_email"]
 
             return Ok(
@@ -234,7 +241,7 @@ class Auth0SSOProvider(OIDCProvider):
                     raw_claims=user_data,
                 )
             )
-            
+
         except httpx.TimeoutException:
             return Err("User info request timed out")
         except httpx.RequestError as e:
@@ -248,10 +255,10 @@ class Auth0SSOProvider(OIDCProvider):
         refresh_token: str,
     ) -> Result[dict[str, Any], str]:
         """Refresh Auth0 access token.
-        
+
         Args:
             refresh_token: Auth0 refresh token
-            
+
         Returns:
             Result containing new tokens or error
         """
@@ -275,14 +282,16 @@ class Auth0SSOProvider(OIDCProvider):
                     headers={"Content-Type": "application/json"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token refresh failed: {error_msg}")
 
             return Ok(response.json())
-            
+
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
         except httpx.RequestError as e:
@@ -297,13 +306,13 @@ class Auth0SSOProvider(OIDCProvider):
         token_type: str = "refresh_token",
     ) -> Result[bool, str]:
         """Revoke Auth0 token.
-        
+
         Note: Auth0 only supports revoking refresh tokens.
-        
+
         Args:
             token: Refresh token to revoke
             token_type: Must be 'refresh_token' for Auth0
-            
+
         Returns:
             Result indicating success or error
         """
@@ -328,7 +337,7 @@ class Auth0SSOProvider(OIDCProvider):
                 )
 
             return Ok(response.status_code == 200)
-            
+
         except httpx.TimeoutException:
             return Err("Token revocation request timed out")
         except httpx.RequestError as e:
@@ -343,11 +352,11 @@ class Auth0SSOProvider(OIDCProvider):
         management_token: str,
     ) -> Result[dict[str, Any], str]:
         """Get user details from Auth0 Management API.
-        
+
         Args:
             user_id: Auth0 user ID
             management_token: Management API access token
-            
+
         Returns:
             Result containing user details or error
         """
@@ -360,12 +369,14 @@ class Auth0SSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {management_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch user details: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch user details: HTTP {response.status_code}"
+                    )
 
             return Ok(response.json())
-            
+
         except Exception as e:
             return Err(f"Failed to get user details: {str(e)}")
 
@@ -378,18 +389,20 @@ class Auth0SSOProvider(OIDCProvider):
         management_token: str,
     ) -> Result[bool, str]:
         """Link two user accounts in Auth0.
-        
+
         Args:
             primary_user_id: Primary user ID to link to
             secondary_user_id: Secondary user ID to link
             secondary_provider: Provider of secondary account
             management_token: Management API access token
-            
+
         Returns:
             Result indicating success or error
         """
         try:
-            link_endpoint = f"https://{self.auth0_domain}/api/v2/users/{primary_user_id}/identities"
+            link_endpoint = (
+                f"https://{self.auth0_domain}/api/v2/users/{primary_user_id}/identities"
+            )
 
             data = {
                 "provider": secondary_provider,
@@ -408,6 +421,6 @@ class Auth0SSOProvider(OIDCProvider):
                 )
 
             return Ok(response.status_code == 201)
-            
+
         except Exception as e:
             return Err(f"Failed to link accounts: {str(e)}")

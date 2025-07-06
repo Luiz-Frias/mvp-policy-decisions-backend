@@ -22,7 +22,7 @@ class GoogleSSOProvider(OIDCProvider):
         scopes: list[str] | None = None,
     ) -> None:
         """Initialize Google SSO provider.
-        
+
         Args:
             client_id: Google OAuth2 client ID
             client_secret: Google OAuth2 client secret
@@ -52,12 +52,12 @@ class GoogleSSOProvider(OIDCProvider):
         **kwargs: Any,
     ) -> Result[str, str]:
         """Get Google authorization URL.
-        
+
         Args:
             state: State parameter for CSRF protection
             nonce: Nonce for OIDC
             **kwargs: Additional parameters like prompt, login_hint
-            
+
         Returns:
             Result containing authorization URL or error
         """
@@ -86,14 +86,14 @@ class GoogleSSOProvider(OIDCProvider):
             discovery_result = await self.discover()
             if isinstance(discovery_result, Err):
                 return discovery_result
-                
+
             discovery = discovery_result.value
             auth_endpoint = discovery.get("authorization_endpoint")
             if not auth_endpoint:
                 return Err("Authorization endpoint not found in discovery document")
 
             return Ok(f"{auth_endpoint}?{urlencode(params)}")
-            
+
         except Exception as e:
             return Err(f"Failed to generate authorization URL: {str(e)}")
 
@@ -104,11 +104,11 @@ class GoogleSSOProvider(OIDCProvider):
         state: str,
     ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
-        
+
         Args:
             code: Authorization code from Google
             state: State parameter for validation
-            
+
         Returns:
             Result containing tokens or error
         """
@@ -116,7 +116,7 @@ class GoogleSSOProvider(OIDCProvider):
             discovery_result = await self.discover()
             if isinstance(discovery_result, Err):
                 return discovery_result
-                
+
             discovery = discovery_result.value
             token_endpoint = discovery.get("token_endpoint")
             if not token_endpoint:
@@ -134,10 +134,12 @@ class GoogleSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token exchange failed: {error_msg}")
 
             tokens = response.json()
@@ -150,7 +152,7 @@ class GoogleSSOProvider(OIDCProvider):
                 tokens["id_token_claims"] = validation_result.value
 
             return Ok(tokens)
-            
+
         except httpx.TimeoutException:
             return Err("Token exchange request timed out")
         except httpx.RequestError as e:
@@ -164,10 +166,10 @@ class GoogleSSOProvider(OIDCProvider):
         access_token: str,
     ) -> Result[SSOUserInfo, str]:
         """Get user information from Google.
-        
+
         Args:
             access_token: Google access token
-            
+
         Returns:
             Result containing user info or error
         """
@@ -175,7 +177,7 @@ class GoogleSSOProvider(OIDCProvider):
             discovery_result = await self.discover()
             if isinstance(discovery_result, Err):
                 return discovery_result
-                
+
             discovery = discovery_result.value
             userinfo_endpoint = discovery.get("userinfo_endpoint")
             if not userinfo_endpoint:
@@ -187,9 +189,11 @@ class GoogleSSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch user info: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch user info: HTTP {response.status_code}"
+                    )
 
             user_data = response.json()
 
@@ -206,8 +210,13 @@ class GoogleSSOProvider(OIDCProvider):
 
             # Get Google Workspace groups if available
             groups = []
-            if "https://www.googleapis.com/auth/admin.directory.group.readonly" in self.scopes:
-                groups_result = await self._get_user_groups(access_token, user_data["sub"])
+            if (
+                "https://www.googleapis.com/auth/admin.directory.group.readonly"
+                in self.scopes
+            ):
+                groups_result = await self._get_user_groups(
+                    access_token, user_data["sub"]
+                )
                 if isinstance(groups_result, Ok):
                     groups = groups_result.value
 
@@ -226,7 +235,7 @@ class GoogleSSOProvider(OIDCProvider):
                     raw_claims=user_data,
                 )
             )
-            
+
         except httpx.TimeoutException:
             return Err("User info request timed out")
         except httpx.RequestError as e:
@@ -240,10 +249,10 @@ class GoogleSSOProvider(OIDCProvider):
         refresh_token: str,
     ) -> Result[dict[str, Any], str]:
         """Refresh Google access token.
-        
+
         Args:
             refresh_token: Google refresh token
-            
+
         Returns:
             Result containing new tokens or error
         """
@@ -251,7 +260,7 @@ class GoogleSSOProvider(OIDCProvider):
             discovery_result = await self.discover()
             if isinstance(discovery_result, Err):
                 return discovery_result
-                
+
             discovery = discovery_result.value
             token_endpoint = discovery.get("token_endpoint")
             if not token_endpoint:
@@ -268,14 +277,16 @@ class GoogleSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token refresh failed: {error_msg}")
 
             return Ok(response.json())
-            
+
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
         except httpx.RequestError as e:
@@ -290,11 +301,11 @@ class GoogleSSOProvider(OIDCProvider):
         token_type: str = "access_token",
     ) -> Result[bool, str]:
         """Revoke Google token.
-        
+
         Args:
             token: Token to revoke
             token_type: Type of token (ignored, Google revokes all tokens)
-            
+
         Returns:
             Result indicating success or error
         """
@@ -309,7 +320,7 @@ class GoogleSSOProvider(OIDCProvider):
                 )
 
             return Ok(response.status_code == 200)
-            
+
         except httpx.TimeoutException:
             return Err("Token revocation request timed out")
         except httpx.RequestError as e:
@@ -324,20 +335,20 @@ class GoogleSSOProvider(OIDCProvider):
         user_id: str,
     ) -> Result[list[str], str]:
         """Get user's Google Workspace groups.
-        
+
         Args:
             access_token: Google access token with admin directory scope
             user_id: Google user ID
-            
+
         Returns:
             Result containing list of group names or error
         """
         # This requires Google Workspace Admin SDK access
         # and the domain admin must grant directory access
         try:
-            groups_url = f"https://admin.googleapis.com/admin/directory/v1/groups"
+            groups_url = "https://admin.googleapis.com/admin/directory/v1/groups"
             params = {"userKey": user_id}
-            
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     groups_url,
@@ -345,18 +356,18 @@ class GoogleSSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code == 403:
                     # Common case - no admin access
                     return Ok([])
-                    
+
                 if response.status_code != 200:
                     return Err(f"Failed to fetch groups: HTTP {response.status_code}")
-                    
+
             data = response.json()
             groups = [group["name"] for group in data.get("groups", [])]
             return Ok(groups)
-            
+
         except Exception:
             # Groups are optional, don't fail the entire auth
             return Ok([])

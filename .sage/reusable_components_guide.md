@@ -131,7 +131,7 @@ def your_function():
 ```python
 class DatabaseEnhanced:
     """Enhanced database with intelligent connection pooling."""
-    
+
     def __init__(self, config: DatabaseConfig):
         # Capacity-based pool sizing
         # Read replica support
@@ -177,13 +177,13 @@ async with db.transaction():
 ```python
 class QueryOptimizer:
     """Query performance analysis and optimization tools."""
-    
+
     async def analyze_query(self, query: str) -> QueryAnalysis:
         # EXPLAIN ANALYZE integration
         # Index recommendations
         # Performance insights
         pass
-    
+
     async def get_slow_queries(self, threshold_ms: int = 1000) -> List[SlowQuery]:
         # pg_stat_statements integration
         # Slow query identification
@@ -290,15 +290,15 @@ if user.has_role(AdminRole.ADMIN):
 ```python
 class ConnectionManager:
     """Manage WebSocket connections and rooms."""
-    
+
     async def connect(self, websocket: WebSocket, connection_id: str, user_id: UUID = None):
         # Connection management
         pass
-    
+
     async def join_room(self, connection_id: str, room_id: str):
         # Room subscription
         pass
-    
+
     async def broadcast_to_room(self, room_id: str, message: WebSocketMessage):
         # Room broadcasting
         pass
@@ -382,11 +382,11 @@ await manager.broadcast_to_room(
 ```python
 class CacheKeys:
     """Centralized cache key management."""
-    
+
     @staticmethod
     def quote_key(quote_id: str) -> str:
         return f"quote:{quote_id}"
-    
+
     @staticmethod
     def rate_table_key(state: str, product: str) -> str:
         return f"rates:{state}:{product}"
@@ -426,7 +426,7 @@ async def with_transaction(
 ```python
 class YourService:
     """Template for service implementation."""
-    
+
     def __init__(
         self,
         db: Database,
@@ -437,7 +437,7 @@ class YourService:
         self._db = db
         self._cache = cache
         self._external_service = external_service
-    
+
     @beartype
     @performance_monitor("your_operation", max_duration_ms=1000)
     async def your_method(self, data: InputModel) -> Result[OutputModel, str]:
@@ -445,20 +445,20 @@ class YourService:
         validation = self._validate_input(data)
         if isinstance(validation, Err):
             return validation
-        
+
         # 2. Check cache
         cached = await self._get_from_cache(data.key)
         if cached:
             return Ok(cached)
-        
+
         # 3. Business logic
         result = await self._process_data(data)
         if isinstance(result, Err):
             return result
-        
+
         # 4. Cache result
         await self._cache_result(data.key, result.value)
-        
+
         # 5. Return success
         return result
 ```
@@ -473,20 +473,20 @@ async def your_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> SuccessResponse[OutputSchema]:
     """API endpoint template with proper error handling."""
-    
+
     # Convert schema to domain model
     domain_data = InputModel.from_schema(data)
-    
+
     # Call service
     result = await service.your_method(domain_data)
-    
+
     # Handle result
     if isinstance(result, Err):
         raise HTTPException(
             status_code=400,
             detail={"error": result.unwrap_err()}
         )
-    
+
     # Convert to response schema
     response_data = OutputSchema.from_model(result.unwrap())
     return SuccessResponse(data=response_data)
@@ -536,15 +536,15 @@ async def test_quote_creation_performance(benchmark, quote_service, sample_data)
 ```python
 class HealthChecker:
     """Comprehensive health checking."""
-    
+
     async def check_database(self) -> HealthStatus:
         # Database connectivity and performance
         pass
-    
+
     async def check_cache(self) -> HealthStatus:
         # Cache connectivity and performance
         pass
-    
+
     async def check_external_services(self) -> HealthStatus:
         # External service availability
         pass
@@ -555,20 +555,20 @@ class HealthChecker:
 ```python
 class Settings(BaseSettings):
     """Environment-aware configuration."""
-    
+
     # Database settings
     database_url: str
     database_pool_min: int = 5
     database_pool_max: int = 20
-    
+
     # Cache settings
     redis_url: str
     cache_ttl: int = 3600
-    
+
     # Performance settings
     max_duration_ms: int = 2000
     memory_threshold_mb: int = 100
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False

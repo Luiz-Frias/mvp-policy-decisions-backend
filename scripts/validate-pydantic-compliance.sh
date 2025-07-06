@@ -1,6 +1,12 @@
 #!/bin/bash
 # Validate that all Pydantic models use frozen=True and follow master ruleset
 
+# Colors for output declared EARLY so they are available to any echo -e prior to later re-declarations
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 set -euo pipefail
 
 echo "🔍 Checking Pydantic model compliance..."
@@ -9,25 +15,41 @@ echo "🔍 Checking Pydantic model compliance..."
 echo "🔍 Checking for git zombie processes..."
 zombies=$(ps aux | grep '[Zz]' | grep 'git' | grep -v grep || true)
 if [[ -n "$zombies" ]]; then
-    echo -e "${RED}❌ ERROR: Found git zombie processes that may block commits:${NC}"
-    echo "$zombies"
-    echo "Run: sudo kill -9 <pid> to clean up zombies"
-    exit 1
+    echo -e "${YELLOW}⚠️  WARNING: Found git zombie processes, attempting automatic cleanup...${NC}"
+    # Extract PIDs and attempt to kill parent processes gracefully
+    pids=$(echo "$zombies" | awk '{print $2}')
+    for pid in $pids; do
+        # Get parent process id (PPID)
+        ppid=$(ps -o ppid= -p "$pid" | tr -d ' ')
+        if [[ -n "$ppid" ]]; then
+            kill -HUP "$ppid" 2>/dev/null || true
+        fi
+    done
+    sleep 2
+    # Re-check for zombies after attempted cleanup
+    zombies_post=$(ps aux | grep '[Zz]' | grep 'git' | grep -v grep || true)
+    if [[ -n "$zombies_post" ]]; then
+        echo -e "${RED}❌ ERROR: Zombie git processes persist after cleanup attempt:${NC}"
+        echo "$zombies_post"
+        echo "Please identify and terminate parent processes before committing."
+        exit 1
+    else
+        echo -e "${GREEN}✓ Zombie processes cleaned up successfully${NC}"
+    fi
 else
     echo -e "${GREEN}✓ No git zombie processes found${NC}"
 fi
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Track violations
 VIOLATIONS=0
 FILES_CHECKED=0
 
 # Find all Python files in src/
+# Temporarily disable `set -e` so that non-zero exit codes from grep inside the
+# scanning loop don't abort the entire script prematurely; we still record
+# violations and will exit with non-zero at the end if any were found.
+set +e
+
 while IFS= read -r -d '' file; do
     ((FILES_CHECKED++))
 
@@ -60,6 +82,9 @@ while IFS= read -r -d '' file; do
         fi
     fi
 done < <(find src -name "*.py" -type f -print0)
+
+# Re-enable strict error handling for the remainder of the script.
+set -e
 
 echo ""
 echo "📊 Summary:"

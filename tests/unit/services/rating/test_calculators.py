@@ -1,8 +1,7 @@
 """Unit tests for rating calculators ensuring penny precision."""
 
-from decimal import Decimal
 from datetime import datetime
-from typing import Any, Dict, List
+from decimal import Decimal
 
 import pytest
 
@@ -85,7 +84,7 @@ class TestPremiumCalculator:
     def test_apply_multiplicative_factors_validation(self):
         """Test factor validation."""
         base_premium = Decimal("1000.00")
-        
+
         # Factor too low
         result = PremiumCalculator.apply_multiplicative_factors(
             base_premium, {"territory": 0.05}
@@ -237,7 +236,9 @@ class TestDiscountCalculator:
         # First: 25% of $1000 = $250
         # Second: ($400 - $250) / $750 = $150 / $750 = 0.20
         assert applied[0]["applied_rate"] == 0.25  # First discount fully applied
-        assert abs(applied[1]["applied_rate"] - 0.20) < 0.001  # Second discount approximately 20%
+        assert (
+            abs(applied[1]["applied_rate"] - 0.20) < 0.001
+        )  # Second discount approximately 20%
 
     def test_calculate_stacked_discounts_non_stackable(self):
         """Test non-stackable discount handling."""
@@ -260,7 +261,7 @@ class TestDiscountCalculator:
     def test_calculate_stacked_discounts_validation(self):
         """Test discount validation."""
         base_premium = Decimal("1000.00")
-        
+
         # Missing rate
         result = DiscountCalculator.calculate_stacked_discounts(
             base_premium, [{"priority": 1}]
@@ -302,7 +303,7 @@ class TestAIRiskScorer:
     async def test_calculate_ai_risk_score_success(self):
         """Test successful AI risk score calculation."""
         scorer = AIRiskScorer(load_models=True)
-        
+
         customer_data = {
             "policy_count": 2,
             "years_as_customer": 5,
@@ -343,7 +344,7 @@ class TestAIRiskScorer:
     async def test_calculate_ai_risk_score_validation(self):
         """Test AI risk score validation."""
         scorer = AIRiskScorer()
-        
+
         # Missing vehicle data
         result = await scorer.calculate_ai_risk_score(
             {"policy_count": 1},
@@ -369,7 +370,7 @@ class TestAIRiskScorer:
         """Test AI risk score fallback when models unavailable."""
         scorer = AIRiskScorer()
         # Models are not loaded by default
-        
+
         result = await scorer.calculate_ai_risk_score(
             {"policy_count": 1},
             {"age": 5, "value": 20000},
@@ -423,10 +424,22 @@ class TestPennyPrecision:
         final_premium = factored_premium - total_discount
 
         # Verify all amounts have exactly 2 decimal places
-        assert str(base_premium).split(".")[-1] == str(base_premium.quantize(Decimal("0.01"))).split(".")[-1]
-        assert str(factored_premium).split(".")[-1] == str(factored_premium.quantize(Decimal("0.01"))).split(".")[-1]
-        assert str(total_discount).split(".")[-1] == str(total_discount.quantize(Decimal("0.01"))).split(".")[-1]
-        assert str(final_premium).split(".")[-1] == str(final_premium.quantize(Decimal("0.01"))).split(".")[-1]
+        assert (
+            str(base_premium).split(".")[-1]
+            == str(base_premium.quantize(Decimal("0.01"))).split(".")[-1]
+        )
+        assert (
+            str(factored_premium).split(".")[-1]
+            == str(factored_premium.quantize(Decimal("0.01"))).split(".")[-1]
+        )
+        assert (
+            str(total_discount).split(".")[-1]
+            == str(total_discount.quantize(Decimal("0.01"))).split(".")[-1]
+        )
+        assert (
+            str(final_premium).split(".")[-1]
+            == str(final_premium.quantize(Decimal("0.01"))).split(".")[-1]
+        )
 
     def test_rounding_consistency(self):
         """Test that rounding is consistent across operations."""
@@ -457,11 +470,9 @@ class TestCreditBasedInsuranceScorer:
     def test_calculate_credit_factor_excellent_credit(self):
         """Test credit factor for excellent credit score."""
         result = CreditBasedInsuranceScorer.calculate_credit_factor(
-            credit_score=780,
-            state="TX",
-            product_type="auto"
+            credit_score=780, state="TX", product_type="auto"
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert factor == 0.85  # Excellent credit discount
@@ -471,9 +482,9 @@ class TestCreditBasedInsuranceScorer:
         result = CreditBasedInsuranceScorer.calculate_credit_factor(
             credit_score=750,
             state="CA",  # California prohibits credit scoring
-            product_type="auto"
+            product_type="auto",
         )
-        
+
         assert result.is_err()
         error = result.unwrap_err()
         assert "Credit-based insurance scoring prohibited in CA" in error
@@ -482,11 +493,9 @@ class TestCreditBasedInsuranceScorer:
     def test_calculate_credit_factor_invalid_score(self):
         """Test credit factor with invalid credit score."""
         result = CreditBasedInsuranceScorer.calculate_credit_factor(
-            credit_score=900,  # Invalid - too high
-            state="TX",
-            product_type="auto"
+            credit_score=900, state="TX", product_type="auto"  # Invalid - too high
         )
-        
+
         assert result.is_err()
         assert "Invalid credit score: 900" in result.unwrap_err()
 
@@ -497,9 +506,9 @@ class TestCreditBasedInsuranceScorer:
             payment_history=0.95,  # Excellent payment history
             credit_utilization=0.20,  # Good utilization
             length_of_credit=10,  # 10 years
-            new_credit_inquiries=1  # 1 recent inquiry
+            new_credit_inquiries=1,  # 1 recent inquiry
         )
-        
+
         assert result.is_ok()
         score = result.unwrap()
         assert 200 <= score <= 997
@@ -513,7 +522,7 @@ class TestCreditBasedInsuranceScorer:
             payment_history=1.5,  # Invalid - too high
             credit_utilization=0.20,
             length_of_credit=10,
-            new_credit_inquiries=1
+            new_credit_inquiries=1,
         )
         assert result.is_err()
         assert "Payment history must be between 0.0 and 1.0" in result.unwrap_err()
@@ -524,7 +533,7 @@ class TestCreditBasedInsuranceScorer:
             payment_history=0.95,
             credit_utilization=-0.1,  # Invalid - negative
             length_of_credit=10,
-            new_credit_inquiries=1
+            new_credit_inquiries=1,
         )
         assert result.is_err()
         assert "Credit utilization cannot be negative" in result.unwrap_err()
@@ -537,10 +546,9 @@ class TestExternalDataIntegrator:
     async def test_get_weather_risk_factor_hurricane_zone(self):
         """Test weather risk factor for hurricane-prone area."""
         result = await ExternalDataIntegrator.get_weather_risk_factor(
-            zip_code="33101",  # Miami, FL
-            effective_date=datetime.now()
+            zip_code="33101", effective_date=datetime.now()  # Miami, FL
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert factor == 1.25  # High risk for Florida
@@ -549,10 +557,9 @@ class TestExternalDataIntegrator:
     async def test_get_weather_risk_factor_low_risk(self):
         """Test weather risk factor for low-risk area."""
         result = await ExternalDataIntegrator.get_weather_risk_factor(
-            zip_code="50309",  # Des Moines, IA
-            effective_date=datetime.now()
+            zip_code="50309", effective_date=datetime.now()  # Des Moines, IA
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert factor == 1.00  # Normal risk
@@ -561,12 +568,11 @@ class TestExternalDataIntegrator:
     async def test_get_weather_risk_factor_invalid_zip(self):
         """Test weather risk factor with invalid ZIP code."""
         from datetime import datetime
-        
+
         result = await ExternalDataIntegrator.get_weather_risk_factor(
-            zip_code="invalid",
-            effective_date=datetime.now()
+            zip_code="invalid", effective_date=datetime.now()
         )
-        
+
         assert result.is_err()
         assert "Invalid ZIP code format" in result.unwrap_err()
 
@@ -576,7 +582,7 @@ class TestExternalDataIntegrator:
         result = await ExternalDataIntegrator.get_crime_risk_factor(
             zip_code="60601"  # Chicago downtown
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert factor == 1.15  # High crime area
@@ -587,7 +593,7 @@ class TestExternalDataIntegrator:
         result = await ExternalDataIntegrator.get_crime_risk_factor(
             zip_code="85001"  # Phoenix suburban
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert factor == 0.95  # Lower risk suburban
@@ -598,10 +604,10 @@ class TestExternalDataIntegrator:
         result = await ExternalDataIntegrator.validate_vehicle_data(
             vin="4T1BF1FK0CU123456"  # Valid format
         )
-        
+
         assert result.is_ok()
         data = result.unwrap()
-        
+
         # Check enhanced data structure
         assert "make" in data
         assert "model" in data
@@ -618,7 +624,7 @@ class TestExternalDataIntegrator:
         result = await ExternalDataIntegrator.validate_vehicle_data(
             vin="invalid"  # Too short
         )
-        
+
         assert result.is_err()
         assert "VIN must be exactly 17 characters" in result.unwrap_err()
 
@@ -639,16 +645,14 @@ class TestAdvancedCalculationIntegration:
 
         # Credit-based adjustment (for allowed state)
         credit_result = CreditBasedInsuranceScorer.calculate_credit_factor(
-            credit_score=750,
-            state="TX"
+            credit_score=750, state="TX"
         )
         assert credit_result.is_ok()
         credit_factor = credit_result.unwrap()
 
         # External risk factors
         weather_result = await ExternalDataIntegrator.get_weather_risk_factor(
-            zip_code="75201",  # Dallas, TX
-            effective_date=datetime.now()
+            zip_code="75201", effective_date=datetime.now()  # Dallas, TX
         )
         assert weather_result.is_ok()
         weather_factor = weather_result.unwrap()
@@ -662,9 +666,13 @@ class TestAdvancedCalculationIntegration:
         # AI risk scoring
         ai_scorer = AIRiskScorer(load_models=True)
         ai_result = await ai_scorer.calculate_ai_risk_score(
-            customer_data={"policy_count": 1, "years_as_customer": 2, "previous_claims": 0},
+            customer_data={
+                "policy_count": 1,
+                "years_as_customer": 2,
+                "previous_claims": 0,
+            },
             vehicle_data={"age": 3, "value": 25000, "annual_mileage": 12000},
-            driver_data=[{"age": 30, "years_licensed": 12, "violations_3_years": 0}]
+            driver_data=[{"age": 30, "years_licensed": 12, "violations_3_years": 0}],
         )
         assert ai_result.is_ok()
         ai_data = ai_result.unwrap()
@@ -698,8 +706,7 @@ class TestAdvancedCalculationIntegration:
         # Test prohibited states
         for state in prohibited_states:
             result = CreditBasedInsuranceScorer.calculate_credit_factor(
-                credit_score=credit_score,
-                state=state
+                credit_score=credit_score, state=state
             )
             assert result.is_err()
             assert "prohibited" in result.unwrap_err().lower()
@@ -707,8 +714,7 @@ class TestAdvancedCalculationIntegration:
         # Test allowed states
         for state in allowed_states:
             result = CreditBasedInsuranceScorer.calculate_credit_factor(
-                credit_score=credit_score,
-                state=state
+                credit_score=credit_score, state=state
             )
             assert result.is_ok()
             factor = result.unwrap()
@@ -721,7 +727,7 @@ class TestStatisticalRatingModels:
     def test_calculate_generalized_linear_model_factor_log_link(self):
         """Test GLM calculation with log link function."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         features = {
             "age": 30.0,
             "experience": 10.0,
@@ -733,15 +739,15 @@ class TestStatisticalRatingModels:
             "experience": -0.02,
             "violations": 0.3,
         }
-        
+
         result = StatisticalRatingModels.calculate_generalized_linear_model_factor(
             features, coefficients, "log"
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert 0.1 <= factor <= 10.0  # Within bounds
-        
+
         # Manual calculation: exp(-0.5 + 30*(-0.01) + 10*(-0.02) + 1*(0.3))
         # = exp(-0.5 - 0.3 - 0.2 + 0.3) = exp(-0.7) ≈ 0.497
         assert abs(factor - 0.497) < 0.01
@@ -749,39 +755,39 @@ class TestStatisticalRatingModels:
     def test_calculate_generalized_linear_model_factor_logit_link(self):
         """Test GLM calculation with logit link function."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         features = {"risk_score": 0.5}
         coefficients = {"intercept": 0.0, "risk_score": 2.0}
-        
+
         result = StatisticalRatingModels.calculate_generalized_linear_model_factor(
             features, coefficients, "logit"
         )
-        
+
         assert result.is_ok()
         factor = result.unwrap()
         assert 0.0 <= factor <= 1.0  # Logit produces probabilities
-        
+
         # Manual calculation: 1/(1 + exp(-(0 + 0.5*2))) = 1/(1 + exp(-1)) ≈ 0.731
         assert abs(factor - 0.731) < 0.01
 
     def test_calculate_generalized_linear_model_factor_validation(self):
         """Test GLM validation errors."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         # No features
         result = StatisticalRatingModels.calculate_generalized_linear_model_factor(
             {}, {"intercept": 1.0}, "log"
         )
         assert result.is_err()
         assert "Features are required" in result.unwrap_err()
-        
+
         # No coefficients
         result = StatisticalRatingModels.calculate_generalized_linear_model_factor(
             {"age": 30.0}, {}, "log"
         )
         assert result.is_err()
         assert "Coefficients are required" in result.unwrap_err()
-        
+
         # Invalid link function
         result = StatisticalRatingModels.calculate_generalized_linear_model_factor(
             {"age": 30.0}, {"intercept": 1.0}, "invalid"
@@ -792,21 +798,21 @@ class TestStatisticalRatingModels:
     def test_calculate_loss_cost_relativity_high_credibility(self):
         """Test loss cost relativity with high credibility."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         exposure_data = {"exposure_years": 100}
         loss_data = {
             "claim_count": 25,  # High credibility (25 > 16)
             "claim_amount": 150000,  # $150k total losses
             "manual_loss_cost": 100,  # $100 manual rate
         }
-        
+
         result = StatisticalRatingModels.calculate_loss_cost_relativity(
             exposure_data, loss_data
         )
-        
+
         assert result.is_ok()
         relativity = result.unwrap()
-        
+
         # Observed loss cost = 150000 / 100 = 1500
         # Credibility = sqrt(25/16) = 1.25, capped at 1.0
         # Relativity = 1.0 * (1500/100) + 0.0 * 1.0 = 15.0
@@ -816,28 +822,28 @@ class TestStatisticalRatingModels:
     def test_calculate_loss_cost_relativity_low_credibility(self):
         """Test loss cost relativity with low credibility."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         exposure_data = {"exposure_years": 10}
         loss_data = {
             "claim_count": 2,  # Low credibility
             "claim_amount": 50000,
             "manual_loss_cost": 100,
         }
-        
+
         result = StatisticalRatingModels.calculate_loss_cost_relativity(
             exposure_data, loss_data, credibility_threshold=0.5
         )
-        
+
         assert result.is_ok()
         relativity = result.unwrap()
-        
+
         # Low credibility should result in manual rate (1.0)
         assert relativity == 1.0
 
     def test_calculate_frequency_severity_model_success(self):
         """Test frequency/severity model calculation."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         driver_profile = {
             "age": 35,
             "prior_claims": 0,
@@ -851,20 +857,20 @@ class TestStatisticalRatingModels:
         territory_profile = {
             "urban": True,
         }
-        
+
         result = StatisticalRatingModels.calculate_frequency_severity_model(
             driver_profile, vehicle_profile, territory_profile
         )
-        
+
         assert result.is_ok()
         model_data = result.unwrap()
-        
+
         assert "frequency_factor" in model_data
         assert "severity_factor" in model_data
         assert "expected_claims" in model_data
         assert "expected_severity" in model_data
         assert "pure_premium_factor" in model_data
-        
+
         # All factors should be positive
         assert model_data["frequency_factor"] > 0
         assert model_data["severity_factor"] > 0
@@ -873,12 +879,12 @@ class TestStatisticalRatingModels:
     def test_calculate_catastrophe_loading_hurricane_zone(self):
         """Test catastrophe loading for hurricane zone."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         result = StatisticalRatingModels.calculate_catastrophe_loading(
             zip_code="33101",  # Miami, FL
             coverage_types=["comprehensive", "collision"],
         )
-        
+
         assert result.is_ok()
         loading = result.unwrap()
         assert loading == 1.15  # 15% hurricane loading
@@ -886,12 +892,12 @@ class TestStatisticalRatingModels:
     def test_calculate_catastrophe_loading_earthquake_zone(self):
         """Test catastrophe loading for earthquake zone."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         result = StatisticalRatingModels.calculate_catastrophe_loading(
             zip_code="90210",  # Beverly Hills, CA
             coverage_types=["comprehensive"],
         )
-        
+
         assert result.is_ok()
         loading = result.unwrap()
         assert loading == 1.08  # 8% earthquake loading
@@ -899,47 +905,48 @@ class TestStatisticalRatingModels:
     def test_calculate_catastrophe_loading_with_dwelling_credits(self):
         """Test catastrophe loading with dwelling characteristics."""
         from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
-        
+
         dwelling_chars = {
             "construction_type": "masonry",
             "roof_type": "impact_resistant",
         }
-        
+
         result = StatisticalRatingModels.calculate_catastrophe_loading(
             zip_code="33101",  # Hurricane zone
             coverage_types=["comprehensive"],
             dwelling_characteristics=dwelling_chars,
         )
-        
+
         assert result.is_ok()
         loading = result.unwrap()
-        
+
         # Base hurricane loading (1.15) * masonry credit (0.95) * impact roof credit (0.90)
         expected = 1.15 * 0.95 * 0.90
         assert abs(loading - expected) < 0.001
 
     def test_calculate_trend_factors_future_date(self):
         """Test trend factors for future policy date."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
         from datetime import datetime
-        
+
+        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+
         # Policy effective 1 year in the future
         policy_date = datetime(2025, 1, 1)
-        
+
         result = StatisticalRatingModels.calculate_trend_factors(
             policy_effective_date=policy_date,
             loss_trend_rate=0.05,
             expense_trend_rate=0.03,
         )
-        
+
         assert result.is_ok()
         trends = result.unwrap()
-        
+
         assert "loss_trend_factor" in trends
         assert "expense_trend_factor" in trends
         assert "composite_trend_factor" in trends
         assert "years_elapsed" in trends
-        
+
         # 1 year forward should be approximately base rates * (1 + trend)
         assert abs(trends["loss_trend_factor"] - 1.05) < 0.01
         assert abs(trends["expense_trend_factor"] - 1.03) < 0.01
@@ -951,31 +958,33 @@ class TestAdvancedPerformanceCalculator:
 
     def test_batch_calculate_factors(self):
         """Test batch factor calculation."""
-        from pd_prime_demo.services.rating.calculators import AdvancedPerformanceCalculator
-        
+        from pd_prime_demo.services.rating.calculators import (
+            AdvancedPerformanceCalculator,
+        )
+
         calculator = AdvancedPerformanceCalculator()
-        
+
         # Batch of calculation requests
         requests = [
             {"age": 25, "years_licensed": 5, "violations": 0},
             {"age": 45, "years_licensed": 20, "violations": 1},
             {"age": 18, "years_licensed": 1, "violations": 2},
         ]
-        
+
         result = calculator.batch_calculate_factors(requests)
-        
+
         assert result.is_ok()
         factors_list = result.unwrap()
-        
+
         assert len(factors_list) == 3
-        
+
         # Check each result has required factors
         for factors in factors_list:
             assert "age_factor" in factors
             assert "experience_factor" in factors
             assert "violation_factor" in factors
             assert "combined_factor" in factors
-            
+
             # All factors should be positive
             assert factors["age_factor"] > 0
             assert factors["experience_factor"] > 0
@@ -984,16 +993,20 @@ class TestAdvancedPerformanceCalculator:
 
     def test_lookup_factor_direct(self):
         """Test direct factor lookup."""
-        from pd_prime_demo.services.rating.calculators import AdvancedPerformanceCalculator
-        
+        from pd_prime_demo.services.rating.calculators import (
+            AdvancedPerformanceCalculator,
+        )
+
         calculator = AdvancedPerformanceCalculator()
-        
+
         # Initialize lookup tables
-        calculator.precompute_lookup_tables({
-            "age_factors": {},
-            "territory_factors": {},
-        })
-        
+        calculator.precompute_lookup_tables(
+            {
+                "age_factors": {},
+                "territory_factors": {},
+            }
+        )
+
         # Test age factor lookup
         result = calculator.lookup_factor("age_factors", 30)
         assert result.is_ok()
@@ -1002,17 +1015,19 @@ class TestAdvancedPerformanceCalculator:
 
     def test_lookup_factor_interpolation(self):
         """Test interpolated factor lookup."""
-        from pd_prime_demo.services.rating.calculators import AdvancedPerformanceCalculator
-        
+        from pd_prime_demo.services.rating.calculators import (
+            AdvancedPerformanceCalculator,
+        )
+
         calculator = AdvancedPerformanceCalculator()
-        
+
         # Create simple lookup table for testing
         calculator._lookup_tables["test_table"] = {
             10: 1.0,
             20: 2.0,
             30: 3.0,
         }
-        
+
         # Test interpolation
         result = calculator.lookup_factor("test_table", 25)
         assert result.is_ok()
@@ -1021,15 +1036,17 @@ class TestAdvancedPerformanceCalculator:
 
     def test_lookup_factor_errors(self):
         """Test lookup factor error handling."""
-        from pd_prime_demo.services.rating.calculators import AdvancedPerformanceCalculator
-        
+        from pd_prime_demo.services.rating.calculators import (
+            AdvancedPerformanceCalculator,
+        )
+
         calculator = AdvancedPerformanceCalculator()
-        
+
         # Table not found
         result = calculator.lookup_factor("nonexistent_table", 25)
         assert result.is_err()
         assert "not found" in result.unwrap_err()
-        
+
         # Key not found in table
         calculator._lookup_tables["empty_table"] = {}
         result = calculator.lookup_factor("empty_table", "missing_key")
@@ -1042,31 +1059,37 @@ class TestRegulatoryComplianceCalculator:
 
     def test_validate_rate_deviation_within_limits(self):
         """Test rate deviation validation within limits."""
-        from pd_prime_demo.services.rating.calculators import RegulatoryComplianceCalculator
         from decimal import Decimal
-        
+
+        from pd_prime_demo.services.rating.calculators import (
+            RegulatoryComplianceCalculator,
+        )
+
         result = RegulatoryComplianceCalculator.validate_rate_deviation(
             calculated_rate=Decimal("105.00"),
             filed_rate=Decimal("100.00"),
             state="CA",
             coverage_type="auto",
         )
-        
+
         assert result.is_ok()
         assert result.unwrap() is True
 
     def test_validate_rate_deviation_exceeds_limits(self):
         """Test rate deviation validation exceeding limits."""
-        from pd_prime_demo.services.rating.calculators import RegulatoryComplianceCalculator
         from decimal import Decimal
-        
+
+        from pd_prime_demo.services.rating.calculators import (
+            RegulatoryComplianceCalculator,
+        )
+
         result = RegulatoryComplianceCalculator.validate_rate_deviation(
             calculated_rate=Decimal("120.00"),
             filed_rate=Decimal("100.00"),
             state="CA",  # CA has 5% tolerance for auto
             coverage_type="auto",
         )
-        
+
         assert result.is_err()
         error = result.unwrap_err()
         assert "exceeds CA limit of 5.0%" in error
@@ -1074,31 +1097,36 @@ class TestRegulatoryComplianceCalculator:
 
     def test_validate_rate_deviation_invalid_filed_rate(self):
         """Test rate deviation with invalid filed rate."""
-        from pd_prime_demo.services.rating.calculators import RegulatoryComplianceCalculator
         from decimal import Decimal
-        
+
+        from pd_prime_demo.services.rating.calculators import (
+            RegulatoryComplianceCalculator,
+        )
+
         result = RegulatoryComplianceCalculator.validate_rate_deviation(
             calculated_rate=Decimal("100.00"),
             filed_rate=Decimal("0.00"),  # Invalid
             state="TX",
             coverage_type="auto",
         )
-        
+
         assert result.is_err()
         assert "Filed rate must be positive" in result.unwrap_err()
 
     def test_apply_mandatory_coverages_california(self):
         """Test mandatory coverage application for California."""
-        from pd_prime_demo.services.rating.calculators import RegulatoryComplianceCalculator
-        
+        from pd_prime_demo.services.rating.calculators import (
+            RegulatoryComplianceCalculator,
+        )
+
         result = RegulatoryComplianceCalculator.apply_mandatory_coverages(
             state="CA",
             selected_coverages=["collision", "comprehensive"],
         )
-        
+
         assert result.is_ok()
         coverages = result.unwrap()
-        
+
         # CA requires liability and uninsured motorist
         assert "liability" in coverages
         assert "uninsured_motorist" in coverages
@@ -1107,16 +1135,18 @@ class TestRegulatoryComplianceCalculator:
 
     def test_apply_mandatory_coverages_new_york(self):
         """Test mandatory coverage application for New York."""
-        from pd_prime_demo.services.rating.calculators import RegulatoryComplianceCalculator
-        
+        from pd_prime_demo.services.rating.calculators import (
+            RegulatoryComplianceCalculator,
+        )
+
         result = RegulatoryComplianceCalculator.apply_mandatory_coverages(
             state="NY",
             selected_coverages=["collision"],
         )
-        
+
         assert result.is_ok()
         coverages = result.unwrap()
-        
+
         # NY requires liability, uninsured motorist, and PIP
         assert "liability" in coverages
         assert "uninsured_motorist" in coverages

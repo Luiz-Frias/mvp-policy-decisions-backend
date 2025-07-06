@@ -125,3 +125,27 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
+
+  - repo: local
+    hooks:
+      - id: fast-tests
+        name: Run fast unit tests (marked not slow)
+        entry: bash -c 'pytest -q -m "not slow and not benchmark"'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+      - id: perf-bench-smoke
+        name: Run benchmark smoke suite
+        entry: bash -c 'pytest -q -m benchmark --benchmark-only --benchmark-min-time=0.01'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+
+  - repo: local
+    hooks:
+      - id: full-test-pre-push
+        name: Run full test + perf suite on pre-push
+        entry: bash -c 'pytest -q && pytest -q -m benchmark --benchmark-only'
+        language: system
+        pass_filenames: false
+        stages: [push]

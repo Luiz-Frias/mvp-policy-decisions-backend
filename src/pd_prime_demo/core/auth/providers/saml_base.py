@@ -3,7 +3,7 @@
 import base64
 import xml.etree.ElementTree as ET
 from typing import Any
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 from uuid import uuid4
 
 from beartype import beartype
@@ -28,7 +28,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         attribute_mappings: dict[str, str] | None = None,
     ) -> None:
         """Initialize enhanced SAML provider.
-        
+
         Args:
             client_id: Service provider entity ID
             client_secret: Not used for SAML
@@ -41,11 +41,16 @@ class EnhancedSAMLProvider(SAMLProvider):
             attribute_mappings: Mapping of SAML attributes to user fields
         """
         super().__init__(
-            client_id, client_secret, redirect_uri,
-            entity_id, sso_url, x509_cert, scopes
+            client_id,
+            client_secret,
+            redirect_uri,
+            entity_id,
+            sso_url,
+            x509_cert,
+            scopes,
         )
         self.sp_entity_id = sp_entity_id or client_id
-        
+
         # Default attribute mappings
         self.attribute_mappings = attribute_mappings or {
             "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "email",
@@ -69,12 +74,12 @@ class EnhancedSAMLProvider(SAMLProvider):
         **kwargs: Any,
     ) -> Result[str, str]:
         """Get SAML authorization URL (redirect to IdP).
-        
+
         Args:
             state: State parameter for CSRF protection (stored as RelayState)
             nonce: Not used in SAML
             **kwargs: Additional SAML parameters
-            
+
         Returns:
             Result containing SAML redirect URL or error
         """
@@ -83,27 +88,27 @@ class EnhancedSAMLProvider(SAMLProvider):
             saml_request_result = self.create_saml_request(state)
             if isinstance(saml_request_result, Err):
                 return saml_request_result
-                
+
             saml_request = saml_request_result.value
-            
+
             # Encode SAML request
             encoded_request = base64.b64encode(saml_request.encode()).decode()
-            
+
             # Build redirect URL
             params = {
                 "SAMLRequest": encoded_request,
                 "RelayState": state,
             }
-            
+
             # Add any additional parameters
             for key, value in kwargs.items():
                 if key not in params and value is not None:
                     params[key] = value
-            
+
             redirect_url = f"{self.sso_url}?{urlencode(params)}"
-            
+
             return Ok(redirect_url)
-            
+
         except Exception as e:
             return Err(f"Failed to create SAML authorization URL: {str(e)}")
 
@@ -114,11 +119,11 @@ class EnhancedSAMLProvider(SAMLProvider):
         state: str,  # RelayState
     ) -> Result[dict[str, Any], str]:
         """Process SAML response (no token exchange in SAML).
-        
+
         Args:
             code: Base64 encoded SAML response
             state: RelayState for validation
-            
+
         Returns:
             Result containing SAML assertion data or error
         """
@@ -127,17 +132,19 @@ class EnhancedSAMLProvider(SAMLProvider):
             response_result = await self.process_saml_response(code, state)
             if isinstance(response_result, Err):
                 return response_result
-                
+
             assertion_data = response_result.value
-            
+
             # SAML doesn't use tokens, return assertion data
-            return Ok({
-                "assertion": assertion_data,
-                "relay_state": state,
-                "token_type": "saml_assertion",
-                "expires_in": 3600,  # Default session timeout
-            })
-            
+            return Ok(
+                {
+                    "assertion": assertion_data,
+                    "relay_state": state,
+                    "token_type": "saml_assertion",
+                    "expires_in": 3600,  # Default session timeout
+                }
+            )
+
         except Exception as e:
             return Err(f"SAML response processing failed: {str(e)}")
 
@@ -147,20 +154,21 @@ class EnhancedSAMLProvider(SAMLProvider):
         access_token: str,  # SAML assertion data as JSON string
     ) -> Result[SSOUserInfo, str]:
         """Extract user information from SAML assertion.
-        
+
         Args:
             access_token: SAML assertion data (JSON string)
-            
+
         Returns:
             Result containing user info or error
         """
         try:
             import json
+
             assertion_data = json.loads(access_token)
-            
+
             # Extract user attributes from assertion
             attributes = assertion_data.get("attributes", {})
-            
+
             # Map SAML attributes to user fields
             user_data = {}
             for saml_attr, user_field in self.attribute_mappings.items():
@@ -170,18 +178,18 @@ class EnhancedSAMLProvider(SAMLProvider):
                     if isinstance(value, list) and len(value) == 1:
                         value = value[0]
                     user_data[user_field] = value
-            
+
             # Extract required fields
             email = user_data.get("email", "")
             sub = user_data.get("sub") or assertion_data.get("name_id", "")
-            
+
             if not email or not sub:
                 return Err(
                     "Missing required user information in SAML assertion. "
                     f"Email: {bool(email)}, Subject: {bool(sub)}. "
                     f"Available attributes: {list(attributes.keys())}"
                 )
-            
+
             # Handle groups
             groups = user_data.get("groups", [])
             if isinstance(groups, str):
@@ -189,7 +197,7 @@ class EnhancedSAMLProvider(SAMLProvider):
                 groups = [groups]
             elif not isinstance(groups, list):
                 groups = []
-            
+
             return Ok(
                 SSOUserInfo(
                     sub=sub,
@@ -204,7 +212,7 @@ class EnhancedSAMLProvider(SAMLProvider):
                     raw_claims=assertion_data,
                 )
             )
-            
+
         except json.JSONDecodeError:
             return Err("Invalid SAML assertion data format")
         except Exception as e:
@@ -234,20 +242,20 @@ class EnhancedSAMLProvider(SAMLProvider):
         relay_state: str | None = None,
     ) -> Result[str, str]:
         """Create SAML authentication request.
-        
+
         Args:
             relay_state: Optional relay state parameter
-            
+
         Returns:
             Result containing SAML request XML or error
         """
         try:
             request_id = f"_saml_request_{uuid4().hex}"
             issue_instant = self._get_current_timestamp()
-            
+
             # Create basic SAML AuthnRequest
             saml_request = f"""<?xml version="1.0" encoding="UTF-8"?>
-<samlp:AuthnRequest 
+<samlp:AuthnRequest
     xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
     xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
     ID="{request_id}"
@@ -257,13 +265,13 @@ class EnhancedSAMLProvider(SAMLProvider):
     AssertionConsumerServiceURL="{self.redirect_uri}"
     ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">
     <saml:Issuer>{self.sp_entity_id}</saml:Issuer>
-    <samlp:NameIDPolicy 
+    <samlp:NameIDPolicy
         Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
         AllowCreate="true" />
 </samlp:AuthnRequest>"""
-            
+
             return Ok(saml_request)
-            
+
         except Exception as e:
             return Err(f"Failed to create SAML request: {str(e)}")
 
@@ -274,11 +282,11 @@ class EnhancedSAMLProvider(SAMLProvider):
         relay_state: str | None = None,
     ) -> Result[dict[str, Any], str]:
         """Process SAML response and extract attributes.
-        
+
         Args:
             saml_response: Base64 encoded SAML response
             relay_state: Optional relay state for validation
-            
+
         Returns:
             Result containing user attributes or error
         """
@@ -288,52 +296,66 @@ class EnhancedSAMLProvider(SAMLProvider):
                 decoded_response = base64.b64decode(saml_response).decode()
             except Exception:
                 return Err("Invalid SAML response encoding")
-            
+
             # Parse XML
             try:
                 root = ET.fromstring(decoded_response)
             except ET.ParseError as e:
                 return Err(f"Invalid SAML response XML: {str(e)}")
-            
+
             # Basic validation - in production, use python3-saml for proper validation
             # This is a simplified implementation for demonstration
-            
+
             # Extract assertions
-            assertions = root.findall(".//{urn:oasis:names:tc:SAML:2.0:assertion}Assertion")
+            assertions = root.findall(
+                ".//{urn:oasis:names:tc:SAML:2.0:assertion}Assertion"
+            )
             if not assertions:
                 return Err("No assertions found in SAML response")
-            
+
             assertion = assertions[0]
-            
+
             # Extract NameID
-            name_id_elem = assertion.find(".//{urn:oasis:names:tc:SAML:2.0:assertion}NameID")
+            name_id_elem = assertion.find(
+                ".//{urn:oasis:names:tc:SAML:2.0:assertion}NameID"
+            )
             name_id = name_id_elem.text if name_id_elem is not None else ""
-            
+
             # Extract attributes
             attributes = {}
-            attr_statements = assertion.findall(".//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeStatement")
-            
+            attr_statements = assertion.findall(
+                ".//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeStatement"
+            )
+
             for attr_statement in attr_statements:
-                attrs = attr_statement.findall(".//{urn:oasis:names:tc:SAML:2.0:assertion}Attribute")
+                attrs = attr_statement.findall(
+                    ".//{urn:oasis:names:tc:SAML:2.0:assertion}Attribute"
+                )
                 for attr in attrs:
                     attr_name = attr.get("Name", "")
                     attr_values = []
-                    
-                    value_elems = attr.findall(".//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeValue")
+
+                    value_elems = attr.findall(
+                        ".//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeValue"
+                    )
                     for value_elem in value_elems:
                         if value_elem.text:
                             attr_values.append(value_elem.text)
-                    
+
                     if attr_values:
-                        attributes[attr_name] = attr_values if len(attr_values) > 1 else attr_values[0]
-            
-            return Ok({
-                "name_id": name_id,
-                "attributes": attributes,
-                "relay_state": relay_state,
-                "raw_response": decoded_response,
-            })
-            
+                        attributes[attr_name] = (
+                            attr_values if len(attr_values) > 1 else attr_values[0]
+                        )
+
+            return Ok(
+                {
+                    "name_id": name_id,
+                    "attributes": attributes,
+                    "relay_state": relay_state,
+                    "raw_response": decoded_response,
+                }
+            )
+
         except Exception as e:
             return Err(f"SAML response processing failed: {str(e)}")
 
@@ -341,37 +363,38 @@ class EnhancedSAMLProvider(SAMLProvider):
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in ISO format for SAML."""
         from datetime import datetime
+
         return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @beartype
     async def get_metadata(self) -> Result[str, str]:
         """Generate service provider metadata.
-        
+
         Returns:
             Result containing SP metadata XML or error
         """
         try:
             metadata = f"""<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor 
+<md:EntityDescriptor
     xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
     xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
     entityID="{self.sp_entity_id}">
-    
-    <md:SPSSODescriptor 
+
+    <md:SPSSODescriptor
         protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-        
+
         <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
-        
-        <md:AssertionConsumerService 
+
+        <md:AssertionConsumerService
             Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
             Location="{self.redirect_uri}"
             index="0" />
-            
+
     </md:SPSSODescriptor>
 </md:EntityDescriptor>"""
-            
+
             return Ok(metadata)
-            
+
         except Exception as e:
             return Err(f"Failed to generate SP metadata: {str(e)}")
 
@@ -381,13 +404,13 @@ class EnhancedSAMLProvider(SAMLProvider):
         saml_response: str,
     ) -> Result[bool, str]:
         """Validate SAML response signature.
-        
+
         Note: This is a simplified implementation.
         In production, use python3-saml for proper signature validation.
-        
+
         Args:
             saml_response: SAML response XML
-            
+
         Returns:
             Result indicating signature validity or error
         """
@@ -395,24 +418,24 @@ class EnhancedSAMLProvider(SAMLProvider):
             # This is a placeholder implementation
             # In production, implement proper XML signature validation
             # using the IdP's certificate
-            
+
             if not self.x509_cert:
                 return Err("No certificate configured for signature validation")
-            
+
             # Basic check for signature element presence
             if "<ds:Signature" in saml_response:
                 # In real implementation, validate using cryptography library
                 return Ok(True)
             else:
                 return Ok(False)  # No signature present
-                
+
         except Exception as e:
             return Err(f"Signature validation failed: {str(e)}")
 
 
 class OktaSAMLProvider(EnhancedSAMLProvider):
     """Okta-specific SAML provider implementation."""
-    
+
     def __init__(
         self,
         client_id: str,
@@ -424,7 +447,7 @@ class OktaSAMLProvider(EnhancedSAMLProvider):
         **kwargs: Any,
     ) -> None:
         """Initialize Okta SAML provider.
-        
+
         Args:
             client_id: Service provider entity ID
             client_secret: Not used for SAML
@@ -436,10 +459,10 @@ class OktaSAMLProvider(EnhancedSAMLProvider):
         """
         # Clean domain
         okta_domain = okta_domain.replace("https://", "").replace("http://", "")
-        
+
         entity_id = f"http://www.okta.com/{app_id}"
         sso_url = f"https://{okta_domain}/app/{app_id}/sso/saml"
-        
+
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,
@@ -447,9 +470,9 @@ class OktaSAMLProvider(EnhancedSAMLProvider):
             entity_id=entity_id,
             sso_url=sso_url,
             x509_cert=x509_cert,
-            **kwargs
+            **kwargs,
         )
-        
+
         self.okta_domain = okta_domain
         self.app_id = app_id
 
@@ -461,7 +484,7 @@ class OktaSAMLProvider(EnhancedSAMLProvider):
 
 class AzureADSAMLProvider(EnhancedSAMLProvider):
     """Azure AD-specific SAML provider implementation."""
-    
+
     def __init__(
         self,
         client_id: str,
@@ -473,7 +496,7 @@ class AzureADSAMLProvider(EnhancedSAMLProvider):
         **kwargs: Any,
     ) -> None:
         """Initialize Azure AD SAML provider.
-        
+
         Args:
             client_id: Service provider entity ID
             client_secret: Not used for SAML
@@ -485,7 +508,7 @@ class AzureADSAMLProvider(EnhancedSAMLProvider):
         """
         entity_id = f"https://sts.windows.net/{tenant_id}/"
         sso_url = f"https://login.microsoftonline.com/{tenant_id}/saml2"
-        
+
         # Azure AD attribute mappings
         azure_mappings = {
             "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "email",
@@ -496,7 +519,7 @@ class AzureADSAMLProvider(EnhancedSAMLProvider):
             "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups": "groups",
             "http://schemas.microsoft.com/identity/claims/tenantid": "tenant_id",
         }
-        
+
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,
@@ -505,9 +528,9 @@ class AzureADSAMLProvider(EnhancedSAMLProvider):
             sso_url=sso_url,
             x509_cert=x509_cert,
             attribute_mappings=azure_mappings,
-            **kwargs
+            **kwargs,
         )
-        
+
         self.tenant_id = tenant_id
         self.app_id = app_id
 

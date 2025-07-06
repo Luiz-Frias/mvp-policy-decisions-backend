@@ -88,7 +88,7 @@ class QuoteModel(BaseModelConfig):
         str_strip_whitespace=True,
         validate_default=True
     )
-    
+
     quote_id: str = Field(..., min_length=1, max_length=50)
     premium: Decimal = Field(..., ge=0, decimal_places=2)
 
@@ -382,7 +382,7 @@ def get_quote_premium(quote_id: str) -> Decimal:
 def get_quote_premium(quote_id: str) -> Result[Decimal, str]:
     if not self._rating_engine:
         return Err("Rating engine not available")
-    
+
     return self._rating_engine.calculate_premium(quote_id)
 ```
 

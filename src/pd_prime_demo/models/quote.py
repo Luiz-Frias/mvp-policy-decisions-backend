@@ -1,21 +1,21 @@
 """Quote domain models with full production features."""
 
-from datetime import datetime, date, timedelta
+import re
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, List, Dict, Any
-from uuid import UUID
-import re
+from typing import Any
 
 from beartype import beartype
-from pydantic import Field, field_validator, computed_field, model_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic.types import UUID4
 
-from .base import BaseModelConfig, TimestampedModel, IdentifiableModel
+from .base import BaseModelConfig, IdentifiableModel, TimestampedModel
 
 
 class QuoteStatus(str, Enum):
     """Quote lifecycle statuses with business rules."""
+
     DRAFT = "draft"
     CALCULATING = "calculating"
     QUOTED = "quoted"
@@ -27,33 +27,35 @@ class QuoteStatus(str, Enum):
 
 class CoverageType(str, Enum):
     """Types of coverage available for auto insurance."""
+
     # Standard liability coverages
     BODILY_INJURY = "bodily_injury"
     PROPERTY_DAMAGE = "property_damage"
-    
+
     # Physical damage coverages
     COLLISION = "collision"
     COMPREHENSIVE = "comprehensive"
-    
+
     # Medical and PIP coverages
     MEDICAL = "medical"
     PERSONAL_INJURY_PROTECTION = "personal_injury_protection"
-    
+
     # Uninsured/Underinsured motorist
     UNINSURED_MOTORIST = "uninsured_motorist"
     UNDERINSURED_MOTORIST = "underinsured_motorist"
-    
+
     # Additional coverages
     RENTAL = "rental"
     ROADSIDE = "roadside"
     GAP = "gap"
-    
+
     # Legacy support
     LIABILITY = "liability"  # Can map to bodily_injury for backward compatibility
 
 
 class ProductType(str, Enum):
     """Insurance product types supported by the platform."""
+
     AUTO = "auto"
     HOME = "home"
     COMMERCIAL = "commercial"
@@ -61,6 +63,7 @@ class ProductType(str, Enum):
 
 class ContactMethod(str, Enum):
     """Contact method preferences."""
+
     EMAIL = "email"
     PHONE = "phone"
     TEXT = "text"
@@ -68,6 +71,7 @@ class ContactMethod(str, Enum):
 
 class VehicleType(str, Enum):
     """Vehicle body types for classification."""
+
     SEDAN = "sedan"
     COUPE = "coupe"
     SUV = "suv"
@@ -80,6 +84,7 @@ class VehicleType(str, Enum):
 
 class DriverRelationship(str, Enum):
     """Driver relationship to policyholder."""
+
     SELF = "self"
     SPOUSE = "spouse"
     CHILD = "child"
@@ -89,6 +94,7 @@ class DriverRelationship(str, Enum):
 
 class DiscountType(str, Enum):
     """Available discount types with business justification."""
+
     MULTI_POLICY = "multi_policy"
     SAFE_DRIVER = "safe_driver"
     GOOD_STUDENT = "good_student"
@@ -104,13 +110,13 @@ class DiscountType(str, Enum):
 def char_to_num(ch: str) -> int:
     """Convert VIN characters to numeric values for checksum calculation per ISO 3779."""
     n = ord(ch)
-    if n <= ord('9'):  # digits
-        return n - ord('0')
-    if n < ord('I'):  # A-H
-        return n - ord('A') + 1
-    if n <= ord('R'):  # J-R (I is excluded)
-        return n - ord('J') + 1
-    return n - ord('S') + 2  # S-Z
+    if n <= ord("9"):  # digits
+        return n - ord("0")
+    if n < ord("I"):  # A-H
+        return n - ord("A") + 1
+    if n <= ord("R"):  # J-R (I is excluded)
+        return n - ord("J") + 1
+    return n - ord("S") + 2  # S-Z
 
 
 @beartype
@@ -121,7 +127,7 @@ def calculate_vin_checksum(vin: str) -> str:
     for i, c in enumerate(vin):
         total += char_to_num(c) * weights[i]
     checksum_value = total % 11
-    return 'X' if checksum_value == 10 else str(checksum_value)
+    return "X" if checksum_value == 10 else str(checksum_value)
 
 
 @beartype
@@ -140,106 +146,99 @@ class VehicleInfo(BaseModelConfig):
         ...,
         min_length=17,
         max_length=17,
-        pattern=r'^[A-HJ-NPR-Z0-9]{17}$',
-        description="Vehicle Identification Number (17 characters, no I/O/Q)"
+        pattern=r"^[A-HJ-NPR-Z0-9]{17}$",
+        description="Vehicle Identification Number (17 characters, no I/O/Q)",
     )
     year: int = Field(
         ...,
         ge=1900,
         le=datetime.now().year + 1,
-        description="Vehicle model year must be between 1900 and next year"
+        description="Vehicle model year must be between 1900 and next year",
     )
     make: str = Field(
         ...,
         min_length=1,
         max_length=50,
-        description="Vehicle manufacturer (e.g., Toyota, Ford)"
+        description="Vehicle manufacturer (e.g., Toyota, Ford)",
     )
     model: str = Field(
         ...,
         min_length=1,
         max_length=50,
-        description="Vehicle model (e.g., Camry, F-150)"
+        description="Vehicle model (e.g., Camry, F-150)",
     )
-    trim: Optional[str] = Field(
-        None,
-        max_length=50,
-        description="Vehicle trim level (e.g., LX, EX-L)"
+    trim: str | None = Field(
+        None, max_length=50, description="Vehicle trim level (e.g., LX, EX-L)"
     )
-    body_style: Optional[str] = Field(
+    body_style: str | None = Field(
         None,
         max_length=30,
-        pattern=r'^(sedan|coupe|suv|truck|van|wagon|convertible|hatchback)$',
-        description="Vehicle body style"
+        pattern=r"^(sedan|coupe|suv|truck|van|wagon|convertible|hatchback)$",
+        description="Vehicle body style",
     )
-    engine: Optional[str] = Field(
-        None,
-        max_length=50,
-        description="Engine description (e.g., 2.5L 4-cylinder)"
+    engine: str | None = Field(
+        None, max_length=50, description="Engine description (e.g., 2.5L 4-cylinder)"
     )
 
     # Usage info
     primary_use: str = Field(
         ...,
-        pattern=r'^(commute|pleasure|business)$',
-        description="Primary use: commute, pleasure, or business per insurance classification"
+        pattern=r"^(commute|pleasure|business)$",
+        description="Primary use: commute, pleasure, or business per insurance classification",
     )
     annual_mileage: int = Field(
         ...,
         ge=0,
         le=200000,
-        description="Annual mileage must be between 0 and 200,000 miles"
+        description="Annual mileage must be between 0 and 200,000 miles",
     )
     garage_zip: str = Field(
         ...,
-        pattern=r'^\d{5}(-\d{4})?$',
-        description="ZIP code where vehicle is garaged (5 or 9 digits)"
+        pattern=r"^\d{5}(-\d{4})?$",
+        description="ZIP code where vehicle is garaged (5 or 9 digits)",
     )
     garage_type: str = Field(
         default="garage",
-        pattern=r'^(garage|carport|street|driveway)$',
-        description="Where vehicle is typically parked per risk assessment"
+        pattern=r"^(garage|carport|street|driveway)$",
+        description="Where vehicle is typically parked per risk assessment",
     )
 
     # Safety features for discounts
-    safety_features: List[str] = Field(
+    safety_features: list[str] = Field(
         default_factory=list,
-        description="Safety features that may qualify for discounts"
+        description="Safety features that may qualify for discounts",
     )
     anti_theft: bool = Field(
-        default=False,
-        description="Vehicle has anti-theft device per discount rules"
+        default=False, description="Vehicle has anti-theft device per discount rules"
     )
 
     # Ownership
     owned: bool = Field(
         default=True,
-        description="True if owned, False if leased per business rule VEH-001"
+        description="True if owned, False if leased per business rule VEH-001",
     )
-    lease_company: Optional[str] = Field(
-        None,
-        max_length=100,
-        description="Leasing company name if vehicle is leased"
+    lease_company: str | None = Field(
+        None, max_length=100, description="Leasing company name if vehicle is leased"
     )
 
-    @field_validator('vin')
+    @field_validator("vin")
     @classmethod
     def validate_vin(cls, v: str) -> str:
         """Validate VIN format and checksum per ISO 3779."""
         # Normalize to uppercase
         vin = v.upper()
-        
+
         # Check for invalid characters
-        if re.search(r'[IOQ]', vin):
+        if re.search(r"[IOQ]", vin):
             raise ValueError("VIN cannot contain letters I, O, or Q")
-        
+
         # Validate checksum
         if not is_valid_vin_checksum(vin):
             raise ValueError(f"Invalid VIN checksum for: {vin}")
-        
+
         return vin
 
-    @field_validator('year')
+    @field_validator("year")
     @classmethod
     def validate_year(cls, v: int) -> int:
         """Ensure vehicle year is within insurable range."""
@@ -254,9 +253,9 @@ class VehicleInfo(BaseModelConfig):
             pass
         return v
 
-    @field_validator('safety_features')
+    @field_validator("safety_features")
     @classmethod
-    def validate_safety_features(cls, v: List[str]) -> List[str]:
+    def validate_safety_features(cls, v: list[str]) -> list[str]:
         """Ensure safety features are valid and unique."""
         # Remove duplicates while preserving order
         seen = set()
@@ -268,8 +267,8 @@ class VehicleInfo(BaseModelConfig):
                 unique_features.append(feature.strip())
         return unique_features
 
-    @model_validator(mode='after')
-    def validate_lease_consistency(self) -> 'VehicleInfo':
+    @model_validator(mode="after")
+    def validate_lease_consistency(self) -> "VehicleInfo":
         """Ensure lease information is consistent."""
         if not self.owned and not self.lease_company:
             raise ValueError("Lease company must be specified for leased vehicles")
@@ -280,12 +279,57 @@ class VehicleInfo(BaseModelConfig):
 
 # Valid US state codes for validation
 VALID_US_STATE_CODES = {
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-    'DC'  # Washington D.C.
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
+    "DC",  # Washington D.C.
 }
 
 
@@ -299,42 +343,41 @@ class DriverInfo(BaseModelConfig):
         min_length=1,
         max_length=100,
         pattern=r"^[a-zA-Z\s\-'\.]+$",
-        description="First name with letters, spaces, hyphens, apostrophes only"
+        description="First name with letters, spaces, hyphens, apostrophes only",
     )
     last_name: str = Field(
         ...,
         min_length=1,
         max_length=100,
         pattern=r"^[a-zA-Z\s\-'\.]+$",
-        description="Last name with letters, spaces, hyphens, apostrophes only"
+        description="Last name with letters, spaces, hyphens, apostrophes only",
     )
-    middle_initial: Optional[str] = Field(
+    middle_initial: str | None = Field(
         None,
         max_length=1,
-        pattern=r'^[A-Z]$',
-        description="Single uppercase letter for middle initial"
+        pattern=r"^[A-Z]$",
+        description="Single uppercase letter for middle initial",
     )
-    suffix: Optional[str] = Field(
+    suffix: str | None = Field(
         None,
         max_length=10,
-        pattern=r'^(Jr|Sr|III|IV|V|Jr\.|Sr\.)$',
-        description="Name suffix (Jr, Sr, III, etc.)"
+        pattern=r"^(Jr|Sr|III|IV|V|Jr\.|Sr\.)$",
+        description="Name suffix (Jr, Sr, III, etc.)",
     )
 
     # Demographics
     date_of_birth: date = Field(
-        ...,
-        description="Driver's date of birth for age validation"
+        ..., description="Driver's date of birth for age validation"
     )
     gender: str = Field(
         ...,
-        pattern=r'^(M|F|X)$',
-        description="Gender: M (Male), F (Female), X (Non-binary)"
+        pattern=r"^(M|F|X)$",
+        description="Gender: M (Male), F (Female), X (Non-binary)",
     )
     marital_status: str = Field(
         ...,
-        pattern=r'^(single|married|divorced|widowed)$',
-        description="Marital status affects risk rating per actuarial tables"
+        pattern=r"^(single|married|divorced|widowed)$",
+        description="Marital status affects risk rating per actuarial tables",
     )
 
     # License info
@@ -342,22 +385,21 @@ class DriverInfo(BaseModelConfig):
         ...,
         min_length=5,
         max_length=20,
-        pattern=r'^[A-Z0-9\-]+$',
-        description="Driver's license number (alphanumeric with hyphens)"
+        pattern=r"^[A-Z0-9\-]+$",
+        description="Driver's license number (alphanumeric with hyphens)",
     )
     license_state: str = Field(
         ...,
-        pattern=r'^[A-Z]{2}$',
-        description="Two-letter US state code where license was issued"
+        pattern=r"^[A-Z]{2}$",
+        description="Two-letter US state code where license was issued",
     )
     license_status: str = Field(
         default="valid",
-        pattern=r'^(valid|suspended|expired|restricted)$',
-        description="Current license status per DMV records"
+        pattern=r"^(valid|suspended|expired|restricted)$",
+        description="Current license status per DMV records",
     )
     first_licensed_date: date = Field(
-        ...,
-        description="Date when driver was first licensed"
+        ..., description="Date when driver was first licensed"
     )
 
     # Driving history
@@ -365,70 +407,72 @@ class DriverInfo(BaseModelConfig):
         default=0,
         ge=0,
         le=10,
-        description="Number of at-fault accidents in past 3 years (max 10)"
+        description="Number of at-fault accidents in past 3 years (max 10)",
     )
     violations_3_years: int = Field(
         default=0,
         ge=0,
         le=10,
-        description="Number of moving violations in past 3 years (max 10)"
+        description="Number of moving violations in past 3 years (max 10)",
     )
     dui_convictions: int = Field(
         default=0,
         ge=0,
         le=5,
-        description="Number of DUI convictions (max 5 for insurability)"
+        description="Number of DUI convictions (max 5 for insurability)",
     )
     claims_3_years: int = Field(
         default=0,
         ge=0,
         le=10,
-        description="Number of insurance claims in past 3 years (max 10)"
+        description="Number of insurance claims in past 3 years (max 10)",
     )
 
     # Education/occupation for discounts
-    education_level: Optional[str] = Field(
+    education_level: str | None = Field(
         None,
-        pattern=r'^(high_school|some_college|bachelors|masters|doctorate)$',
-        description="Education level for potential discounts"
+        pattern=r"^(high_school|some_college|bachelors|masters|doctorate)$",
+        description="Education level for potential discounts",
     )
-    occupation: Optional[str] = Field(
+    occupation: str | None = Field(
         None,
         max_length=100,
-        description="Occupation may affect risk rating and discounts"
+        description="Occupation may affect risk rating and discounts",
     )
     good_student: bool = Field(
         default=False,
-        description="Qualifies for good student discount (GPA 3.0+ or Dean's List)"
+        description="Qualifies for good student discount (GPA 3.0+ or Dean's List)",
     )
 
     # Relationship to policyholder
     relationship: str = Field(
         default="self",
-        pattern=r'^(self|spouse|child|parent|other)$',
-        description="Relationship to primary policyholder"
+        pattern=r"^(self|spouse|child|parent|other)$",
+        description="Relationship to primary policyholder",
     )
 
-    @field_validator('date_of_birth')
+    @field_validator("date_of_birth")
     @classmethod
     def validate_driver_age(cls, v: date) -> date:
         """Validate driver meets minimum age requirements per state laws."""
         today = datetime.now().date()
         age_years = (today - v).days / 365.25
-        
+
         if age_years < 16:
-            raise ValueError("Driver must be at least 16 years old per minimum driving age")
+            raise ValueError(
+                "Driver must be at least 16 years old per minimum driving age"
+            )
         if age_years > 100:
             raise ValueError("Driver age exceeds maximum insurable age of 100")
-        
+
         # Business rule: drivers 16-18 may have restrictions
         if age_years < 18:
             # Note: State-specific rules would apply here
             pass
-            
+
         return v
 
-    @field_validator('license_state')
+    @field_validator("license_state")
     @classmethod
     def validate_license_state(cls, v: str) -> str:
         """Validate state code against known US states."""
@@ -436,23 +480,23 @@ class DriverInfo(BaseModelConfig):
             raise ValueError(f"Invalid US state code: {v}")
         return v
 
-    @field_validator('first_licensed_date')
+    @field_validator("first_licensed_date")
     @classmethod
     def validate_first_licensed_date(cls, v: date) -> date:
         """Ensure first licensed date is reasonable."""
         today = datetime.now().date()
-        
+
         if v > today:
             raise ValueError("First licensed date cannot be in the future")
-        
+
         # Can't be licensed more than 84 years ago (16 + 100 max age)
-        max_years_ago = today - timedelta(days=84*365)
+        max_years_ago = today - timedelta(days=84 * 365)
         if v < max_years_ago:
             raise ValueError("First licensed date is too far in the past")
-        
+
         return v
 
-    @field_validator('good_student')
+    @field_validator("good_student")
     @classmethod
     def validate_good_student(cls, v: bool) -> bool:
         """Validate good student eligibility."""
@@ -466,7 +510,7 @@ class DriverInfo(BaseModelConfig):
     @property
     def years_licensed(self) -> int:
         """Calculate years of driving experience."""
-        if hasattr(self, 'first_licensed_date'):
+        if hasattr(self, "first_licensed_date"):
             years = (datetime.now().date() - self.first_licensed_date).days / 365.25
             return max(0, int(years))
         return 0
@@ -475,28 +519,30 @@ class DriverInfo(BaseModelConfig):
     @property
     def age(self) -> int:
         """Calculate current age in years."""
-        if hasattr(self, 'date_of_birth'):
+        if hasattr(self, "date_of_birth"):
             years = (datetime.now().date() - self.date_of_birth).days / 365.25
             return max(0, int(years))
         return 0
 
-    @model_validator(mode='after')
-    def validate_driver_consistency(self) -> 'DriverInfo':
+    @model_validator(mode="after")
+    def validate_driver_consistency(self) -> "DriverInfo":
         """Ensure driver information is internally consistent."""
         # First licensed date must be after birth date + 16 years
-        min_license_date = self.date_of_birth + timedelta(days=16*365)
+        min_license_date = self.date_of_birth + timedelta(days=16 * 365)
         if self.first_licensed_date < min_license_date:
             raise ValueError("Driver cannot be licensed before age 16")
-        
+
         # Good student discount age validation
         if self.good_student and self.age > 25:
-            raise ValueError("Good student discount only available for drivers 25 and under")
-        
+            raise ValueError(
+                "Good student discount only available for drivers 25 and under"
+            )
+
         # DUI affects license status
         if self.dui_convictions > 0 and self.license_status == "valid":
             # Note: This might require additional validation based on state laws
             pass
-        
+
         return self
 
 
@@ -505,37 +551,35 @@ class CoverageSelection(BaseModelConfig):
     """Individual coverage selection with limits and validation."""
 
     coverage_type: CoverageType = Field(
-        ...,
-        description="Type of coverage being selected"
+        ..., description="Type of coverage being selected"
     )
     limit: Decimal = Field(
         ...,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Coverage limit amount in dollars"
+        description="Coverage limit amount in dollars",
     )
-    deductible: Optional[Decimal] = Field(
+    deductible: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Deductible amount for this coverage (if applicable)"
+        description="Deductible amount for this coverage (if applicable)",
     )
 
     # Calculated premium for this coverage
-    premium: Optional[Decimal] = Field(
+    premium: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Calculated premium for this specific coverage"
+        description="Calculated premium for this specific coverage",
     )
 
     # Additional options
-    options: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional coverage-specific options"
+    options: dict[str, Any] = Field(
+        default_factory=dict, description="Additional coverage-specific options"
     )
 
-    @field_validator('limit')
+    @field_validator("limit")
     @classmethod
     def validate_coverage_limit(cls, v: Decimal) -> Decimal:
         """Validate coverage limits based on coverage type."""
@@ -543,25 +587,27 @@ class CoverageSelection(BaseModelConfig):
         # Moving validation to model_validator
         return v
 
-    @model_validator(mode='after')
-    def validate_deductible_requirement(self) -> 'CoverageSelection':
+    @model_validator(mode="after")
+    def validate_deductible_requirement(self) -> "CoverageSelection":
         """Ensure deductible is provided where required and validate limits."""
         # Validate coverage limits based on coverage type
         min_limits = {
-            CoverageType.LIABILITY: Decimal('15000'),  # State minimum
-            CoverageType.COLLISION: Decimal('0'),      # Can be zero (declined)
-            CoverageType.COMPREHENSIVE: Decimal('0'),   # Can be zero (declined)
-            CoverageType.MEDICAL: Decimal('1000'),     # Minimum if selected
-            CoverageType.UNINSURED_MOTORIST: Decimal('15000'),
-            CoverageType.RENTAL: Decimal('0'),
-            CoverageType.ROADSIDE: Decimal('0')
+            CoverageType.LIABILITY: Decimal("15000"),  # State minimum
+            CoverageType.COLLISION: Decimal("0"),  # Can be zero (declined)
+            CoverageType.COMPREHENSIVE: Decimal("0"),  # Can be zero (declined)
+            CoverageType.MEDICAL: Decimal("1000"),  # Minimum if selected
+            CoverageType.UNINSURED_MOTORIST: Decimal("15000"),
+            CoverageType.RENTAL: Decimal("0"),
+            CoverageType.ROADSIDE: Decimal("0"),
         }
-        
+
         if self.limit > 0:  # If coverage is selected (not zero)
-            min_limit = min_limits.get(self.coverage_type, Decimal('0'))
+            min_limit = min_limits.get(self.coverage_type, Decimal("0"))
             if self.limit < min_limit:
-                raise ValueError(f"Minimum limit for {self.coverage_type} is ${min_limit}")
-        
+                raise ValueError(
+                    f"Minimum limit for {self.coverage_type} is ${min_limit}"
+                )
+
         # Collision and Comprehensive require deductibles
         if self.coverage_type in [CoverageType.COLLISION, CoverageType.COMPREHENSIVE]:
             if self.limit > 0 and self.deductible is None:
@@ -574,40 +620,34 @@ class Discount(BaseModelConfig):
     """Applied discount details with validation."""
 
     discount_type: DiscountType = Field(
-        ...,
-        description="Type of discount being applied"
+        ..., description="Type of discount being applied"
     )
     description: str = Field(
         ...,
         min_length=1,
         max_length=200,
-        description="Human-readable description of the discount"
+        description="Human-readable description of the discount",
     )
     amount: Decimal = Field(
-        ...,
-        decimal_places=2,
-        description="Discount amount (negative for discounts)"
+        ..., decimal_places=2, description="Discount amount (negative for discounts)"
     )
-    percentage: Optional[Decimal] = Field(
+    percentage: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
-        le=Decimal('100'),
+        ge=Decimal("0"),
+        le=Decimal("100"),
         decimal_places=2,
-        description="Discount percentage if percentage-based"
+        description="Discount percentage if percentage-based",
     )
 
     # Validation
     eligible: bool = Field(
-        default=True,
-        description="Whether customer is eligible for this discount"
+        default=True, description="Whether customer is eligible for this discount"
     )
-    validation_notes: Optional[str] = Field(
-        None,
-        max_length=500,
-        description="Notes about eligibility validation"
+    validation_notes: str | None = Field(
+        None, max_length=500, description="Notes about eligibility validation"
     )
 
-    @field_validator('amount')
+    @field_validator("amount")
     @classmethod
     def validate_discount_amount(cls, v: Decimal) -> Decimal:
         """Ensure discount amounts are negative values."""
@@ -622,72 +662,61 @@ class QuoteBase(BaseModelConfig):
 
     # Customer info
     customer_id: UUID4 = Field(
-        ...,
-        description="UUID of the customer requesting the quote"
+        ..., description="UUID of the customer requesting the quote"
     )
 
     # Quote basics
     product_type: str = Field(
         ...,
-        pattern=r'^(auto|home|commercial)$',
-        description="Type of insurance product being quoted"
+        pattern=r"^(auto|home|commercial)$",
+        description="Type of insurance product being quoted",
     )
     state: str = Field(
-        ...,
-        pattern=r'^[A-Z]{2}$',
-        description="Two-letter US state code for the quote"
+        ..., pattern=r"^[A-Z]{2}$", description="Two-letter US state code for the quote"
     )
     zip_code: str = Field(
         ...,
-        pattern=r'^\d{5}(-\d{4})?$',
-        description="ZIP code for rating (5 or 9 digits)"
+        pattern=r"^\d{5}(-\d{4})?$",
+        description="ZIP code for rating (5 or 9 digits)",
     )
 
     # Dates
-    effective_date: date = Field(
-        ...,
-        description="Requested policy effective date"
-    )
+    effective_date: date = Field(..., description="Requested policy effective date")
     requested_date: datetime = Field(
-        default_factory=datetime.now,
-        description="When the quote was requested"
+        default_factory=datetime.now, description="When the quote was requested"
     )
 
     # Product-specific data
-    vehicle_info: Optional[VehicleInfo] = Field(
-        None,
-        description="Vehicle information for auto quotes"
+    vehicle_info: VehicleInfo | None = Field(
+        None, description="Vehicle information for auto quotes"
     )
-    drivers: List[DriverInfo] = Field(
-        default_factory=list,
-        description="List of drivers (1-10) to be covered"
+    drivers: list[DriverInfo] = Field(
+        default_factory=list, description="List of drivers (1-10) to be covered"
     )
 
     # Coverage selections
-    coverage_selections: List[CoverageSelection] = Field(
+    coverage_selections: list[CoverageSelection] = Field(
         default_factory=list,
-        description="Selected coverages with limits and deductibles"
+        description="Selected coverages with limits and deductibles",
     )
 
     # Contact preferences
     email: str = Field(
         ...,
-        pattern=r'^[\w\.-]+@[\w\.-]+\.\w+$',
+        pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$",
         max_length=254,
-        description="Contact email address"
+        description="Contact email address",
     )
-    phone: Optional[str] = Field(
-        None,
-        pattern=r'^\+?1?\d{10,14}$',
-        description="Contact phone number"
+    phone: str | None = Field(
+        None, pattern=r"^\+?1?\d{10,14}$", description="Contact phone number"
     )
     preferred_contact: str = Field(
         default="email",
-        pattern=r'^(email|phone|text)$',
-        description="Preferred contact method"
+        pattern=r"^(email|phone|text)$",
+        description="Preferred contact method",
     )
 
-    @field_validator('state')
+    @field_validator("state")
     @classmethod
     def validate_state(cls, v: str) -> str:
         """Validate state code."""
@@ -695,58 +724,66 @@ class QuoteBase(BaseModelConfig):
             raise ValueError(f"Invalid US state code: {v}")
         return v
 
-    @field_validator('effective_date')
+    @field_validator("effective_date")
     @classmethod
     def validate_effective_date(cls, v: date) -> date:
         """Ensure effective date follows business rules."""
         today = datetime.now().date()
-        
+
         # Business rule: Cannot be more than 30 days in the past
         if v < today:
             days_past = (today - v).days
             if days_past > 30:
-                raise ValueError("Effective date cannot be more than 30 days in the past")
-        
+                raise ValueError(
+                    "Effective date cannot be more than 30 days in the past"
+                )
+
         # Business rule: Cannot be more than 60 days in the future
         if v > today:
             days_future = (v - today).days
             if days_future > 60:
-                raise ValueError("Effective date cannot be more than 60 days in the future")
-        
+                raise ValueError(
+                    "Effective date cannot be more than 60 days in the future"
+                )
+
         return v
 
-    @field_validator('drivers')
+    @field_validator("drivers")
     @classmethod
-    def validate_drivers(cls, v: List[DriverInfo]) -> List[DriverInfo]:
+    def validate_drivers(cls, v: list[DriverInfo]) -> list[DriverInfo]:
         """Ensure driver list follows business rules."""
         if not v:
             raise ValueError("At least one driver is required")
-        
+
         # Ensure exactly one primary driver
         primary_drivers = [d for d in v if d.relationship == "self"]
         if len(primary_drivers) != 1:
-            raise ValueError("Exactly one primary driver (relationship='self') is required")
-        
+            raise ValueError(
+                "Exactly one primary driver (relationship='self') is required"
+            )
+
         # Check for duplicate drivers (by license number)
         license_numbers = [d.license_number for d in v]
         if len(license_numbers) != len(set(license_numbers)):
             raise ValueError("Duplicate drivers detected (same license number)")
-        
+
         return v
 
-    @model_validator(mode='after')
-    def validate_product_consistency(self) -> 'QuoteBase':
+    @model_validator(mode="after")
+    def validate_product_consistency(self) -> "QuoteBase":
         """Ensure product-specific data is consistent."""
         if self.product_type == "auto":
             if not self.vehicle_info:
                 raise ValueError("Vehicle information is required for auto quotes")
             if not self.drivers:
                 raise ValueError("At least one driver is required for auto quotes")
-        
+
         # Ensure phone is provided if preferred contact is phone/text
         if self.preferred_contact in ["phone", "text"] and not self.phone:
-            raise ValueError(f"Phone number required for {self.preferred_contact} contact preference")
-        
+            raise ValueError(
+                f"Phone number required for {self.preferred_contact} contact preference"
+            )
+
         return self
 
 
@@ -757,217 +794,178 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
     # Unique identifiers
     quote_number: str = Field(
         ...,
-        pattern=r'^QUOT-\d{4}-\d{6}$',
-        description="Unique quote number in format QUOT-YYYY-NNNNNN"
+        pattern=r"^QUOT-\d{4}-\d{6}$",
+        description="Unique quote number in format QUOT-YYYY-NNNNNN",
     )
     version: int = Field(
-        default=1,
-        ge=1,
-        description="Quote version number (incremented on updates)"
+        default=1, ge=1, description="Quote version number (incremented on updates)"
     )
-    parent_quote_id: Optional[UUID4] = Field(
-        None,
-        description="Reference to parent quote for versioning"
+    parent_quote_id: UUID4 | None = Field(
+        None, description="Reference to parent quote for versioning"
     )
 
     # Status
     status: QuoteStatus = Field(
         default=QuoteStatus.DRAFT,
-        description="Current quote status per business workflow"
+        description="Current quote status per business workflow",
     )
 
     # Pricing (all nullable until calculated)
-    base_premium: Optional[Decimal] = Field(
+    base_premium: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Base premium before discounts/surcharges"
+        description="Base premium before discounts/surcharges",
     )
-    total_premium: Optional[Decimal] = Field(
+    total_premium: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Total premium after all adjustments"
+        description="Total premium after all adjustments",
     )
-    monthly_premium: Optional[Decimal] = Field(
-        None,
-        ge=Decimal('0'),
-        decimal_places=2,
-        description="Monthly payment amount"
+    monthly_premium: Decimal | None = Field(
+        None, ge=Decimal("0"), decimal_places=2, description="Monthly payment amount"
     )
-    down_payment: Optional[Decimal] = Field(
+    down_payment: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Required down payment amount"
+        description="Required down payment amount",
     )
 
     # Applied discounts and surcharges
-    discounts_applied: List[Discount] = Field(
-        default_factory=list,
-        description="List of applied discounts"
+    discounts_applied: list[Discount] = Field(
+        default_factory=list, description="List of applied discounts"
     )
-    surcharges_applied: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="List of applied surcharges"
+    surcharges_applied: list[dict[str, Any]] = Field(
+        default_factory=list, description="List of applied surcharges"
     )
-    total_discount_amount: Optional[Decimal] = Field(
+    total_discount_amount: Decimal | None = Field(
         None,
         decimal_places=2,
-        description="Sum of all discount amounts (negative value)"
+        description="Sum of all discount amounts (negative value)",
     )
-    total_surcharge_amount: Optional[Decimal] = Field(
+    total_surcharge_amount: Decimal | None = Field(
         None,
-        ge=Decimal('0'),
+        ge=Decimal("0"),
         decimal_places=2,
-        description="Sum of all surcharge amounts (positive value)"
+        description="Sum of all surcharge amounts (positive value)",
     )
 
     # Rating details
-    rating_factors: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Detailed rating factors used in calculation"
+    rating_factors: dict[str, Any] = Field(
+        default_factory=dict, description="Detailed rating factors used in calculation"
     )
-    rating_tier: Optional[str] = Field(
+    rating_tier: str | None = Field(
         None,
         max_length=20,
-        pattern=r'^[A-Z0-9\-]+$',
-        description="Assigned rating tier (e.g., PREFERRED, STANDARD)"
+        pattern=r"^[A-Z0-9\-]+$",
+        description="Assigned rating tier (e.g., PREFERRED, STANDARD)",
     )
 
     # AI enhancements
-    ai_risk_score: Optional[float] = Field(
-        None,
-        ge=0.0,
-        le=1.0,
-        description="AI-calculated risk score (0.0-1.0)"
+    ai_risk_score: float | None = Field(
+        None, ge=0.0, le=1.0, description="AI-calculated risk score (0.0-1.0)"
     )
-    ai_risk_factors: List[str] = Field(
-        default_factory=list,
-        description="AI-identified risk factors"
+    ai_risk_factors: list[str] = Field(
+        default_factory=list, description="AI-identified risk factors"
     )
-    ai_recommendations: List[str] = Field(
-        default_factory=list,
-        description="AI-generated recommendations"
+    ai_recommendations: list[str] = Field(
+        default_factory=list, description="AI-generated recommendations"
     )
-    conversion_probability: Optional[float] = Field(
-        None,
-        ge=0.0,
-        le=1.0,
-        description="AI-predicted probability of quote conversion"
+    conversion_probability: float | None = Field(
+        None, ge=0.0, le=1.0, description="AI-predicted probability of quote conversion"
     )
 
     # Expiration and conversion
     expires_at: datetime = Field(
-        ...,
-        description="When the quote expires (set by business rules)"
+        ..., description="When the quote expires (set by business rules)"
     )
-    reminder_sent_at: Optional[datetime] = Field(
-        None,
-        description="When expiration reminder was sent"
+    reminder_sent_at: datetime | None = Field(
+        None, description="When expiration reminder was sent"
     )
     followup_count: int = Field(
-        default=0,
-        ge=0,
-        le=10,
-        description="Number of follow-up contacts made"
+        default=0, ge=0, le=10, description="Number of follow-up contacts made"
     )
 
     # If converted to policy
-    converted_to_policy_id: Optional[UUID4] = Field(
-        None,
-        description="Policy ID if quote was converted"
+    converted_to_policy_id: UUID4 | None = Field(
+        None, description="Policy ID if quote was converted"
     )
-    converted_at: Optional[datetime] = Field(
-        None,
-        description="When quote was converted to policy"
+    converted_at: datetime | None = Field(
+        None, description="When quote was converted to policy"
     )
 
     # Decline info
-    declined_reasons: List[str] = Field(
-        default_factory=list,
-        description="Reasons for quote decline"
+    declined_reasons: list[str] = Field(
+        default_factory=list, description="Reasons for quote decline"
     )
-    declined_at: Optional[datetime] = Field(
-        None,
-        description="When quote was declined"
-    )
+    declined_at: datetime | None = Field(None, description="When quote was declined")
 
     # User tracking
-    created_by: Optional[UUID4] = Field(
-        None,
-        description="User who created the quote"
+    created_by: UUID4 | None = Field(None, description="User who created the quote")
+    updated_by: UUID4 | None = Field(
+        None, description="User who last updated the quote"
     )
-    updated_by: Optional[UUID4] = Field(
-        None,
-        description="User who last updated the quote"
-    )
-    assigned_agent_id: Optional[UUID4] = Field(
-        None,
-        description="Assigned agent for follow-up"
+    assigned_agent_id: UUID4 | None = Field(
+        None, description="Assigned agent for follow-up"
     )
 
     # Analytics
-    quote_source: Optional[str] = Field(
+    quote_source: str | None = Field(
         None,
         max_length=50,
-        pattern=r'^(web|mobile|agent|partner|phone)$',
-        description="Source channel for the quote"
+        pattern=r"^(web|mobile|agent|partner|phone)$",
+        description="Source channel for the quote",
     )
-    referral_code: Optional[str] = Field(
+    referral_code: str | None = Field(
         None,
         max_length=20,
-        pattern=r'^[A-Z0-9\-]+$',
-        description="Referral or promo code used"
+        pattern=r"^[A-Z0-9\-]+$",
+        description="Referral or promo code used",
     )
-    utm_source: Optional[str] = Field(
-        None,
-        max_length=100,
-        description="UTM source parameter"
+    utm_source: str | None = Field(
+        None, max_length=100, description="UTM source parameter"
     )
-    utm_medium: Optional[str] = Field(
-        None,
-        max_length=100,
-        description="UTM medium parameter"
+    utm_medium: str | None = Field(
+        None, max_length=100, description="UTM medium parameter"
     )
-    utm_campaign: Optional[str] = Field(
-        None,
-        max_length=100,
-        description="UTM campaign parameter"
+    utm_campaign: str | None = Field(
+        None, max_length=100, description="UTM campaign parameter"
     )
 
-    @field_validator('quote_number')
+    @field_validator("quote_number")
     @classmethod
     def validate_quote_number(cls, v: str) -> str:
         """Ensure quote number follows business format."""
         parts = v.split("-")
         if len(parts) != 3:
             raise ValueError("Quote number must have format QUOT-YYYY-NNNNNN")
-        
+
         year = int(parts[1])
         current_year = datetime.now().year
         if year < 2020 or year > current_year:
             raise ValueError(f"Quote year must be between 2020 and {current_year}")
-        
+
         return v
 
-    @field_validator('expires_at')
+    @field_validator("expires_at")
     @classmethod
     def validate_expiration(cls, v: datetime) -> datetime:
         """Ensure expiration follows business rules."""
         # Note: Can't access requested_date here with beartype
         # Basic validation only
         now = datetime.now()
-        
+
         # Business rule: quotes expire between 1-60 days from now
         min_expiration = now + timedelta(days=1)
         max_expiration = now + timedelta(days=60)
-        
+
         if v < now:
             raise ValueError("Expiration date cannot be in the past")
         if v > max_expiration:
             raise ValueError("Quote cannot be valid for more than 60 days from now")
-        
+
         return v
 
     @computed_field
@@ -991,40 +989,41 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
         """Calculate total savings from discounts."""
         if self.total_discount_amount:
             return abs(self.total_discount_amount)
-        return Decimal('0')
+        return Decimal("0")
 
     @computed_field
     @property
     def is_convertible(self) -> bool:
         """Check if quote can be converted to policy."""
         return (
-            self.status == QuoteStatus.QUOTED and
-            not self.is_expired and
-            self.total_premium is not None and
-            self.total_premium > 0 and
-            not self.converted_to_policy_id
+            self.status == QuoteStatus.QUOTED
+            and not self.is_expired
+            and self.total_premium is not None
+            and self.total_premium > 0
+            and not self.converted_to_policy_id
         )
 
-    @model_validator(mode='after')
-    def validate_status_consistency(self) -> 'Quote':
+    @model_validator(mode="after")
+    def validate_status_consistency(self) -> "Quote":
         """Ensure status is consistent with other fields."""
         # If converted, status should be BOUND
         if self.converted_to_policy_id and self.status != QuoteStatus.BOUND:
             raise ValueError("Converted quotes must have BOUND status")
-        
+
         # If declined, must have decline reasons
         if self.status == QuoteStatus.DECLINED and not self.declined_reasons:
             raise ValueError("Declined quotes must have decline reasons")
-        
+
         # If quoted, must have pricing
         if self.status == QuoteStatus.QUOTED:
             if not self.total_premium:
                 raise ValueError("Quoted status requires calculated premium")
-        
+
         return self
 
     class Config:
         """Pydantic config."""
+
         json_schema_extra = {
             "example": {
                 "quote_number": "QUOT-2024-000001",
@@ -1035,7 +1034,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
                 "status": "quoted",
                 "total_premium": "1200.00",
                 "monthly_premium": "100.00",
-                "expires_at": "2024-02-15T00:00:00Z"
+                "expires_at": "2024-02-15T00:00:00Z",
             }
         }
 
@@ -1043,37 +1042,38 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 @beartype
 class QuoteCreate(QuoteBase):
     """Model for creating a new quote with multi-step wizard support."""
-    
+
     # Override to make expiration optional on create (will be calculated)
-    expires_at: Optional[datetime] = Field(
-        None,
-        description="Optional expiration override (defaults to 30 days)"
+    expires_at: datetime | None = Field(
+        None, description="Optional expiration override (defaults to 30 days)"
     )
-    
+
     # Override drivers validation to allow empty list for wizard workflow
-    drivers: List[DriverInfo] = Field(
+    drivers: list[DriverInfo] = Field(
         default_factory=list,
-        description="List of drivers (can be empty initially for wizard workflow)"
+        description="List of drivers (can be empty initially for wizard workflow)",
     )
-    
-    @field_validator('drivers')
+
+    @field_validator("drivers")
     @classmethod
-    def validate_drivers(cls, v: List[DriverInfo]) -> List[DriverInfo]:
+    def validate_drivers(cls, v: list[DriverInfo]) -> list[DriverInfo]:
         """Override parent validation - allow empty driver list for wizard workflow."""
         # For QuoteCreate, we allow empty drivers list initially
         # The validation will happen when converting to full Quote
         return v
-    
-    @model_validator(mode='after')
-    def validate_product_consistency(self) -> 'QuoteCreate':
+
+    @model_validator(mode="after")
+    def validate_product_consistency(self) -> "QuoteCreate":
         """Override parent validation to support wizard workflow."""
         # For QuoteCreate, we allow creation without complete data
         # This enables the multi-step wizard workflow
-        
+
         # Still require phone if preferred contact is phone/text
         if self.preferred_contact in ["phone", "text"] and not self.phone:
-            raise ValueError(f"Phone number required for {self.preferred_contact} contact preference")
-        
+            raise ValueError(
+                f"Phone number required for {self.preferred_contact} contact preference"
+            )
+
         return self
 
 
@@ -1082,51 +1082,40 @@ class QuoteUpdate(BaseModelConfig):
     """Model for updating a quote with partial data."""
 
     # Allow updating coverage selections
-    coverage_selections: Optional[List[CoverageSelection]] = Field(
-        None,
-        description="Updated coverage selections"
+    coverage_selections: list[CoverageSelection] | None = Field(
+        None, description="Updated coverage selections"
     )
 
     # Allow adding/removing drivers
-    drivers: Optional[List[DriverInfo]] = Field(
-        None,
-        description="Updated driver list"
-    )
+    drivers: list[DriverInfo] | None = Field(None, description="Updated driver list")
 
     # Update vehicle info
-    vehicle_info: Optional[VehicleInfo] = Field(
-        None,
-        description="Updated vehicle information"
+    vehicle_info: VehicleInfo | None = Field(
+        None, description="Updated vehicle information"
     )
 
     # Update contact info
-    email: Optional[str] = Field(
+    email: str | None = Field(
         None,
-        pattern=r'^[\w\.-]+@[\w\.-]+\.\w+$',
+        pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$",
         max_length=254,
-        description="Updated email address"
+        description="Updated email address",
     )
-    phone: Optional[str] = Field(
-        None,
-        pattern=r'^\+?1?\d{10,14}$',
-        description="Updated phone number"
+    phone: str | None = Field(
+        None, pattern=r"^\+?1?\d{10,14}$", description="Updated phone number"
     )
-    preferred_contact: Optional[str] = Field(
-        None,
-        pattern=r'^(email|phone|text)$',
-        description="Updated contact preference"
+    preferred_contact: str | None = Field(
+        None, pattern=r"^(email|phone|text)$", description="Updated contact preference"
     )
 
     # Policy timing
-    effective_date: Optional[date] = Field(
-        None,
-        description="Updated effective date for policy"
+    effective_date: date | None = Field(
+        None, description="Updated effective date for policy"
     )
 
     # Agent assignment
-    assigned_agent_id: Optional[UUID4] = Field(
-        None,
-        description="Assign or reassign agent"
+    assigned_agent_id: UUID4 | None = Field(
+        None, description="Assign or reassign agent"
     )
 
 
@@ -1134,137 +1123,122 @@ class QuoteUpdate(BaseModelConfig):
 class QuoteComparison(BaseModelConfig):
     """Model for comparing multiple quote versions."""
 
-    quotes: List[Quote] = Field(
-        ...,
-        description="Quotes to compare (2-10)"
+    quotes: list[Quote] = Field(..., description="Quotes to compare (2-10)")
+    differences: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Identified differences between quotes"
     )
-    differences: Dict[str, Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Identified differences between quotes"
-    )
-    recommendation: Optional[str] = Field(
-        None,
-        max_length=1000,
-        description="AI-generated recommendation"
+    recommendation: str | None = Field(
+        None, max_length=1000, description="AI-generated recommendation"
     )
 
-    @field_validator('quotes')
+    @field_validator("quotes")
     @classmethod
-    def validate_quotes_for_comparison(cls, v: List[Quote]) -> List[Quote]:
+    def validate_quotes_for_comparison(cls, v: list[Quote]) -> list[Quote]:
         """Ensure quotes are comparable."""
         if len(v) < 2:
             raise ValueError("At least 2 quotes required for comparison")
-        
+
         # All quotes should be for the same customer
         customer_ids = {q.customer_id for q in v}
         if len(customer_ids) > 1:
             raise ValueError("All quotes must be for the same customer")
-        
+
         # All quotes should be for the same product type
         product_types = {q.product_type for q in v}
         if len(product_types) > 1:
             raise ValueError("All quotes must be for the same product type")
-        
+
         return v
 
 
 @beartype
 class QuoteConversionRequest(BaseModelConfig):
     """Request model for converting quote to policy."""
-    
-    effective_date: Optional[date] = Field(
+
+    effective_date: date | None = Field(
         None,
-        description="Override effective date for policy (defaults to quote effective date)"
+        description="Override effective date for policy (defaults to quote effective date)",
     )
     payment_method: str = Field(
         ...,
-        pattern=r'^(card|bank|check)$',
-        description="Payment method: card, bank, or check"
+        pattern=r"^(card|bank|check)$",
+        description="Payment method: card, bank, or check",
     )
-    payment_details: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Payment method specific details"
+    payment_details: dict[str, Any] = Field(
+        default_factory=dict, description="Payment method specific details"
     )
-    agent_id: Optional[UUID4] = Field(
-        None,
-        description="Agent facilitating the conversion"
+    agent_id: UUID4 | None = Field(
+        None, description="Agent facilitating the conversion"
     )
-    referral_source: Optional[str] = Field(
-        None,
-        max_length=50,
-        description="Source of the conversion"
+    referral_source: str | None = Field(
+        None, max_length=50, description="Source of the conversion"
     )
-    notes: Optional[str] = Field(
-        None,
-        max_length=1000,
-        description="Additional notes about the conversion"
+    notes: str | None = Field(
+        None, max_length=1000, description="Additional notes about the conversion"
     )
 
-    @field_validator('effective_date')
+    @field_validator("effective_date")
     @classmethod
-    def validate_conversion_effective_date(cls, v: Optional[date]) -> Optional[date]:
+    def validate_conversion_effective_date(cls, v: date | None) -> date | None:
         """Validate conversion effective date."""
         if v is None:
             return v
-            
+
         today = datetime.now().date()
-        
+
         # Cannot be more than 30 days in the past
         if v < today - timedelta(days=30):
             raise ValueError("Effective date cannot be more than 30 days in the past")
-        
+
         # Cannot be more than 60 days in the future
         if v > today + timedelta(days=60):
             raise ValueError("Effective date cannot be more than 60 days in the future")
-        
+
         return v
 
 
-@beartype 
+@beartype
 class QuoteOverrideRequest(BaseModelConfig):
     """Request model for admin quote overrides."""
-    
+
     override_type: str = Field(
         ...,
-        pattern=r'^(premium|coverage|discount|surcharge|status)$',
-        description="Type of override being applied"
+        pattern=r"^(premium|coverage|discount|surcharge|status)$",
+        description="Type of override being applied",
     )
-    override_data: Dict[str, Any] = Field(
-        ...,
-        description="Override specific data (original and new values)"
+    override_data: dict[str, Any] = Field(
+        ..., description="Override specific data (original and new values)"
     )
     reason: str = Field(
         ...,
         min_length=10,
         max_length=500,
-        description="Detailed reason for the override (minimum 10 characters)"
+        description="Detailed reason for the override (minimum 10 characters)",
     )
-    admin_notes: Optional[str] = Field(
-        None,
-        max_length=1000,
-        description="Additional admin notes"
+    admin_notes: str | None = Field(
+        None, max_length=1000, description="Additional admin notes"
     )
     notify_customer: bool = Field(
-        default=False,
-        description="Whether to notify customer of the override"
+        default=False, description="Whether to notify customer of the override"
     )
     effective_immediately: bool = Field(
-        default=True,
-        description="Whether override takes effect immediately"
+        default=True, description="Whether override takes effect immediately"
     )
 
-    @field_validator('override_data')
+    @field_validator("override_data")
     @classmethod
-    def validate_override_data(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_override_data(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Validate override data contains required fields."""
-        if 'original' not in v:
+        if "original" not in v:
             raise ValueError("Override data must include 'original' value")
-        if 'new' not in v:
+        if "new" not in v:
             raise ValueError("Override data must include 'new' value")
-        
+
         # Ensure values are different
-        if v['original'] == v['new']:
+        if v["original"] == v["new"]:
             raise ValueError("Override new value must be different from original value")
-        
+
         return v
+
+
 # End of quote models

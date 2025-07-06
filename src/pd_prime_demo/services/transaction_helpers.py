@@ -67,13 +67,13 @@ async def with_transaction[T](
                 customer = await create_customer(data.customer)
                 if isinstance(customer, Err):
                     return customer
-                
+
                 policy = await create_policy(data.policy, customer.id)
                 if isinstance(policy, Err):
                     return policy
-                
+
                 return Ok((customer, policy))
-            
+
             return await with_transaction(db, _operation)
         ```
     """
@@ -123,7 +123,7 @@ async def with_savepoint[T](
             # Rollback to savepoint
             await db.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
             return result
-        
+
         # Release savepoint on success
         await db.execute(f"RELEASE SAVEPOINT {savepoint_name}")
         return result
@@ -155,27 +155,27 @@ async def batch_operation[T](
         Result[list[T], str]: Successfully processed items or error
     """
     processed: list[T] = []
-    
+
     for i in range(0, len(items), batch_size):
         batch = items[i:i + batch_size]
-        
+
         async def _batch_operation() -> Result[list[T], str]:
             batch_processed: list[T] = []
-            
+
             for item in batch:
                 result = await operation(item)
                 if isinstance(result, Err):
                     return Err(f"Failed processing item: {result.error}")
                 batch_processed.append(item)
-            
+
             return Ok(batch_processed)
-        
+
         result = await with_transaction(db, _batch_operation)
         if isinstance(result, Err):
             return Err(f"Batch failed: {result.error}. Processed {len(processed)} items.")
-        
+
         processed.extend(result.unwrap())
-    
+
     return Ok(processed)
 
 
@@ -207,7 +207,7 @@ async def with_advisory_lock[T](
         acquired = await db.fetchval("SELECT pg_try_advisory_lock($1)", lock_id)
         if not acquired:
             return Err("Could not acquire advisory lock")
-    
+
     try:
         result = await operation()
         return result
@@ -240,34 +240,34 @@ async def upsert_with_conflict[T](
     """
     if not update_data:
         update_data = insert_data
-    
+
     # Build INSERT query
     columns = list(insert_data.keys())
     values_placeholders = [f"${i+1}" for i in range(len(columns))]
-    
+
     query = f"""
         INSERT INTO {table} ({", ".join(columns)})
         VALUES ({", ".join(values_placeholders)})
         ON CONFLICT ({", ".join(conflict_columns)})
         DO UPDATE SET
     """
-    
+
     # Add UPDATE clause
     update_clauses = []
     param_count = len(columns)
     update_values = list(insert_data.values())
-    
+
     for col, val in update_data.items():
         param_count += 1
         update_clauses.append(f"{col} = ${param_count}")
         update_values.append(val)
-    
+
     query += ", ".join(update_clauses)
-    
+
     # Add RETURNING clause
     if returning_columns:
         query += f" RETURNING {', '.join(returning_columns)}"
-    
+
     try:
         if returning_columns:
             row = await db.fetchrow(query, *update_values)

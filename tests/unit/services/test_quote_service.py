@@ -1,17 +1,23 @@
 """Unit tests for quote service."""
 
-import pytest
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+
 from pd_prime_demo.models.quote import (
-    QuoteCreate, QuoteUpdate, QuoteStatus, ProductType,
-    VehicleInfo, DriverInfo, CoverageSelection,
-    DriverRelationship, CoverageType, ContactMethod
+    CoverageSelection,
+    CoverageType,
+    DriverInfo,
+    ProductType,
+    QuoteCreate,
+    QuoteStatus,
+    QuoteUpdate,
+    VehicleInfo,
 )
 from pd_prime_demo.services.quote_service import QuoteService
-from pd_prime_demo.services.result import Ok, Err
+from pd_prime_demo.services.result import Err, Ok
 
 
 @pytest.fixture
@@ -26,7 +32,7 @@ def sample_vehicle_info():
         annual_mileage=12000,
         primary_use="commute",
         garage_zip="94105",
-        owned=True
+        owned=True,
     )
 
 
@@ -48,7 +54,7 @@ def sample_driver_info():
         dui_convictions=0,
         claims_3_years=0,
         good_student=False,
-        relationship="self"
+        relationship="self",
     )
 
 
@@ -57,24 +63,25 @@ def sample_coverage_selections():
     """Sample coverage selections."""
     return [
         CoverageSelection(
-            coverage_type=CoverageType.LIABILITY,
-            limit=Decimal("100000.00")
+            coverage_type=CoverageType.LIABILITY, limit=Decimal("100000.00")
         ),
         CoverageSelection(
             coverage_type=CoverageType.COLLISION,
             limit=Decimal("50000.00"),
-            deductible=Decimal("500.00")
+            deductible=Decimal("500.00"),
         ),
         CoverageSelection(
             coverage_type=CoverageType.COMPREHENSIVE,
             limit=Decimal("50000.00"),
-            deductible=Decimal("500.00")
-        )
+            deductible=Decimal("500.00"),
+        ),
     ]
 
 
 @pytest.fixture
-def sample_quote_create(sample_vehicle_info, sample_driver_info, sample_coverage_selections):
+def sample_quote_create(
+    sample_vehicle_info, sample_driver_info, sample_coverage_selections
+):
     """Sample quote creation data."""
     return QuoteCreate(
         customer_id=uuid4(),
@@ -87,7 +94,7 @@ def sample_quote_create(sample_vehicle_info, sample_driver_info, sample_coverage
         preferred_contact="email",
         vehicle_info=sample_vehicle_info,
         drivers=[sample_driver_info],
-        coverage_selections=sample_coverage_selections
+        coverage_selections=sample_coverage_selections,
     )
 
 
@@ -98,7 +105,7 @@ class TestQuoteService:
         """Test successful quote creation."""
         # Setup
         service = QuoteService(mock_db, mock_cache)
-        
+
         # Mock database responses
         mock_db.fetchval.return_value = 1  # Sequence number
         mock_db.fetchrow.return_value = {
@@ -115,7 +122,9 @@ class TestQuoteService:
             "preferred_contact": "email",
             "vehicle_info": sample_quote_create.vehicle_info.model_dump(),
             "drivers": [d.model_dump() for d in sample_quote_create.drivers],
-            "coverage_selections": [c.model_dump() for c in sample_quote_create.coverage_selections],
+            "coverage_selections": [
+                c.model_dump() for c in sample_quote_create.coverage_selections
+            ],
             "expires_at": datetime.now() + timedelta(days=30),
             "base_premium": None,
             "total_premium": None,
@@ -136,12 +145,12 @@ class TestQuoteService:
             "version": 1,
             "parent_quote_id": None,
             "created_at": datetime.now(),
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(),
         }
-        
+
         # Execute
         result = await service.create_quote(sample_quote_create)
-        
+
         # Assert
         assert isinstance(result, Ok)
         quote = result.value
@@ -150,34 +159,38 @@ class TestQuoteService:
         assert quote.product_type == ProductType.AUTO
         assert quote.state == "CA"
 
-    async def test_create_quote_invalid_state(self, mock_db, mock_cache, sample_quote_create):
+    async def test_create_quote_invalid_state(
+        self, mock_db, mock_cache, sample_quote_create
+    ):
         """Test quote creation with unsupported state."""
         # Setup
         service = QuoteService(mock_db, mock_cache)
-        
+
         # Create new instance with unsupported state (can't modify frozen model)
         invalid_quote_create = sample_quote_create.model_copy(update={"state": "FL"})
-        
+
         # Execute
         result = await service.create_quote(invalid_quote_create)
-        
+
         # Assert
         assert isinstance(result, Err)
         assert "FL not supported" in result.error
 
-    async def test_create_quote_invalid_effective_date(self, mock_db, mock_cache, sample_quote_create):
+    async def test_create_quote_invalid_effective_date(
+        self, mock_db, mock_cache, sample_quote_create
+    ):
         """Test quote creation with past effective date."""
         # Setup
         service = QuoteService(mock_db, mock_cache)
-        
+
         # Create new instance with past effective date (can't modify frozen model)
         invalid_quote_create = sample_quote_create.model_copy(
             update={"effective_date": date.today() - timedelta(days=1)}
         )
-        
+
         # Execute
         result = await service.create_quote(invalid_quote_create)
-        
+
         # Assert
         assert isinstance(result, Err)
         assert "cannot be in the past" in result.error
@@ -187,7 +200,7 @@ class TestQuoteService:
         # Setup
         service = QuoteService(mock_db, mock_cache)
         quote_id = uuid4()
-        
+
         # Mock existing quote
         mock_cache.get.return_value = None
         mock_db.fetchrow.side_effect = [
@@ -212,24 +225,26 @@ class TestQuoteService:
                     "annual_mileage": 12000,
                     "primary_use": "commute",
                     "garage_zip": "94105",
-                    "owned": True
+                    "owned": True,
                 },
-                "drivers": [{
-                    "driver_id": str(uuid4()),
-                    "relationship": "SELF",
-                    "first_name": "John",
-                    "last_name": "Doe",
-                    "date_of_birth": "1985-05-15",
-                    "license_number": "D1234567",
-                    "license_state": "CA",
-                    "license_status": "valid",
-                    "years_licensed": 15,
-                    "accidents_3_years": 0,
-                    "violations_3_years": 0,
-                    "dui_convictions": 0,
-                    "good_student": False,
-                    "defensive_driving": True
-                }],
+                "drivers": [
+                    {
+                        "driver_id": str(uuid4()),
+                        "relationship": "SELF",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "date_of_birth": "1985-05-15",
+                        "license_number": "D1234567",
+                        "license_state": "CA",
+                        "license_status": "valid",
+                        "years_licensed": 15,
+                        "accidents_3_years": 0,
+                        "violations_3_years": 0,
+                        "dui_convictions": 0,
+                        "good_student": False,
+                        "defensive_driving": True,
+                    }
+                ],
                 "coverage_selections": [],
                 "expires_at": datetime.now() + timedelta(days=30),
                 "base_premium": None,
@@ -251,7 +266,7 @@ class TestQuoteService:
                 "version": 1,
                 "parent_quote_id": None,
                 "created_at": datetime.now(),
-                "updated_at": datetime.now()
+                "updated_at": datetime.now(),
             },
             # Second call - update quote
             {
@@ -274,24 +289,26 @@ class TestQuoteService:
                     "annual_mileage": 12000,
                     "primary_use": "commute",
                     "garage_zip": "94105",
-                    "owned": True
+                    "owned": True,
                 },
-                "drivers": [{
-                    "driver_id": str(uuid4()),
-                    "relationship": "SELF",
-                    "first_name": "John",
-                    "last_name": "Doe",
-                    "date_of_birth": "1985-05-15",
-                    "license_number": "D1234567",
-                    "license_state": "CA",
-                    "license_status": "valid",
-                    "years_licensed": 15,
-                    "accidents_3_years": 0,
-                    "violations_3_years": 0,
-                    "dui_convictions": 0,
-                    "good_student": False,
-                    "defensive_driving": True
-                }],
+                "drivers": [
+                    {
+                        "driver_id": str(uuid4()),
+                        "relationship": "SELF",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "date_of_birth": "1985-05-15",
+                        "license_number": "D1234567",
+                        "license_state": "CA",
+                        "license_status": "valid",
+                        "years_licensed": 15,
+                        "accidents_3_years": 0,
+                        "violations_3_years": 0,
+                        "dui_convictions": 0,
+                        "good_student": False,
+                        "defensive_driving": True,
+                    }
+                ],
                 "coverage_selections": [],
                 "expires_at": datetime.now() + timedelta(days=30),
                 "base_premium": Decimal("1200.00"),
@@ -313,13 +330,13 @@ class TestQuoteService:
                 "version": 1,
                 "parent_quote_id": None,
                 "created_at": datetime.now(),
-                "updated_at": datetime.now()
-            }
+                "updated_at": datetime.now(),
+            },
         ]
-        
+
         # Execute
         result = await service.calculate_quote(quote_id)
-        
+
         # Assert
         assert isinstance(result, Ok)
         quote = result.value
@@ -332,7 +349,7 @@ class TestQuoteService:
         # Setup
         service = QuoteService(mock_db, mock_cache)
         quote_id = uuid4()
-        
+
         # Create update that changes vehicle
         update_data = QuoteUpdate(
             vehicle_info=VehicleInfo(
@@ -344,10 +361,10 @@ class TestQuoteService:
                 annual_mileage=15000,
                 primary_use="pleasure",
                 garage_zip="94105",
-                owned=True
+                owned=True,
             )
         )
-        
+
         # Mock existing quote
         mock_cache.get.return_value = None
         existing_quote_data = {
@@ -371,7 +388,7 @@ class TestQuoteService:
                 "annual_mileage": 12000,
                 "primary_use": "commute",
                 "garage_zip": "94105",
-                "owned": True
+                "owned": True,
             },
             "drivers": [],
             "coverage_selections": [],
@@ -395,17 +412,17 @@ class TestQuoteService:
             "version": 1,
             "parent_quote_id": None,
             "created_at": datetime.now(),
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(),
         }
-        
+
         mock_db.fetchrow.side_effect = [
             existing_quote_data,  # Get existing quote
-            {**existing_quote_data, "id": uuid4(), "version": 2}  # New version created
+            {**existing_quote_data, "id": uuid4(), "version": 2},  # New version created
         ]
-        
+
         # Execute
         result = await service.update_quote(quote_id, update_data)
-        
+
         # Assert
         assert isinstance(result, Ok)
         # Should have called create_quote for new version

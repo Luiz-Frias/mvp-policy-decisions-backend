@@ -7,16 +7,16 @@ and deployment with proper audit trails.
 import json
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
+from pydantic import Field
 
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
 from ...services.result import Err, Ok, Result
-from pydantic import Field
 
 
 @beartype
@@ -26,9 +26,9 @@ class RateTableVersion(BaseModelConfig):
     id: UUID = Field(default_factory=uuid4)
     table_name: str = Field(..., min_length=1, max_length=100)
     version_number: int = Field(..., ge=1)
-    rate_data: Dict[str, Any] = Field(...)
+    rate_data: dict[str, Any] = Field(...)
     effective_date: date = Field(...)
-    expiration_date: Optional[date] = Field(None)
+    expiration_date: date | None = Field(None)
     status: str = Field(
         "pending",
         pattern="^(pending|approved|active|superseded|rejected)$",
@@ -37,10 +37,10 @@ class RateTableVersion(BaseModelConfig):
     # Audit fields
     created_by: UUID = Field(...)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    approved_by: Optional[UUID] = Field(None)
-    approved_at: Optional[datetime] = Field(None)
-    approval_notes: Optional[str] = Field(None, max_length=1000)
-    notes: Optional[str] = Field(None, max_length=1000)
+    approved_by: UUID | None = Field(None)
+    approved_at: datetime | None = Field(None)
+    approval_notes: str | None = Field(None, max_length=1000)
+    notes: str | None = Field(None, max_length=1000)
 
 
 @beartype
@@ -57,10 +57,10 @@ class RateTableService:
     async def create_rate_table_version(
         self,
         table_name: str,
-        rate_data: Dict[str, Any],
+        rate_data: dict[str, Any],
         admin_user_id: UUID,
         effective_date: date,
-        notes: Optional[str] = None,
+        notes: str | None = None,
     ) -> Result[RateTableVersion, str]:
         """Create new version of rate table requiring approval."""
         try:
@@ -121,7 +121,7 @@ class RateTableService:
         self,
         version_id: UUID,
         admin_user_id: UUID,
-        approval_notes: Optional[str] = None,
+        approval_notes: str | None = None,
     ) -> Result[bool, str]:
         """Approve rate table version and potentially activate it."""
         try:
@@ -189,7 +189,7 @@ class RateTableService:
     @beartype
     async def get_active_rates(
         self, state: str, product_type: str
-    ) -> Result[Dict[str, Decimal], str]:
+    ) -> Result[dict[str, Decimal], str]:
         """Get currently active rates for state/product."""
         # Check cache first
         cache_key = f"active:{state}:{product_type}"
@@ -235,7 +235,7 @@ class RateTableService:
         self,
         table_name: str,
         include_inactive: bool = False,
-    ) -> Result[List[RateTableVersion], str]:
+    ) -> Result[list[RateTableVersion], str]:
         """List rate table versions."""
         query = """
             SELECT * FROM rate_table_versions
@@ -257,7 +257,7 @@ class RateTableService:
     @beartype
     async def compare_rate_versions(
         self, version_id_1: UUID, version_id_2: UUID
-    ) -> Result[Dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:
         """Compare two rate versions."""
         # Get both versions
         v1_result = await self.get_rate_version(version_id_1)
@@ -331,7 +331,7 @@ class RateTableService:
 
     @beartype
     async def _validate_rate_structure(
-        self, table_name: str, rate_data: Dict[str, Any]
+        self, table_name: str, rate_data: dict[str, Any]
     ) -> Result[bool, str]:
         """Validate rate table structure and data."""
         # Check required fields
@@ -354,9 +354,7 @@ class RateTableService:
             try:
                 rate_decimal = Decimal(str(rate))
                 if rate_decimal <= 0:
-                    return Err(
-                        f"Rate for {coverage_type} must be positive, got {rate}"
-                    )
+                    return Err(f"Rate for {coverage_type} must be positive, got {rate}")
                 if rate_decimal > Decimal("10000"):
                     return Err(
                         f"Rate for {coverage_type} exceeds maximum allowed (10000)"
@@ -377,9 +375,7 @@ class RateTableService:
                 return Err(f"Factor {factor_name} must contain range definitions")
 
             if "min" not in factor_data or "max" not in factor_data:
-                return Err(
-                    f"Factor {factor_name} must have 'min' and 'max' values"
-                )
+                return Err(f"Factor {factor_name} must have 'min' and 'max' values")
 
             try:
                 min_val = float(factor_data["min"])
@@ -432,9 +428,7 @@ class RateTableService:
                         AND id != $2
                 """
 
-                await self._db.execute(
-                    deactivate_query, version.table_name, version_id
-                )
+                await self._db.execute(deactivate_query, version.table_name, version_id)
 
                 # Activate new version
                 activate_query = """
@@ -497,7 +491,7 @@ class RateTableService:
         # Delete pattern-based cache entries
         await self._cache.delete(f"{self._cache_prefix}active:*")
         await self._cache.delete(f"{self._cache_prefix}version:*")
-        await self._cache.delete(f"rating:base_rates:*")
+        await self._cache.delete("rating:base_rates:*")
 
     @beartype
     def _row_to_rate_version(self, row: Any) -> RateTableVersion:
@@ -506,7 +500,11 @@ class RateTableService:
             id=row["id"],
             table_name=row["table_name"],
             version_number=row["version_number"],
-            rate_data=json.loads(row["rate_data"]) if isinstance(row["rate_data"], str) else row["rate_data"],
+            rate_data=(
+                json.loads(row["rate_data"])
+                if isinstance(row["rate_data"], str)
+                else row["rate_data"]
+            ),
             effective_date=row["effective_date"],
             expiration_date=row.get("expiration_date"),
             status=row["status"],
@@ -520,8 +518,8 @@ class RateTableService:
 
     @beartype
     def _calculate_rate_differences(
-        self, rate_data_1: Dict[str, Any], rate_data_2: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, rate_data_1: dict[str, Any], rate_data_2: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate differences between two rate structures."""
         differences = {
             "added": {},
@@ -558,7 +556,7 @@ class RateTableService:
         return differences
 
     @beartype
-    def _calculate_impact_summary(self, differences: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_impact_summary(self, differences: dict[str, Any]) -> dict[str, Any]:
         """Calculate summary of rate change impacts."""
         modified = differences.get("modified", {})
 

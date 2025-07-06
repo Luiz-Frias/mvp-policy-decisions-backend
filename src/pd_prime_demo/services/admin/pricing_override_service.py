@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -17,7 +17,7 @@ class PricingOverrideService:
 
     def __init__(self, db: Database, cache: Cache) -> None:
         """Initialize pricing override service.
-        
+
         Args:
             db: Database connection
             cache: Cache instance
@@ -37,7 +37,7 @@ class PricingOverrideService:
         approval_required: bool = True,
     ) -> Result[UUID, str]:
         """Create pricing override requiring approval.
-        
+
         Args:
             quote_id: Quote ID to override
             admin_user_id: Admin user creating the override
@@ -46,7 +46,7 @@ class PricingOverrideService:
             new_amount: New premium amount
             reason: Reason for override
             approval_required: Whether approval is required
-            
+
         Returns:
             Result containing override ID or error
         """
@@ -55,13 +55,13 @@ class PricingOverrideService:
             valid_types = ["premium_adjustment", "discount_override", "special_rate"]
             if override_type not in valid_types:
                 return Err(f"Invalid override type: {override_type}")
-                
+
             # Validate amounts
             if original_amount <= 0:
                 return Err("Original amount must be positive")
             if new_amount <= 0:
                 return Err("New amount must be positive")
-                
+
             # Validate override is within limits
             max_adjustment = await self._get_max_adjustment_limit(admin_user_id)
             adjustment_pct = abs((new_amount - original_amount) / original_amount) * 100
@@ -100,7 +100,9 @@ class PricingOverrideService:
 
             # Create approval workflow if needed
             if approval_required:
-                await self._create_pricing_approval_workflow(override_id, float(adjustment_pct))
+                await self._create_pricing_approval_workflow(
+                    override_id, float(adjustment_pct)
+                )
 
             # Log activity
             await self._log_pricing_activity(
@@ -127,17 +129,17 @@ class PricingOverrideService:
         admin_user_id: UUID,
         discount_amount: Decimal,
         discount_reason: str,
-        expires_at: Optional[datetime] = None,
+        expires_at: datetime | None = None,
     ) -> Result[bool, str]:
         """Apply manual discount to quote.
-        
+
         Args:
             quote_id: Quote to apply discount to
             admin_user_id: Admin applying the discount
             discount_amount: Discount amount
             discount_reason: Reason for discount
             expires_at: Optional expiration date
-            
+
         Returns:
             Result containing success status or error
         """
@@ -145,7 +147,7 @@ class PricingOverrideService:
             # Validate discount amount
             if discount_amount <= 0:
                 return Err("Discount amount must be positive")
-                
+
             # Get current quote premium
             quote = await self._db.fetchrow(
                 "SELECT total_premium FROM quotes WHERE id = $1", quote_id
@@ -215,13 +217,13 @@ class PricingOverrideService:
         self,
         admin_user_id: UUID,
         rule_name: str,
-        conditions: Dict[str, Any],
-        adjustments: Dict[str, Any],
+        conditions: dict[str, Any],
+        adjustments: dict[str, Any],
         effective_date: datetime,
-        expiration_date: Optional[datetime] = None,
+        expiration_date: datetime | None = None,
     ) -> Result[UUID, str]:
         """Create special pricing rule (e.g., promotional rates).
-        
+
         Args:
             admin_user_id: Admin creating the rule
             rule_name: Name of the pricing rule
@@ -229,7 +231,7 @@ class PricingOverrideService:
             adjustments: Pricing adjustments to apply
             effective_date: When rule becomes effective
             expiration_date: Optional expiration date
-            
+
         Returns:
             Result containing rule ID or error
         """
@@ -237,15 +239,15 @@ class PricingOverrideService:
             # Validate rule name
             if not rule_name or len(rule_name) < 3:
                 return Err("Rule name must be at least 3 characters")
-                
+
             # Validate conditions
             if not conditions:
                 return Err("Rule must have at least one condition")
-                
+
             # Validate adjustments
             if not adjustments:
                 return Err("Rule must have at least one adjustment")
-                
+
             # Validate dates
             if expiration_date and expiration_date <= effective_date:
                 return Err("Expiration date must be after effective date")
@@ -296,15 +298,15 @@ class PricingOverrideService:
         self,
         override_id: UUID,
         approver_id: UUID,
-        approval_notes: Optional[str] = None,
+        approval_notes: str | None = None,
     ) -> Result[bool, str]:
         """Approve a pending pricing override.
-        
+
         Args:
             override_id: Override to approve
             approver_id: Admin approving the override
             approval_notes: Optional approval notes
-            
+
         Returns:
             Result containing success status or error
         """
@@ -318,17 +320,17 @@ class PricingOverrideService:
                 """,
                 override_id,
             )
-            
+
             if not override:
                 return Err("Override not found")
-                
+
             if override["status"] != "pending":
                 return Err(f"Override is already {override['status']}")
-                
+
             # Verify approver is not the creator
             if override["admin_user_id"] == approver_id:
                 return Err("Cannot approve your own override")
-                
+
             # Update override status
             await self._db.execute(
                 """
@@ -344,10 +346,10 @@ class PricingOverrideService:
                 datetime.utcnow(),
                 approval_notes,
             )
-            
+
             # Clear quote cache to apply override
             await self._cache.delete(f"quote:pricing:{override['quote_id']}")
-            
+
             # Log approval
             await self._log_pricing_activity(
                 approver_id,
@@ -358,9 +360,9 @@ class PricingOverrideService:
                     "adjustment_pct": float(override["adjustment_percentage"]),
                 },
             )
-            
+
             return Ok(True)
-            
+
         except Exception as e:
             return Err(f"Approval failed: {str(e)}")
 
@@ -368,22 +370,22 @@ class PricingOverrideService:
     async def get_pending_overrides(
         self,
         admin_user_id: UUID,
-    ) -> Result[List[Dict[str, Any]], str]:
+    ) -> Result[list[dict[str, Any]], str]:
         """Get pending pricing overrides for approval.
-        
+
         Args:
             admin_user_id: Admin checking overrides
-            
+
         Returns:
             Result containing list of pending overrides or error
         """
         try:
             # Get admin's approval limit to filter relevant overrides
             max_approval_limit = await self._get_max_approval_limit(admin_user_id)
-            
+
             rows = await self._db.fetch(
                 """
-                SELECT 
+                SELECT
                     po.id, po.quote_id, po.admin_user_id, po.override_type,
                     po.original_amount, po.new_amount, po.adjustment_percentage,
                     po.reason, po.created_at,
@@ -400,20 +402,20 @@ class PricingOverrideService:
                 admin_user_id,
                 max_approval_limit,
             )
-            
+
             overrides = [dict(row) for row in rows]
             return Ok(overrides)
-            
+
         except Exception as e:
             return Err(f"Failed to fetch pending overrides: {str(e)}")
 
     @beartype
     async def _get_max_adjustment_limit(self, admin_user_id: UUID) -> float:
         """Get maximum adjustment limit for admin user.
-        
+
         Args:
             admin_user_id: Admin user ID
-            
+
         Returns:
             Maximum adjustment percentage
         """
@@ -424,10 +426,10 @@ class PricingOverrideService:
     @beartype
     async def _get_max_approval_limit(self, admin_user_id: UUID) -> float:
         """Get maximum approval limit for admin user.
-        
+
         Args:
             admin_user_id: Admin user ID
-            
+
         Returns:
             Maximum approval percentage
         """
@@ -442,7 +444,7 @@ class PricingOverrideService:
         adjustment_pct: float,
     ) -> None:
         """Create approval workflow for pricing override.
-        
+
         Args:
             override_id: Override requiring approval
             adjustment_pct: Adjustment percentage
@@ -452,7 +454,7 @@ class PricingOverrideService:
         await self._db.execute(
             """
             INSERT INTO audit_logs (
-                action_type, entity_type, entity_id, 
+                action_type, entity_type, entity_id,
                 action_data, created_at
             ) VALUES ('approval_required', 'pricing_override', $1, $2, $3)
             """,
@@ -466,11 +468,11 @@ class PricingOverrideService:
         self,
         admin_user_id: UUID,
         action_type: str,
-        quote_id: Optional[UUID],
-        action_data: Dict[str, Any],
+        quote_id: UUID | None,
+        action_data: dict[str, Any],
     ) -> None:
         """Log pricing activity for audit trail.
-        
+
         Args:
             admin_user_id: Admin performing the action
             action_type: Type of pricing action

@@ -23,7 +23,7 @@ class OktaSSOProvider(OIDCProvider):
         scopes: list[str] | None = None,
     ) -> None:
         """Initialize Okta SSO provider.
-        
+
         Args:
             client_id: Okta application client ID
             client_secret: Okta application client secret
@@ -34,7 +34,7 @@ class OktaSSOProvider(OIDCProvider):
         """
         # Ensure domain doesn't include protocol
         okta_domain = okta_domain.replace("https://", "").replace("http://", "")
-        
+
         issuer = f"https://{okta_domain}/oauth2/{authorization_server_id}"
         super().__init__(
             client_id=client_id,
@@ -59,12 +59,12 @@ class OktaSSOProvider(OIDCProvider):
         **kwargs: Any,
     ) -> Result[str, str]:
         """Get Okta authorization URL.
-        
+
         Args:
             state: State parameter for CSRF protection
             nonce: Nonce for OIDC
             **kwargs: Additional parameters like prompt, idp
-            
+
         Returns:
             Result containing authorization URL or error
         """
@@ -100,7 +100,7 @@ class OktaSSOProvider(OIDCProvider):
             auth_endpoint = f"https://{self.okta_domain}/oauth2/{self.authorization_server_id}/v1/authorize"
 
             return Ok(f"{auth_endpoint}?{urlencode(params)}")
-            
+
         except Exception as e:
             return Err(f"Failed to generate authorization URL: {str(e)}")
 
@@ -111,11 +111,11 @@ class OktaSSOProvider(OIDCProvider):
         state: str,
     ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
-        
+
         Args:
             code: Authorization code from Okta
             state: State parameter for validation
-            
+
         Returns:
             Result containing tokens or error
         """
@@ -134,10 +134,12 @@ class OktaSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token exchange failed: {error_msg}")
 
             tokens = response.json()
@@ -150,7 +152,7 @@ class OktaSSOProvider(OIDCProvider):
                 tokens["id_token_claims"] = validation_result.value
 
             return Ok(tokens)
-            
+
         except httpx.TimeoutException:
             return Err("Token exchange request timed out")
         except httpx.RequestError as e:
@@ -164,10 +166,10 @@ class OktaSSOProvider(OIDCProvider):
         access_token: str,
     ) -> Result[SSOUserInfo, str]:
         """Get user information from Okta.
-        
+
         Args:
             access_token: Okta access token
-            
+
         Returns:
             Result containing user info or error
         """
@@ -180,16 +182,20 @@ class OktaSSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch user info: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch user info: HTTP {response.status_code}"
+                    )
 
             user_data = response.json()
 
             # Extract groups from Okta claims
             groups = []
             if "groups" in user_data:
-                groups = user_data["groups"] if isinstance(user_data["groups"], list) else []
+                groups = (
+                    user_data["groups"] if isinstance(user_data["groups"], list) else []
+                )
 
             # Okta may use 'preferred_username' instead of 'email'
             email = user_data.get("email") or user_data.get("preferred_username", "")
@@ -209,7 +215,7 @@ class OktaSSOProvider(OIDCProvider):
                     raw_claims=user_data,
                 )
             )
-            
+
         except httpx.TimeoutException:
             return Err("User info request timed out")
         except httpx.RequestError as e:
@@ -223,10 +229,10 @@ class OktaSSOProvider(OIDCProvider):
         refresh_token: str,
     ) -> Result[dict[str, Any], str]:
         """Refresh Okta access token.
-        
+
         Args:
             refresh_token: Okta refresh token
-            
+
         Returns:
             Result containing new tokens or error
         """
@@ -244,14 +250,16 @@ class OktaSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
                     error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                    error_msg = error_data.get(
+                        "error_description", error_data.get("error", "Unknown error")
+                    )
                     return Err(f"Token refresh failed: {error_msg}")
 
             return Ok(response.json())
-            
+
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
         except httpx.RequestError as e:
@@ -266,11 +274,11 @@ class OktaSSOProvider(OIDCProvider):
         token_type: str = "access_token",
     ) -> Result[bool, str]:
         """Revoke Okta token.
-        
+
         Args:
             token: Token to revoke
             token_type: Type of token (access_token or refresh_token)
-            
+
         Returns:
             Result indicating success or error
         """
@@ -291,7 +299,7 @@ class OktaSSOProvider(OIDCProvider):
 
             # Okta returns 200 even if token was already revoked
             return Ok(response.status_code == 200)
-            
+
         except httpx.TimeoutException:
             return Err("Token revocation request timed out")
         except httpx.RequestError as e:
@@ -306,11 +314,11 @@ class OktaSSOProvider(OIDCProvider):
         token_type: str = "access_token",
     ) -> Result[dict[str, Any], str]:
         """Introspect Okta token to check its validity and metadata.
-        
+
         Args:
             token: Token to introspect
             token_type: Type of token (access_token or refresh_token)
-            
+
         Returns:
             Result containing token metadata or error
         """
@@ -328,17 +336,19 @@ class OktaSSOProvider(OIDCProvider):
                     },
                     timeout=30.0,
                 )
-                
+
                 if response.status_code != 200:
-                    return Err(f"Token introspection failed: HTTP {response.status_code}")
+                    return Err(
+                        f"Token introspection failed: HTTP {response.status_code}"
+                    )
 
             introspection_data = response.json()
-            
+
             if not introspection_data.get("active", False):
                 return Err("Token is not active")
-                
+
             return Ok(introspection_data)
-            
+
         except httpx.TimeoutException:
             return Err("Token introspection request timed out")
         except httpx.RequestError as e:
@@ -353,17 +363,19 @@ class OktaSSOProvider(OIDCProvider):
         user_id: str,
     ) -> Result[list[dict[str, Any]], str]:
         """Get detailed group information for a user from Okta.
-        
+
         Args:
             access_token: Okta access token with appropriate permissions
             user_id: Okta user ID
-            
+
         Returns:
             Result containing list of group objects or error
         """
         try:
             # This requires Okta API access token, not just OAuth token
-            groups_endpoint = f"https://{self.okta_domain}/api/v1/users/{user_id}/groups"
+            groups_endpoint = (
+                f"https://{self.okta_domain}/api/v1/users/{user_id}/groups"
+            )
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -371,17 +383,19 @@ class OktaSSOProvider(OIDCProvider):
                     headers={"Authorization": f"Bearer {access_token}"},
                     timeout=30.0,
                 )
-                
+
                 if response.status_code == 403:
                     # No permission to read groups via API
                     return Ok([])
-                    
+
                 if response.status_code != 200:
-                    return Err(f"Failed to fetch user groups: HTTP {response.status_code}")
+                    return Err(
+                        f"Failed to fetch user groups: HTTP {response.status_code}"
+                    )
 
             groups = response.json()
             return Ok(groups)
-            
+
         except Exception:
             # Groups are optional, don't fail the entire auth
             return Ok([])

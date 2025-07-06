@@ -5,8 +5,6 @@ with proper validation, caching, and error handling.
 """
 
 from collections.abc import AsyncGenerator
-from datetime import date, datetime
-from decimal import Decimal
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -97,11 +95,11 @@ async def list_policies(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(connection)
         cache = Cache(redis)
         service = PolicyService(database, cache)
-        
+
         # Call service method to list policies
         result = await service.list(
             customer_id=filters.customer_id,
@@ -109,15 +107,15 @@ async def list_policies(
             limit=pagination.limit,
             offset=pagination.skip,
         )
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(result.error),
             )
-        
+
         policies = result.unwrap()
-        
+
         # Get total count (using same filters)
         count_result = await service.list(
             customer_id=filters.customer_id,
@@ -125,9 +123,9 @@ async def list_policies(
             limit=1000000,  # Large limit to get all
             offset=0,
         )
-        
+
         total = len(count_result.unwrap()) if count_result.is_ok() else 0
-        
+
         response = PolicyListResponse(
             items=policies,
             total=total,
@@ -172,31 +170,31 @@ async def create_policy(
                 raise ValueError("Database connection required and must be active")
             if not redis:
                 raise ValueError("Cache connection required and must be available")
-            
+
             database = Database(connection)
             cache = Cache(redis)
             service = PolicyService(database, cache)
-            
+
             # Extract customer_id from request - in real app, this would come from auth/request
             # For now, generate a new UUID for demo purposes
             customer_id = uuid4()
-            
+
             # Create policy using service
             result = await service.create(policy_data, customer_id)
-            
+
             if isinstance(result, Err):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(result.error),
                 )
-            
+
             policy = result.unwrap()
-            
+
             # Invalidate relevant caches
             pattern = "policies:list:*"
             async for key in redis.scan_iter(match=pattern):
                 await redis.delete(key)
-            
+
             break  # Use the first (and only) yielded connection
 
         return policy
@@ -244,30 +242,30 @@ async def get_policy(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(connection)
         cache = Cache(redis)
         service = PolicyService(database, cache)
-        
+
         # Get policy using service
         result = await service.get(policy_id)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(result.error),
             )
-        
+
         policy = result.unwrap()
         if not policy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Policy {policy_id} not found"
+                detail=f"Policy {policy_id} not found",
             )
-        
+
         # Cache the result
         await redis.setex(cache_key, 300, policy.model_dump_json())
-        
+
         return policy
 
 
@@ -302,33 +300,33 @@ async def update_policy(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(connection)
         cache = Cache(redis)
         service = PolicyService(database, cache)
-        
+
         # Update policy using service
         result = await service.update(policy_id, policy_update)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.error),
             )
-        
+
         policy = result.unwrap()
         if not policy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Policy {policy_id} not found"
+                detail=f"Policy {policy_id} not found",
             )
-        
+
         # Invalidate caches
         await redis.delete(f"policies:{policy_id}")
         pattern = "policies:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
-        
+
         return policy
 
 
@@ -358,27 +356,27 @@ async def delete_policy(
             raise ValueError("Database connection required and must be active")
         if not redis:
             raise ValueError("Cache connection required and must be available")
-        
+
         database = Database(connection)
         cache = Cache(redis)
         service = PolicyService(database, cache)
-        
+
         # Delete (soft delete) policy using service
         result = await service.delete(policy_id)
-        
+
         if isinstance(result, Err):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.error),
             )
-        
+
         deleted = result.unwrap()
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Policy {policy_id} not found"
+                detail=f"Policy {policy_id} not found",
             )
-        
+
         # Invalidate caches
         await redis.delete(f"policies:{policy_id}")
         pattern = "policies:list:*"

@@ -116,10 +116,10 @@ def run_migrations_online() -> None:
 def run_sync_migrations() -> None:
     """Run migrations in synchronous mode for SQLite."""
     from sqlalchemy import create_engine
-    
+
     url = config.get_main_option("sqlalchemy.url")
     engine = create_engine(url)
-    
+
     with engine.connect() as connection:
         context.configure(
             connection=connection,
@@ -127,7 +127,7 @@ def run_sync_migrations() -> None:
             compare_type=True,
             compare_server_default=True,
         )
-        
+
         with context.begin_transaction():
             context.run_migrations()
 

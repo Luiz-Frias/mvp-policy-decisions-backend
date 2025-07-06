@@ -4,16 +4,16 @@ This module implements the core rating engine with state-specific rules,
 discount calculations, and sub-50ms performance requirements.
 """
 
-import asyncio
 import hashlib
 import json
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Any, Dict, List, Optional
-from uuid import UUID, uuid4
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
+from uuid import UUID
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
@@ -33,10 +33,10 @@ from ..models.quote import (
     DriverInfo,
     VehicleInfo,
 )
-from .result import Err, Ok, Result
 from .rating.business_rules import RatingBusinessRules
-from .rating.territory_management import TerritoryManager
 from .rating.performance_optimizer import RatingPerformanceOptimizer
+from .rating.territory_management import TerritoryManager
+from .result import Err, Ok, Result
 
 
 @beartype
@@ -47,21 +47,21 @@ class RatingResult(BaseModelConfig):
     total_premium: Decimal = Field(..., ge=0, decimal_places=2)
 
     # Breakdowns
-    coverage_premiums: Dict[CoverageType, Decimal] = Field(default_factory=dict)
+    coverage_premiums: dict[CoverageType, Decimal] = Field(default_factory=dict)
 
     # Adjustments
-    discounts: List[Discount] = Field(default_factory=list)
+    discounts: list[Discount] = Field(default_factory=list)
     total_discount_amount: Decimal = Field(Decimal("0"), ge=0, decimal_places=2)
-    surcharges: List[Dict[str, Any]] = Field(default_factory=list)
+    surcharges: list[dict[str, Any]] = Field(default_factory=list)
     total_surcharge_amount: Decimal = Field(Decimal("0"), ge=0, decimal_places=2)
 
     # Factors used
-    factors: Dict[str, float] = Field(default_factory=dict)
+    factors: dict[str, float] = Field(default_factory=dict)
     tier: str = Field(...)
 
     # AI enhancements
-    ai_risk_score: Optional[float] = Field(None, ge=0, le=1)
-    ai_risk_factors: List[str] = Field(default_factory=list)
+    ai_risk_score: float | None = Field(None, ge=0, le=1)
+    ai_risk_factors: list[str] = Field(default_factory=list)
 
     # Calculation metadata
     calculation_time_ms: int = Field(..., ge=0)
@@ -81,15 +81,15 @@ class RatingEngine:
         self._rate_cache_ttl = 3600  # 1 hour
 
         # Preloaded data for performance
-        self._base_rates: Dict[str, Dict[str, Decimal]] = {}
-        self._discount_rules: Dict[str, Any] = {}
-        self._territory_factors: Dict[str, float] = {}
-        self._state_rules: Dict[str, Any] = {}
-        
+        self._base_rates: dict[str, dict[str, Decimal]] = {}
+        self._discount_rules: dict[str, Any] = {}
+        self._territory_factors: dict[str, float] = {}
+        self._state_rules: dict[str, Any] = {}
+
         # Business rule validation and territory management
         self._business_rules = RatingBusinessRules()
         self._territory_manager = TerritoryManager(db, cache)
-        
+
         # Performance optimizer for sub-50ms calculations
         self._performance_optimizer = RatingPerformanceOptimizer(db, cache)
 
@@ -118,10 +118,12 @@ class RatingEngine:
                 return load_states
 
             # Initialize performance optimizer
-            perf_init = await self._performance_optimizer.initialize_performance_caches()
+            perf_init = (
+                await self._performance_optimizer.initialize_performance_caches()
+            )
             if isinstance(perf_init, Err):
                 return perf_init
-            
+
             # Warm cache for common scenarios
             await self._performance_optimizer.warm_cache_for_common_scenarios()
 
@@ -134,10 +136,10 @@ class RatingEngine:
         self,
         state: str,
         product_type: str,
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
-        coverage_selections: List[CoverageSelection],
-        customer_id: Optional[UUID] = None,
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
+        coverage_selections: list[CoverageSelection],
+        customer_id: UUID | None = None,
     ) -> Result[RatingResult, str]:
         """Calculate premium with all factors - MUST complete in <50ms."""
         # Start performance monitoring
@@ -178,7 +180,9 @@ class RatingEngine:
                     )
 
                 base_rate = base_rates.value[coverage.coverage_type.value]
-                coverage_premium = coverage.limit * base_rate / Decimal("1000")  # Rate per $1000
+                coverage_premium = (
+                    coverage.limit * base_rate / Decimal("1000")
+                )  # Rate per $1000
                 coverage_premiums[coverage.coverage_type] = coverage_premium.quantize(
                     Decimal("0.01"), rounding=ROUND_HALF_UP
                 )
@@ -198,7 +202,12 @@ class RatingEngine:
 
             # Calculate discounts
             discounts = await self._calculate_discounts(
-                state, product_type, vehicle_info, drivers, customer_id, factored_premium
+                state,
+                product_type,
+                vehicle_info,
+                drivers,
+                customer_id,
+                factored_premium,
             )
             if isinstance(discounts, Err):
                 return discounts
@@ -210,9 +219,7 @@ class RatingEngine:
             if isinstance(surcharges, Err):
                 return surcharges
 
-            total_surcharge = sum(
-                Decimal(str(s["amount"])) for s in surcharges.value
-            )
+            total_surcharge = sum(Decimal(str(s["amount"])) for s in surcharges.value)
 
             # Final premium calculation
             total_premium = factored_premium - total_discount + total_surcharge
@@ -240,25 +247,29 @@ class RatingEngine:
                     ai_risk_factors = ai_assessment.value.get("factors", [])
 
             # Validate business rules before finalizing result
-            business_validation = await self._business_rules.validate_premium_calculation(
-                state=state,
-                product_type=product_type,
-                vehicle_info=vehicle_info,
-                drivers=drivers,
-                coverage_selections=coverage_selections,
-                factors=factors.value,
-                base_premium=total_base,
-                total_premium=total_premium,
-                discounts=discounts.value,
-                surcharges=surcharges.value,
+            business_validation = (
+                await self._business_rules.validate_premium_calculation(
+                    state=state,
+                    product_type=product_type,
+                    vehicle_info=vehicle_info,
+                    drivers=drivers,
+                    coverage_selections=coverage_selections,
+                    factors=factors.value,
+                    base_premium=total_base,
+                    total_premium=total_premium,
+                    discounts=discounts.value,
+                    surcharges=surcharges.value,
+                )
             )
-            
+
             if isinstance(business_validation, Err):
                 return business_validation
-                
+
             violations = business_validation.value
-            critical_violations = self._business_rules.get_critical_violations(violations)
-            
+            critical_violations = self._business_rules.get_critical_violations(
+                violations
+            )
+
             # Fail if critical business rule violations exist
             if critical_violations:
                 violation_messages = [v.message for v in critical_violations]
@@ -267,11 +278,17 @@ class RatingEngine:
                 )
 
             # Build result and get calculation time
-            calc_time = self._performance_optimizer.end_performance_monitoring(perf_token)
+            calc_time = self._performance_optimizer.end_performance_monitoring(
+                perf_token
+            )
 
             result = RatingResult(
-                base_premium=total_base.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
-                total_premium=total_premium.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+                base_premium=total_base.quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                ),
+                total_premium=total_premium.quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                ),
                 coverage_premiums=coverage_premiums,
                 discounts=discounts.value,
                 total_discount_amount=total_discount,
@@ -307,8 +324,8 @@ class RatingEngine:
         self,
         state: str,
         product_type: str,
-        drivers: List[DriverInfo],
-        coverage_selections: List[CoverageSelection],
+        drivers: list[DriverInfo],
+        coverage_selections: list[CoverageSelection],
     ) -> Result[bool, str]:
         """Validate rating inputs - FAIL FAST."""
         # Validate state support
@@ -354,10 +371,10 @@ class RatingEngine:
     @beartype
     async def _get_base_rates(
         self, state: str, product_type: str
-    ) -> Result[Dict[str, Decimal], str]:
+    ) -> Result[dict[str, Decimal], str]:
         """Get base rates for state/product - NO DEFAULTS."""
         cache_key = f"base_rates:{state}:{product_type}"
-        
+
         # Check cache first
         cached = await self._cache.get(f"{self._cache_prefix}{cache_key}")
         if cached:
@@ -377,9 +394,9 @@ class RatingEngine:
                 AND effective_date <= CURRENT_DATE
                 AND (expiration_date IS NULL OR expiration_date > CURRENT_DATE)
         """
-        
+
         rows = await self._db.fetch(query, state, product_type)
-        
+
         if not rows:
             return Err(
                 f"No active rate table found for {state} {product_type}. "
@@ -388,24 +405,24 @@ class RatingEngine:
             )
 
         rates = {row["coverage_type"]: Decimal(str(row["base_rate"])) for row in rows}
-        
+
         # Cache for performance
         await self._cache.set(
             f"{self._cache_prefix}{cache_key}",
             json.dumps({k: str(v) for k, v in rates.items()}),
             self._rate_cache_ttl,
         )
-        
+
         return Ok(rates)
 
     @beartype
     async def _calculate_factors(
         self,
         state: str,
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
-        customer_id: Optional[UUID],
-    ) -> Result[Dict[str, float], str]:
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
+        customer_id: UUID | None,
+    ) -> Result[dict[str, float], str]:
         """Calculate all rating factors."""
         factors = {}
 
@@ -453,7 +470,7 @@ class RatingEngine:
     @beartype
     async def _calculate_vehicle_factors(
         self, vehicle: VehicleInfo
-    ) -> Result[Dict[str, float], str]:
+    ) -> Result[dict[str, float], str]:
         """Calculate vehicle-specific factors."""
         factors = {}
 
@@ -496,8 +513,8 @@ class RatingEngine:
 
     @beartype
     async def _calculate_driver_factors(
-        self, drivers: List[DriverInfo]
-    ) -> Result[Dict[str, float], str]:
+        self, drivers: list[DriverInfo]
+    ) -> Result[dict[str, float], str]:
         """Calculate driver-specific factors."""
         # Find primary driver (youngest regular driver typically has highest impact)
         primary_driver = min(drivers, key=lambda d: d.age)
@@ -556,11 +573,11 @@ class RatingEngine:
         self,
         state: str,
         product_type: str,
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
-        customer_id: Optional[UUID],
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
+        customer_id: UUID | None,
         base_premium: Decimal,
-    ) -> Result[List[Discount], str]:
+    ) -> Result[list[Discount], str]:
         """Calculate applicable discounts."""
         discounts = []
 
@@ -632,9 +649,9 @@ class RatingEngine:
                     Discount(
                         discount_type=DiscountType.LOYALTY,
                         description=f"Loyalty discount ({tenure.value} years)",
-                        amount=(base_premium * Decimal(str(discount_pct / 100))).quantize(
-                            Decimal("0.01"), rounding=ROUND_HALF_UP
-                        ),
+                        amount=(
+                            base_premium * Decimal(str(discount_pct / 100))
+                        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
                         percentage=Decimal(str(discount_pct)),
                     )
                 )
@@ -652,8 +669,8 @@ class RatingEngine:
 
     @beartype
     async def _calculate_surcharges(
-        self, state: str, drivers: List[DriverInfo], customer_id: Optional[UUID]
-    ) -> Result[List[Dict[str, Any]], str]:
+        self, state: str, drivers: list[DriverInfo], customer_id: UUID | None
+    ) -> Result[list[dict[str, Any]], str]:
         """Calculate applicable surcharges."""
         surcharges = []
 
@@ -681,9 +698,7 @@ class RatingEngine:
 
         # High-risk driver surcharge
         high_risk_drivers = [
-            d
-            for d in drivers
-            if d.violations_3_years > 3 or d.accidents_3_years > 2
+            d for d in drivers if d.violations_3_years > 3 or d.accidents_3_years > 2
         ]
         if high_risk_drivers:
             surcharges.append(
@@ -697,7 +712,7 @@ class RatingEngine:
         return Ok(surcharges)
 
     @beartype
-    def _determine_tier(self, factors: Dict[str, float], premium: Decimal) -> str:
+    def _determine_tier(self, factors: dict[str, float], premium: Decimal) -> str:
         """Determine rating tier based on factors and premium."""
         # Calculate composite risk score
         risk_score = 1.0
@@ -721,18 +736,31 @@ class RatingEngine:
         self,
         state: str,
         product_type: str,
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
-        coverage_selections: List[CoverageSelection],
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
+        coverage_selections: list[CoverageSelection],
     ) -> str:
         """Generate cache key for rating calculation."""
         # Create deterministic key from inputs
         key_parts = [
             state,
             product_type,
-            json.dumps(vehicle_info.model_dump() if vehicle_info else None, sort_keys=True),
-            json.dumps([d.model_dump() for d in sorted(drivers, key=lambda x: x.last_name)], sort_keys=True),
-            json.dumps([c.model_dump() for c in sorted(coverage_selections, key=lambda x: x.coverage_type.value)], sort_keys=True),
+            json.dumps(
+                vehicle_info.model_dump() if vehicle_info else None, sort_keys=True
+            ),
+            json.dumps(
+                [d.model_dump() for d in sorted(drivers, key=lambda x: x.last_name)],
+                sort_keys=True,
+            ),
+            json.dumps(
+                [
+                    c.model_dump()
+                    for c in sorted(
+                        coverage_selections, key=lambda x: x.coverage_type.value
+                    )
+                ],
+                sort_keys=True,
+            ),
         ]
 
         key_string = "|".join(key_parts)
@@ -762,7 +790,7 @@ class RatingEngine:
                 AND claim_date > CURRENT_DATE - INTERVAL '5 years'
                 AND status IN ('paid', 'settled')
         """
-        
+
         row = await self._db.fetchrow(query, customer_id)
         claim_count = row["claim_count"] if row else 0
 
@@ -785,15 +813,15 @@ class RatingEngine:
             FROM state_product_rules
             WHERE state = $1 AND product_type = $2
         """
-        
+
         row = await self._db.fetchrow(query, state, product_type)
-        
+
         if not row:
             return Err(
                 f"No minimum premium configured for {state} {product_type}. "
                 f"Admin must configure state rules before quotes can proceed."
             )
-        
+
         return Ok(Decimal(str(row["minimum_premium"])))
 
     @beartype
@@ -804,7 +832,7 @@ class RatingEngine:
             FROM policies
             WHERE customer_id = $1 AND status = 'active'
         """
-        
+
         row = await self._db.fetchrow(query, customer_id)
         return Ok(row["policy_count"] if row else 0)
 
@@ -816,12 +844,12 @@ class RatingEngine:
             FROM policies
             WHERE customer_id = $1
         """
-        
+
         row = await self._db.fetchrow(query, customer_id)
-        
+
         if not row or not row["first_policy_date"]:
             return Ok(0)
-        
+
         tenure_days = (datetime.now() - row["first_policy_date"]).days
         return Ok(tenure_days // 365)
 
@@ -836,7 +864,7 @@ class RatingEngine:
                 AND coverage_gap_days > 30
                 AND gap_date > CURRENT_DATE - INTERVAL '3 years'
         """
-        
+
         row = await self._db.fetchrow(query, customer_id)
         return Ok(row["lapse_count"] > 0 if row else False)
 
@@ -844,22 +872,24 @@ class RatingEngine:
     async def _get_ai_risk_assessment(
         self,
         customer_id: UUID,
-        vehicle_info: Optional[VehicleInfo],
-        drivers: List[DriverInfo],
-    ) -> Result[Dict[str, Any], str]:
+        vehicle_info: VehicleInfo | None,
+        drivers: list[DriverInfo],
+    ) -> Result[dict[str, Any], str]:
         """Get AI risk assessment if available."""
         # Import here to avoid circular imports
         from .rating.calculators import AIRiskScorer
-        
+
         try:
             # Initialize AI scorer
             ai_scorer = AIRiskScorer(load_models=True)
-            
+
             # Get customer data
             customer_data = await self._get_customer_data_for_ai(customer_id)
             if customer_data.is_err():
-                return Err(f"Customer data retrieval failed: {customer_data.unwrap_err()}")
-            
+                return Err(
+                    f"Customer data retrieval failed: {customer_data.unwrap_err()}"
+                )
+
             # Convert vehicle info to dict
             vehicle_data = {}
             if vehicle_info:
@@ -879,7 +909,7 @@ class RatingEngine:
                     "safety_features": [],
                     "type": "sedan",
                 }
-            
+
             # Convert driver info to dict
             driver_data = []
             for driver in drivers:
@@ -888,39 +918,43 @@ class RatingEngine:
                     "years_licensed": driver.years_licensed,
                     "violations_3_years": driver.violations_3_years,
                     "accidents_3_years": driver.accidents_3_years,
-                    "good_student": getattr(driver, 'good_student', False),
-                    "occupation": getattr(driver, 'occupation', None),
+                    "good_student": getattr(driver, "good_student", False),
+                    "occupation": getattr(driver, "occupation", None),
                 }
                 driver_data.append(driver_dict)
-            
+
             # Get external data factors if available
-            external_data = await self._get_external_data_for_ai(customer_id, vehicle_info)
-            
+            external_data = await self._get_external_data_for_ai(
+                customer_id, vehicle_info
+            )
+
             # Calculate AI risk score
             ai_result = await ai_scorer.calculate_ai_risk_score(
                 customer_data.unwrap(),
                 vehicle_data,
                 driver_data,
-                external_data.unwrap_or(None)
+                external_data.unwrap_or(None),
             )
-            
+
             if ai_result.is_err():
                 # Fallback to simplified scoring if AI fails
                 return Err(f"AI scoring failed: {ai_result.unwrap_err()}")
-            
+
             return ai_result
-            
+
         except Exception as e:
             # Fallback to simplified scoring if AI completely fails
             return Err(f"AI risk assessment error: {str(e)}")
-    
+
     @beartype
-    async def _get_customer_data_for_ai(self, customer_id: UUID) -> Result[Dict[str, Any], str]:
+    async def _get_customer_data_for_ai(
+        self, customer_id: UUID
+    ) -> Result[dict[str, Any], str]:
         """Get customer data formatted for AI scoring."""
         try:
             # Query customer data from database
             customer_query = """
-                SELECT 
+                SELECT
                     COUNT(CASE WHEN status = 'active' THEN 1 END) as policy_count,
                     MIN(created_at) as first_policy_date,
                     COUNT(CASE WHEN claim_date > CURRENT_DATE - INTERVAL '5 years' THEN 1 END) as recent_claims
@@ -929,44 +963,47 @@ class RatingEngine:
                 WHERE p.customer_id = $1
                 GROUP BY p.customer_id
             """
-            
+
             row = await self._db.fetchrow(customer_query, customer_id)
-            
+
             if not row:
                 # New customer
-                return Ok({
-                    "policy_count": 0,
-                    "years_as_customer": 0,
-                    "previous_claims": 0,
-                })
-            
+                return Ok(
+                    {
+                        "policy_count": 0,
+                        "years_as_customer": 0,
+                        "previous_claims": 0,
+                    }
+                )
+
             # Calculate years as customer
             first_policy_date = row["first_policy_date"]
             if first_policy_date:
                 from datetime import datetime
+
                 years_as_customer = (datetime.now() - first_policy_date).days / 365.25
             else:
                 years_as_customer = 0
-            
-            return Ok({
-                "policy_count": row["policy_count"] or 0,
-                "years_as_customer": years_as_customer,
-                "previous_claims": row["recent_claims"] or 0,
-            })
-            
+
+            return Ok(
+                {
+                    "policy_count": row["policy_count"] or 0,
+                    "years_as_customer": years_as_customer,
+                    "previous_claims": row["recent_claims"] or 0,
+                }
+            )
+
         except Exception as e:
             return Err(f"Customer data query failed: {str(e)}")
-    
+
     @beartype
     async def _get_external_data_for_ai(
-        self, 
-        customer_id: UUID, 
-        vehicle_info: Optional[VehicleInfo]
-    ) -> Result[Optional[Dict[str, Any]], str]:
+        self, customer_id: UUID, vehicle_info: VehicleInfo | None
+    ) -> Result[dict[str, Any] | None, str]:
         """Get external data factors for AI scoring."""
         try:
             external_data = {}
-            
+
             # Get credit score if available and allowed
             credit_result = await self._get_credit_factor(customer_id)
             if credit_result.is_ok():
@@ -982,38 +1019,38 @@ class RatingEngine:
                     credit_score = 625  # Poor
                 else:
                     credit_score = 575  # Very poor
-                    
+
                 external_data["credit_score"] = credit_score
-            
+
             # Get geographical risk factors if vehicle location available
-            if vehicle_info and hasattr(vehicle_info, 'garage_zip'):
+            if vehicle_info and hasattr(vehicle_info, "garage_zip"):
                 from .rating.calculators import ExternalDataIntegrator
-                
+
                 # Get crime risk
                 crime_result = await ExternalDataIntegrator.get_crime_risk_factor(
                     vehicle_info.garage_zip
                 )
                 if crime_result.is_ok():
                     external_data["area_crime_rate"] = crime_result.unwrap()
-                
+
                 # Get weather risk
                 from datetime import datetime
+
                 weather_result = await ExternalDataIntegrator.get_weather_risk_factor(
-                    vehicle_info.garage_zip,
-                    datetime.now()
+                    vehicle_info.garage_zip, datetime.now()
                 )
                 if weather_result.is_ok():
                     external_data["weather_risk"] = weather_result.unwrap()
-            
+
             return Ok(external_data if external_data else None)
-            
-        except Exception as e:
+
+        except Exception:
             # Return None for external data if there are issues
             return Ok(None)
 
     @beartype
     async def _log_slow_calculation(
-        self, calc_time_ms: int, factors: Dict[str, float]
+        self, calc_time_ms: int, factors: dict[str, float]
     ) -> None:
         """Log slow calculation for monitoring."""
         # In production, this would send to monitoring system
@@ -1029,16 +1066,16 @@ class RatingEngine:
                 AND effective_date <= CURRENT_DATE
                 AND (expiration_date IS NULL OR expiration_date > CURRENT_DATE)
         """
-        
+
         rows = await self._db.fetch(query)
-        
+
         for row in rows:
             key = f"{row['state']}:{row['product_type']}"
             if key not in self._base_rates:
                 self._base_rates[key] = {}
-            
+
             self._base_rates[key][row["coverage_type"]] = Decimal(str(row["base_rate"]))
-        
+
         return Ok(True)
 
     @beartype
@@ -1062,12 +1099,12 @@ class RatingEngine:
             FROM state_rating_rules
             WHERE active = true
         """
-        
+
         rows = await self._db.fetch(query)
-        
+
         for row in rows:
             self._state_rules[row["state"]] = json.loads(row["rules_data"])
-        
+
         # Hardcode some essential states if not in DB
         if "CA" not in self._state_rules:
             self._state_rules["CA"] = {
@@ -1079,7 +1116,7 @@ class RatingEngine:
                     "property_damage": 5000,
                 },
             }
-        
+
         if "TX" not in self._state_rules:
             self._state_rules["TX"] = {
                 "required_coverages": ["bodily_injury", "property_damage"],
@@ -1090,13 +1127,13 @@ class RatingEngine:
                     "property_damage": 25000,
                 },
             }
-        
+
         return Ok(True)
 
     @beartype
     def _apply_state_factor_rules(
-        self, state: str, factors: Dict[str, float]
-    ) -> Result[Dict[str, float], str]:
+        self, state: str, factors: dict[str, float]
+    ) -> Result[dict[str, float], str]:
         """Apply state-specific factor validation rules."""
         if state not in self._state_rules:
             return Err(f"No rules configured for state {state}")
@@ -1112,7 +1149,13 @@ class RatingEngine:
         if state == "CA":
             # Ensure primary factors (driving record, miles, experience)
             # account for at least 80% of rating
-            primary_factors = ["violations", "accidents", "experience", "low_mileage", "high_mileage"]
+            primary_factors = [
+                "violations",
+                "accidents",
+                "experience",
+                "low_mileage",
+                "high_mileage",
+            ]
             primary_weight = 1.0
             secondary_weight = 1.0
 
@@ -1124,16 +1167,22 @@ class RatingEngine:
 
             # If secondary factors have too much impact, scale them down
             if secondary_weight < 0.8 or secondary_weight > 1.2:
-                scale = 0.2 / abs(1.0 - secondary_weight) if secondary_weight != 1.0 else 1.0
+                scale = (
+                    0.2 / abs(1.0 - secondary_weight)
+                    if secondary_weight != 1.0
+                    else 1.0
+                )
                 for factor_name in adjusted_factors:
                     if factor_name not in primary_factors:
                         # Move factor closer to 1.0
-                        adjusted_factors[factor_name] = 1.0 + (adjusted_factors[factor_name] - 1.0) * scale
+                        adjusted_factors[factor_name] = (
+                            1.0 + (adjusted_factors[factor_name] - 1.0) * scale
+                        )
 
         return Ok(adjusted_factors)
 
     @beartype
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get current performance metrics for monitoring."""
         return self._performance_optimizer.get_performance_metrics()
 
@@ -1143,7 +1192,7 @@ class RatingEngine:
         return self._performance_optimizer.is_performance_target_met(target_ms)
 
     @beartype
-    async def optimize_performance(self) -> Result[List[str], str]:
+    async def optimize_performance(self) -> Result[list[str], str]:
         """Get performance optimization recommendations."""
         return await self._performance_optimizer.optimize_slow_calculations()
 

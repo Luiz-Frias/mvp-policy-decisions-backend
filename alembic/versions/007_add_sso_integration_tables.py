@@ -27,7 +27,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create SSO integration tables."""
-    
+
     # Create user SSO links table
     op.create_table(
         "user_sso_links",
@@ -72,11 +72,12 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_user_sso_links")),
         sa.UniqueConstraint(
-            "provider", "provider_user_id",
+            "provider",
+            "provider_user_id",
             name=op.f("uq_user_sso_links_provider_provider_user_id"),
         ),
     )
-    
+
     # Create indexes for SSO links
     op.create_index(
         op.f("ix_user_sso_links_user_id"),
@@ -90,7 +91,7 @@ def upgrade() -> None:
         ["provider"],
         unique=False,
     )
-    
+
     # Create SSO provider configurations table (enhanced version)
     op.create_table(
         "sso_provider_configs",
@@ -180,7 +181,7 @@ def upgrade() -> None:
             name=op.f("ck_sso_provider_configs_default_role"),
         ),
     )
-    
+
     # Create SSO group mappings table
     op.create_table(
         "sso_group_mappings",
@@ -221,7 +222,8 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sso_group_mappings")),
         sa.UniqueConstraint(
-            "provider_id", "sso_group_name",
+            "provider_id",
+            "sso_group_name",
             name=op.f("uq_sso_group_mappings_provider_id_sso_group_name"),
         ),
         sa.CheckConstraint(
@@ -229,7 +231,7 @@ def upgrade() -> None:
             name=op.f("ck_sso_group_mappings_internal_role"),
         ),
     )
-    
+
     # Create user provisioning rules table
     op.create_table(
         "user_provisioning_rules",
@@ -288,7 +290,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_user_provisioning_rules")),
     )
-    
+
     # Create index for provisioning rules priority
     op.create_index(
         op.f("ix_user_provisioning_rules_provider_id_priority"),
@@ -296,7 +298,7 @@ def upgrade() -> None:
         ["provider_id", "priority"],
         unique=False,
     )
-    
+
     # Create SSO group sync logs table
     op.create_table(
         "sso_group_sync_logs",
@@ -360,7 +362,7 @@ def upgrade() -> None:
             name=op.f("ck_sso_group_sync_logs_status"),
         ),
     )
-    
+
     # Create indexes for sync logs
     op.create_index(
         op.f("ix_sso_group_sync_logs_user_id"),
@@ -374,7 +376,7 @@ def upgrade() -> None:
         ["last_sync"],
         unique=False,
     )
-    
+
     # Create SSO activity logs table for admin dashboards
     op.create_table(
         "sso_activity_logs",
@@ -413,7 +415,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sso_activity_logs")),
     )
-    
+
     # Create index for activity logs
     op.create_index(
         op.f("ix_sso_activity_logs_created_at"),
@@ -421,7 +423,7 @@ def upgrade() -> None:
         ["created_at"],
         unique=False,
     )
-    
+
     # Create auth logs table for SSO authentication tracking
     op.create_table(
         "auth_logs",
@@ -466,7 +468,7 @@ def upgrade() -> None:
             name=op.f("ck_auth_logs_status"),
         ),
     )
-    
+
     # Create indexes for auth logs
     op.create_index(
         op.f("ix_auth_logs_user_id"),
@@ -486,7 +488,7 @@ def upgrade() -> None:
         ["auth_method"],
         unique=False,
     )
-    
+
     # Add update triggers for new tables
     for table in ["user_sso_links", "sso_provider_configs"]:
         op.execute(
@@ -501,11 +503,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop SSO integration tables."""
-    
+
     # Drop triggers
     for table in ["user_sso_links", "sso_provider_configs"]:
         op.execute(f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};")
-    
+
     # Drop tables in reverse order
     op.drop_table("auth_logs")
     op.drop_table("sso_activity_logs")

@@ -26,7 +26,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create users and quote system tables."""
-    
+
     # Create users table first (referenced by many other tables)
     op.create_table(
         "users",
@@ -62,12 +62,12 @@ def upgrade() -> None:
             name=op.f("ck_users_role"),
         ),
     )
-    
+
     # Create indexes for users
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=False)
     op.create_index(op.f("ix_users_role"), "users", ["role"], unique=False)
     op.create_index(op.f("ix_users_is_active"), "users", ["is_active"], unique=False)
-    
+
     # Create comprehensive quotes table
     op.create_table(
         "quotes",
@@ -253,12 +253,18 @@ def upgrade() -> None:
             name=op.f("ck_quotes_monthly_premium_positive"),
         ),
     )
-    
+
     # Create comprehensive indexes for quotes
-    op.create_index(op.f("ix_quotes_customer_id"), "quotes", ["customer_id"], unique=False)
+    op.create_index(
+        op.f("ix_quotes_customer_id"), "quotes", ["customer_id"], unique=False
+    )
     op.create_index(op.f("ix_quotes_status"), "quotes", ["status"], unique=False)
-    op.create_index(op.f("ix_quotes_quote_number"), "quotes", ["quote_number"], unique=False)
-    op.create_index(op.f("ix_quotes_expires_at"), "quotes", ["expires_at"], unique=False)
+    op.create_index(
+        op.f("ix_quotes_quote_number"), "quotes", ["quote_number"], unique=False
+    )
+    op.create_index(
+        op.f("ix_quotes_expires_at"), "quotes", ["expires_at"], unique=False
+    )
     op.create_index(
         op.f("ix_quotes_state_product"),
         "quotes",
@@ -271,7 +277,7 @@ def upgrade() -> None:
         ["created_at"],
         unique=False,
     )
-    
+
     # GIN indexes for JSONB columns
     op.create_index(
         "ix_quotes_vehicle_info_gin",
@@ -287,7 +293,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_using="gin",
     )
-    
+
     # Composite index for common queries
     op.create_index(
         "ix_quotes_customer_status_created",
@@ -295,7 +301,7 @@ def upgrade() -> None:
         ["customer_id", "status", "created_at"],
         unique=False,
     )
-    
+
     # Add update trigger to quotes table
     op.execute(
         """
@@ -305,7 +311,7 @@ def upgrade() -> None:
         EXECUTE FUNCTION update_updated_at_column();
         """
     )
-    
+
     # Add update trigger to users table
     op.execute(
         """
@@ -315,7 +321,7 @@ def upgrade() -> None:
         EXECUTE FUNCTION update_updated_at_column();
         """
     )
-    
+
     # Create quote number sequence
     op.execute(
         """
@@ -326,7 +332,7 @@ def upgrade() -> None:
         CACHE 1;
         """
     )
-    
+
     # Create function to generate quote numbers
     op.execute(
         """
@@ -347,15 +353,15 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop quotes and users tables and related objects."""
-    
+
     # Drop triggers
     op.execute("DROP TRIGGER IF EXISTS update_quotes_updated_at ON quotes;")
     op.execute("DROP TRIGGER IF EXISTS update_users_updated_at ON users;")
-    
+
     # Drop function and sequence
     op.execute("DROP FUNCTION IF EXISTS generate_quote_number();")
     op.execute("DROP SEQUENCE IF EXISTS quote_number_seq;")
-    
+
     # Drop tables
     op.drop_table("quotes")
     op.drop_table("users")

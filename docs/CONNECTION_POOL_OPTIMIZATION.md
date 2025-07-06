@@ -15,7 +15,7 @@ graph TB
         A4[FastAPI App Instance 4]
         A5[FastAPI App Instance 5]
     end
-    
+
     subgraph "Connection Pooling Layer"
         PB[PgBouncer<br/>Transaction Pooling]
         CP1[App Pool 1<br/>35 connections]
@@ -24,18 +24,18 @@ graph TB
         CP4[App Pool 4<br/>35 connections]
         CP5[App Pool 5<br/>35 connections]
     end
-    
+
     subgraph "Database Layer"
         PG[PostgreSQL Primary<br/>200 max connections]
         RR[Read Replicas<br/>100 connections each]
     end
-    
+
     A1 --> CP1 --> PB
     A2 --> CP2 --> PB
     A3 --> CP3 --> PB
     A4 --> CP4 --> PB
     A5 --> CP5 --> PB
-    
+
     PB --> PG
     CP1 --> RR
     CP2 --> RR
@@ -49,12 +49,14 @@ graph TB
 ### 1. Enhanced Connection Pool Configuration
 
 **Key Features:**
+
 - **Capacity-based sizing**: Pool sizes calculated based on expected RPS and application instances
 - **Connection pre-warming**: Pools are warmed during startup to eliminate cold start penalties
 - **Advanced health checks**: Continuous monitoring prevents pool exhaustion
 - **Connection lifecycle management**: Automatic rotation after 50k queries for connection hygiene
 
 **Configuration:**
+
 ```python
 # Optimized pool configuration for 10,000 concurrent users
 min_connections = 15  # Higher minimum for instant availability
@@ -67,6 +69,7 @@ max_queries = 50000  # Connection rotation for hygiene
 ### 2. pgBouncer Transaction Pooling
 
 **Optimized Settings:**
+
 ```ini
 # High-performance pgBouncer configuration
 pool_mode = transaction
@@ -78,6 +81,7 @@ reserve_pool_timeout = 2    # Faster reserve allocation
 ```
 
 **Benefits:**
+
 - **10x connection multiplexing**: 10,000 clients → 350 database connections
 - **Sub-100ms connection acquisition**: Pre-warmed pools eliminate delays
 - **Automatic failover**: Built-in connection health monitoring
@@ -86,6 +90,7 @@ reserve_pool_timeout = 2    # Faster reserve allocation
 ### 3. Database-Level Optimizations
 
 **PostgreSQL Configuration Enhancements:**
+
 ```sql
 -- Memory optimization for high concurrency
 shared_buffers = 2GB           -- 25% of RAM for buffer cache
@@ -106,6 +111,7 @@ log_min_duration_statement = 1000  -- Log queries > 1 second
 ### 4. Advanced Monitoring & Alerting
 
 **Real-time Metrics:**
+
 - **Pool utilization**: Current vs. maximum connections
 - **Connection acquisition times**: P95 and P99 percentiles
 - **Query performance**: Average and slow query tracking
@@ -113,6 +119,7 @@ log_min_duration_statement = 1000  -- Log queries > 1 second
 - **Health indicators**: Automated warning system
 
 **Monitoring Endpoints:**
+
 ```bash
 # Basic pool statistics
 GET /api/v1/monitoring/pool-stats
@@ -127,16 +134,19 @@ GET /api/v1/monitoring/health/database
 ## Performance Benchmarks
 
 ### Before Optimization
+
 ```
 Pool Size: 20 | Concurrency: 50 | Throughput: 4,773 RPS | P95: 969ms | Timeouts: 79.5%
 ```
 
 ### After Optimization (Projected)
+
 ```
 Pool Size: 35 | Concurrency: 50 | Throughput: 8,500+ RPS | P95: <100ms | Timeouts: <1%
 ```
 
 **Key Improvements:**
+
 - **78% increase in throughput**
 - **90% reduction in P95 latency**
 - **99% reduction in timeout rate**
@@ -206,6 +216,7 @@ curl http://localhost:8000/api/v1/monitoring/pool-stats
 ## Production Checklist
 
 ### Pre-Deployment
+
 - [ ] PostgreSQL max_connections set to 200+
 - [ ] pgBouncer installed and configured
 - [ ] Connection strings updated to use pgBouncer port (6432)
@@ -213,6 +224,7 @@ curl http://localhost:8000/api/v1/monitoring/pool-stats
 - [ ] Monitoring endpoints tested
 
 ### Post-Deployment
+
 - [ ] Pool utilization < 70% under normal load
 - [ ] Connection acquisition time < 10ms P95
 - [ ] Zero pool exhaustion events
@@ -220,6 +232,7 @@ curl http://localhost:8000/api/v1/monitoring/pool-stats
 - [ ] Health check endpoints returning "healthy"
 
 ### Load Testing
+
 - [ ] 1,000 concurrent users: P95 < 100ms
 - [ ] 5,000 concurrent users: P95 < 200ms
 - [ ] 10,000 concurrent users: P95 < 500ms
@@ -228,6 +241,7 @@ curl http://localhost:8000/api/v1/monitoring/pool-stats
 ## Troubleshooting
 
 ### High Connection Times
+
 ```bash
 # Check pgBouncer status
 echo "SHOW POOLS;" | psql -h localhost -p 6432 -U pgbouncer pgbouncer
@@ -237,6 +251,7 @@ curl http://localhost:8000/api/v1/monitoring/pool-metrics/detailed
 ```
 
 ### Pool Exhaustion
+
 ```bash
 # Increase pool size temporarily
 sed -i 's/default_pool_size = 35/default_pool_size = 50/' /etc/pgbouncer/pgbouncer.ini
@@ -247,6 +262,7 @@ sudo -u postgres psql -c "SELECT count(*) FROM pg_stat_activity;"
 ```
 
 ### Memory Issues
+
 ```bash
 # Check PostgreSQL memory usage
 sudo -u postgres psql -c "SELECT * FROM pg_stat_database;"
@@ -258,11 +274,13 @@ ps aux | grep postgres | grep -v grep
 ## Scaling Guidelines
 
 ### Horizontal Scaling
+
 - **Add application instances**: Each instance gets 35-connection pool
 - **Database connection math**: `instances * 35 + 20% overhead < max_connections`
 - **pgBouncer scaling**: One pgBouncer per database server
 
 ### Vertical Scaling
+
 - **Memory scaling**: `shared_buffers = RAM * 0.25`, `effective_cache_size = RAM * 0.75`
 - **Connection scaling**: `max_connections = 50 + (app_instances * 35)`
 - **Pool scaling**: Increase `default_pool_size` by 5-10 connections per scaling event
@@ -270,12 +288,14 @@ ps aux | grep postgres | grep -v grep
 ## Security Considerations
 
 ### Connection Security
+
 - **TLS encryption**: All connections encrypted in transit
 - **Authentication**: Strong password policies enforced
 - **Network isolation**: Database access restricted to application subnets
 - **Connection limits**: Per-user connection limits configured
 
 ### Monitoring Security
+
 - **Metrics sanitization**: No sensitive data in monitoring endpoints
 - **Access control**: Monitoring endpoints require authentication
 - **Audit logging**: All connection events logged
@@ -284,12 +304,14 @@ ps aux | grep postgres | grep -v grep
 ## Cost Optimization
 
 ### Resource Efficiency
+
 - **Connection multiplexing**: 96.5% reduction in database connections
 - **Memory efficiency**: Shared connection state reduces per-connection overhead
 - **CPU optimization**: Connection pooling reduces connection establishment overhead
 - **Network efficiency**: Persistent connections reduce TCP handshake overhead
 
 ### Cost Savings
+
 - **Database licensing**: Reduced connection count lowers licensing costs
 - **Infrastructure**: Smaller database instances support more application load
 - **Operational**: Automated monitoring reduces manual intervention

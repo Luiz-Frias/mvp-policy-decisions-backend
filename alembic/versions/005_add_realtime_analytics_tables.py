@@ -27,7 +27,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create real-time analytics tables."""
-    
+
     # Create WebSocket connections tracking table
     op.create_table(
         "websocket_connections",
@@ -111,7 +111,7 @@ def upgrade() -> None:
             name=op.f("ck_websocket_connections_lifecycle"),
         ),
     )
-    
+
     # Create indexes for WebSocket connections
     op.create_index(
         op.f("ix_websocket_connections_user_id"),
@@ -133,7 +133,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("disconnected_at IS NULL"),
     )
-    
+
     # Create analytics events table for real-time dashboard
     op.create_table(
         "analytics_events",
@@ -266,7 +266,7 @@ def upgrade() -> None:
             name=op.f("ck_analytics_events_state_length"),
         ),
     )
-    
+
     # Create comprehensive indexes for real-time queries
     op.create_index(
         op.f("ix_analytics_events_created_at"),
@@ -300,7 +300,7 @@ def upgrade() -> None:
         ["state", "zip_code"],
         unique=False,
     )
-    
+
     # Create notification queue table
     op.create_table(
         "notification_queue",
@@ -463,7 +463,7 @@ def upgrade() -> None:
             name=op.f("ck_notification_queue_recipient_required"),
         ),
     )
-    
+
     # Create indexes for notification queue
     op.create_index(
         op.f("ix_notification_queue_user_id"),
@@ -485,7 +485,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("status = 'pending'"),
     )
-    
+
     # Create real-time metrics aggregation table
     op.create_table(
         "realtime_metrics",
@@ -606,7 +606,7 @@ def upgrade() -> None:
             name=op.f("ck_realtime_metrics_count_positive"),
         ),
     )
-    
+
     # Create indexes for metrics queries
     op.create_index(
         op.f("ix_realtime_metrics_metric_name"),
@@ -627,7 +627,7 @@ def upgrade() -> None:
         ["metric_name", "aggregation_period", "period_start"],
         unique=False,
     )
-    
+
     # Add update triggers
     for table in ["notification_queue", "realtime_metrics"]:
         op.execute(
@@ -638,7 +638,7 @@ def upgrade() -> None:
             EXECUTE FUNCTION update_updated_at_column();
             """
         )
-    
+
     # Create function to clean up old connections
     op.execute(
         """
@@ -654,7 +654,7 @@ def upgrade() -> None:
         $$ LANGUAGE plpgsql;
         """
     )
-    
+
     # Create function to aggregate metrics
     op.execute(
         """
@@ -675,7 +675,7 @@ def upgrade() -> None:
                 WHEN 'week' THEN p_start_time + INTERVAL '1 week'
                 WHEN 'month' THEN p_start_time + INTERVAL '1 month'
             END;
-            
+
             -- Insert aggregated metrics
             INSERT INTO realtime_metrics (
                 metric_name,
@@ -723,15 +723,17 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop real-time analytics tables and related objects."""
-    
+
     # Drop triggers
     for table in ["notification_queue", "realtime_metrics"]:
         op.execute(f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};")
-    
+
     # Drop functions
     op.execute("DROP FUNCTION IF EXISTS cleanup_stale_websocket_connections();")
-    op.execute("DROP FUNCTION IF EXISTS aggregate_analytics_metrics(TEXT, TEXT, TIMESTAMPTZ);")
-    
+    op.execute(
+        "DROP FUNCTION IF EXISTS aggregate_analytics_metrics(TEXT, TEXT, TIMESTAMPTZ);"
+    )
+
     # Drop tables
     op.drop_table("realtime_metrics")
     op.drop_table("notification_queue")

@@ -195,14 +195,14 @@ All errors provide:
 ### Example Error Messages
 
 ```
-State 'XX' is not supported for rating. 
-Supported states: ['CA', 'TX', 'NY', 'FL', 'MI', 'PA']. 
+State 'XX' is not supported for rating.
+Supported states: ['CA', 'TX', 'NY', 'FL', 'MI', 'PA'].
 Admin must add state support before quotes can proceed.
 ```
 
 ```
-No approved rate found for coverage 'collision' in CA. 
-Available coverages: ['liability', 'comprehensive']. 
+No approved rate found for coverage 'collision' in CA.
+Available coverages: ['liability', 'comprehensive'].
 Admin must approve rates for this coverage type before quotes can proceed.
 ```
 

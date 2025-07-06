@@ -20,11 +20,11 @@ class PolicyService:
 
     def __init__(self, db: Database, cache: Cache) -> None:
         """Initialize policy service with dependency validation."""
-        if not db or not hasattr(db, 'execute'):
+        if not db or not hasattr(db, "execute"):
             raise ValueError("Database connection required and must be active")
-        if not cache or not hasattr(cache, 'get'):
+        if not cache or not hasattr(cache, "get"):
             raise ValueError("Cache connection required and must be available")
-        
+
         self._db = db
         self._cache = cache
         self._cache_ttl = 3600  # 1 hour
@@ -200,7 +200,7 @@ class PolicyService:
             data_updates["coverage_amount"] = str(policy_update.coverage_amount)
         if policy_update.deductible is not None:
             data_updates["deductible"] = str(policy_update.deductible)
-        
+
         # Track cancellation date when status changes to CANCELLED
         if policy_update.status == "CANCELLED" and existing.status != "CANCELLED":
             data_updates["cancelled_at"] = datetime.now().isoformat()

@@ -1,16 +1,15 @@
 """Multi-step quote wizard state management."""
 
-from typing import Any, Optional, Dict, List
-from uuid import UUID, uuid4
-from datetime import datetime, timedelta, date
 import json
-import re
+from datetime import date, datetime, timedelta
+from typing import Any
+from uuid import UUID, uuid4
 
 from beartype import beartype
 from pydantic import BaseModel, Field
 
 from ..core.cache import Cache
-from .result import Result, Ok, Err
+from .result import Err, Ok, Result
 
 
 class WizardStep(BaseModel):
@@ -19,24 +18,24 @@ class WizardStep(BaseModel):
     step_id: str
     title: str
     description: str
-    fields: List[str]
-    validations: Dict[str, Any]
-    next_step: Optional[str]
-    previous_step: Optional[str]
+    fields: list[str]
+    validations: dict[str, Any]
+    next_step: str | None
+    previous_step: str | None
     is_conditional: bool = False
-    condition_field: Optional[str] = None
-    condition_value: Optional[Any] = None
+    condition_field: str | None = None
+    condition_value: Any | None = None
 
 
 class WizardState(BaseModel):
     """Current state of quote wizard."""
 
     session_id: UUID
-    quote_id: Optional[UUID]
+    quote_id: UUID | None
     current_step: str
-    completed_steps: List[str]
-    data: Dict[str, Any]
-    validation_errors: Dict[str, List[str]] = Field(default_factory=dict)
+    completed_steps: list[str]
+    data: dict[str, Any]
+    validation_errors: dict[str, list[str]] = Field(default_factory=dict)
     started_at: datetime
     last_updated: datetime
     expires_at: datetime
@@ -48,8 +47,8 @@ class WizardValidation(BaseModel):
     """Validation result for wizard step."""
 
     is_valid: bool
-    errors: Dict[str, List[str]] = Field(default_factory=dict)
-    warnings: Dict[str, List[str]] = Field(default_factory=dict)
+    errors: dict[str, list[str]] = Field(default_factory=dict)
+    warnings: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class QuoteWizardService:
@@ -62,7 +61,7 @@ class QuoteWizardService:
         self._session_ttl = 3600  # 1 hour
         self._steps = self._initialize_wizard_steps()
 
-    def _initialize_wizard_steps(self) -> Dict[str, WizardStep]:
+    def _initialize_wizard_steps(self) -> dict[str, WizardStep]:
         """Define wizard flow configuration."""
         return {
             "start": WizardStep(
@@ -74,7 +73,7 @@ class QuoteWizardService:
                     "product_type": ["required", "in:AUTO,HOME,COMMERCIAL"],
                     "state": ["required", "in:CA,TX,NY"],
                     "zip_code": ["required", "regex:^\\d{5}(-\\d{4})?$"],
-                    "effective_date": ["required", "date", "future:60"]
+                    "effective_date": ["required", "date", "future:60"],
                 },
                 next_step="customer",
                 previous_step=None,
@@ -88,32 +87,47 @@ class QuoteWizardService:
                     "email": ["required", "email"],
                     "phone": ["required", "phone"],
                     "date_of_birth": ["required", "date", "age:16"],
-                    "preferred_contact": ["required", "in:EMAIL,PHONE,SMS"]
+                    "preferred_contact": ["required", "in:EMAIL,PHONE,SMS"],
                 },
                 next_step="vehicle",  # For auto quotes
                 previous_step="start",
                 is_conditional=True,
                 condition_field="product_type",
-                condition_value="AUTO"
+                condition_value="AUTO",
             ),
             "vehicle": WizardStep(
                 step_id="vehicle",
                 title="Vehicle Information",
                 description="Details about your vehicle",
                 fields=[
-                    "vin", "year", "make", "model", "vehicle_type",
-                    "annual_mileage", "primary_use", "garage_zip", "owned"
+                    "vin",
+                    "year",
+                    "make",
+                    "model",
+                    "vehicle_type",
+                    "annual_mileage",
+                    "primary_use",
+                    "garage_zip",
+                    "owned",
                 ],
                 validations={
                     "vin": ["optional", "length:17", "vin"],
-                    "year": ["required", "integer", "min:1900", f"max:{datetime.now().year + 1}"],
+                    "year": [
+                        "required",
+                        "integer",
+                        "min:1900",
+                        f"max:{datetime.now().year + 1}",
+                    ],
                     "make": ["required", "string", "min:1", "max:50"],
                     "model": ["required", "string", "min:1", "max:50"],
-                    "vehicle_type": ["required", "in:SEDAN,SUV,TRUCK,VAN,MOTORCYCLE,OTHER"],
+                    "vehicle_type": [
+                        "required",
+                        "in:SEDAN,SUV,TRUCK,VAN,MOTORCYCLE,OTHER",
+                    ],
                     "annual_mileage": ["required", "integer", "min:0", "max:200000"],
                     "primary_use": ["required", "in:commute,pleasure,business"],
                     "garage_zip": ["required", "regex:^\\d{5}(-\\d{4})?$"],
-                    "owned": ["required", "boolean"]
+                    "owned": ["required", "boolean"],
                 },
                 next_step="drivers",
                 previous_step="customer",
@@ -123,9 +137,7 @@ class QuoteWizardService:
                 title="Driver Information",
                 description="Who will be driving?",
                 fields=["drivers"],
-                validations={
-                    "drivers": ["required", "array", "min:1", "max:5"]
-                },
+                validations={"drivers": ["required", "array", "min:1", "max:5"]},
                 next_step="coverage",
                 previous_step="vehicle",
             ),
@@ -134,9 +146,7 @@ class QuoteWizardService:
                 title="Coverage Selection",
                 description="Choose your coverage levels",
                 fields=["coverage_selections"],
-                validations={
-                    "coverage_selections": ["required", "array", "min:1"]
-                },
+                validations={"coverage_selections": ["required", "array", "min:1"]},
                 next_step="review",
                 previous_step="drivers",
             ),
@@ -153,8 +163,7 @@ class QuoteWizardService:
 
     @beartype
     async def start_session(
-        self,
-        initial_data: Optional[Dict[str, Any]] = None
+        self, initial_data: dict[str, Any] | None = None
     ) -> Result[WizardState, str]:
         """Start a new wizard session."""
         session_id = uuid4()
@@ -185,39 +194,37 @@ class QuoteWizardService:
         return Ok(state)
 
     @beartype
-    async def get_session(self, session_id: UUID) -> Result[Optional[WizardState], str]:
+    async def get_session(self, session_id: UUID) -> Result[WizardState | None, str]:
         """Get wizard session by ID."""
         cache_key = f"{self._cache_prefix}{session_id}"
         cached = await self._cache.get(cache_key)
-        
+
         if not cached:
             return Ok(None)
 
         try:
             state_data = json.loads(cached) if isinstance(cached, str) else cached
             state = WizardState(**state_data)
-            
+
             # Check expiration
             if datetime.now() > state.expires_at:
                 await self._cache.delete(cache_key)
                 return Ok(None)
-            
+
             return Ok(state)
         except Exception as e:
             return Err(f"Failed to deserialize session: {str(e)}")
 
     @beartype
     async def update_step(
-        self,
-        session_id: UUID,
-        step_data: Dict[str, Any]
+        self, session_id: UUID, step_data: dict[str, Any]
     ) -> Result[WizardState, str]:
         """Update current step with data."""
         # Get session
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -261,7 +268,7 @@ class QuoteWizardService:
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -296,7 +303,7 @@ class QuoteWizardService:
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -308,23 +315,21 @@ class QuoteWizardService:
 
         state.current_step = current_step.previous_step
         state.last_updated = datetime.now()
-        
+
         await self._save_state(state)
 
         return Ok(state)
 
     @beartype
     async def jump_to_step(
-        self,
-        session_id: UUID,
-        step_id: str
+        self, session_id: UUID, step_id: str
     ) -> Result[WizardState, str]:
         """Jump to a specific step (if allowed)."""
         # Get session
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -341,7 +346,7 @@ class QuoteWizardService:
 
         state.current_step = step_id
         state.last_updated = datetime.now()
-        
+
         await self._save_state(state)
 
         return Ok(state)
@@ -355,32 +360,29 @@ class QuoteWizardService:
         return Ok(step)
 
     @beartype
-    async def get_all_steps(self) -> Result[List[WizardStep], str]:
+    async def get_all_steps(self) -> Result[list[WizardStep], str]:
         """Get all wizard steps in order."""
         # Return steps in logical order
         ordered_steps = []
         current = "start"
-        
+
         while current:
             step = self._steps.get(current)
             if not step:
                 break
             ordered_steps.append(step)
             current = step.next_step
-            
+
         return Ok(ordered_steps)
 
     @beartype
-    async def validate_session(
-        self,
-        session_id: UUID
-    ) -> Result[WizardValidation, str]:
+    async def validate_session(self, session_id: UUID) -> Result[WizardValidation, str]:
         """Validate entire session data."""
         # Get session
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -392,10 +394,10 @@ class QuoteWizardService:
             step = self._steps.get(step_id)
             if not step:
                 continue
-                
+
             step_data = self._extract_step_data(step, state.data)
             step_validation = self._validate_step_data(step, step_data)
-            
+
             if not step_validation.is_valid:
                 validation.is_valid = False
                 validation.errors[step_id] = step_validation.errors
@@ -403,16 +405,13 @@ class QuoteWizardService:
         return Ok(validation)
 
     @beartype
-    async def complete_session(
-        self,
-        session_id: UUID
-    ) -> Result[Dict[str, Any], str]:
+    async def complete_session(self, session_id: UUID) -> Result[dict[str, Any], str]:
         """Complete wizard session and return collected data."""
         # Get session
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -421,7 +420,7 @@ class QuoteWizardService:
         validation_result = await self.validate_session(session_id)
         if isinstance(validation_result, Err):
             return validation_result
-            
+
         validation = validation_result.unwrap()
         if not validation.is_valid:
             return Err("Session data is not valid")
@@ -432,25 +431,25 @@ class QuoteWizardService:
         await self._save_state(state)
 
         # Return collected data
-        return Ok({
-            "session_id": str(session_id),
-            "quote_data": state.data,
-            "completed_at": datetime.now().isoformat(),
-            "steps_completed": state.completed_steps,
-        })
+        return Ok(
+            {
+                "session_id": str(session_id),
+                "quote_data": state.data,
+                "completed_at": datetime.now().isoformat(),
+                "steps_completed": state.completed_steps,
+            }
+        )
 
     @beartype
     async def extend_session(
-        self,
-        session_id: UUID,
-        additional_minutes: int = 30
+        self, session_id: UUID, additional_minutes: int = 30
     ) -> Result[WizardState, str]:
         """Extend session expiration time."""
         # Get session
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -458,7 +457,7 @@ class QuoteWizardService:
         # Extend expiration
         state.expires_at = datetime.now() + timedelta(minutes=additional_minutes)
         state.last_updated = datetime.now()
-        
+
         # Update TTL in cache
         new_ttl = additional_minutes * 60
         await self._save_state(state, ttl=new_ttl)
@@ -468,15 +467,11 @@ class QuoteWizardService:
     # Private helper methods
 
     @beartype
-    async def _save_state(
-        self,
-        state: WizardState,
-        ttl: Optional[int] = None
-    ) -> None:
+    async def _save_state(self, state: WizardState, ttl: int | None = None) -> None:
         """Save wizard state to cache."""
         cache_key = f"{self._cache_prefix}{state.session_id}"
         ttl = ttl or self._session_ttl
-        
+
         await self._cache.set(
             cache_key,
             state.model_dump_json(),
@@ -485,13 +480,11 @@ class QuoteWizardService:
 
     @beartype
     def _validate_step_data(
-        self,
-        step: WizardStep,
-        data: Dict[str, Any]
+        self, step: WizardStep, data: dict[str, Any]
     ) -> WizardValidation:
         """Validate data for a specific step."""
         validation = WizardValidation(is_valid=True)
-        errors: Dict[str, List[str]] = {}
+        errors: dict[str, list[str]] = {}
 
         for field, rules in step.validations.items():
             field_value = data.get(field)
@@ -505,10 +498,7 @@ class QuoteWizardService:
                     rule_value = None
 
                 error = self._apply_validation_rule(
-                    field,
-                    field_value,
-                    rule_name,
-                    rule_value
+                    field, field_value, rule_name, rule_value
                 )
                 if error:
                     field_errors.append(error)
@@ -522,36 +512,34 @@ class QuoteWizardService:
 
     @beartype
     def _apply_validation_rule(
-        self,
-        field: str,
-        value: Any,
-        rule: str,
-        rule_value: Optional[str]
-    ) -> Optional[str]:
+        self, field: str, value: Any, rule: str, rule_value: str | None
+    ) -> str | None:
         """Apply a single validation rule."""
         if rule == "required" and not value:
             return f"{field} is required"
-            
+
         if rule == "optional" and not value:
             return None  # Optional fields can be empty
-            
+
         if rule == "email" and value:
             import re
+
             if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", value):
                 return f"{field} must be a valid email address"
-                
+
         if rule == "phone" and value:
             import re
+
             if not re.match(r"^[0-9+\-\(\)\s]+$", value):
                 return f"{field} must be a valid phone number"
-                
+
         if rule == "date" and value:
             try:
                 if isinstance(value, str):
                     datetime.strptime(value, "%Y-%m-%d")
             except ValueError:
                 return f"{field} must be a valid date (YYYY-MM-DD)"
-                
+
         if rule == "age" and rule_value and value:
             try:
                 if isinstance(value, str):
@@ -563,8 +551,8 @@ class QuoteWizardService:
                 if age < min_age:
                     return f"Must be at least {min_age} years old"
             except:
-                return f"Invalid date of birth"
-                
+                return "Invalid date of birth"
+
         if rule == "future" and rule_value and value:
             try:
                 if isinstance(value, str):
@@ -577,13 +565,13 @@ class QuoteWizardService:
                 if check_date > date.today() + timedelta(days=max_days):
                     return f"{field} cannot be more than {max_days} days in the future"
             except:
-                return f"Invalid date"
-                
+                return "Invalid date"
+
         if rule == "in" and rule_value and value:
             allowed_values = rule_value.split(",")
             if value not in allowed_values:
                 return f"{field} must be one of: {', '.join(allowed_values)}"
-                
+
         if rule == "min" and rule_value and value is not None:
             try:
                 min_val = float(rule_value)
@@ -591,7 +579,7 @@ class QuoteWizardService:
                     return f"{field} must be at least {min_val}"
             except:
                 pass
-                
+
         if rule == "max" and rule_value and value is not None:
             try:
                 max_val = float(rule_value)
@@ -599,40 +587,41 @@ class QuoteWizardService:
                     return f"{field} must be at most {max_val}"
             except:
                 pass
-                
+
         if rule == "length" and rule_value and value:
             expected_length = int(rule_value)
             if len(str(value)) != expected_length:
                 return f"{field} must be exactly {expected_length} characters"
-                
+
         if rule == "regex" and rule_value and value:
             import re
+
             if not re.match(rule_value, str(value)):
                 return f"{field} format is invalid"
-                
+
         if rule == "array" and value is not None:
             if not isinstance(value, list):
                 return f"{field} must be a list"
-                
+
         if rule == "vin" and value:
             # Enhanced VIN validation following ISO 3779
             if len(value) != 17:
                 return "VIN must be 17 characters"
-            
+
             # Check for invalid characters
             if any(char in value.upper() for char in "IOQ"):
                 return "VIN cannot contain I, O, or Q per ISO 3779 standard"
-            
+
             # Validate characters are alphanumeric
-            if not re.match(r'^[A-HJ-NPR-Z0-9]+$', value.upper()):
+            if not re.match(r"^[A-HJ-NPR-Z0-9]+$", value.upper()):
                 return "VIN can only contain letters A-H, J-N, P-R, T-Z and numbers 0-9"
-            
+
             # Basic checksum validation (simplified)
             try:
                 vin_upper = value.upper()
                 # Position 9 should be check digit
                 check_digit = vin_upper[8]
-                if not (check_digit.isdigit() or check_digit == 'X'):
+                if not (check_digit.isdigit() or check_digit == "X"):
                     return "VIN check digit (position 9) must be 0-9 or X"
             except:
                 return "Invalid VIN format"
@@ -655,10 +644,8 @@ class QuoteWizardService:
 
     @beartype
     def _determine_next_step(
-        self,
-        current_step: WizardStep,
-        data: Dict[str, Any]
-    ) -> Optional[str]:
+        self, current_step: WizardStep, data: dict[str, Any]
+    ) -> str | None:
         """Determine next step based on current step and data."""
         if not current_step.next_step:
             return None
@@ -676,12 +663,12 @@ class QuoteWizardService:
         return current_step.next_step
 
     @beartype
-    def _can_access_step(self, step_id: str, completed_steps: List[str]) -> bool:
+    def _can_access_step(self, step_id: str, completed_steps: list[str]) -> bool:
         """Check if a step can be accessed based on completed steps."""
         # Find all steps that must be completed before this one
         required_steps = []
         current = "start"
-        
+
         while current and current != step_id:
             required_steps.append(current)
             step = self._steps.get(current)
@@ -697,33 +684,29 @@ class QuoteWizardService:
         """Calculate completion percentage."""
         total_steps = len(self._steps) - 1  # Exclude review step
         completed = len(state.completed_steps)
-        
+
         if state.is_complete:
             return 100
-            
+
         return int((completed / total_steps) * 100) if total_steps > 0 else 0
 
     @beartype
     def _extract_step_data(
-        self,
-        step: WizardStep,
-        all_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, step: WizardStep, all_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Extract data relevant to a specific step."""
         return {field: all_data.get(field) for field in step.fields}
 
     @beartype
     async def get_business_intelligence_for_step(
-        self,
-        session_id: UUID,
-        step_id: str
-    ) -> Result[Dict[str, Any], str]:
+        self, session_id: UUID, step_id: str
+    ) -> Result[dict[str, Any], str]:
         """Get business intelligence data for current step to help user decisions."""
         # Get session
         session_result = await self.get_session(session_id)
         if isinstance(session_result, Err):
             return session_result
-        
+
         state = session_result.unwrap()
         if not state:
             return Err("Session not found or expired")
@@ -735,71 +718,101 @@ class QuoteWizardService:
             intelligence = {
                 "popular_products": ["auto", "home"],
                 "state_info": {
-                    "CA": {"min_liability": 15000, "required_coverages": ["bodily_injury", "property_damage"]},
-                    "TX": {"min_liability": 30000, "required_coverages": ["bodily_injury", "property_damage"]},
-                    "NY": {"min_liability": 25000, "required_coverages": ["bodily_injury", "property_damage", "pip"]}
+                    "CA": {
+                        "min_liability": 15000,
+                        "required_coverages": ["bodily_injury", "property_damage"],
+                    },
+                    "TX": {
+                        "min_liability": 30000,
+                        "required_coverages": ["bodily_injury", "property_damage"],
+                    },
+                    "NY": {
+                        "min_liability": 25000,
+                        "required_coverages": [
+                            "bodily_injury",
+                            "property_damage",
+                            "pip",
+                        ],
+                    },
                 },
-                "effective_date_guidance": "Most customers choose a date 1-14 days in the future"
+                "effective_date_guidance": "Most customers choose a date 1-14 days in the future",
             }
-        
+
         elif step_id == "vehicle":
             intelligence = {
                 "popular_makes": ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan"],
                 "safety_tips": [
                     "Vehicles with safety features like ABS and airbags often qualify for discounts",
                     "Anti-theft devices can reduce your premium",
-                    "Newer vehicles may cost more to insure but have better safety ratings"
+                    "Newer vehicles may cost more to insure but have better safety ratings",
                 ],
                 "mileage_brackets": {
                     "low": {"max": 7500, "typical_discount": "5-15%"},
                     "average": {"min": 7500, "max": 15000, "typical_discount": "0%"},
-                    "high": {"min": 15000, "typical_surcharge": "10-25%"}
-                }
+                    "high": {"min": 15000, "typical_surcharge": "10-25%"},
+                },
             }
-        
+
         elif step_id == "drivers":
             intelligence = {
                 "discount_opportunities": [
                     "Good student discount available for drivers under 25 with GPA 3.0+",
                     "Military discount available for active and veteran service members",
-                    "Clean driving record discount for drivers with no violations or accidents"
+                    "Clean driving record discount for drivers with no violations or accidents",
                 ],
                 "experience_factors": {
                     "new_driver": "Drivers with <3 years experience may have higher rates",
-                    "experienced": "Drivers with 5+ years typically qualify for experience discounts"
-                }
+                    "experienced": "Drivers with 5+ years typically qualify for experience discounts",
+                },
             }
-        
+
         elif step_id == "coverage":
             product_type = state.data.get("product_type", "auto")
             coverage_state = state.data.get("state", "CA")
-            
+
             if product_type == "auto":
                 intelligence = {
-                    "required_coverages": self._get_required_coverages_for_state(coverage_state),
+                    "required_coverages": self._get_required_coverages_for_state(
+                        coverage_state
+                    ),
                     "recommended_coverages": [
-                        {"type": "collision", "reason": "Protects your vehicle in accidents"},
-                        {"type": "comprehensive", "reason": "Protects against theft, vandalism, weather"},
-                        {"type": "uninsured_motorist", "reason": "Protects you from uninsured drivers"}
+                        {
+                            "type": "collision",
+                            "reason": "Protects your vehicle in accidents",
+                        },
+                        {
+                            "type": "comprehensive",
+                            "reason": "Protects against theft, vandalism, weather",
+                        },
+                        {
+                            "type": "uninsured_motorist",
+                            "reason": "Protects you from uninsured drivers",
+                        },
                     ],
                     "deductible_guidance": {
-                        "low": {"amount": "$250-$500", "effect": "Higher premium, lower out-of-pocket"},
-                        "high": {"amount": "$1000+", "effect": "Lower premium, higher out-of-pocket"}
+                        "low": {
+                            "amount": "$250-$500",
+                            "effect": "Higher premium, lower out-of-pocket",
+                        },
+                        "high": {
+                            "amount": "$1000+",
+                            "effect": "Lower premium, higher out-of-pocket",
+                        },
                     },
                     "coverage_limits": {
                         "liability": f"State minimum: ${self._get_state_minimum_liability(coverage_state):,}",
-                        "recommendation": "Consider higher limits to protect your assets"
-                    }
+                        "recommendation": "Consider higher limits to protect your assets",
+                    },
                 }
 
         return Ok(intelligence)
 
-    def _get_required_coverages_for_state(self, state: str) -> List[str]:
+    def _get_required_coverages_for_state(self, state: str) -> list[str]:
         """Get required coverages for specific state."""
         state_requirements = {
             "CA": ["bodily_injury", "property_damage"],
             "TX": ["bodily_injury", "property_damage"],
-            "NY": ["bodily_injury", "property_damage", "personal_injury_protection"]
+            "NY": ["bodily_injury", "property_damage", "personal_injury_protection"],
         }
         return state_requirements.get(state, ["bodily_injury", "property_damage"])
 
@@ -808,6 +821,6 @@ class QuoteWizardService:
         minimums = {
             "CA": 15000,  # $15K/$30K/$5K
             "TX": 30000,  # $30K/$60K/$25K
-            "NY": 25000   # $25K/$50K/$10K
+            "NY": 25000,  # $25K/$50K/$10K
         }
         return minimums.get(state, 15000)

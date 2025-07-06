@@ -1,12 +1,12 @@
 """Base classes for SSO provider integration."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from beartype import beartype
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ...models.base import BaseModelConfig
 from ...services.result import Err, Ok, Result
@@ -39,12 +39,20 @@ class SSOUserInfo(BaseModelConfig):
     provider_user_id: str = Field(..., description="User ID from provider")
 
     # Additional claims
-    groups: list[str] = Field(default_factory=list, description="User groups from provider")
-    roles: list[str] = Field(default_factory=list, description="User roles from provider")
+    groups: list[str] = Field(
+        default_factory=list, description="User groups from provider"
+    )
+    roles: list[str] = Field(
+        default_factory=list, description="User roles from provider"
+    )
 
     # Metadata
-    last_login: datetime = Field(default_factory=datetime.now, description="Last login time")
-    raw_claims: dict[str, Any] = Field(default_factory=dict, description="Raw claims from provider")
+    last_login: datetime = Field(
+        default_factory=datetime.now, description="Last login time"
+    )
+    raw_claims: dict[str, Any] = Field(
+        default_factory=dict, description="Raw claims from provider"
+    )
 
 
 class SSOProvider(ABC):
@@ -58,7 +66,7 @@ class SSOProvider(ABC):
         scopes: list[str],
     ) -> None:
         """Initialize SSO provider.
-        
+
         Args:
             client_id: OAuth/OIDC client ID
             client_secret: OAuth/OIDC client secret
@@ -85,12 +93,12 @@ class SSOProvider(ABC):
         **kwargs: Any,
     ) -> Result[str, str]:
         """Get authorization URL for user redirect.
-        
+
         Args:
             state: State parameter for CSRF protection
             nonce: Nonce for OIDC (optional)
             **kwargs: Additional provider-specific parameters
-            
+
         Returns:
             Result containing authorization URL or error
         """
@@ -104,11 +112,11 @@ class SSOProvider(ABC):
         state: str,
     ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
-        
+
         Args:
             code: Authorization code from callback
             state: State parameter for validation
-            
+
         Returns:
             Result containing tokens or error
         """
@@ -121,10 +129,10 @@ class SSOProvider(ABC):
         access_token: str,
     ) -> Result[SSOUserInfo, str]:
         """Get user information from provider.
-        
+
         Args:
             access_token: Access token from provider
-            
+
         Returns:
             Result containing user info or error
         """
@@ -137,10 +145,10 @@ class SSOProvider(ABC):
         refresh_token: str,
     ) -> Result[dict[str, Any], str]:
         """Refresh access token.
-        
+
         Args:
             refresh_token: Refresh token from provider
-            
+
         Returns:
             Result containing new tokens or error
         """
@@ -154,11 +162,11 @@ class SSOProvider(ABC):
         token_type: str = "access_token",
     ) -> Result[bool, str]:
         """Revoke a token.
-        
+
         Args:
             token: Token to revoke
             token_type: Type of token (access_token or refresh_token)
-            
+
         Returns:
             Result indicating success or error
         """
@@ -196,7 +204,7 @@ class OIDCProvider(SSOProvider):
         scopes: list[str] | None = None,
     ) -> None:
         """Initialize OIDC provider.
-        
+
         Args:
             client_id: OIDC client ID
             client_secret: OIDC client secret
@@ -217,7 +225,7 @@ class OIDCProvider(SSOProvider):
     @beartype
     async def discover(self) -> Result[dict[str, Any], str]:
         """Get OIDC discovery document.
-        
+
         Returns:
             Result containing discovery document or error
         """
@@ -226,9 +234,10 @@ class OIDCProvider(SSOProvider):
 
         # Fetch discovery document
         discovery_url = f"{self.issuer}/.well-known/openid-configuration"
-        
+
         try:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(discovery_url)
                 response.raise_for_status()
@@ -244,11 +253,11 @@ class OIDCProvider(SSOProvider):
         nonce: str | None = None,
     ) -> Result[dict[str, Any], str]:
         """Validate and decode ID token.
-        
+
         Args:
             id_token: ID token to validate
             nonce: Nonce to verify (if provided)
-            
+
         Returns:
             Result containing decoded claims or error
         """
@@ -257,7 +266,7 @@ class OIDCProvider(SSOProvider):
             discovery_result = await self.discover()
             if isinstance(discovery_result, Err):
                 return discovery_result
-                
+
             discovery = discovery_result.value
             jwks_uri = discovery.get("jwks_uri")
             if not jwks_uri:
@@ -266,11 +275,11 @@ class OIDCProvider(SSOProvider):
             # Import JWT library
             import jwt
             from jwt import PyJWKClient
-            
+
             # Fetch JWKS and validate token
             jwks_client = PyJWKClient(jwks_uri)
             signing_key = jwks_client.get_signing_key_from_jwt(id_token)
-            
+
             # Decode and validate token
             claims = jwt.decode(
                 id_token,
@@ -285,7 +294,7 @@ class OIDCProvider(SSOProvider):
                 return Err("Invalid nonce")
 
             return Ok(claims)
-            
+
         except jwt.ExpiredSignatureError:
             return Err("ID token has expired")
         except jwt.InvalidTokenError as e:
@@ -308,7 +317,7 @@ class SAMLProvider(SSOProvider):
         scopes: list[str] | None = None,
     ) -> None:
         """Initialize SAML provider.
-        
+
         Args:
             client_id: Service provider entity ID
             client_secret: Not used for SAML, kept for interface compatibility
@@ -334,10 +343,10 @@ class SAMLProvider(SSOProvider):
         relay_state: str | None = None,
     ) -> Result[str, str]:
         """Create SAML authentication request.
-        
+
         Args:
             relay_state: Optional relay state parameter
-            
+
         Returns:
             Result containing SAML request URL or error
         """
@@ -352,11 +361,11 @@ class SAMLProvider(SSOProvider):
         relay_state: str | None = None,
     ) -> Result[dict[str, Any], str]:
         """Process SAML response and extract attributes.
-        
+
         Args:
             saml_response: Base64 encoded SAML response
             relay_state: Optional relay state for validation
-            
+
         Returns:
             Result containing user attributes or error
         """

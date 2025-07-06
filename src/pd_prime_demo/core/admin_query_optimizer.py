@@ -1,20 +1,20 @@
 """Specialized query optimization for admin dashboard operations."""
 
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
-from attrs import frozen, field
+from attrs import field, frozen
 from beartype import beartype
-from .result_types import Ok, Err, Result
 
-from .database_enhanced import Database
 from .cache_stub import get_cache
+from .database_enhanced import Database
+from .result_types import Err, Ok, Result
 
 
 @frozen
 class AdminMetrics:
     """Immutable admin dashboard metrics."""
-    
+
     daily_metrics: list[dict[str, Any]] = field()
     user_activity: list[dict[str, Any]] = field()
     system_health: dict[str, Any] = field()
@@ -24,11 +24,11 @@ class AdminMetrics:
 @frozen
 class MaterializedView:
     """Materialized view configuration."""
-    
+
     name: str = field()
     refresh_interval_minutes: int = field()
     query: str = field()
-    last_refresh: Optional[datetime] = field(default=None)
+    last_refresh: datetime | None = field(default=None)
     indexes: list[str] = field(factory=list)
 
 
@@ -57,7 +57,7 @@ class AdminQueryOptimizer:
                             '1 day'::interval
                         )::date as metric_date
                     )
-                    SELECT 
+                    SELECT
                         ds.metric_date,
                         COALESCE(COUNT(DISTINCT q.customer_id), 0) as unique_customers,
                         COALESCE(COUNT(q.id) FILTER (WHERE q.status = 'draft'), 0) as quotes_draft,
@@ -66,7 +66,7 @@ class AdminQueryOptimizer:
                         COALESCE(AVG(q.total_premium), 0) as avg_premium,
                         COALESCE(SUM(q.total_premium) FILTER (WHERE q.status = 'bound'), 0) as total_bound_premium,
                         COALESCE(
-                            COUNT(q.id) FILTER (WHERE q.status = 'bound')::float / 
+                            COUNT(q.id) FILTER (WHERE q.status = 'bound')::float /
                             NULLIF(COUNT(q.id) FILTER (WHERE q.status IN ('quoted', 'bound')), 0) * 100,
                             0
                         ) as conversion_rate
@@ -113,7 +113,7 @@ class AdminQueryOptimizer:
                 query="""
                     CREATE MATERIALIZED VIEW IF NOT EXISTS admin_system_health AS
                     WITH recent_events AS (
-                        SELECT * FROM analytics_events 
+                        SELECT * FROM analytics_events
                         WHERE created_at > NOW() - INTERVAL '1 hour'
                     ),
                     active_websockets AS (
@@ -159,7 +159,7 @@ class AdminQueryOptimizer:
                         GROUP BY DATE(created_at)
                     )
                     SELECT *,
-                        CASE 
+                        CASE
                             WHEN stage_quoted > 0 THEN stage_bound::float / stage_quoted * 100
                             ELSE 0
                         END as bind_rate
@@ -177,31 +177,33 @@ class AdminQueryOptimizer:
     async def create_materialized_views(self) -> Result[list[str], str]:
         """Create all materialized views for admin dashboards."""
         created_views = []
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 for view_name, view_config in self._materialized_views.items():
                     # Create the view
                     await conn.execute(view_config.query)
-                    
+
                     # Create indexes
                     for index_query in view_config.indexes:
                         await conn.execute(index_query)
-                    
+
                     created_views.append(view_name)
-                    
+
                 # Create refresh tracking table
-                await conn.execute("""
+                await conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS admin_materialized_view_refresh (
                         view_name TEXT PRIMARY KEY,
                         last_refresh TIMESTAMP NOT NULL,
                         refresh_duration_ms INTEGER,
                         row_count INTEGER
                     )
-                """)
-                
+                """
+                )
+
             return Ok(created_views)
-            
+
         except Exception as e:
             return Err(f"Failed to create materialized views: {str(e)}")
 
@@ -212,51 +214,64 @@ class AdminQueryOptimizer:
     ) -> Result[dict[str, bool], str]:
         """Refresh materialized views based on their refresh intervals."""
         refresh_results = {}
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 for view_name, view_config in self._materialized_views.items():
                     # Check if refresh is needed
                     needs_refresh = force_refresh
-                    
+
                     if not force_refresh:
                         last_refresh = await conn.fetchval(
                             "SELECT last_refresh FROM admin_materialized_view_refresh WHERE view_name = $1",
-                            view_name
+                            view_name,
                         )
-                        
+
                         if last_refresh:
                             time_since_refresh = datetime.utcnow() - last_refresh
-                            needs_refresh = time_since_refresh > timedelta(minutes=view_config.refresh_interval_minutes)
+                            needs_refresh = time_since_refresh > timedelta(
+                                minutes=view_config.refresh_interval_minutes
+                            )
                         else:
                             needs_refresh = True
-                    
+
                     if needs_refresh:
                         import time
+
                         start_time = time.perf_counter()
-                        
+
                         # Refresh the view concurrently to avoid locking
-                        await conn.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}")
-                        
+                        await conn.execute(
+                            f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"
+                        )
+
                         # Get row count
-                        row_count = await conn.fetchval(f"SELECT COUNT(*) FROM {view_name}")
-                        
+                        row_count = await conn.fetchval(
+                            f"SELECT COUNT(*) FROM {view_name}"
+                        )
+
                         duration_ms = int((time.perf_counter() - start_time) * 1000)
-                        
+
                         # Update refresh tracking
-                        await conn.execute("""
+                        await conn.execute(
+                            """
                             INSERT INTO admin_materialized_view_refresh (view_name, last_refresh, refresh_duration_ms, row_count)
                             VALUES ($1, $2, $3, $4)
                             ON CONFLICT (view_name) DO UPDATE
                             SET last_refresh = $2, refresh_duration_ms = $3, row_count = $4
-                        """, view_name, datetime.utcnow(), duration_ms, row_count)
-                        
+                        """,
+                            view_name,
+                            datetime.utcnow(),
+                            duration_ms,
+                            row_count,
+                        )
+
                         refresh_results[view_name] = True
                     else:
                         refresh_results[view_name] = False
-                        
+
             return Ok(refresh_results)
-            
+
         except Exception as e:
             return Err(f"Failed to refresh materialized views: {str(e)}")
 
@@ -268,26 +283,27 @@ class AdminQueryOptimizer:
     ) -> Result[AdminMetrics, str]:
         """Get optimized admin dashboard metrics."""
         cache_key = "admin:dashboard:metrics:v2"
-        
+
         # Check cache first
         if use_cache:
             cached_result = await self._cache.get(cache_key)
             if cached_result is not None:
                 return Ok(AdminMetrics(**cached_result))
-        
+
         try:
             # Refresh views if needed
             refresh_result = await self.refresh_materialized_views()
             if refresh_result.is_err():
                 return Err(refresh_result.err_value)
-            
+
             # Fetch data from materialized views in parallel
             async with self._db.acquire_admin() as conn:
                 # Use asyncio.gather for parallel queries
                 import asyncio
-                
-                daily_metrics_task = conn.fetch("""
-                    SELECT 
+
+                daily_metrics_task = conn.fetch(
+                    """
+                    SELECT
                         metric_date,
                         unique_customers,
                         quotes_draft,
@@ -299,10 +315,12 @@ class AdminQueryOptimizer:
                     FROM admin_daily_metrics
                     WHERE metric_date >= CURRENT_DATE - INTERVAL '30 days'
                     ORDER BY metric_date DESC
-                """)
-                
-                user_activity_task = conn.fetch("""
-                    SELECT 
+                """
+                )
+
+                user_activity_task = conn.fetch(
+                    """
+                    SELECT
                         admin_user_id,
                         email,
                         role,
@@ -318,10 +336,12 @@ class AdminQueryOptimizer:
                     WHERE is_active = true
                     ORDER BY last_activity DESC NULLS LAST
                     LIMIT 50
-                """)
-                
-                system_health_task = conn.fetchrow("""
-                    SELECT 
+                """
+                )
+
+                system_health_task = conn.fetchrow(
+                    """
+                    SELECT
                         websocket_connections,
                         total_requests_last_hour,
                         avg_response_time_ms,
@@ -334,15 +354,16 @@ class AdminQueryOptimizer:
                         last_updated
                     FROM admin_system_health
                     LIMIT 1
-                """)
-                
+                """
+                )
+
                 # Execute queries in parallel
                 daily_metrics, user_activity, system_health = await asyncio.gather(
                     daily_metrics_task,
                     user_activity_task,
                     system_health_task,
                 )
-                
+
                 # Convert to dictionaries
                 metrics_data = {
                     "daily_metrics": [dict(row) for row in daily_metrics],
@@ -350,13 +371,15 @@ class AdminQueryOptimizer:
                     "system_health": dict(system_health) if system_health else {},
                     "cache_timestamp": datetime.utcnow(),
                 }
-                
+
                 # Cache the results
                 if use_cache:
-                    await self._cache.set(cache_key, metrics_data, ttl_seconds=cache_ttl_seconds)
-                
+                    await self._cache.set(
+                        cache_key, metrics_data, ttl_seconds=cache_ttl_seconds
+                    )
+
                 return Ok(AdminMetrics(**metrics_data))
-                
+
         except Exception as e:
             return Err(f"Failed to fetch admin metrics: {str(e)}")
 
@@ -382,7 +405,7 @@ class AdminQueryOptimizer:
                     AND p.status = 'active'
                     GROUP BY DATE_TRUNC('week', p.effective_date)
                 )
-                SELECT 
+                SELECT
                     week_start,
                     policy_count,
                     total_premium,
@@ -393,7 +416,7 @@ class AdminQueryOptimizer:
                 FROM revenue_data
                 ORDER BY week_start DESC
             """
-            
+
         elif report_type == "agent_performance":
             query = """
                 WITH agent_metrics AS (
@@ -409,16 +432,16 @@ class AdminQueryOptimizer:
                     WHERE q.created_at BETWEEN $1 AND $2
                     GROUP BY au.id, au.email
                 )
-                SELECT 
+                SELECT
                     *,
-                    CASE 
+                    CASE
                         WHEN quotes_created > 0 THEN quotes_bound::float / quotes_created * 100
                         ELSE 0
                     END as conversion_rate
                 FROM agent_metrics
                 ORDER BY total_premium_bound DESC NULLS LAST
             """
-            
+
         elif report_type == "customer_retention":
             query = """
                 WITH customer_cohorts AS (
@@ -428,7 +451,7 @@ class AdminQueryOptimizer:
                         COUNT(DISTINCT policy_id) as total_policies,
                         MAX(last_renewal_date) as last_seen
                     FROM (
-                        SELECT 
+                        SELECT
                             c.id as customer_id,
                             MIN(p.effective_date) as first_policy_date,
                             p.id as policy_id,
@@ -453,12 +476,12 @@ class AdminQueryOptimizer:
             """
         else:
             return Err(f"Unknown report type: {report_type}")
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 results = await conn.fetch(query, start_date, end_date)
                 return Ok([dict(row) for row in results])
-                
+
         except Exception as e:
             return Err(f"Failed to generate report: {str(e)}")
 
@@ -471,13 +494,14 @@ class AdminQueryOptimizer:
             "settings_adjusted": [],
             "performance_gains": {},
         }
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 # Check for missing indexes on frequently queried columns
-                missing_indexes = await conn.fetch("""
+                missing_indexes = await conn.fetch(
+                    """
                     SELECT DISTINCT
-                        'CREATE INDEX idx_' || t.tablename || '_' || a.attname || 
+                        'CREATE INDEX idx_' || t.tablename || '_' || a.attname ||
                         ' ON ' || t.schemaname || '.' || t.tablename || '(' || a.attname || ')' as index_sql,
                         t.tablename,
                         a.attname
@@ -494,28 +518,39 @@ class AdminQueryOptimizer:
                         AND a.attnum = ANY(i.indkey)
                     )
                     AND t.tablename IN ('quotes', 'policies', 'customers', 'admin_activity_logs')
-                """)
-                
+                """
+                )
+
                 # Create recommended indexes
                 for idx in missing_indexes:
                     try:
                         await conn.execute(idx["index_sql"])
-                        optimization_results["indexes_created"].append({
-                            "table": idx["tablename"],
-                            "column": idx["attname"],
-                        })
+                        optimization_results["indexes_created"].append(
+                            {
+                                "table": idx["tablename"],
+                                "column": idx["attname"],
+                            }
+                        )
                     except Exception:
                         pass  # Index might already exist
-                
+
                 # Analyze tables for better query planning
-                tables_to_analyze = ["quotes", "policies", "customers", "admin_users", "admin_activity_logs"]
+                tables_to_analyze = [
+                    "quotes",
+                    "policies",
+                    "customers",
+                    "admin_users",
+                    "admin_activity_logs",
+                ]
                 for table in tables_to_analyze:
                     await conn.execute(f"ANALYZE {table}")
-                
-                optimization_results["views_optimized"] = list(self._materialized_views.keys())
-                
+
+                optimization_results["views_optimized"] = list(
+                    self._materialized_views.keys()
+                )
+
             return Ok(optimization_results)
-            
+
         except Exception as e:
             return Err(f"Failed to optimize admin queries: {str(e)}")
 
@@ -524,14 +559,15 @@ class AdminQueryOptimizer:
         """Monitor admin-specific query performance metrics."""
         try:
             pool_stats = await self._db.get_pool_stats()
-            
+
             metrics = {
                 "admin_pool_stats": {
                     "size": pool_stats.size,
                     "free_size": pool_stats.free_size,
                     "utilization_percent": (
                         (pool_stats.size - pool_stats.free_size) / pool_stats.size * 100
-                        if pool_stats.size > 0 else 0
+                        if pool_stats.size > 0
+                        else 0
                     ),
                 },
                 "query_performance": {
@@ -542,29 +578,32 @@ class AdminQueryOptimizer:
                 "materialized_views": {},
                 "cache_stats": await self._get_cache_stats(),
             }
-            
+
             # Get materialized view freshness
             async with self._db.acquire_admin() as conn:
-                view_stats = await conn.fetch("""
-                    SELECT 
+                view_stats = await conn.fetch(
+                    """
+                    SELECT
                         view_name,
                         last_refresh,
                         refresh_duration_ms,
                         row_count,
                         EXTRACT(EPOCH FROM (NOW() - last_refresh)) as seconds_since_refresh
                     FROM admin_materialized_view_refresh
-                """)
-                
+                """
+                )
+
                 for stat in view_stats:
                     metrics["materialized_views"][stat["view_name"]] = {
                         "last_refresh": stat["last_refresh"],
                         "refresh_duration_ms": stat["refresh_duration_ms"],
                         "row_count": stat["row_count"],
-                        "is_stale": stat["seconds_since_refresh"] > 3600,  # Stale if > 1 hour
+                        "is_stale": stat["seconds_since_refresh"]
+                        > 3600,  # Stale if > 1 hour
                     }
-            
+
             return Ok(metrics)
-            
+
         except Exception as e:
             return Err(f"Failed to monitor admin performance: {str(e)}")
 

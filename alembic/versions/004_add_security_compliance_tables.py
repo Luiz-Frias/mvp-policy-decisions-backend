@@ -28,7 +28,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create security and compliance tables."""
-    
+
     # Create SSO providers configuration table
     op.create_table(
         "sso_providers",
@@ -88,13 +88,15 @@ def upgrade() -> None:
         ),
         # Constraints
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sso_providers")),
-        sa.UniqueConstraint("provider_name", name=op.f("uq_sso_providers_provider_name")),
+        sa.UniqueConstraint(
+            "provider_name", name=op.f("uq_sso_providers_provider_name")
+        ),
         sa.CheckConstraint(
             "provider_type IN ('google', 'azure', 'okta', 'auth0', 'saml', 'oidc')",
             name=op.f("ck_sso_providers_provider_type"),
         ),
     )
-    
+
     # Create OAuth2 clients table
     op.create_table(
         "oauth2_clients",
@@ -173,7 +175,7 @@ def upgrade() -> None:
             name=op.f("ck_oauth2_clients_rate_limit_per_hour_positive"),
         ),
     )
-    
+
     # Create MFA settings table
     op.create_table(
         "user_mfa_settings",
@@ -247,7 +249,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("user_id", name=op.f("pk_user_mfa_settings")),
     )
-    
+
     # Create sessions table for session management
     op.create_table(
         "user_sessions",
@@ -297,7 +299,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_user_sessions")),
     )
-    
+
     # Create indexes for sessions
     op.create_index(
         op.f("ix_user_sessions_user_id"),
@@ -317,7 +319,7 @@ def upgrade() -> None:
         ["expires_at"],
         unique=False,
     )
-    
+
     # Create partitioned audit logs table
     op.execute(
         """
@@ -347,7 +349,7 @@ def upgrade() -> None:
         ) PARTITION BY RANGE (created_at);
         """
     )
-    
+
     # Create audit log indexes
     op.create_index(
         "ix_audit_logs_user_id",
@@ -373,25 +375,25 @@ def upgrade() -> None:
         ["resource_type", "resource_id"],
         unique=False,
     )
-    
+
     # Create partitions for audit logs (monthly partitions)
     op.execute(
         """
         -- Create partitions for current and next 3 months
         CREATE TABLE audit_logs_2025_01 PARTITION OF audit_logs
             FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-        
+
         CREATE TABLE audit_logs_2025_02 PARTITION OF audit_logs
             FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
-        
+
         CREATE TABLE audit_logs_2025_03 PARTITION OF audit_logs
             FOR VALUES FROM ('2025-03-01') TO ('2025-04-01');
-        
+
         CREATE TABLE audit_logs_2025_04 PARTITION OF audit_logs
             FOR VALUES FROM ('2025-04-01') TO ('2025-05-01');
         """
     )
-    
+
     # Create function for automatic partition creation
     op.execute(
         """
@@ -408,10 +410,10 @@ def upgrade() -> None:
             partition_name := 'audit_logs_' || TO_CHAR(partition_date, 'YYYY_MM');
             start_date := partition_date;
             end_date := partition_date + INTERVAL '1 month';
-            
+
             -- Check if partition already exists
             IF NOT EXISTS (
-                SELECT 1 FROM pg_tables 
+                SELECT 1 FROM pg_tables
                 WHERE tablename = partition_name
             ) THEN
                 -- Create the partition
@@ -426,7 +428,7 @@ def upgrade() -> None:
         $$ LANGUAGE plpgsql;
         """
     )
-    
+
     # Create data retention policies table
     op.create_table(
         "data_retention_policies",
@@ -438,7 +440,9 @@ def upgrade() -> None:
         ),
         sa.Column("table_name", sa.String(100), nullable=False),
         sa.Column("retention_days", sa.Integer(), nullable=False),
-        sa.Column("archive_enabled", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column(
+            "archive_enabled", sa.Boolean(), nullable=False, server_default="false"
+        ),
         sa.Column("archive_location", sa.String(255), nullable=True),
         sa.Column(
             "last_cleanup_at",
@@ -453,13 +457,15 @@ def upgrade() -> None:
         ),
         # Constraints
         sa.PrimaryKeyConstraint("id", name=op.f("pk_data_retention_policies")),
-        sa.UniqueConstraint("table_name", name=op.f("uq_data_retention_policies_table_name")),
+        sa.UniqueConstraint(
+            "table_name", name=op.f("uq_data_retention_policies_table_name")
+        ),
         sa.CheckConstraint(
             "retention_days > 0",
             name=op.f("ck_data_retention_policies_retention_days_positive"),
         ),
     )
-    
+
     # Add update triggers
     for table in ["sso_providers", "user_mfa_settings"]:
         op.execute(
@@ -470,7 +476,7 @@ def upgrade() -> None:
             EXECUTE FUNCTION update_updated_at_column();
             """
         )
-    
+
     # Create function to validate grant types
     op.execute(
         """
@@ -483,20 +489,20 @@ def upgrade() -> None:
             IF grant_types IS NULL OR jsonb_array_length(grant_types) = 0 THEN
                 RETURN FALSE;
             END IF;
-            
+
             FOR grant_type IN SELECT jsonb_array_elements_text(grant_types)
             LOOP
                 IF grant_type != ALL(valid_types) THEN
                     RETURN FALSE;
                 END IF;
             END LOOP;
-            
+
             RETURN TRUE;
         END;
         $$ LANGUAGE plpgsql IMMUTABLE;
         """
     )
-    
+
     # Add validation constraint for grant types
     op.create_check_constraint(
         "ck_oauth2_clients_grant_types_valid",
@@ -507,24 +513,24 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop security and compliance tables and related objects."""
-    
+
     # Drop constraint
     op.drop_constraint("ck_oauth2_clients_grant_types_valid", "oauth2_clients")
-    
+
     # Drop triggers
     for table in ["sso_providers", "user_mfa_settings"]:
         op.execute(f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};")
-    
+
     # Drop functions
     op.execute("DROP FUNCTION IF EXISTS validate_grant_types(JSONB);")
     op.execute("DROP FUNCTION IF EXISTS create_monthly_audit_partition();")
-    
+
     # Drop tables (non-partitioned)
     op.drop_table("data_retention_policies")
     op.drop_table("user_sessions")
     op.drop_table("user_mfa_settings")
     op.drop_table("oauth2_clients")
     op.drop_table("sso_providers")
-    
+
     # Drop partitioned table and its partitions
     op.execute("DROP TABLE IF EXISTS audit_logs CASCADE;")

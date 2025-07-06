@@ -1,10 +1,9 @@
 """Caching strategy for rating calculations to improve performance."""
 
-import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from beartype import beartype
 
@@ -17,7 +16,7 @@ class RatingCacheStrategy:
 
     def __init__(self, cache: Cache):
         """Initialize cache strategy.
-        
+
         Args:
             cache: Redis cache instance
         """
@@ -29,7 +28,7 @@ class RatingCacheStrategy:
             "ai_score": 300,  # 5 minutes - real-time factors
             "quote_calculation": 900,  # 15 minutes - customer specific
         }
-        self._cache_stats: Dict[str, Dict[str, int]] = {}
+        self._cache_stats: dict[str, dict[str, int]] = {}
 
     @beartype
     async def cache_territory_factor(
@@ -39,12 +38,12 @@ class RatingCacheStrategy:
         factor: float,
     ) -> Result[bool, str]:
         """Cache territory factor with appropriate TTL.
-        
+
         Args:
             state: State code
             zip_code: ZIP code
             factor: Territory factor value
-            
+
         Returns:
             Result indicating success or error
         """
@@ -53,7 +52,7 @@ class RatingCacheStrategy:
             "factor": factor,
             "cached_at": datetime.utcnow().isoformat(),
         }
-        
+
         try:
             await self._cache.set(
                 cache_key,
@@ -70,18 +69,18 @@ class RatingCacheStrategy:
         self,
         state: str,
         zip_code: str,
-    ) -> Result[Optional[float], str]:
+    ) -> Result[float | None, str]:
         """Get cached territory factor.
-        
+
         Args:
             state: State code
             zip_code: ZIP code
-            
+
         Returns:
             Result containing factor or None if not cached
         """
         cache_key = f"rating:territory:{state}:{zip_code}"
-        
+
         try:
             cached = await self._cache.get(cache_key)
             if cached:
@@ -98,23 +97,23 @@ class RatingCacheStrategy:
     async def cache_quote_calculation(
         self,
         quote_hash: str,
-        calculation_result: Dict[str, Any],
+        calculation_result: dict[str, Any],
     ) -> Result[bool, str]:
         """Cache complete quote calculation result.
-        
+
         Args:
             quote_hash: Hash of quote inputs
             calculation_result: Complete calculation result
-            
+
         Returns:
             Result indicating success or error
         """
         cache_key = f"rating:quote:{quote_hash}"
-        
+
         # Convert Decimal to string for JSON serialization
         cache_value = self._serialize_calculation_result(calculation_result)
         cache_value["cached_at"] = datetime.utcnow().isoformat()
-        
+
         try:
             await self._cache.set(
                 cache_key,
@@ -130,17 +129,17 @@ class RatingCacheStrategy:
     async def get_quote_calculation(
         self,
         quote_hash: str,
-    ) -> Result[Optional[Dict[str, Any]], str]:
+    ) -> Result[dict[str, Any] | None, str]:
         """Get cached quote calculation.
-        
+
         Args:
             quote_hash: Hash of quote inputs
-            
+
         Returns:
             Result containing calculation or None if not cached
         """
         cache_key = f"rating:quote:{quote_hash}"
-        
+
         try:
             cached = await self._cache.get(cache_key)
             if cached:
@@ -158,14 +157,14 @@ class RatingCacheStrategy:
     async def cache_discount_rules(
         self,
         state: str,
-        rules: List[Dict[str, Any]],
+        rules: list[dict[str, Any]],
     ) -> Result[bool, str]:
         """Cache discount rules for a state.
-        
+
         Args:
             state: State code
             rules: List of discount rules
-            
+
         Returns:
             Result indicating success or error
         """
@@ -174,7 +173,7 @@ class RatingCacheStrategy:
             "rules": rules,
             "cached_at": datetime.utcnow().isoformat(),
         }
-        
+
         try:
             await self._cache.set(
                 cache_key,
@@ -189,13 +188,13 @@ class RatingCacheStrategy:
     @beartype
     async def invalidate_quote_calculations(
         self,
-        pattern: Optional[str] = None,
+        pattern: str | None = None,
     ) -> Result[int, str]:
         """Invalidate cached quote calculations.
-        
+
         Args:
             pattern: Optional pattern to match (e.g., state code)
-            
+
         Returns:
             Result containing number of invalidated entries or error
         """
@@ -204,7 +203,7 @@ class RatingCacheStrategy:
                 keys = await self._cache.keys(f"rating:quote:*{pattern}*")
             else:
                 keys = await self._cache.keys("rating:quote:*")
-                
+
             if keys:
                 deleted = await self._cache.delete(*keys)
                 return Ok(deleted)
@@ -215,18 +214,18 @@ class RatingCacheStrategy:
     @beartype
     async def warm_cache(
         self,
-        common_zip_codes: List[Tuple[str, str]],  # List of (state, zip) tuples
+        common_zip_codes: list[tuple[str, str]],  # List of (state, zip) tuples
     ) -> Result[int, str]:
         """Pre-warm cache with common data.
-        
+
         Args:
             common_zip_codes: List of common state/ZIP combinations
-            
+
         Returns:
             Result containing number of warmed entries or error
         """
         warmed = 0
-        
+
         try:
             # In production, fetch actual data from database
             for state, zip_code in common_zip_codes:
@@ -235,40 +234,40 @@ class RatingCacheStrategy:
                 result = await self.cache_territory_factor(state, zip_code, factor)
                 if result.is_ok():
                     warmed += 1
-                    
+
             return Ok(warmed)
         except Exception as e:
             return Err(f"Cache warming failed: {str(e)}")
 
     @beartype
-    async def get_cache_stats(self) -> Dict[str, Dict[str, Any]]:
+    async def get_cache_stats(self) -> dict[str, dict[str, Any]]:
         """Get cache performance statistics.
-        
+
         Returns:
             Dictionary of cache statistics by operation type
         """
         stats = {}
-        
+
         for operation, counts in self._cache_stats.items():
             total = counts.get("hit", 0) + counts.get("miss", 0)
             hit_rate = counts.get("hit", 0) / total if total > 0 else 0
-            
+
             stats[operation] = {
                 "hits": counts.get("hit", 0),
                 "misses": counts.get("miss", 0),
                 "sets": counts.get("set", 0),
                 "hit_rate": f"{hit_rate:.1%}",
             }
-            
+
         return stats
 
     @beartype
     async def optimize_cache_ttl(
         self,
-        usage_patterns: Dict[str, float],
+        usage_patterns: dict[str, float],
     ) -> None:
         """Optimize cache TTL based on usage patterns.
-        
+
         Args:
             usage_patterns: Dictionary of cache type to access frequency
         """
@@ -285,14 +284,12 @@ class RatingCacheStrategy:
                     )
 
     @beartype
-    def _serialize_calculation_result(
-        self, result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _serialize_calculation_result(self, result: dict[str, Any]) -> dict[str, Any]:
         """Serialize calculation result for caching.
-        
+
         Args:
             result: Calculation result to serialize
-            
+
         Returns:
             Serializable dictionary
         """
@@ -312,23 +309,25 @@ class RatingCacheStrategy:
         return serialized
 
     @beartype
-    def _deserialize_calculation_result(
-        self, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _deserialize_calculation_result(self, data: dict[str, Any]) -> dict[str, Any]:
         """Deserialize cached calculation result.
-        
+
         Args:
             data: Cached data to deserialize
-            
+
         Returns:
             Deserialized calculation result
         """
         # Identify Decimal fields by convention (e.g., fields ending with _amount, _premium)
         decimal_fields = {
-            "base_premium", "total_premium", "final_premium",
-            "discount_amount", "surcharge_amount", "tax_amount"
+            "base_premium",
+            "total_premium",
+            "final_premium",
+            "discount_amount",
+            "surcharge_amount",
+            "tax_amount",
         }
-        
+
         deserialized = {}
         for key, value in data.items():
             if key in decimal_fields and isinstance(value, str):
@@ -337,7 +336,11 @@ class RatingCacheStrategy:
                 deserialized[key] = self._deserialize_calculation_result(value)
             elif isinstance(value, list):
                 deserialized[key] = [
-                    self._deserialize_calculation_result(v) if isinstance(v, dict) else v
+                    (
+                        self._deserialize_calculation_result(v)
+                        if isinstance(v, dict)
+                        else v
+                    )
                     for v in value
                 ]
             else:
@@ -347,7 +350,7 @@ class RatingCacheStrategy:
     @beartype
     def _record_cache_operation(self, operation_type: str, operation: str) -> None:
         """Record cache operation for statistics.
-        
+
         Args:
             operation_type: Type of cache operation (e.g., "territory_factor")
             operation: Operation performed (e.g., "hit", "miss", "set")
@@ -364,13 +367,13 @@ class RatingCacheManager:
 
     def __init__(self, cache: Cache):
         """Initialize cache manager.
-        
+
         Args:
             cache: Redis cache instance
         """
         self._cache = cache
         self._strategy = RatingCacheStrategy(cache)
-        self._invalidation_queue: Set[str] = set()
+        self._invalidation_queue: set[str] = set()
 
     @beartype
     async def get_or_calculate(
@@ -380,12 +383,12 @@ class RatingCacheManager:
         cache_type: str = "quote_calculation",
     ) -> Result[Any, str]:
         """Get from cache or calculate if not cached.
-        
+
         Args:
             cache_key: Cache key
             calculation_func: Function to calculate if not cached
             cache_type: Type of cache for TTL selection
-            
+
         Returns:
             Result containing cached or calculated value
         """
@@ -402,12 +405,12 @@ class RatingCacheManager:
             cached_result = await self._strategy.get_quote_calculation(cache_key)
             if cached_result.is_ok() and cached_result.unwrap() is not None:
                 return Ok(cached_result.unwrap())
-                
+
         # Calculate if not cached
         calc_result = await calculation_func()
         if calc_result.is_err():
             return calc_result
-            
+
         # Cache the result
         value = calc_result.unwrap()
         if cache_type == "territory_factor" and isinstance(value, (int, float)):
@@ -418,34 +421,34 @@ class RatingCacheManager:
                 )
         elif cache_type == "quote_calculation" and isinstance(value, dict):
             await self._strategy.cache_quote_calculation(cache_key, value)
-            
+
         return Ok(value)
 
     @beartype
     async def batch_invalidate(self) -> Result[int, str]:
         """Process queued cache invalidations.
-        
+
         Returns:
             Result containing number of invalidated entries or error
         """
         if not self._invalidation_queue:
             return Ok(0)
-            
+
         total_invalidated = 0
         patterns = list(self._invalidation_queue)
         self._invalidation_queue.clear()
-        
+
         for pattern in patterns:
             result = await self._strategy.invalidate_quote_calculations(pattern)
             if result.is_ok():
                 total_invalidated += result.unwrap()
-                
+
         return Ok(total_invalidated)
 
     @beartype
     def queue_invalidation(self, pattern: str) -> None:
         """Queue a cache invalidation pattern.
-        
+
         Args:
             pattern: Pattern to invalidate
         """

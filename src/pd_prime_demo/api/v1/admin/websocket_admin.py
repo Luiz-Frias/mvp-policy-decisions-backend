@@ -4,7 +4,14 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 from ....models.admin import AdminUser
@@ -21,7 +28,9 @@ class AdminWebSocketConfig(BaseModel):
     update_interval: int = Field(default=5, ge=1, le=60)
     filters: dict[str, Any] = Field(default_factory=dict)
     metrics: list[str] = Field(default_factory=list)
-    alert_levels: list[str] = Field(default_factory=lambda: ["medium", "high", "critical"])
+    alert_levels: list[str] = Field(
+        default_factory=lambda: ["medium", "high", "critical"]
+    )
 
 
 class AdminDashboardStats(BaseModel):
@@ -45,8 +54,7 @@ def get_admin_dashboard_handler() -> AdminDashboardHandler:
     # For now, using a placeholder
     from ....core.cache import get_cache
     from ....core.database import get_database
-    from ....websocket.manager import ConnectionManager
-    
+
     manager = ConnectionManager(get_cache(), get_database())
     return AdminDashboardHandler(manager, get_database(), get_cache())
 
@@ -62,10 +70,10 @@ def get_current_admin_user() -> AdminUser:
         is_active=True,
         effective_permissions=[
             "analytics:read",
-            "audit:read", 
+            "audit:read",
             "performance:read",
-            "system:manage"
-        ]
+            "system:manage",
+        ],
     )
 
 
@@ -77,9 +85,9 @@ async def admin_dashboard_websocket(
 ) -> None:
     """WebSocket endpoint for admin real-time dashboards."""
     await websocket.accept()
-    
+
     connection_id = f"admin_{admin_user.id}_{id(websocket)}"
-    
+
     try:
         # Send welcome message
         welcome_msg = WebSocketMessage(
@@ -94,19 +102,19 @@ async def admin_dashboard_websocket(
                 },
                 "capabilities": [
                     "system_monitoring",
-                    "user_activity_tracking", 
+                    "user_activity_tracking",
                     "performance_monitoring",
                     "alert_management",
                 ],
             },
         )
         await websocket.send_json(welcome_msg.model_dump())
-        
+
         while True:
             try:
                 data = await websocket.receive_json()
                 message_type = data.get("type")
-                
+
                 if message_type == "start_system_monitoring":
                     config = data.get("config", {})
                     result = await dashboard_handler.start_system_monitoring(
@@ -114,11 +122,10 @@ async def admin_dashboard_websocket(
                     )
                     if result.is_err():
                         error_msg = WebSocketMessage(
-                            type="error",
-                            data={"error": result.unwrap_err()}
+                            type="error", data={"error": result.unwrap_err()}
                         )
                         await websocket.send_json(error_msg.model_dump())
-                        
+
                 elif message_type == "start_user_activity":
                     filters = data.get("filters", {})
                     result = await dashboard_handler.start_user_activity_monitoring(
@@ -126,11 +133,10 @@ async def admin_dashboard_websocket(
                     )
                     if result.is_err():
                         error_msg = WebSocketMessage(
-                            type="error",
-                            data={"error": result.unwrap_err()}
+                            type="error", data={"error": result.unwrap_err()}
                         )
                         await websocket.send_json(error_msg.model_dump())
-                        
+
                 elif message_type == "start_performance_monitoring":
                     metrics = data.get("metrics", [])
                     result = await dashboard_handler.start_performance_monitoring(
@@ -138,18 +144,16 @@ async def admin_dashboard_websocket(
                     )
                     if result.is_err():
                         error_msg = WebSocketMessage(
-                            type="error", 
-                            data={"error": result.unwrap_err()}
+                            type="error", data={"error": result.unwrap_err()}
                         )
                         await websocket.send_json(error_msg.model_dump())
-                        
+
                 elif message_type == "ping":
                     pong_msg = WebSocketMessage(
-                        type="pong",
-                        data={"timestamp": data.get("timestamp")}
+                        type="pong", data={"timestamp": data.get("timestamp")}
                     )
                     await websocket.send_json(pong_msg.model_dump())
-                    
+
                 else:
                     error_msg = WebSocketMessage(
                         type="error",
@@ -157,14 +161,14 @@ async def admin_dashboard_websocket(
                             "error": f"Unknown message type: {message_type}",
                             "supported_types": [
                                 "start_system_monitoring",
-                                "start_user_activity", 
+                                "start_user_activity",
                                 "start_performance_monitoring",
-                                "ping"
+                                "ping",
                             ],
-                        }
+                        },
                     )
                     await websocket.send_json(error_msg.model_dump())
-                    
+
             except WebSocketDisconnect:
                 break
             except Exception as e:
@@ -173,11 +177,11 @@ async def admin_dashboard_websocket(
                     data={
                         "error": f"Processing error: {str(e)}",
                         "fatal": True,
-                    }
+                    },
                 )
                 await websocket.send_json(error_msg.model_dump())
                 break
-                
+
     except WebSocketDisconnect:
         pass
     finally:
@@ -194,23 +198,25 @@ async def get_admin_dashboard_stats(
     if "analytics:read" not in admin_user.effective_permissions:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions for dashboard statistics"
+            detail="Insufficient permissions for dashboard statistics",
         )
-    
+
     # Get statistics from handler
     stats = await dashboard_handler._collect_system_metrics()
-    
+
     if stats.is_err():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to collect system statistics"
+            detail="Failed to collect system statistics",
         )
-    
+
     metrics = stats.unwrap()
-    
+
     return AdminDashboardStats(
         active_admin_connections=len(dashboard_handler._active_streams),
-        total_websocket_connections=metrics.get("websockets", {}).get("total_connections", 0),
+        total_websocket_connections=metrics.get("websockets", {}).get(
+            "total_connections", 0
+        ),
         system_health_status=metrics.get("health_status", "unknown"),
         active_alerts=len(dashboard_handler._active_streams),  # Simplified
         pending_notifications=0,  # Would come from notification handler
@@ -231,22 +237,22 @@ async def broadcast_admin_alert(
     if "system:manage" not in admin_user.effective_permissions:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to broadcast alerts"
+            detail="Insufficient permissions to broadcast alerts",
         )
-    
+
     result = await dashboard_handler.broadcast_admin_alert(
         alert_type, message, severity, data
     )
-    
+
     if result.is_err():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to broadcast alert: {result.unwrap_err()}"
+            detail=f"Failed to broadcast alert: {result.unwrap_err()}",
         )
-    
+
     return {
         "status": "success",
-        "message": f"Alert '{alert_type}' broadcast successfully"
+        "message": f"Alert '{alert_type}' broadcast successfully",
     }
 
 
@@ -260,12 +266,12 @@ async def get_websocket_connection_health(
     if "performance:read" not in admin_user.effective_permissions:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions for connection health metrics"
+            detail="Insufficient permissions for connection health metrics",
         )
-    
+
     # Get connection health from manager
     stats = await dashboard_handler._manager.get_connection_stats()
-    
+
     return {
         "status": "healthy" if stats["utilization"] < 0.8 else "warning",
         "metrics": stats,
@@ -277,24 +283,26 @@ async def get_websocket_connection_health(
 def _get_health_recommendations(stats: dict[str, Any]) -> list[str]:
     """Generate health recommendations based on current metrics."""
     recommendations = []
-    
+
     utilization = stats.get("utilization", 0)
     if utilization > 0.9:
-        recommendations.append("Consider scaling WebSocket servers - utilization above 90%")
+        recommendations.append(
+            "Consider scaling WebSocket servers - utilization above 90%"
+        )
     elif utilization > 0.7:
         recommendations.append("Monitor connection growth - utilization above 70%")
-    
+
     largest_room = stats.get("largest_room", 0)
     if largest_room > 1000:
         recommendations.append("Large rooms detected - consider room partitioning")
-    
+
     total_rooms = stats.get("total_rooms", 0)
     if total_rooms > 10000:
         recommendations.append("High room count - consider room cleanup strategy")
-    
+
     if not recommendations:
         recommendations.append("System is operating within normal parameters")
-    
+
     return recommendations
 
 
@@ -308,9 +316,9 @@ async def get_active_admin_sessions(
     if "audit:read" not in admin_user.effective_permissions:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions for session information"
+            detail="Insufficient permissions for session information",
         )
-    
+
     active_sessions = []
     for stream_key in dashboard_handler._active_streams.keys():
         # Parse stream key to extract connection info
@@ -322,9 +330,9 @@ async def get_active_admin_sessions(
             "status": "active",
         }
         active_sessions.append(session_info)
-    
+
     return {
         "active_sessions": active_sessions,
         "total_count": len(active_sessions),
-        "session_types": list(set(s["stream_type"] for s in active_sessions)),
+        "session_types": list({s["stream_type"] for s in active_sessions}),
     }

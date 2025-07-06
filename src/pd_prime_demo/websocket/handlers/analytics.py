@@ -47,13 +47,13 @@ class AnalyticsWebSocketHandler:
         """Initialize analytics handler."""
         self._manager = manager
         self._db = db
-        
+
         # Active streaming tasks
         self._streaming_tasks: dict[str, asyncio.Task[None]] = {}
-        
+
         # Dashboard configurations
         self._dashboard_configs: dict[str, DashboardConfig] = {}
-        
+
         # Cache for frequently accessed metrics
         self._metrics_cache: dict[str, tuple[datetime, Any]] = {}
         self._cache_ttl = 5  # seconds
@@ -141,7 +141,7 @@ class AnalyticsWebSocketHandler:
     ) -> Result[None, str]:
         """Stop streaming analytics data."""
         task_key = f"{connection_id}:{dashboard_type}"
-        
+
         # Cancel streaming task
         if task_key in self._streaming_tasks:
             self._streaming_tasks[task_key].cancel()
@@ -194,8 +194,10 @@ class AnalyticsWebSocketHandler:
                         "incremental": True,  # Indicates this is an update, not full refresh
                     },
                 )
-                
-                send_result = await self._manager.send_personal_message(connection_id, update_msg)
+
+                send_result = await self._manager.send_personal_message(
+                    connection_id, update_msg
+                )
                 if send_result.is_err():
                     # Connection failed, stop streaming
                     break
@@ -241,12 +243,11 @@ class AnalyticsWebSocketHandler:
 
             # Cache the result
             self._metrics_cache[cache_key] = (datetime.now(), data)
-            
+
             # Clean old cache entries
             cutoff = datetime.now() - timedelta(seconds=30)
             self._metrics_cache = {
-                k: v for k, v in self._metrics_cache.items()
-                if v[0] > cutoff
+                k: v for k, v in self._metrics_cache.items() if v[0] > cutoff
             }
 
             return Ok(data)
@@ -343,7 +344,9 @@ class AnalyticsWebSocketHandler:
         }
 
     @beartype
-    async def _get_conversion_analytics(self, config: DashboardConfig) -> dict[str, Any]:
+    async def _get_conversion_analytics(
+        self, config: DashboardConfig
+    ) -> dict[str, Any]:
         """Get conversion funnel analytics."""
         end_time = datetime.now()
         start_time = end_time - timedelta(hours=config.time_range_hours)
@@ -356,8 +359,8 @@ class AnalyticsWebSocketHandler:
                 COUNT(*) FILTER (WHERE status != 'draft') as completed_quotes,
                 COUNT(*) FILTER (WHERE status = 'quoted') as quoted,
                 COUNT(*) FILTER (WHERE status = 'bound') as bound,
-                CASE 
-                    WHEN COUNT(*) > 0 
+                CASE
+                    WHEN COUNT(*) > 0
                     THEN (COUNT(*) FILTER (WHERE status = 'bound'))::float / COUNT(*)::float * 100
                     ELSE 0
                 END as conversion_rate
@@ -375,8 +378,8 @@ class AnalyticsWebSocketHandler:
                 COALESCE(source, 'direct') as source,
                 COUNT(*) as total,
                 COUNT(*) FILTER (WHERE status = 'bound') as converted,
-                CASE 
-                    WHEN COUNT(*) > 0 
+                CASE
+                    WHEN COUNT(*) > 0
                     THEN (COUNT(*) FILTER (WHERE status = 'bound'))::float / COUNT(*)::float * 100
                     ELSE 0
                 END as conversion_rate
@@ -418,7 +421,9 @@ class AnalyticsWebSocketHandler:
         }
 
     @beartype
-    async def _get_performance_analytics(self, config: DashboardConfig) -> dict[str, Any]:
+    async def _get_performance_analytics(
+        self, config: DashboardConfig
+    ) -> dict[str, Any]:
         """Get system performance analytics."""
         # API response times (mock for now)
         api_metrics = {
@@ -471,7 +476,10 @@ class AnalyticsWebSocketHandler:
                 "api": {"status": "healthy", "uptime_percent": 99.98},
                 "database": {"status": "healthy", "connections": 45},
                 "cache": {"status": "healthy", "memory_percent": 35},
-                "websocket": {"status": "healthy", "active_connections": self._manager._active_connection_count},
+                "websocket": {
+                    "status": "healthy",
+                    "active_connections": self._manager._active_connection_count,
+                },
             },
         }
 
@@ -545,11 +553,19 @@ class AnalyticsWebSocketHandler:
 
         # Return success if at least one broadcast succeeded
         successful_sends = sum(1 for r in send_results if r.is_ok())
-        return Ok(None) if successful_sends > 0 else Err("Failed to broadcast event to any dashboard")
+        return (
+            Ok(None)
+            if successful_sends > 0
+            else Err("Failed to broadcast event to any dashboard")
+        )
 
     @beartype
     async def send_alert(
-        self, alert_type: str, message: str, severity: str, data: dict[str, Any] | None = None
+        self,
+        alert_type: str,
+        message: str,
+        severity: str,
+        data: dict[str, Any] | None = None,
     ) -> Result[None, str]:
         """Send alert to admin dashboard subscribers."""
         if severity not in ["low", "medium", "high", "critical"]:
@@ -574,7 +590,8 @@ class AnalyticsWebSocketHandler:
         """Clean up resources when connection is lost."""
         # Stop all streaming tasks for this connection
         tasks_to_cancel = [
-            key for key in self._streaming_tasks.keys()
+            key
+            for key in self._streaming_tasks.keys()
             if key.startswith(f"{connection_id}:")
         ]
 

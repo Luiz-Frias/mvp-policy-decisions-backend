@@ -61,11 +61,11 @@ CREATE TRIGGER update_users_updated_at_trigger
     EXECUTE FUNCTION update_users_updated_at();
 
 -- Validate role values
-ALTER TABLE users ADD CONSTRAINT check_valid_role 
+ALTER TABLE users ADD CONSTRAINT check_valid_role
     CHECK (role IN ('customer', 'agent', 'underwriter', 'adjuster', 'admin', 'system'));
 
 -- Validate email format (additional check beyond unique constraint)
-ALTER TABLE users ADD CONSTRAINT check_email_format 
+ALTER TABLE users ADD CONSTRAINT check_email_format
     CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
 
 -- Add comments
@@ -136,7 +136,7 @@ CREATE TRIGGER update_admin_users_updated_at_trigger
     EXECUTE FUNCTION update_users_updated_at();
 
 -- Validate admin role
-ALTER TABLE admin_users ADD CONSTRAINT check_valid_admin_role 
+ALTER TABLE admin_users ADD CONSTRAINT check_valid_admin_role
     CHECK (role IN ('admin', 'super_admin'));
 
 -- Add comments for admin users
@@ -146,7 +146,7 @@ COMMENT ON COLUMN admin_users.mfa_enabled IS 'Whether MFA is enabled for this ad
 COMMENT ON COLUMN admin_users.mfa_secret IS 'TOTP secret for MFA authentication';
 COMMENT ON COLUMN admin_users.backup_codes IS 'MFA backup codes for account recovery';
 
--- Insert a default super admin (disabled, needs manual activation)  
+-- Insert a default super admin (disabled, needs manual activation)
 INSERT INTO admin_users (
     email,
     password_hash,

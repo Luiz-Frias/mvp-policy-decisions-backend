@@ -1,19 +1,18 @@
 """Query optimization utilities for database performance tuning."""
 
-from typing import Any, Optional
+from typing import Any
 
-import asyncpg
-from attrs import frozen, field
+from attrs import field, frozen
 from beartype import beartype
-from .result_types import Ok, Err, Result
 
 from .database_enhanced import Database
+from .result_types import Err, Ok, Result
 
 
 @frozen
 class QueryPlan:
     """Immutable query execution plan analysis."""
-    
+
     query: str = field()
     execution_time_ms: float = field()
     planning_time_ms: float = field()
@@ -26,7 +25,7 @@ class QueryPlan:
 @frozen
 class SlowQuery:
     """Immutable slow query information."""
-    
+
     query: str = field()
     calls: int = field()
     total_time_ms: float = field()
@@ -38,7 +37,7 @@ class SlowQuery:
 @frozen
 class IndexSuggestion:
     """Immutable index suggestion."""
-    
+
     table_name: str = field()
     column_name: str = field()
     index_type: str = field()
@@ -70,37 +69,39 @@ class QueryOptimizer:
             explain_options.append("BUFFERS")
         if verbose:
             explain_options.append("VERBOSE")
-        
+
         explain_query = f"EXPLAIN ({', '.join(explain_options)}, FORMAT JSON) {query}"
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 result = await conn.fetchval(explain_query, *args)
-                
+
                 if not result or not isinstance(result, list) or not result:
                     return Err("Invalid EXPLAIN result format")
-                
+
                 plan_data = result[0]
-                
+
                 # Extract key metrics
                 execution_time = plan_data.get("Execution Time", 0.0)
                 planning_time = plan_data.get("Planning Time", 0.0)
                 total_cost = plan_data.get("Plan", {}).get("Total Cost", 0.0)
                 rows = plan_data.get("Plan", {}).get("Actual Rows", 0)
-                
+
                 # Generate suggestions based on plan
                 suggestions = self._analyze_plan_for_suggestions(plan_data)
-                
-                return Ok(QueryPlan(
-                    query=query,
-                    execution_time_ms=execution_time,
-                    planning_time_ms=planning_time,
-                    total_cost=total_cost,
-                    rows_returned=rows,
-                    plan_details=plan_data,
-                    suggestions=suggestions,
-                ))
-                
+
+                return Ok(
+                    QueryPlan(
+                        query=query,
+                        execution_time_ms=execution_time,
+                        planning_time_ms=planning_time,
+                        total_cost=total_cost,
+                        rows_returned=rows,
+                        plan_details=plan_data,
+                        suggestions=suggestions,
+                    )
+                )
+
         except Exception as e:
             return Err(f"Failed to analyze query: {str(e)}")
 
@@ -109,7 +110,7 @@ class QueryOptimizer:
         """Analyze query plan and generate optimization suggestions."""
         suggestions = []
         plan = plan_data.get("Plan", {})
-        
+
         # Check for sequential scans on large tables
         if plan.get("Node Type") == "Seq Scan":
             rows = plan.get("Actual Rows", 0)
@@ -119,14 +120,14 @@ class QueryOptimizer:
                     f"Consider adding an index on table '{table}' - "
                     f"sequential scan on {rows} rows detected"
                 )
-        
+
         # Check for missing indexes on joins
         if "Hash Join" in str(plan) or "Nested Loop" in str(plan):
             if plan.get("Total Cost", 0) > 1000:
                 suggestions.append(
                     "High cost join detected - consider adding indexes on join columns"
                 )
-        
+
         # Check for sorting operations
         if plan.get("Node Type") == "Sort":
             sort_key = plan.get("Sort Key", [])
@@ -134,14 +135,14 @@ class QueryOptimizer:
                 suggestions.append(
                     f"Consider adding an index on sort columns: {sort_key}"
                 )
-        
+
         # Check execution time
         exec_time = plan_data.get("Execution Time", 0)
         if exec_time > 100:  # 100ms threshold
             suggestions.append(
                 f"Query execution time is {exec_time}ms - consider optimization"
             )
-        
+
         return suggestions
 
     @beartype
@@ -153,7 +154,7 @@ class QueryOptimizer:
         """Suggest missing indexes based on table statistics."""
         query = """
             WITH column_stats AS (
-                SELECT 
+                SELECT
                     schemaname,
                     tablename,
                     attname,
@@ -165,14 +166,14 @@ class QueryOptimizer:
                 AND n_distinct > $2
             ),
             existing_indexes AS (
-                SELECT 
+                SELECT
                     a.attname
                 FROM pg_index i
                 JOIN pg_attribute a ON a.attrelid = i.indrelid
                 AND a.attnum = ANY(i.indkey)
                 WHERE i.indrelid = $1::regclass
             )
-            SELECT 
+            SELECT
                 cs.schemaname,
                 cs.tablename,
                 cs.attname,
@@ -183,11 +184,11 @@ class QueryOptimizer:
             WHERE ei.attname IS NULL
             ORDER BY cs.n_distinct DESC
         """
-        
+
         try:
             async with self._db.acquire_read() as conn:
                 stats = await conn.fetch(query, table_name, min_cardinality)
-                
+
                 suggestions = []
                 for stat in stats:
                     # Determine index type based on statistics
@@ -197,7 +198,7 @@ class QueryOptimizer:
                         index_type = "brin"  # BRIN for correlated data
                     else:
                         index_type = "btree"
-                    
+
                     suggestion = IndexSuggestion(
                         table_name=stat["tablename"],
                         column_name=stat["attname"],
@@ -213,9 +214,9 @@ class QueryOptimizer:
                         ),
                     )
                     suggestions.append(suggestion)
-                
+
                 return Ok(suggestions)
-                
+
         except Exception as e:
             return Err(f"Failed to analyze indexes: {str(e)}")
 
@@ -240,14 +241,14 @@ class QueryOptimizer:
             ORDER BY mean_exec_time DESC
             LIMIT $2
         """
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 # Enable pg_stat_statements if not already enabled
                 await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
-                
+
                 results = await conn.fetch(query, threshold_ms, limit)
-                
+
                 slow_queries = [
                     SlowQuery(
                         query=self._sanitize_query(row["query"]),
@@ -259,9 +260,9 @@ class QueryOptimizer:
                     )
                     for row in results
                 ]
-                
+
                 return Ok(slow_queries)
-                
+
         except Exception as e:
             return Err(f"Failed to analyze slow queries: {str(e)}")
 
@@ -270,17 +271,17 @@ class QueryOptimizer:
         """Sanitize query for display by removing sensitive data."""
         # Remove potential sensitive data patterns
         import re
-        
+
         # Remove string literals
         query = re.sub(r"'[^']*'", "'***'", query)
-        
+
         # Remove numeric literals that might be IDs
         query = re.sub(r"\b\d{6,}\b", "***", query)
-        
+
         # Truncate very long queries
         if len(query) > 500:
             query = query[:500] + "..."
-        
+
         return query
 
     @beartype
@@ -298,9 +299,9 @@ class QueryOptimizer:
                     schemaname,
                     tablename,
                     pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
-                    round(100 * (pg_relation_size(schemaname||'.'||tablename) - 
-                          pg_stat_get_live_tuples(c.oid) * 
-                          (SELECT block_size FROM constants)) / 
+                    round(100 * (pg_relation_size(schemaname||'.'||tablename) -
+                          pg_stat_get_live_tuples(c.oid) *
+                          (SELECT block_size FROM constants)) /
                           pg_relation_size(schemaname||'.'||tablename)::numeric, 2) AS bloat_percent
                 FROM pg_tables
                 JOIN pg_class c ON c.relname = tablename
@@ -311,11 +312,11 @@ class QueryOptimizer:
             WHERE bloat_percent > $1
             ORDER BY bloat_percent DESC
         """
-        
+
         try:
             async with self._db.acquire_admin() as conn:
                 results = await conn.fetch(query, threshold_percent)
-                
+
                 bloated_tables = [
                     {
                         "schema": row["schemaname"],
@@ -326,9 +327,9 @@ class QueryOptimizer:
                     }
                     for row in results
                 ]
-                
+
                 return Ok(bloated_tables)
-                
+
         except Exception as e:
             return Err(f"Failed to check table bloat: {str(e)}")
 
@@ -339,53 +340,61 @@ class QueryOptimizer:
     ) -> dict[str, str]:
         """Generate optimal PostgreSQL settings for workload type."""
         settings = {}
-        
+
         if workload_type == "oltp":
-            settings.update({
-                "shared_buffers": "25%",  # of RAM
-                "effective_cache_size": "75%",  # of RAM
-                "work_mem": "4MB",
-                "maintenance_work_mem": "64MB",
-                "random_page_cost": "1.1",  # SSD
-                "checkpoint_completion_target": "0.9",
-                "wal_buffers": "16MB",
-                "max_connections": "200",
-            })
+            settings.update(
+                {
+                    "shared_buffers": "25%",  # of RAM
+                    "effective_cache_size": "75%",  # of RAM
+                    "work_mem": "4MB",
+                    "maintenance_work_mem": "64MB",
+                    "random_page_cost": "1.1",  # SSD
+                    "checkpoint_completion_target": "0.9",
+                    "wal_buffers": "16MB",
+                    "max_connections": "200",
+                }
+            )
         elif workload_type == "olap":
-            settings.update({
-                "shared_buffers": "40%",  # More for analytics
-                "effective_cache_size": "80%",
-                "work_mem": "128MB",  # More for sorts/joins
-                "maintenance_work_mem": "2GB",
-                "random_page_cost": "1.1",
-                "max_parallel_workers_per_gather": "4",
-                "max_parallel_workers": "8",
-                "enable_partitionwise_join": "on",
-            })
+            settings.update(
+                {
+                    "shared_buffers": "40%",  # More for analytics
+                    "effective_cache_size": "80%",
+                    "work_mem": "128MB",  # More for sorts/joins
+                    "maintenance_work_mem": "2GB",
+                    "random_page_cost": "1.1",
+                    "max_parallel_workers_per_gather": "4",
+                    "max_parallel_workers": "8",
+                    "enable_partitionwise_join": "on",
+                }
+            )
         else:  # mixed
-            settings.update({
-                "shared_buffers": "30%",
-                "effective_cache_size": "75%",
-                "work_mem": "16MB",
-                "maintenance_work_mem": "256MB",
-                "random_page_cost": "1.1",
-                "checkpoint_completion_target": "0.9",
-                "max_connections": "300",
-                "statement_timeout": "300000",  # 5 minutes
-            })
-        
+            settings.update(
+                {
+                    "shared_buffers": "30%",
+                    "effective_cache_size": "75%",
+                    "work_mem": "16MB",
+                    "maintenance_work_mem": "256MB",
+                    "random_page_cost": "1.1",
+                    "checkpoint_completion_target": "0.9",
+                    "max_connections": "300",
+                    "statement_timeout": "300000",  # 5 minutes
+                }
+            )
+
         # Common optimizations
-        settings.update({
-            "log_min_duration_statement": "1000",  # Log queries > 1s
-            "log_checkpoints": "on",
-            "log_connections": "on",
-            "log_disconnections": "on",
-            "log_lock_waits": "on",
-            "log_temp_files": "0",
-            "track_io_timing": "on",
-            "track_functions": "all",
-            "autovacuum": "on",
-            "autovacuum_naptime": "30s",
-        })
-        
+        settings.update(
+            {
+                "log_min_duration_statement": "1000",  # Log queries > 1s
+                "log_checkpoints": "on",
+                "log_connections": "on",
+                "log_disconnections": "on",
+                "log_lock_waits": "on",
+                "log_temp_files": "0",
+                "track_io_timing": "on",
+                "track_functions": "all",
+                "autovacuum": "on",
+                "autovacuum_naptime": "30s",
+            }
+        )
+
         return settings

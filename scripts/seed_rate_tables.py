@@ -25,9 +25,9 @@ load_dotenv()
 
 async def seed_rate_tables(conn: asyncpg.Connection) -> None:
     """Seed rate tables with initial data for CA, TX, and NY."""
-    
+
     print("Seeding rate tables...")
-    
+
     # Base rates by state, product, and coverage
     rate_data = [
         # California Auto Rates
@@ -133,7 +133,7 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.15,
             },
         },
-        
+
         # Texas Auto Rates (generally lower than CA)
         {
             "state": "TX",
@@ -169,7 +169,7 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.28,
             },
         },
-        
+
         # New York Auto Rates (highest)
         {
             "state": "NY",
@@ -206,7 +206,7 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.35,
             },
         },
-        
+
         # Home Insurance Rates
         {
             "state": "CA",
@@ -232,7 +232,7 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
             },
         },
     ]
-    
+
     # Insert rate tables
     for rate in rate_data:
         await conn.execute(
@@ -258,15 +258,15 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
             f"{rate['state']}-{rate['product_type']}-2025-001",
             "System Administrator",
         )
-    
+
     print(f"✓ Inserted {len(rate_data)} rate tables")
 
 
 async def seed_discount_rules(conn: asyncpg.Connection) -> None:
     """Seed discount rules."""
-    
+
     print("Seeding discount rules...")
-    
+
     discounts = [
         {
             "code": "MULTI_POLICY",
@@ -372,7 +372,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "priority": 50,
         },
     ]
-    
+
     for discount in discounts:
         await conn.execute(
             """
@@ -396,15 +396,15 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             discount["priority"],
             date.today(),
         )
-    
+
     print(f"✓ Inserted {len(discounts)} discount rules")
 
 
 async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
     """Seed surcharge rules."""
-    
+
     print("Seeding surcharge rules...")
-    
+
     surcharges = [
         {
             "code": "YOUNG_DRIVER",
@@ -473,7 +473,7 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             "priority": 85,
         },
     ]
-    
+
     for surcharge in surcharges:
         await conn.execute(
             """
@@ -495,15 +495,15 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             surcharge["priority"],
             date.today(),
         )
-    
+
     print(f"✓ Inserted {len(surcharges)} surcharge rules")
 
 
 async def seed_territory_factors(conn: asyncpg.Connection) -> None:
     """Seed territory factors for specific ZIP codes."""
-    
+
     print("Seeding territory factors...")
-    
+
     # Sample territory factors for major cities
     territories = [
         # California
@@ -512,24 +512,24 @@ async def seed_territory_factors(conn: asyncpg.Connection) -> None:
         {"state": "CA", "zip_code": "92101", "product_type": "auto", "base_factor": 1.3, "loss_ratio_factor": 1.1, "catastrophe_factor": 1.0},
         {"state": "CA", "zip_code": "90001", "product_type": "auto", "base_factor": 1.4, "loss_ratio_factor": 1.4, "catastrophe_factor": 1.0},
         {"state": "CA", "zip_code": "95814", "product_type": "auto", "base_factor": 1.1, "loss_ratio_factor": 1.0, "catastrophe_factor": 1.2},
-        
+
         # Texas
         {"state": "TX", "zip_code": "75201", "product_type": "auto", "base_factor": 1.4, "loss_ratio_factor": 1.2, "catastrophe_factor": 1.1},
         {"state": "TX", "zip_code": "77001", "product_type": "auto", "base_factor": 1.4, "loss_ratio_factor": 1.3, "catastrophe_factor": 1.3},
         {"state": "TX", "zip_code": "78701", "product_type": "auto", "base_factor": 1.2, "loss_ratio_factor": 1.0, "catastrophe_factor": 1.1},
         {"state": "TX", "zip_code": "78201", "product_type": "auto", "base_factor": 1.1, "loss_ratio_factor": 1.0, "catastrophe_factor": 1.0},
-        
+
         # New York
         {"state": "NY", "zip_code": "10001", "product_type": "auto", "base_factor": 2.0, "loss_ratio_factor": 1.5, "catastrophe_factor": 1.0},
         {"state": "NY", "zip_code": "11201", "product_type": "auto", "base_factor": 1.8, "loss_ratio_factor": 1.4, "catastrophe_factor": 1.0},
         {"state": "NY", "zip_code": "10451", "product_type": "auto", "base_factor": 1.7, "loss_ratio_factor": 1.5, "catastrophe_factor": 1.0},
-        
+
         # Home insurance territories (high catastrophe areas)
         {"state": "CA", "zip_code": "90210", "product_type": "home", "base_factor": 1.5, "loss_ratio_factor": 1.2, "catastrophe_factor": 2.5},  # Wildfire
         {"state": "TX", "zip_code": "77001", "product_type": "home", "base_factor": 1.2, "loss_ratio_factor": 1.1, "catastrophe_factor": 2.0},  # Hurricane
         {"state": "NY", "zip_code": "11234", "product_type": "home", "base_factor": 1.3, "loss_ratio_factor": 1.1, "catastrophe_factor": 1.8},  # Coastal flooding
     ]
-    
+
     for territory in territories:
         await conn.execute(
             """
@@ -546,34 +546,34 @@ async def seed_territory_factors(conn: asyncpg.Connection) -> None:
             Decimal(str(territory["catastrophe_factor"])),
             date.today(),
         )
-    
+
     print(f"✓ Inserted {len(territories)} territory factors")
 
 
 async def main():
     """Main function to seed all rate-related tables."""
-    
+
     # Database connection
     database_url = os.getenv("DATABASE_URL", "postgresql://localhost/pd_prime_demo")
-    
+
     try:
         conn = await asyncpg.connect(database_url)
         print(f"Connected to database")
-        
+
         # Check if data already exists
         existing = await conn.fetchval("SELECT COUNT(*) FROM rate_tables")
         if existing > 0:
             print(f"⚠️  Rate tables already contain {existing} records. Skipping seed.")
             return
-        
+
         # Seed all tables
         await seed_rate_tables(conn)
         await seed_discount_rules(conn)
         await seed_surcharge_rules(conn)
         await seed_territory_factors(conn)
-        
+
         print("\n✅ Rate table seeding completed successfully!")
-        
+
     except Exception as e:
         print(f"\n❌ Error seeding rate tables: {e}")
         raise

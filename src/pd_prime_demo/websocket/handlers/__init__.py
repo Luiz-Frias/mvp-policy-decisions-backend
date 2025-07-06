@@ -7,7 +7,7 @@ from .quotes import QuoteWebSocketHandler
 
 __all__ = [
     "QuoteWebSocketHandler",
-    "AnalyticsWebSocketHandler", 
+    "AnalyticsWebSocketHandler",
     "AdminDashboardHandler",
     "NotificationHandler",
 ]

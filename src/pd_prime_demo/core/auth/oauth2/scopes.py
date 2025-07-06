@@ -1,7 +1,6 @@
 """OAuth2 scope definitions and validation."""
 
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
 
 from beartype import beartype
 
@@ -25,11 +24,11 @@ class Scope:
         name: str,
         description: str,
         category: ScopeCategory,
-        includes: Optional[List[str]] = None,
+        includes: list[str] | None = None,
         requires_user: bool = True,
     ) -> None:
         """Initialize scope.
-        
+
         Args:
             name: Scope identifier
             description: Human-readable description
@@ -45,7 +44,7 @@ class Scope:
 
 
 # Define all available scopes
-SCOPES: Dict[str, Scope] = {
+SCOPES: dict[str, Scope] = {
     # User scopes
     "user:read": Scope(
         "user:read",
@@ -58,7 +57,6 @@ SCOPES: Dict[str, Scope] = {
         ScopeCategory.USER,
         includes=["user:read"],
     ),
-    
     # Quote scopes
     "quote:read": Scope(
         "quote:read",
@@ -83,7 +81,6 @@ SCOPES: Dict[str, Scope] = {
         ScopeCategory.QUOTE,
         includes=["quote:read", "policy:write"],
     ),
-    
     # Policy scopes
     "policy:read": Scope(
         "policy:read",
@@ -102,7 +99,6 @@ SCOPES: Dict[str, Scope] = {
         ScopeCategory.POLICY,
         includes=["policy:read", "policy:write"],
     ),
-    
     # Claim scopes
     "claim:read": Scope(
         "claim:read",
@@ -121,7 +117,6 @@ SCOPES: Dict[str, Scope] = {
         ScopeCategory.CLAIM,
         includes=["claim:read", "claim:write"],
     ),
-    
     # Analytics scopes
     "analytics:read": Scope(
         "analytics:read",
@@ -136,7 +131,6 @@ SCOPES: Dict[str, Scope] = {
         includes=["analytics:read"],
         requires_user=False,
     ),
-    
     # Admin scopes
     "admin:users": Scope(
         "admin:users",
@@ -163,15 +157,15 @@ class ScopeValidator:
     @staticmethod
     @beartype
     def validate_scopes(
-        requested_scopes: List[str],
-        allowed_scopes: Optional[List[str]] = None,
-    ) -> Tuple[bool, List[str], Optional[str]]:
+        requested_scopes: list[str],
+        allowed_scopes: list[str] | None = None,
+    ) -> tuple[bool, list[str], str | None]:
         """Validate requested scopes.
-        
+
         Args:
             requested_scopes: List of requested scope names
             allowed_scopes: List of scopes allowed for the client (optional)
-            
+
         Returns:
             Tuple of (is_valid, expanded_scopes, error_message)
         """
@@ -179,59 +173,59 @@ class ScopeValidator:
         invalid_scopes = [s for s in requested_scopes if s not in SCOPES]
         if invalid_scopes:
             return False, [], f"Invalid scopes: {', '.join(invalid_scopes)}"
-        
+
         # Check if scopes are allowed for client
         if allowed_scopes is not None:
             disallowed = set(requested_scopes) - set(allowed_scopes)
             if disallowed:
                 return False, [], f"Scopes not allowed: {', '.join(disallowed)}"
-        
+
         # Expand scopes to include dependencies
         expanded_scopes = ScopeValidator.expand_scopes(requested_scopes)
-        
+
         return True, list(expanded_scopes), None
 
     @staticmethod
     @beartype
-    def expand_scopes(scopes: List[str]) -> Set[str]:
+    def expand_scopes(scopes: list[str]) -> set[str]:
         """Expand scopes to include all dependencies.
-        
+
         Args:
             scopes: List of scope names
-            
+
         Returns:
             Set of expanded scope names including all dependencies
         """
         expanded = set()
-        
+
         def add_scope_with_includes(scope_name: str) -> None:
             if scope_name in expanded:
                 return
-            
+
             expanded.add(scope_name)
-            
+
             scope = SCOPES.get(scope_name)
             if scope and scope.includes:
                 for included in scope.includes:
                     add_scope_with_includes(included)
-        
+
         for scope in scopes:
             add_scope_with_includes(scope)
-        
+
         return expanded
 
     @staticmethod
     @beartype
     def check_scope_permission(
-        token_scopes: List[str],
+        token_scopes: list[str],
         required_scope: str,
     ) -> bool:
         """Check if token has required scope.
-        
+
         Args:
             token_scopes: List of scopes in the token
             required_scope: Required scope to check
-            
+
         Returns:
             True if token has the required scope (directly or through inclusion)
         """
@@ -240,12 +234,12 @@ class ScopeValidator:
 
     @staticmethod
     @beartype
-    def get_scope_categories(scopes: List[str]) -> Set[ScopeCategory]:
+    def get_scope_categories(scopes: list[str]) -> set[ScopeCategory]:
         """Get categories for a list of scopes.
-        
+
         Args:
             scopes: List of scope names
-            
+
         Returns:
             Set of scope categories
         """
@@ -259,35 +253,32 @@ class ScopeValidator:
     @staticmethod
     @beartype
     def filter_scopes_by_category(
-        scopes: List[str],
+        scopes: list[str],
         category: ScopeCategory,
-    ) -> List[str]:
+    ) -> list[str]:
         """Filter scopes by category.
-        
+
         Args:
             scopes: List of scope names
             category: Category to filter by
-            
+
         Returns:
             List of scopes in the specified category
         """
-        return [
-            s for s in scopes 
-            if SCOPES.get(s) and SCOPES[s].category == category
-        ]
+        return [s for s in scopes if SCOPES.get(s) and SCOPES[s].category == category]
 
     @staticmethod
     @beartype
     def validate_scope_compatibility(
-        scopes: List[str],
-    ) -> Tuple[bool, Optional[str]]:
+        scopes: list[str],
+    ) -> tuple[bool, str | None]:
         """Check if a set of scopes are compatible with each other.
-        
+
         Some scopes might have mutual exclusions or requirements.
-        
+
         Args:
             scopes: List of scope names
-            
+
         Returns:
             Tuple of (is_compatible, error_message)
         """
@@ -299,14 +290,14 @@ class ScopeValidator:
     @beartype
     def get_required_scopes_for_operation(
         operation: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """Get required scopes for a specific operation.
-        
+
         This is used to map API operations to required scopes.
-        
+
         Args:
             operation: Operation identifier (e.g., "create_quote", "read_policy")
-            
+
         Returns:
             List of required scope names
         """
@@ -317,31 +308,26 @@ class ScopeValidator:
             "read_quote": ["quote:read"],
             "calculate_quote": ["quote:calculate"],
             "convert_quote_to_policy": ["quote:convert"],
-            
             # Policy operations
             "create_policy": ["policy:write"],
             "read_policy": ["policy:read"],
             "update_policy": ["policy:write"],
             "cancel_policy": ["policy:cancel"],
-            
             # Claim operations
             "create_claim": ["claim:write"],
             "read_claim": ["claim:read"],
             "update_claim": ["claim:write"],
             "approve_claim": ["claim:approve"],
-            
             # User operations
             "read_profile": ["user:read"],
             "update_profile": ["user:write"],
-            
             # Analytics operations
             "view_analytics": ["analytics:read"],
             "export_analytics": ["analytics:export"],
-            
             # Admin operations
             "manage_users": ["admin:users"],
             "manage_clients": ["admin:clients"],
             "system_admin": ["admin:system"],
         }
-        
+
         return operation_scopes.get(operation, [])
