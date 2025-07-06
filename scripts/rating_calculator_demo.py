@@ -12,6 +12,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from pd_prime_demo.core.logging_utils import (
+    configure_logging,
+    get_logger,
+    patch_print,
+)
 from pd_prime_demo.services.rating.calculators import (
     AIRiskScorer,
     CreditBasedInsuranceScorer,
@@ -23,38 +28,46 @@ from pd_prime_demo.services.rating.calculators import (
 )
 from pd_prime_demo.services.rating.performance import RatingPerformanceOptimizer
 
+# Initialize application-wide logging and redirect any legacy ``print`` calls
+configure_logging()
+patch_print()
+logger = get_logger(__name__)
+
 
 def print_header(title: str) -> None:
-    """Print a formatted header."""
-    print(f"\n{'='*60}")
-    print(f" {title}")
-    print(f"{'='*60}")
+    """Log a formatted header."""
+    logger.info(f"\n{'=' * 60}")
+    logger.info(f" {title}")
+    logger.info(f"{'=' * 60}")
 
 
 def print_result(operation: str, result: Any, elapsed_ms: float) -> None:
-    """Print operation result with timing."""
-    status = "✅ SUCCESS" if hasattr(result, "is_ok") and result.is_ok() else "❌ ERROR"
-    print(f"{operation:<40} {status:<10} {elapsed_ms:>8.2f}ms")
+    """Log operation result with timing."""
+    success = hasattr(result, "is_ok") and result.is_ok()
+    status = "✅ SUCCESS" if success else "❌ ERROR"
+    log_fn = logger.info if success else logger.error
+
+    log_fn(f"{operation:<40} {status:<10} {elapsed_ms:>8.2f}ms")
 
     if hasattr(result, "is_err") and result.is_err():
-        print(f"  Error: {result.unwrap_err()}")
+        logger.error(f"  Error: {result.unwrap_err()}")
     elif hasattr(result, "unwrap"):
         value = result.unwrap()
         if isinstance(value, (int, float, Decimal)):
-            print(f"  Result: {value}")
+            logger.info(f"  Result: {value}")
         elif isinstance(value, tuple) and len(value) == 2:
             # Handle tuple results properly
             first_val, second_val = value
             if isinstance(second_val, dict):
-                print(f"  Result: {first_val}, Details: {len(second_val)} items")
+                logger.info(f"  Result: {first_val}, Details: {len(second_val)} items")
             elif isinstance(second_val, list):
-                print(f"  Result: {first_val}, Items: {len(second_val)}")
+                logger.info(f"  Result: {first_val}, Items: {len(second_val)}")
             else:
-                print(f"  Result: {first_val}, Secondary: {second_val}")
+                logger.info(f"  Result: {first_val}, Secondary: {second_val}")
         elif isinstance(value, dict):
-            print(f"  Result: {len(value)} items")
+            logger.info(f"  Result: {len(value)} items")
         elif isinstance(value, list):
-            print(f"  Result: {len(value)} items")
+            logger.info(f"  Result: {len(value)} items")
 
 
 async def test_basic_premium_calculations() -> None:
@@ -165,7 +178,8 @@ async def test_external_data_integration() -> None:
     # Test weather risk factor
     start_time = time.perf_counter()
     result = await ExternalDataIntegrator.get_weather_risk_factor(
-        zip_code="33101", effective_date=datetime.now()  # Miami, FL
+        zip_code="33101",
+        effective_date=datetime.now(),  # Miami, FL
     )
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     print_result("Weather Risk Factor", result, elapsed_ms)
@@ -309,7 +323,9 @@ async def test_performance_optimization() -> None:
     start_time = time.perf_counter()
     optimizer.precompute_common_scenarios()
     elapsed_ms = (time.perf_counter() - start_time) * 1000
-    print(f"Cache Warming                            ✅ SUCCESS  {elapsed_ms:>8.2f}ms")
+    logger.info(
+        f"Cache Warming                            ✅ SUCCESS  {elapsed_ms:>8.2f}ms"
+    )
 
     # Test parallel calculation
     start_time = time.perf_counter()
@@ -463,7 +479,7 @@ async def run_performance_benchmark() -> None:
 
     print(f"Bulk Calculations ({iterations}x)         ✅ SUCCESS  {elapsed_ms:>8.2f}ms")
     print(f"  Average per calculation: {avg_ms:.3f}ms")
-    print(f"  Throughput: {iterations/(elapsed_ms/1000):.0f} calculations/second")
+    print(f"  Throughput: {iterations / (elapsed_ms / 1000):.0f} calculations/second")
 
     # Performance target validation
     if avg_ms < 1.0:  # Less than 1ms per calculation
@@ -482,7 +498,7 @@ async def run_performance_benchmark() -> None:
     for i in range(concurrent_calculations):
         quote_data = {
             "state": "CA",
-            "zip_code": f"9{i%10:04d}",
+            "zip_code": f"9{i % 10:04d}",
             "drivers": [{"age": 25 + i % 40, "years_licensed": 5}],
             "vehicles": [{"type": "sedan", "age": i % 10}],
         }
@@ -498,7 +514,7 @@ async def run_performance_benchmark() -> None:
     )
     print(f"  Success rate: {success_count}/{concurrent_calculations}")
     print(
-        f"  Throughput: {concurrent_calculations/(elapsed_ms/1000):.0f} calculations/second"
+        f"  Throughput: {concurrent_calculations / (elapsed_ms / 1000):.0f} calculations/second"
     )
 
     if elapsed_ms < 1000:  # Less than 1 second for 20 concurrent

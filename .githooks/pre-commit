@@ -21,46 +21,63 @@ print_header() { echo -e "${PURPLE}$1${NC}"; }
 print_header "🛡️ MASTER RULESET ENFORCEMENT - Pre-commit Validation"
 print_status "Enforcing Defensive Programming & Performance First Principles..."
 
-# 1. MANDATORY: Pydantic Model Compliance Check
+# ---------------------------------------------
+# MASTER RULE: Pydantic / Defensive checks
+# We want to collect *all* violations and then exit once, rather than aborting
+# at the first failure.  Temporarily relax `set -e` and aggregate results.
+# ---------------------------------------------
+
 print_status "🔍 MASTER RULE: Validating Pydantic model compliance..."
-# Find dict[ usage but exclude lines with SYSTEM_BOUNDARY comment
-DICT_FILES=$(find src -name "*.py" -exec grep -l "dict\[" {} \; 2>/dev/null)
-if [ -n "$DICT_FILES" ]; then
-    PLAIN_DICTS=$(echo "$DICT_FILES" | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null | wc -l)
-else
-    PLAIN_DICTS=0
-fi
-if [ "$PLAIN_DICTS" -gt 0 ]; then
-    print_error "❌ MASTER RULE VIOLATION: Found $PLAIN_DICTS files using plain dictionaries"
-    print_error "🚨 ALL DATA STRUCTURES MUST USE PYDANTIC MODELS"
-    print_error "💡 Use # SYSTEM_BOUNDARY comment for legitimate system boundary cases"
-    find src -name "*.py" -exec grep "dict\[" {} \; 2>/dev/null | grep -v "SYSTEM_BOUNDARY" || true
-    exit 1
+
+# Disable immediate-exit so we can gather every issue.
+set +e
+VIOLATIONS=0
+
+# 1️⃣  Plain dictionary usage that is not at a SYSTEM_BOUNDARY
+DICT_VIOL_FILES=$(find src -name "*.py" -exec grep -l "dict\\[" {} \; 2>/dev/null | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null)
+if [ -n "$DICT_VIOL_FILES" ]; then
+    COUNT=$(echo "$DICT_VIOL_FILES" | wc -l)
+    print_error "❌ MASTER RULE VIOLATION: $COUNT file(s) use plain dictionaries without annotation:" 
+    echo "$DICT_VIOL_FILES" | sed 's/^/   • /'
+    VIOLATIONS=$((VIOLATIONS+COUNT))
 fi
 
-# Check for frozen=True in Pydantic models
+# 2️⃣  Pydantic models missing frozen=True
 BASEMODEL_FILES=$(find src -name "*.py" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null)
+UNFROZEN_LIST=""
 if [ -n "$BASEMODEL_FILES" ]; then
-    UNFROZEN_MODELS=$(echo "$BASEMODEL_FILES" | xargs grep -L "frozen.*=.*True" 2>/dev/null | wc -l)
+    UNFROZEN_LIST=$(echo "$BASEMODEL_FILES" | xargs grep -L "frozen.*=.*True" 2>/dev/null)
+fi
+if [ -n "$UNFROZEN_LIST" ]; then
+    COUNT=$(echo "$UNFROZEN_LIST" | wc -l)
+    print_error "❌ MASTER RULE VIOLATION: $COUNT model(s) lack frozen=True:" 
+    echo "$UNFROZEN_LIST" | sed 's/^/   • /'
+    VIOLATIONS=$((VIOLATIONS+COUNT))
+fi
+
+# 3️⃣  Public functions missing @beartype
+PUBLIC_FUNCS_FILES=$(find src -name "*.py" -exec grep -l "^def [^_]" {} \; 2>/dev/null)
+MISSING_BEAR=""
+if [ -n "$PUBLIC_FUNCS_FILES" ]; then
+    MISSING_BEAR=$(echo "$PUBLIC_FUNCS_FILES" | xargs grep -L "@beartype" 2>/dev/null)
+fi
+if [ -n "$MISSING_BEAR" ]; then
+    COUNT=$(echo "$MISSING_BEAR" | wc -l)
+    print_error "❌ MASTER RULE VIOLATION: $COUNT public function file(s) without @beartype:" 
+    echo "$MISSING_BEAR" | sed 's/^/   • /'
+    VIOLATIONS=$((VIOLATIONS+COUNT))
+fi
+
+# Re-enable strict mode for the remainder of the script.
+set -e
+
+# Final decision for this validation block
+if [ "$VIOLATIONS" -gt 0 ]; then
+    print_error "🚨 MASTER RULESET: Fix the violations above before committing"
+    exit 1
 else
-    UNFROZEN_MODELS=0
+    print_success "✅ Pydantic model compliance verified"
 fi
-if [ "$UNFROZEN_MODELS" -gt 0 ]; then
-    print_error "❌ MASTER RULE VIOLATION: Found $UNFROZEN_MODELS Pydantic models without frozen=True"
-    print_error "🚨 IMMUTABLE BY DEFAULT: All models must be frozen=True"
-    exit 1
-fi
-
-# Check for @beartype decorators on public functions
-PUBLIC_FUNCS=$(find src -name "*.py" -exec grep -l "^def [^_]" {} \; 2>/dev/null | wc -l)
-BEARTYPE_FUNCS=$(find src -name "*.py" -exec grep -l "@beartype" {} \; 2>/dev/null | wc -l)
-if [ "$PUBLIC_FUNCS" -gt 0 ] && [ "$BEARTYPE_FUNCS" -lt "$PUBLIC_FUNCS" ]; then
-    print_error "❌ MASTER RULE VIOLATION: Public functions missing @beartype decoration"
-    print_error "🚨 RUNTIME TYPE CHECKING: All public functions MUST use @beartype"
-    exit 1
-fi
-
-print_success "✅ Pydantic model compliance verified"
 
 # 2. MANDATORY: MyPy Strict Mode Enforcement
 print_status "🔒 MASTER RULE: MyPy strict mode validation..."

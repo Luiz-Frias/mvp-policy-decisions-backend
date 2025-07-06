@@ -5,8 +5,8 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
-# Add src to path for testing
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Ensure project root's `src` directory is on the import path when running directly
+sys.path.insert(0, str((Path(__file__).resolve().parent.parent / "src")))
 
 from pd_prime_demo.services.rating.calculators import (
     DiscountCalculator,

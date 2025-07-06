@@ -9,6 +9,14 @@ from typing import Any
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# ---------------------------------------------------------------------------
+# Logging Setup (replaces legacy ``print`` calls with structured logging)
+# ---------------------------------------------------------------------------
+from src.pd_prime_demo.core.logging_utils import configure_logging, patch_print
+
+configure_logging()
+patch_print()
+
 from src.pd_prime_demo.core.auth.oauth2.scopes import ScopeValidator
 from src.pd_prime_demo.core.auth.oauth2.server import OAuth2Server
 from src.pd_prime_demo.core.config import Settings

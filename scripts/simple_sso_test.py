@@ -7,6 +7,14 @@ import sys
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# ---------------------------------------------------------------------------
+# Logging Setup (replaces all legacy ``print`` output with proper logging)
+# ---------------------------------------------------------------------------
+from pd_prime_demo.core.logging_utils import configure_logging, patch_print
+
+configure_logging()
+patch_print()
+
 
 # Test the basic SSO classes directly
 def test_sso_base_classes():

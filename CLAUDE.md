@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# TODO: Implement proper logging instead of print across codebase
+# TODO: integrate last wave 2 implementation learnings into the right locations within .sage/
+# TODO: have agents read master-ruleset, read their instructions and all doc references, audit the implementation of their domain/scope, idenitfy what left to be implemented for full production grade enterprise level system implementation.
+# TODO: supervising agent to read all *.py files in scripts/ to then relay to agents what's currently available so that no duplicate work is implemented.
+# TODO: supervising agent to review and pull coderabbit.ai comments from the extension in Cursor's IDE and integrate every single comment (I insist) into the full implementation of wave 2.
+# TODO: run pre-commit run --all-files to identify what's broken and what needs fixing in addition to the rest of the above as part 2 of wave 2's implementation!
+
 ## Project Overview
 
 This is a high-performance Python backend for an MVP policy decision and management system, built with enterprise-grade standards. The project enforces **first principles thinking** and **precision engineering** through automated validation and defensive programming patterns.

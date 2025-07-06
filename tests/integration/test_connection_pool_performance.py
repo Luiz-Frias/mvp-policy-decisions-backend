@@ -11,6 +11,14 @@ from typing import Any
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# ---------------------------------------------------------------------------
+# Logging Setup (replaces all legacy ``print`` output with proper logging)
+# ---------------------------------------------------------------------------
+from pd_prime_demo.core.logging_utils import configure_logging, patch_print
+
+configure_logging()
+patch_print()
+
 from beartype import beartype
 
 
