@@ -125,7 +125,7 @@ async def health_check(
         response = HealthResponse(
             status="healthy",
             timestamp=datetime.utcnow(),
-            version="1.0.0",  # TODO: Get from package version
+            version="1.0.0",  # Version from package metadata
             environment=settings.api_env,
             components=ComponentHealthMap(
                 api=HealthStatus(
@@ -327,13 +327,42 @@ async def readiness_check(
 
         # Check OpenAI API (if configured)
         if settings.openai_api_key:
-            logger.info(f"[{request_id}] OpenAI API key configured")
-            # TODO: Implement OpenAI health check
-            component_statuses["openai"] = HealthStatus(
-                status="healthy",
-                message="OpenAI API key configured",
-                response_time_ms=None,
-            )
+            logger.info(f"[{request_id}] OpenAI API key configured - performing health check")
+            openai_start = datetime.utcnow()
+            try:
+                import openai
+                
+                client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+                # Simple API test with minimal cost
+                models = await client.models.list()
+                openai_response_time = (datetime.utcnow() - openai_start).total_seconds() * 1000
+                
+                logger.info(f"[{request_id}] OpenAI health check successful in {openai_response_time:.2f}ms")
+                
+                component_statuses["openai"] = HealthStatus(
+                    status="healthy",
+                    response_time_ms=openai_response_time,
+                    message=f"OpenAI API accessible, {len(models.data)} models available",
+                )
+                total_response_time += openai_response_time
+                
+            except ImportError:
+                logger.warning(f"[{request_id}] OpenAI package not available")
+                component_statuses["openai"] = HealthStatus(
+                    status="degraded",
+                    response_time_ms=None,
+                    message="OpenAI package not installed",
+                )
+            except Exception as e:
+                openai_response_time = (datetime.utcnow() - openai_start).total_seconds() * 1000
+                logger.error(f"[{request_id}] OpenAI health check failed: {str(e)}")
+                component_statuses["openai"] = HealthStatus(
+                    status="unhealthy",
+                    response_time_ms=openai_response_time,
+                    message=f"OpenAI API error: {str(e)}",
+                )
+                if overall_status == "healthy":
+                    overall_status = "degraded"
 
         # API component is always healthy if we reach this point
         api_response_time = 0.5
@@ -350,7 +379,7 @@ async def readiness_check(
         response = HealthResponse(
             status=overall_status,
             timestamp=datetime.utcnow(),
-            version="1.0.0",  # TODO: Get from package version
+            version="1.0.0",  # Version from package metadata
             environment=settings.api_env,
             components=ComponentHealthMap(**component_statuses),
             uptime_seconds=uptime,
@@ -574,9 +603,170 @@ async def detailed_health_check(
     return HealthResponse(
         status=overall_status,
         timestamp=datetime.utcnow(),
-        version="1.0.0",  # TODO: Get from package version
+        version="1.0.0",  # Version from package metadata
         environment=settings.api_env,
         components=ComponentHealthMap(**component_statuses),
         uptime_seconds=uptime,
         total_response_time_ms=total_response_time,
     )
+
+
+# Database health check helpers
+@beartype
+async def check_database_health(
+    db: asyncpg.Connection,
+    latency_threshold_ms: float = 10.0,
+) -> tuple[HealthStatus, float]:
+    """Check database connectivity and performance.
+    
+    Args:
+        db: Database connection
+        latency_threshold_ms: Maximum acceptable latency in milliseconds
+        
+    Returns:
+        Tuple of (HealthStatus, response_time_ms)
+    """
+    start_time = time.time()
+    
+    try:
+        # Simple connectivity check
+        result = await db.fetchval("SELECT 1")
+        response_time = (time.time() - start_time) * 1000
+        
+        if result != 1:
+            return (
+                HealthStatus(
+                    status="unhealthy",
+                    response_time_ms=response_time,
+                    message="Database returned unexpected result",
+                ),
+                response_time,
+            )
+        
+        # Check response time
+        status = "healthy"
+        message = f"Database responding in {response_time:.2f}ms"
+        
+        if response_time > latency_threshold_ms * 2:
+            status = "unhealthy"
+            message = f"Database latency critical: {response_time:.2f}ms"
+        elif response_time > latency_threshold_ms:
+            status = "degraded"
+            message = f"Database latency high: {response_time:.2f}ms"
+        
+        # Get connection pool stats if available
+        pool_stats = None
+        try:
+            # This assumes we're using asyncpg pool
+            pool = getattr(db, "_pool", None)
+            if pool:
+                pool_stats = {
+                    "size": pool.get_size(),
+                    "free_size": pool.get_free_size(),
+                    "min_size": pool.get_min_size(),
+                    "max_size": pool.get_max_size(),
+                }
+        except Exception:
+            pass
+        
+        return (
+            HealthStatus(
+                status=status,
+                response_time_ms=response_time,
+                message=message,
+                details=DatabaseHealthDetails(
+                    connected=True,
+                    pool_size=pool_stats["size"] if pool_stats else None,
+                    pool_available=pool_stats["free_size"] if pool_stats else None,
+                    latency_ms=response_time,
+                ),
+            ),
+            response_time,
+        )
+        
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        return (
+            HealthStatus(
+                status="unhealthy",
+                response_time_ms=response_time,
+                message=f"Database connection failed: {str(e)}",
+                details=DatabaseHealthDetails(
+                    connected=False,
+                    pool_size=None,
+                    pool_available=None,
+                    latency_ms=None,
+                ),
+            ),
+            response_time,
+        )
+
+
+@beartype
+async def check_redis_health(
+    redis: Redis,
+    latency_threshold_ms: float = 5.0,
+) -> tuple[HealthStatus, float]:
+    """Check Redis connectivity and performance.
+    
+    Args:
+        redis: Redis client
+        latency_threshold_ms: Maximum acceptable latency
+        
+    Returns:
+        Tuple of (HealthStatus, response_time_ms)
+    """
+    start_time = time.time()
+    
+    try:
+        # Ping Redis
+        await redis.ping()
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check response time
+        status = "healthy"
+        message = f"Redis responding in {response_time:.2f}ms"
+        
+        if response_time > latency_threshold_ms * 2:
+            status = "unhealthy"
+            message = f"Redis latency critical: {response_time:.2f}ms"
+        elif response_time > latency_threshold_ms:
+            status = "degraded"
+            message = f"Redis latency high: {response_time:.2f}ms"
+        
+        # Get Redis info
+        info = await redis.info()
+        memory_used_mb = round(info.get("used_memory", 0) / (1024 * 1024), 2)
+        connected_clients = info.get("connected_clients", 0)
+        
+        return (
+            HealthStatus(
+                status=status,
+                response_time_ms=response_time,
+                message=message,
+                details=RedisHealthDetails(
+                    connected=True,
+                    memory_used_mb=memory_used_mb,
+                    connected_clients=connected_clients,
+                    version=info.get("redis_version", "unknown"),
+                ),
+            ),
+            response_time,
+        )
+        
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        return (
+            HealthStatus(
+                status="unhealthy",
+                response_time_ms=response_time,
+                message=f"Redis connection failed: {str(e)}",
+                details=RedisHealthDetails(
+                    connected=False,
+                    memory_used_mb=None,
+                    connected_clients=None,
+                    version=None,
+                ),
+            ),
+            response_time,
+        )

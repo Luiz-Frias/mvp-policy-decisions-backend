@@ -17,7 +17,12 @@ from ..core.cache import get_redis_client
 from ..core.config import Settings, get_settings
 from ..core.database import get_db_session
 from ..core.security import verify_jwt_token
+from ..models.admin import AdminUser
 from ..schemas.auth import CurrentUser
+from ..services.admin.oauth2_admin_service import OAuth2AdminService
+from ..services.admin.sso_admin_service import SSOAdminService
+from ..core.auth.sso_manager import SSOManager
+from ..core.cache import Cache
 
 # Security scheme
 security = HTTPBearer()
@@ -89,6 +94,7 @@ async def get_current_user(
             user_id=payload.sub,
             username=payload.sub,  # In real app, fetch from DB
             email=f"{payload.sub}@example.com",  # In real app, fetch from DB
+            client_id=getattr(payload, 'client_id', f"client_{payload.sub}"),  # Extract client_id from token
             scopes=payload.scopes,
         )
     except Exception as e:
@@ -177,6 +183,7 @@ async def get_demo_user() -> CurrentUser:
         user_id="demo-user-123",
         username="demo_user",
         email="demo@example.com",
+        client_id="client_demo-user-123",
         scopes=["read", "write", "admin"],
     )
 
@@ -271,3 +278,192 @@ async def verify_api_key(
             status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API key"
         )
     return True
+
+
+# Admin-specific dependencies
+
+
+@beartype
+async def get_current_admin_user(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+    settings: Settings = Depends(get_settings),
+    db: asyncpg.Connection = Depends(get_db_connection),
+) -> AdminUser:
+    """Validate JWT token and return current admin user.
+
+    Args:
+        credentials: HTTP Bearer token from request
+        settings: Application settings
+        db: Database connection
+
+    Returns:
+        AdminUser: Admin user information
+
+    Raises:
+        HTTPException: If token is invalid, expired, or user is not an admin
+    """
+    token = credentials.credentials
+
+    try:
+        payload = await verify_jwt_token(token, settings.jwt_secret)
+        
+        # Get admin user from database
+        user_row = await db.fetchrow(
+            """
+            SELECT u.*, r.permissions
+            FROM admin_users u
+            LEFT JOIN admin_roles r ON u.role_id = r.id
+            WHERE u.id = $1 AND u.deactivated_at IS NULL
+            """,
+            payload.sub
+        )
+        
+        if not user_row:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized as admin",
+            )
+        
+        # Convert row to AdminUser model
+        user_data = dict(user_row)
+        permissions = user_data.pop('permissions', [])
+        
+        admin_user = AdminUser(**user_data)
+        
+        # For now, set effective permissions from the role
+        # In production, this would be computed properly
+        admin_user._effective_permissions = permissions or []
+        
+        return admin_user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+
+
+@beartype
+async def get_oauth2_admin_service(
+    db: asyncpg.Connection = Depends(get_db_connection),
+    redis: Redis = Depends(get_redis),
+) -> OAuth2AdminService:
+    """Provide OAuth2 admin service instance.
+
+    Args:
+        db: Database connection
+        redis: Redis client
+
+    Returns:
+        OAuth2AdminService: Service instance for OAuth2 admin operations
+    """
+    from ..core.cache import Cache
+    from ..core.database import Database
+    
+    # Wrap connections in our database/cache interfaces
+    database = Database(db)
+    cache = Cache(redis)
+    
+    return OAuth2AdminService(database, cache)
+
+
+@beartype
+async def get_quote_service(
+    db: asyncpg.Connection = Depends(get_db_connection),
+    redis: Redis = Depends(get_redis),
+) -> "QuoteService":
+    """Provide Quote service instance.
+
+    Args:
+        db: Database connection
+        redis: Redis client
+
+    Returns:
+        QuoteService: Service instance for quote operations
+    """
+    from ..core.cache import Cache
+    from ..core.database import Database
+    from ..services.quote_service import QuoteService
+    
+    # Wrap connections in our database/cache interfaces
+    database = Database(db)
+    cache = Cache(redis)
+    
+    # Note: Rating engine will be injected when Agent 06 creates it
+    return QuoteService(database, cache, rating_engine=None)
+
+
+@beartype
+async def get_wizard_service(
+    redis: Redis = Depends(get_redis),
+) -> "QuoteWizardService":
+    """Provide Quote Wizard service instance.
+
+    Args:
+        redis: Redis client
+
+    Returns:
+        QuoteWizardService: Service instance for wizard operations
+    """
+    from ..core.cache import Cache
+    from ..services.quote_wizard import QuoteWizardService
+    
+    # Wrap redis in our cache interface
+    cache = Cache(redis)
+    
+    return QuoteWizardService(cache)
+
+
+@beartype
+async def get_sso_admin_service(
+    db: asyncpg.Connection = Depends(get_db_connection),
+    redis: Redis = Depends(get_redis),
+) -> SSOAdminService:
+    """Provide SSO admin service instance.
+
+    Args:
+        db: Database connection
+        redis: Redis client
+
+    Returns:
+        SSOAdminService: Service instance for SSO admin operations
+    """
+    from ..core.cache import Cache
+    from ..core.database import Database
+    
+    # Wrap connections in our database/cache interfaces
+    database = Database(db)
+    cache = Cache(redis)
+    
+    return SSOAdminService(database, cache)
+
+
+@beartype
+async def get_sso_manager(
+    db: asyncpg.Connection = Depends(get_db_connection),
+    redis: Redis = Depends(get_redis),
+) -> SSOManager:
+    """Provide SSO manager instance.
+
+    Args:
+        db: Database connection
+        redis: Redis client
+
+    Returns:
+        SSOManager: Service instance for SSO operations
+    """
+    from ..core.cache import Cache
+    from ..core.database import Database
+    
+    # Wrap connections in our database/cache interfaces
+    database = Database(db)
+    cache = Cache(redis)
+    
+    # Initialize the SSO manager
+    sso_manager = SSOManager(database, cache)
+    await sso_manager.initialize()
+    
+    return sso_manager

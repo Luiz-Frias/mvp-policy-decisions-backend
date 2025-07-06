@@ -1,0 +1,423 @@
+"""Authentication endpoints including SSO support."""
+
+from typing import Any
+from uuid import uuid4
+
+from beartype import beartype
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, ConfigDict, Field
+
+from ...core.auth.sso_manager import SSOManager
+from ...core.cache import get_cache
+from ...core.database import get_db
+from ...core.security import TokenData, get_security
+from ...services.result import Err
+from ..dependencies import get_sso_manager
+
+router = APIRouter(prefix="/auth", tags=["authentication"])
+
+
+class LoginRequest(BaseModel):
+    """Request model for email/password login."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    email: str = Field(..., description="User email")
+    password: str = Field(..., description="User password")
+
+
+class LoginResponse(BaseModel):
+    """Response model for successful login."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+    access_token: str = Field(..., description="JWT access token")
+    token_type: str = Field("bearer", description="Token type")
+    expires_in: int = Field(..., description="Token expiration in seconds")
+    user: dict[str, Any] = Field(..., description="User information")
+
+
+class SSOLoginInitResponse(BaseModel):
+    """Response model for SSO login initiation."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+    authorization_url: str = Field(..., description="URL to redirect user to")
+    state: str = Field(..., description="State parameter for CSRF protection")
+
+
+@router.post("/login")
+@beartype
+async def login(
+    request: LoginRequest,
+    db = Depends(get_db),
+    security = Depends(get_security),
+) -> LoginResponse:
+    """Login with email and password.
+    
+    This endpoint is for traditional email/password authentication.
+    For SSO, use the /auth/sso/{provider}/login endpoint.
+    """
+    # Check if user exists
+    user = await db.fetchrow(
+        "SELECT * FROM users WHERE email = $1 AND is_active = true",
+        request.email
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+    
+    # Check if user is SSO-only
+    if user["password_hash"].startswith("sso:"):
+        raise HTTPException(
+            status_code=401,
+            detail="This account uses SSO authentication. Please use the SSO login option."
+        )
+    
+    # Verify password
+    if not security.verify_password(request.password, user["password_hash"]):
+        # Update failed login attempts
+        await db.execute(
+            "UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = $1",
+            user["id"]
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+    
+    # Reset failed login attempts and update last login
+    await db.execute(
+        """
+        UPDATE users 
+        SET failed_login_attempts = 0, last_login_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        """,
+        user["id"]
+    )
+    
+    # Create access token
+    token_data = security.create_access_token(
+        subject=str(user["id"]),
+        scopes=[user["role"]]  # Simple role-based scopes
+    )
+    
+    # Log authentication event
+    await db.execute(
+        """
+        INSERT INTO auth_logs (user_id, auth_method, status, created_at)
+        VALUES ($1, 'password', 'success', CURRENT_TIMESTAMP)
+        """,
+        user["id"]
+    )
+    
+    return LoginResponse(
+        access_token=token_data.access_token,
+        token_type=token_data.token_type,
+        expires_in=token_data.expires_in,
+        user={
+            "id": str(user["id"]),
+            "email": user["email"],
+            "first_name": user["first_name"],
+            "last_name": user["last_name"],
+            "role": user["role"],
+        }
+    )
+
+
+@router.get("/sso/providers")
+@beartype
+async def list_sso_providers(
+    sso_manager: SSOManager = Depends(get_sso_manager),
+) -> dict[str, Any]:
+    """List available SSO providers for login."""
+    providers = sso_manager.list_providers()
+    
+    return {
+        "providers": [
+            {
+                "name": provider,
+                "display_name": provider.title(),
+                "login_url": f"/auth/sso/{provider}/login"
+            }
+            for provider in providers
+        ]
+    }
+
+
+@router.get("/sso/{provider}/login")
+@beartype
+async def sso_login_init(
+    provider: str,
+    redirect_uri: str | None = Query(None, description="Custom redirect URI"),
+    sso_manager: SSOManager = Depends(get_sso_manager),
+    cache = Depends(get_cache),
+) -> SSOLoginInitResponse:
+    """Initiate SSO login flow.
+    
+    This endpoint generates the authorization URL for the SSO provider
+    and returns it along with a state parameter for CSRF protection.
+    """
+    sso_provider = sso_manager.get_provider(provider)
+    if not sso_provider:
+        raise HTTPException(
+            status_code=404,
+            detail=f"SSO provider '{provider}' not found. Available providers: {sso_manager.list_providers()}"
+        )
+    
+    # Generate state for CSRF protection
+    state = sso_provider.generate_state()
+    
+    # Store state in cache for validation (15 minutes expiry)
+    await cache.set(
+        f"sso:state:{state}",
+        {
+            "provider": provider,
+            "redirect_uri": redirect_uri,
+            "created_at": str(uuid4()),  # Timestamp proxy
+        },
+        ttl=900
+    )
+    
+    # Generate nonce for OIDC
+    nonce = None
+    if hasattr(sso_provider, "generate_nonce"):
+        nonce = sso_provider.generate_nonce()
+        await cache.set(f"sso:nonce:{state}", nonce, ttl=900)
+    
+    # Get authorization URL
+    auth_url_result = await sso_provider.get_authorization_url(
+        state=state,
+        nonce=nonce,
+    )
+    
+    if isinstance(auth_url_result, Err):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate authorization URL: {auth_url_result.error}"
+        )
+    
+    return SSOLoginInitResponse(
+        authorization_url=auth_url_result.value,
+        state=state
+    )
+
+
+@router.get("/sso/{provider}/callback")
+@beartype
+async def sso_callback(
+    provider: str,
+    code: str = Query(..., description="Authorization code"),
+    state: str = Query(..., description="State parameter"),
+    error: str | None = Query(None, description="Error from provider"),
+    error_description: str | None = Query(None, description="Error description"),
+    request: Request = None,
+    sso_manager: SSOManager = Depends(get_sso_manager),
+    cache = Depends(get_cache),
+    db = Depends(get_db),
+    security = Depends(get_security),
+) -> LoginResponse | RedirectResponse:
+    """Handle SSO callback after user authentication.
+    
+    This endpoint is called by the SSO provider after the user
+    has authenticated. It exchanges the authorization code for
+    tokens and creates or updates the user account.
+    """
+    # Check for errors from provider
+    if error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"SSO authentication failed: {error} - {error_description or 'No details provided'}"
+        )
+    
+    # Validate state
+    state_data = await cache.get(f"sso:state:{state}")
+    if not state_data or state_data.get("provider") != provider:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid state parameter. Please try logging in again."
+        )
+    
+    # Get SSO provider
+    sso_provider = sso_manager.get_provider(provider)
+    if not sso_provider:
+        raise HTTPException(
+            status_code=404,
+            detail=f"SSO provider '{provider}' not found"
+        )
+    
+    # Exchange code for tokens
+    token_result = await sso_provider.exchange_code_for_token(code, state)
+    if isinstance(token_result, Err):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to exchange code for token: {token_result.error}"
+        )
+    
+    tokens = token_result.value
+    
+    # Get user info
+    user_info_result = await sso_provider.get_user_info(tokens["access_token"])
+    if isinstance(user_info_result, Err):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to get user info: {user_info_result.error}"
+        )
+    
+    sso_user_info = user_info_result.value
+    
+    # Create or update user
+    user_result = await sso_manager.create_or_update_user(sso_user_info, provider)
+    if isinstance(user_result, Err):
+        raise HTTPException(
+            status_code=400,
+            detail=user_result.error
+        )
+    
+    user = user_result.value
+    
+    # Create session
+    session_id = uuid4()
+    await db.execute(
+        """
+        INSERT INTO user_sessions (
+            id, user_id, session_token_hash, auth_method,
+            sso_provider_id, ip_address, user_agent,
+            created_at, last_activity_at, expires_at
+        ) VALUES (
+            $1, $2, $3, $4,
+            (SELECT id FROM sso_providers WHERE provider_name = $5),
+            $6, $7,
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP + INTERVAL '8 hours'
+        )
+        """,
+        session_id,
+        user.id,
+        security.hash_password(str(session_id)),  # Hash session token
+        f"sso_{provider}",
+        provider,
+        request.client.host if request else None,
+        request.headers.get("user-agent") if request else None,
+    )
+    
+    # Create access token
+    token_data = security.create_access_token(
+        subject=str(user.id),
+        scopes=[user.role]
+    )
+    
+    # Store refresh token if provided
+    if "refresh_token" in tokens:
+        await cache.set(
+            f"sso:refresh:{user.id}:{provider}",
+            tokens["refresh_token"],
+            ttl=30 * 24 * 3600  # 30 days
+        )
+    
+    # Clean up state and nonce
+    await cache.delete(f"sso:state:{state}")
+    await cache.delete(f"sso:nonce:{state}")
+    
+    # Check if we should redirect
+    redirect_uri = state_data.get("redirect_uri")
+    if redirect_uri:
+        # In production, validate redirect_uri against whitelist
+        return RedirectResponse(
+            url=f"{redirect_uri}?token={token_data.access_token}",
+            status_code=302
+        )
+    
+    return LoginResponse(
+        access_token=token_data.access_token,
+        token_type=token_data.token_type,
+        expires_in=token_data.expires_in,
+        user={
+            "id": str(user.id),
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role,
+            "sso_provider": provider,
+        }
+    )
+
+
+@router.post("/logout")
+@beartype
+async def logout(
+    session_id: str = Query(..., description="Session ID to invalidate"),
+    db = Depends(get_db),
+    cache = Depends(get_cache),
+) -> dict[str, str]:
+    """Logout and invalidate session.
+    
+    This endpoint invalidates the user's session and optionally
+    revokes SSO tokens if the session was created via SSO.
+    """
+    # Get session info
+    session = await db.fetchrow(
+        """
+        SELECT s.*, u.id as user_id, sp.provider_name
+        FROM user_sessions s
+        JOIN users u ON s.user_id = u.id
+        LEFT JOIN sso_providers sp ON s.sso_provider_id = sp.id
+        WHERE s.id = $1 AND s.revoked_at IS NULL
+        """,
+        session_id
+    )
+    
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found or already invalidated"
+        )
+    
+    # Revoke session
+    await db.execute(
+        """
+        UPDATE user_sessions
+        SET revoked_at = CURRENT_TIMESTAMP, revoke_reason = 'user_logout'
+        WHERE id = $1
+        """,
+        session_id
+    )
+    
+    # If SSO session, try to revoke tokens
+    if session["provider_name"]:
+        # Get SSO manager
+        sso_manager = SSOManager(db, cache)
+        await sso_manager.initialize()
+        
+        provider = sso_manager.get_provider(session["provider_name"])
+        if provider:
+            # Get refresh token if available
+            refresh_token = await cache.get(
+                f"sso:refresh:{session['user_id']}:{session['provider_name']}"
+            )
+            if refresh_token:
+                # Try to revoke token
+                await provider.revoke_token(refresh_token, "refresh_token")
+                # Clean up cached token
+                await cache.delete(
+                    f"sso:refresh:{session['user_id']}:{session['provider_name']}"
+                )
+    
+    return {"message": "Successfully logged out"}

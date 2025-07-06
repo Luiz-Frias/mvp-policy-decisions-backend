@@ -1,6 +1,7 @@
 """Security utilities for JWT, password hashing, and authentication."""
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import bcrypt
 import jwt
@@ -219,3 +220,29 @@ async def verify_jwt_token(token: str, secret: str) -> JWTDecodeResult:
         type=token_payload.type,
         scopes=token_payload.scopes,
     )
+
+
+@beartype
+async def create_jwt_token(payload: dict[str, Any], secret: str) -> str:
+    """Create JWT token from payload.
+
+    Args:
+        payload: Token payload data
+        secret: JWT secret (unused, uses settings)
+
+    Returns:
+        str: Encoded JWT token
+    """
+    security = get_security()
+    
+    # Extract required fields
+    subject = payload.get("sub", "")
+    scopes = payload.get("scopes", [])
+    
+    # Use the security instance to create token
+    token_data = security.create_access_token(
+        subject=subject,
+        scopes=scopes,
+    )
+    
+    return token_data.access_token

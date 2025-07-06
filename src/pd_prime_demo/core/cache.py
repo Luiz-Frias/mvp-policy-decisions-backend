@@ -2,7 +2,7 @@
 
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List, Optional, Set, Union
 
 import redis.asyncio as redis
 from attrs import field, frozen
@@ -186,6 +186,46 @@ class Cache:
             return True
         except Exception:
             return False
+
+    @beartype
+    async def sadd(self, key: str, *values: str) -> int:
+        """Add one or more members to a set."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        # Type cast Redis sadd return value to int
+        result = await self._redis.sadd(key, *values)
+        return int(result)
+
+    @beartype
+    async def srem(self, key: str, *values: str) -> int:
+        """Remove one or more members from a set."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        # Type cast Redis srem return value to int
+        result = await self._redis.srem(key, *values)
+        return int(result)
+
+    @beartype
+    async def smembers(self, key: str) -> Set[str]:
+        """Get all members of a set."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        # Type cast Redis smembers return value to set
+        result = await self._redis.smembers(key)
+        return set(result) if result else set()
+
+    @beartype
+    async def scard(self, key: str) -> int:
+        """Get the number of members in a set."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        # Type cast Redis scard return value to int
+        result = await self._redis.scard(key)
+        return int(result)
 
 
 # Global cache instance

@@ -157,6 +157,30 @@ def mock_cache_service() -> MagicMock:
 
 
 @pytest.fixture
+def mock_db() -> MagicMock:
+    """Create mock database connection for testing."""
+    db = MagicMock()
+    db.fetchval = AsyncMock(return_value=None)
+    db.fetchrow = AsyncMock(return_value=None)
+    db.fetch = AsyncMock(return_value=[])
+    db.execute = AsyncMock(return_value=None)
+    db.executemany = AsyncMock(return_value=None)
+    return db
+
+
+@pytest.fixture
+def mock_cache() -> MagicMock:
+    """Create mock cache for testing (alias for consistency)."""
+    cache = MagicMock()
+    cache.get = AsyncMock(return_value=None)
+    cache.set = AsyncMock(return_value=True)
+    cache.delete = AsyncMock(return_value=True)
+    cache.exists = AsyncMock(return_value=False)
+    cache.expire = AsyncMock(return_value=True)
+    return cache
+
+
+@pytest.fixture
 def test_app(mock_config: dict[str, Any], mock_redis: Any) -> "FastAPI":
     """Create FastAPI test application.
 
@@ -287,3 +311,53 @@ def mock_http_client() -> MagicMock:
     client.put = AsyncMock()
     client.delete = AsyncMock()
     return client
+
+
+@pytest_asyncio.fixture  # type: ignore[misc]
+async def rating_engine(mock_db: MagicMock, mock_cache: MagicMock) -> Any:
+    """Create rating engine instance for testing."""
+    from src.pd_prime_demo.services.rating_engine import RatingEngine
+    
+    # Set up mock database responses for rating data
+    mock_db.fetch.return_value = [
+        {
+            "state": "CA",
+            "product_type": "auto", 
+            "coverage_type": "bodily_injury",
+            "base_rate": "0.85"
+        },
+        {
+            "state": "CA",
+            "product_type": "auto",
+            "coverage_type": "property_damage", 
+            "base_rate": "0.65"
+        },
+        {
+            "state": "CA",
+            "product_type": "auto",
+            "coverage_type": "comprehensive",
+            "base_rate": "0.45"
+        },
+        {
+            "state": "CA",
+            "product_type": "auto",
+            "coverage_type": "collision",
+            "base_rate": "0.55"
+        },
+    ]
+    
+    # Mock state rules data
+    mock_db.fetchrow.side_effect = [
+        {"minimum_premium": "500.00"},  # Minimum premium
+        {"policy_count": 0},            # Customer policy count
+        {"first_policy_date": None},    # Customer tenure
+        {"lapse_count": 0},             # Coverage lapse check
+        {"claim_count": 0},             # Claims history
+    ]
+    
+    engine = RatingEngine(mock_db, mock_cache)
+    
+    # Initialize with mock data
+    await engine.initialize()
+    
+    return engine

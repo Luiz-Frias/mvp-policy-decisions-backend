@@ -11,6 +11,7 @@ from ..core.database import Database
 from ..models.customer import Customer, CustomerCreate, CustomerUpdate
 from ..models.update_data import CustomerUpdateData
 from ..schemas.common import PolicySummary
+from .cache_keys import CacheKeys
 from .result import Err, Ok, Result
 
 
@@ -18,10 +19,14 @@ class CustomerService:
     """Service for customer business logic."""
 
     def __init__(self, db: Database, cache: Cache) -> None:
-        """Initialize customer service."""
+        """Initialize customer service with dependency validation."""
+        if not db or not hasattr(db, 'execute'):
+            raise ValueError("Database connection required and must be active")
+        if not cache or not hasattr(cache, 'get'):
+            raise ValueError("Cache connection required and must be available")
+        
         self._db = db
         self._cache = cache
-        self._cache_prefix = "customer:"
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
@@ -89,7 +94,7 @@ class CustomerService:
     async def get(self, customer_id: UUID) -> Result[Customer | None, str]:
         """Get customer by ID."""
         # Check cache first
-        cache_key = f"{self._cache_prefix}{customer_id}"
+        cache_key = CacheKeys.customer_by_id(customer_id)
         cached = await self._cache.get(cache_key)
         if cached:
             return Ok(Customer(**cached))
@@ -206,7 +211,10 @@ class CustomerService:
         customer = self._row_to_customer(row)
 
         # Invalidate cache
-        await self._cache.delete(f"{self._cache_prefix}{customer_id}")
+        await self._cache.delete(CacheKeys.customer_by_id(customer_id))
+        # Also invalidate email lookup cache if we had one
+        if customer.email:
+            await self._cache.delete(CacheKeys.customer_by_email(customer.email))
 
         return Ok(customer)
 
@@ -222,7 +230,7 @@ class CustomerService:
 
         if deleted:
             # Invalidate cache
-            await self._cache.delete(f"{self._cache_prefix}{customer_id}")
+            await self._cache.delete(CacheKeys.customer_by_id(customer_id))
 
         return Ok(deleted)
 

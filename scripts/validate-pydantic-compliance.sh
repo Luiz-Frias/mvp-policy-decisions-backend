@@ -5,6 +5,18 @@ set -euo pipefail
 
 echo "🔍 Checking Pydantic model compliance..."
 
+# Check for git zombie processes first
+echo "🔍 Checking for git zombie processes..."
+zombies=$(ps aux | grep '[Zz]' | grep 'git' | grep -v grep || true)
+if [[ -n "$zombies" ]]; then
+    echo -e "${RED}❌ ERROR: Found git zombie processes that may block commits:${NC}"
+    echo "$zombies"
+    echo "Run: sudo kill -9 <pid> to clean up zombies"
+    exit 1
+else
+    echo -e "${GREEN}✓ No git zombie processes found${NC}"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

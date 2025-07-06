@@ -24,6 +24,10 @@ class Settings(BaseSettings):
         description="PostgreSQL connection URL",
         min_length=1,
     )
+    database_read_url: str | None = Field(
+        default=None,
+        description="PostgreSQL read replica URL (optional)",
+    )
     database_pool_min: int = Field(
         default=5,
         ge=1,
@@ -35,6 +39,34 @@ class Settings(BaseSettings):
         ge=5,
         le=100,
         description="Maximum database pool size",
+    )
+    database_pool_timeout: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=60.0,
+        description="Connection acquisition timeout in seconds",
+    )
+    database_command_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=300.0,
+        description="Query execution timeout in seconds",
+    )
+    database_max_inactive_connection_lifetime: float = Field(
+        default=600.0,
+        ge=60.0,
+        le=3600.0,
+        description="Maximum connection lifetime in seconds",
+    )
+    database_max_connections: int = Field(
+        default=100,
+        ge=50,
+        le=500,
+        description="Maximum database connections (for capacity planning)",
+    )
+    database_admin_pool_enabled: bool = Field(
+        default=True,
+        description="Enable dedicated admin connection pool",
     )
 
     # Redis

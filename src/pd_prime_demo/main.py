@@ -21,6 +21,7 @@ from .core.cache import get_cache
 from .core.config import get_settings
 from .core.database import get_database
 from .schemas.common import APIInfo
+from .websocket.app import websocket_app
 
 # Configure detailed logging
 logging.basicConfig(
@@ -289,6 +290,9 @@ def create_app() -> FastAPI:
 
     # Include API routers
     app.include_router(v1_router)
+
+    # Mount WebSocket app
+    app.mount("/ws", websocket_app)
 
     # Root endpoint
     @app.get("/")

@@ -15,6 +15,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
+from ...core.cache import Cache
+from ...core.database import Database
 from ...models.policy import (
     Policy,
     PolicyCreate,
@@ -23,6 +25,8 @@ from ...models.policy import (
     PolicyUpdate,
 )
 from ...schemas.auth import CurrentUser
+from ...services.policy_service import PolicyService
+from ...services.result import Err
 from ..dependencies import (
     PaginationParams,
     get_db,
@@ -88,46 +92,45 @@ async def list_policies(
 
     # Properly handle async generator from FastAPI dependency
     async for connection in db:
-        # TODO: Implement actual database query with filters
-        # For now, return mock data for demo
-        mock_policies = [
-            Policy(
-                id=uuid4(),
-                policy_number="POL-2025-000001",
-                policy_type=PolicyType.AUTO,
-                customer_id=uuid4(),
-                premium_amount=Decimal("150.00"),
-                coverage_amount=Decimal("50000.00"),
-                deductible=Decimal("500.00"),
-                effective_date=date(2025, 1, 1),
-                expiration_date=date(2025, 12, 31),
-                status=PolicyStatus.ACTIVE,
-                notes="Demo auto policy",
-                cancelled_at=None,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            ),
-            Policy(
-                id=uuid4(),
-                policy_number="POL-2025-000002",
-                policy_type=PolicyType.HOME,
-                customer_id=uuid4(),
-                premium_amount=Decimal("275.00"),
-                coverage_amount=Decimal("150000.00"),
-                deductible=Decimal("1000.00"),
-                effective_date=date(2025, 1, 15),
-                expiration_date=date(2026, 1, 15),
-                status=PolicyStatus.ACTIVE,
-                notes="Demo home policy",
-                cancelled_at=None,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            ),
-        ]
-
+        # Initialize services with dependency validation
+        if not connection:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+        
+        database = Database(connection)
+        cache = Cache(redis)
+        service = PolicyService(database, cache)
+        
+        # Call service method to list policies
+        result = await service.list(
+            customer_id=filters.customer_id,
+            status=filters.status.value if filters.status else None,
+            limit=pagination.limit,
+            offset=pagination.skip,
+        )
+        
+        if isinstance(result, Err):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(result.error),
+            )
+        
+        policies = result.unwrap()
+        
+        # Get total count (using same filters)
+        count_result = await service.list(
+            customer_id=filters.customer_id,
+            status=filters.status.value if filters.status else None,
+            limit=1000000,  # Large limit to get all
+            offset=0,
+        )
+        
+        total = len(count_result.unwrap()) if count_result.is_ok() else 0
+        
         response = PolicyListResponse(
-            items=mock_policies,
-            total=len(mock_policies),
+            items=policies,
+            total=total,
             skip=pagination.skip,
             limit=pagination.limit,
         )
@@ -164,22 +167,36 @@ async def create_policy(
     try:
         # Properly handle async generator from FastAPI dependency
         async for connection in db:
-            # TODO: Implement actual database insertion
-            # This is a placeholder implementation
-
+            # Initialize services with dependency validation
+            if not connection:
+                raise ValueError("Database connection required and must be active")
+            if not redis:
+                raise ValueError("Cache connection required and must be available")
+            
+            database = Database(connection)
+            cache = Cache(redis)
+            service = PolicyService(database, cache)
+            
+            # Extract customer_id from request - in real app, this would come from auth/request
+            # For now, generate a new UUID for demo purposes
+            customer_id = uuid4()
+            
+            # Create policy using service
+            result = await service.create(policy_data, customer_id)
+            
+            if isinstance(result, Err):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(result.error),
+                )
+            
+            policy = result.unwrap()
+            
             # Invalidate relevant caches
             pattern = "policies:list:*"
             async for key in redis.scan_iter(match=pattern):
                 await redis.delete(key)
-
-            # Return mock policy for now
-            policy = Policy(
-                id=uuid4(),
-                cancelled_at=None,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-                **policy_data.model_dump(),
-            )
+            
             break  # Use the first (and only) yielded connection
 
         return policy
@@ -220,12 +237,38 @@ async def get_policy(
     if cached_policy:
         return Policy.model_validate_json(cached_policy)
 
-    # TODO: Implement actual database query
-    # This is a placeholder implementation
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Policy {policy_id} not found"
-    )
+    # Properly handle async generator from FastAPI dependency
+    async for connection in db:
+        # Initialize services with dependency validation
+        if not connection:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+        
+        database = Database(connection)
+        cache = Cache(redis)
+        service = PolicyService(database, cache)
+        
+        # Get policy using service
+        result = await service.get(policy_id)
+        
+        if isinstance(result, Err):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(result.error),
+            )
+        
+        policy = result.unwrap()
+        if not policy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Policy {policy_id} not found"
+            )
+        
+        # Cache the result
+        await redis.setex(cache_key, 300, policy.model_dump_json())
+        
+        return policy
 
 
 @router.put("/{policy_id}", response_model=Policy)
@@ -252,18 +295,41 @@ async def update_policy(
     Raises:
         HTTPException: If policy not found or update fails
     """
-    # TODO: Implement actual database update
-    # This is a placeholder implementation
-
-    # Invalidate caches
-    await redis.delete(f"policies:{policy_id}")
-    pattern = "policies:list:*"
-    async for key in redis.scan_iter(match=pattern):
-        await redis.delete(key)
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Policy {policy_id} not found"
-    )
+    # Properly handle async generator from FastAPI dependency
+    async for connection in db:
+        # Initialize services with dependency validation
+        if not connection:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+        
+        database = Database(connection)
+        cache = Cache(redis)
+        service = PolicyService(database, cache)
+        
+        # Update policy using service
+        result = await service.update(policy_id, policy_update)
+        
+        if isinstance(result, Err):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(result.error),
+            )
+        
+        policy = result.unwrap()
+        if not policy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Policy {policy_id} not found"
+            )
+        
+        # Invalidate caches
+        await redis.delete(f"policies:{policy_id}")
+        pattern = "policies:list:*"
+        async for key in redis.scan_iter(match=pattern):
+            await redis.delete(key)
+        
+        return policy
 
 
 @router.delete("/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -285,15 +351,36 @@ async def delete_policy(
     Raises:
         HTTPException: If policy not found or deletion fails
     """
-    # TODO: Implement actual soft delete (status change to CANCELLED)
-    # This is a placeholder implementation
-
-    # Invalidate caches
-    await redis.delete(f"policies:{policy_id}")
-    pattern = "policies:list:*"
-    async for key in redis.scan_iter(match=pattern):
-        await redis.delete(key)
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Policy {policy_id} not found"
-    )
+    # Properly handle async generator from FastAPI dependency
+    async for connection in db:
+        # Initialize services with dependency validation
+        if not connection:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+        
+        database = Database(connection)
+        cache = Cache(redis)
+        service = PolicyService(database, cache)
+        
+        # Delete (soft delete) policy using service
+        result = await service.delete(policy_id)
+        
+        if isinstance(result, Err):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(result.error),
+            )
+        
+        deleted = result.unwrap()
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Policy {policy_id} not found"
+            )
+        
+        # Invalidate caches
+        await redis.delete(f"policies:{policy_id}")
+        pattern = "policies:list:*"
+        async for key in redis.scan_iter(match=pattern):
+            await redis.delete(key)

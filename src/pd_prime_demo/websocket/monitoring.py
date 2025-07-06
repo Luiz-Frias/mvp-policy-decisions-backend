@@ -1,0 +1,563 @@
+"""WebSocket Performance Monitoring and Observability.
+
+Provides comprehensive monitoring capabilities for the WebSocket infrastructure:
+- Real-time performance metrics
+- Connection health monitoring
+- Message throughput tracking
+- Error rate analysis
+- Memory usage optimization
+"""
+
+import asyncio
+import time
+from collections import defaultdict, deque
+from datetime import datetime, timedelta
+from typing import Any, Deque, Dict, List, Optional
+from uuid import UUID
+
+from beartype import beartype
+from pydantic import BaseModel, ConfigDict, Field
+
+from ..core.cache import Cache
+from ..core.database import Database
+from ..services.result import Err, Ok, Result
+
+
+class ConnectionMetrics(BaseModel):
+    """Metrics for a single connection."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    connection_id: str = Field(...)
+    user_id: Optional[UUID] = Field(default=None)
+    connected_at: datetime = Field(...)
+    last_activity: datetime = Field(...)
+    messages_sent: int = Field(default=0, ge=0)
+    messages_received: int = Field(default=0, ge=0)
+    bytes_sent: int = Field(default=0, ge=0)
+    bytes_received: int = Field(default=0, ge=0)
+    rooms_subscribed: int = Field(default=0, ge=0)
+    errors_count: int = Field(default=0, ge=0)
+
+
+class SystemMetrics(BaseModel):
+    """System-wide WebSocket metrics."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    timestamp: datetime = Field(default_factory=datetime.now)
+    total_connections: int = Field(default=0, ge=0)
+    active_connections: int = Field(default=0, ge=0)
+    peak_connections: int = Field(default=0, ge=0)
+    messages_per_second: float = Field(default=0.0, ge=0)
+    avg_message_latency_ms: float = Field(default=0.0, ge=0)
+    p95_message_latency_ms: float = Field(default=0.0, ge=0)
+    error_rate: float = Field(default=0.0, ge=0, le=1.0)
+    memory_usage_mb: float = Field(default=0.0, ge=0)
+    cpu_usage_percent: float = Field(default=0.0, ge=0, le=100)
+
+
+class PerformanceAlert(BaseModel):
+    """Performance alert definition."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    alert_type: str = Field(..., min_length=1, max_length=50)
+    severity: str = Field(..., pattern="^(low|medium|high|critical)$")
+    message: str = Field(..., min_length=1)
+    metric_name: str = Field(...)
+    threshold_value: float = Field(...)
+    current_value: float = Field(...)
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class WebSocketMonitor:
+    """Comprehensive WebSocket monitoring system."""
+
+    def __init__(self, cache: Cache, db: Database) -> None:
+        """Initialize WebSocket monitor."""
+        self._cache = cache
+        self._db = db
+        
+        # Connection tracking
+        self._connection_metrics: Dict[str, ConnectionMetrics] = {}
+        self._system_metrics_history: Deque[SystemMetrics] = deque(maxlen=1000)
+        
+        # Performance tracking
+        self._message_latencies: Deque[float] = deque(maxlen=10000)  # Keep last 10k latencies
+        self._message_timestamps: Deque[datetime] = deque(maxlen=10000)
+        self._error_counts: Dict[str, int] = defaultdict(int)
+        
+        # Peak tracking
+        self._peak_connections = 0
+        self._peak_memory_mb = 0.0
+        
+        # Alert thresholds
+        self._alert_thresholds = {
+            "connection_count": 9000,  # Alert at 90% of 10k limit
+            "message_latency_ms": 50,  # Alert if avg latency > 50ms
+            "error_rate": 0.05,        # Alert if error rate > 5%
+            "memory_usage_mb": 1000,   # Alert if memory > 1GB
+        }
+        
+        # Monitoring task
+        self._monitoring_task: Optional[asyncio.Task[None]] = None
+        self._monitoring_interval = 5  # seconds
+
+    async def start_monitoring(self) -> None:
+        """Start background monitoring."""
+        if self._monitoring_task is None or self._monitoring_task.done():
+            self._monitoring_task = asyncio.create_task(self._monitoring_loop())
+
+    async def stop_monitoring(self) -> None:
+        """Stop background monitoring."""
+        if self._monitoring_task and not self._monitoring_task.done():
+            self._monitoring_task.cancel()
+            try:
+                await self._monitoring_task
+            except asyncio.CancelledError:
+                pass
+
+    @beartype
+    async def record_connection_established(
+        self,
+        connection_id: str,
+        user_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record a new connection being established."""
+        connection_metrics = ConnectionMetrics(
+            connection_id=connection_id,
+            user_id=user_id,
+            connected_at=datetime.now(),
+            last_activity=datetime.now(),
+        )
+        
+        self._connection_metrics[connection_id] = connection_metrics
+        
+        # Update peak connections
+        current_connections = len(self._connection_metrics)
+        self._peak_connections = max(self._peak_connections, current_connections)
+        
+        # Store in database for persistence
+        await self._store_connection_event("connected", connection_id, user_id, metadata)
+
+    @beartype
+    async def record_connection_closed(
+        self,
+        connection_id: str,
+        reason: str = "unknown",
+    ) -> None:
+        """Record a connection being closed."""
+        if connection_id in self._connection_metrics:
+            connection = self._connection_metrics[connection_id]
+            duration = (datetime.now() - connection.connected_at).total_seconds()
+            
+            # Store connection stats in database
+            await self._store_connection_stats(connection, duration, reason)
+            
+            # Remove from active tracking
+            del self._connection_metrics[connection_id]
+
+    @beartype
+    async def record_message_sent(
+        self,
+        connection_id: str,
+        message_size_bytes: int,
+        latency_ms: Optional[float] = None,
+    ) -> None:
+        """Record a message being sent."""
+        if connection_id in self._connection_metrics:
+            connection = self._connection_metrics[connection_id]
+            
+            # Update connection metrics
+            updated_connection = connection.model_copy(update={
+                "messages_sent": connection.messages_sent + 1,
+                "bytes_sent": connection.bytes_sent + message_size_bytes,
+                "last_activity": datetime.now(),
+            })
+            
+            self._connection_metrics[connection_id] = updated_connection
+        
+        # Track latency if provided
+        if latency_ms is not None:
+            self._message_latencies.append(latency_ms)
+            self._message_timestamps.append(datetime.now())
+
+    @beartype
+    async def record_message_received(
+        self,
+        connection_id: str,
+        message_size_bytes: int,
+    ) -> None:
+        """Record a message being received."""
+        if connection_id in self._connection_metrics:
+            connection = self._connection_metrics[connection_id]
+            
+            updated_connection = connection.model_copy(update={
+                "messages_received": connection.messages_received + 1,
+                "bytes_received": connection.bytes_received + message_size_bytes,
+                "last_activity": datetime.now(),
+            })
+            
+            self._connection_metrics[connection_id] = updated_connection
+
+    @beartype
+    async def record_room_subscription(
+        self,
+        connection_id: str,
+        room_id: str,
+        subscribed: bool,
+    ) -> None:
+        """Record room subscription changes."""
+        if connection_id in self._connection_metrics:
+            connection = self._connection_metrics[connection_id]
+            
+            rooms_delta = 1 if subscribed else -1
+            new_room_count = max(0, connection.rooms_subscribed + rooms_delta)
+            
+            updated_connection = connection.model_copy(update={
+                "rooms_subscribed": new_room_count,
+                "last_activity": datetime.now(),
+            })
+            
+            self._connection_metrics[connection_id] = updated_connection
+
+    @beartype
+    async def record_error(
+        self,
+        connection_id: Optional[str],
+        error_type: str,
+        error_message: str,
+    ) -> None:
+        """Record an error occurrence."""
+        self._error_counts[error_type] += 1
+        
+        if connection_id and connection_id in self._connection_metrics:
+            connection = self._connection_metrics[connection_id]
+            
+            updated_connection = connection.model_copy(update={
+                "errors_count": connection.errors_count + 1,
+                "last_activity": datetime.now(),
+            })
+            
+            self._connection_metrics[connection_id] = updated_connection
+        
+        # Store error in database
+        await self._store_error_event(connection_id, error_type, error_message)
+
+    @beartype
+    async def get_system_metrics(self) -> SystemMetrics:
+        """Get current system-wide metrics."""
+        import psutil
+        
+        # Calculate message throughput
+        now = datetime.now()
+        recent_messages = [
+            ts for ts in self._message_timestamps
+            if (now - ts).total_seconds() <= 60  # Last minute
+        ]
+        messages_per_second = len(recent_messages) / 60.0
+        
+        # Calculate latency metrics
+        recent_latencies = list(self._message_latencies)[-1000:]  # Last 1000 messages
+        avg_latency = sum(recent_latencies) / len(recent_latencies) if recent_latencies else 0
+        p95_latency = sorted(recent_latencies)[int(len(recent_latencies) * 0.95)] if recent_latencies else 0
+        
+        # Calculate error rate
+        total_errors = sum(self._error_counts.values())
+        total_messages = sum(conn.messages_sent + conn.messages_received for conn in self._connection_metrics.values())
+        error_rate = total_errors / max(total_messages, 1)
+        
+        # System resource usage
+        process = psutil.Process()
+        memory_mb = process.memory_info().rss / 1024 / 1024
+        cpu_percent = process.cpu_percent()
+        
+        self._peak_memory_mb = max(self._peak_memory_mb, memory_mb)
+        
+        metrics = SystemMetrics(
+            total_connections=len(self._connection_metrics),
+            active_connections=len([
+                conn for conn in self._connection_metrics.values()
+                if (now - conn.last_activity).total_seconds() < 300  # Active in last 5 min
+            ]),
+            peak_connections=self._peak_connections,
+            messages_per_second=messages_per_second,
+            avg_message_latency_ms=avg_latency,
+            p95_message_latency_ms=p95_latency,
+            error_rate=error_rate,
+            memory_usage_mb=memory_mb,
+            cpu_usage_percent=cpu_percent,
+        )
+        
+        # Store in history
+        self._system_metrics_history.append(metrics)
+        
+        return metrics
+
+    @beartype
+    async def get_connection_metrics(self, connection_id: str) -> Optional[ConnectionMetrics]:
+        """Get metrics for a specific connection."""
+        return self._connection_metrics.get(connection_id)
+
+    @beartype
+    async def get_performance_alerts(self) -> List[PerformanceAlert]:
+        """Check for performance issues and generate alerts."""
+        alerts = []
+        current_metrics = await self.get_system_metrics()
+        
+        # Check connection count
+        if current_metrics.total_connections >= self._alert_thresholds["connection_count"]:
+            alerts.append(PerformanceAlert(
+                alert_type="high_connection_count",
+                severity="high",
+                message=f"Connection count ({current_metrics.total_connections}) approaching limit",
+                metric_name="total_connections",
+                threshold_value=self._alert_thresholds["connection_count"],
+                current_value=current_metrics.total_connections,
+            ))
+        
+        # Check message latency
+        if current_metrics.avg_message_latency_ms > self._alert_thresholds["message_latency_ms"]:
+            alerts.append(PerformanceAlert(
+                alert_type="high_message_latency",
+                severity="medium",
+                message=f"Average message latency ({current_metrics.avg_message_latency_ms:.1f}ms) above threshold",
+                metric_name="avg_message_latency_ms",
+                threshold_value=self._alert_thresholds["message_latency_ms"],
+                current_value=current_metrics.avg_message_latency_ms,
+            ))
+        
+        # Check error rate
+        if current_metrics.error_rate > self._alert_thresholds["error_rate"]:
+            alerts.append(PerformanceAlert(
+                alert_type="high_error_rate",
+                severity="high",
+                message=f"Error rate ({current_metrics.error_rate:.2%}) above threshold",
+                metric_name="error_rate",
+                threshold_value=self._alert_thresholds["error_rate"],
+                current_value=current_metrics.error_rate,
+            ))
+        
+        # Check memory usage
+        if current_metrics.memory_usage_mb > self._alert_thresholds["memory_usage_mb"]:
+            alerts.append(PerformanceAlert(
+                alert_type="high_memory_usage",
+                severity="critical",
+                message=f"Memory usage ({current_metrics.memory_usage_mb:.1f}MB) above threshold",
+                metric_name="memory_usage_mb",
+                threshold_value=self._alert_thresholds["memory_usage_mb"],
+                current_value=current_metrics.memory_usage_mb,
+            ))
+        
+        return alerts
+
+    @beartype
+    async def get_metrics_summary(self) -> Dict[str, Any]:
+        """Get comprehensive metrics summary."""
+        current_metrics = await self.get_system_metrics()
+        alerts = await self.get_performance_alerts()
+        
+        # Calculate trends from history
+        if len(self._system_metrics_history) >= 2:
+            prev_metrics = self._system_metrics_history[-2]
+            connection_trend = current_metrics.total_connections - prev_metrics.total_connections
+            latency_trend = current_metrics.avg_message_latency_ms - prev_metrics.avg_message_latency_ms
+        else:
+            connection_trend = 0
+            latency_trend = 0.0
+        
+        # Top error types
+        top_errors = sorted(
+            self._error_counts.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5]
+        
+        return {
+            "current_metrics": current_metrics.model_dump(),
+            "trends": {
+                "connection_change": connection_trend,
+                "latency_change_ms": latency_trend,
+            },
+            "peaks": {
+                "max_connections": self._peak_connections,
+                "max_memory_mb": self._peak_memory_mb,
+            },
+            "alerts": [alert.model_dump() for alert in alerts],
+            "top_errors": [{"type": error_type, "count": count} for error_type, count in top_errors],
+            "connection_details": {
+                "total_tracked": len(self._connection_metrics),
+                "avg_rooms_per_connection": (
+                    sum(conn.rooms_subscribed for conn in self._connection_metrics.values()) /
+                    len(self._connection_metrics)
+                ) if self._connection_metrics else 0,
+                "avg_messages_per_connection": (
+                    sum(conn.messages_sent + conn.messages_received for conn in self._connection_metrics.values()) /
+                    len(self._connection_metrics)
+                ) if self._connection_metrics else 0,
+            }
+        }
+
+    async def _monitoring_loop(self) -> None:
+        """Background monitoring loop."""
+        while True:
+            try:
+                # Collect current metrics
+                current_metrics = await self.get_system_metrics()
+                
+                # Store metrics in cache for dashboards
+                await self._cache.setex(
+                    "websocket:current_metrics",
+                    300,  # 5 minutes TTL
+                    current_metrics.model_dump_json()
+                )
+                
+                # Check for alerts
+                alerts = await self.get_performance_alerts()
+                if alerts:
+                    for alert in alerts:
+                        await self._handle_performance_alert(alert)
+                
+                # Store metrics in database every minute
+                if datetime.now().minute % 1 == 0:  # Every minute
+                    await self._store_system_metrics(current_metrics)
+                
+                # Clean up old data
+                await self._cleanup_old_data()
+                
+                await asyncio.sleep(self._monitoring_interval)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                # Log error but continue monitoring
+                await self.record_error(None, "monitoring_error", str(e))
+                await asyncio.sleep(self._monitoring_interval)
+
+    @beartype
+    async def _store_connection_event(
+        self,
+        event_type: str,
+        connection_id: str,
+        user_id: Optional[UUID],
+        metadata: Optional[Dict[str, Any]],
+    ) -> None:
+        """Store connection event in database."""
+        try:
+            await self._db.execute(
+                """
+                INSERT INTO websocket_connection_events
+                (event_type, connection_id, user_id, metadata, created_at)
+                VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+                """,
+                event_type,
+                connection_id,
+                user_id,
+                metadata or {},
+            )
+        except Exception:
+            # Non-critical, don't fail
+            pass
+
+    @beartype
+    async def _store_connection_stats(
+        self,
+        connection: ConnectionMetrics,
+        duration_seconds: float,
+        close_reason: str,
+    ) -> None:
+        """Store connection statistics."""
+        try:
+            await self._db.execute(
+                """
+                INSERT INTO websocket_connection_stats
+                (connection_id, user_id, duration_seconds, messages_sent, messages_received,
+                 bytes_sent, bytes_received, max_rooms_subscribed, errors_count, close_reason)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                """,
+                connection.connection_id,
+                connection.user_id,
+                duration_seconds,
+                connection.messages_sent,
+                connection.messages_received,
+                connection.bytes_sent,
+                connection.bytes_received,
+                connection.rooms_subscribed,
+                connection.errors_count,
+                close_reason,
+            )
+        except Exception:
+            pass
+
+    @beartype
+    async def _store_error_event(
+        self,
+        connection_id: Optional[str],
+        error_type: str,
+        error_message: str,
+    ) -> None:
+        """Store error event."""
+        try:
+            await self._db.execute(
+                """
+                INSERT INTO websocket_errors
+                (connection_id, error_type, error_message, created_at)
+                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                """,
+                connection_id,
+                error_type,
+                error_message,
+            )
+        except Exception:
+            pass
+
+    @beartype
+    async def _store_system_metrics(self, metrics: SystemMetrics) -> None:
+        """Store system metrics in database."""
+        try:
+            await self._db.execute(
+                """
+                INSERT INTO websocket_system_metrics
+                (timestamp, total_connections, active_connections, peak_connections,
+                 messages_per_second, avg_message_latency_ms, p95_message_latency_ms,
+                 error_rate, memory_usage_mb, cpu_usage_percent)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                """,
+                metrics.timestamp,
+                metrics.total_connections,
+                metrics.active_connections,
+                metrics.peak_connections,
+                metrics.messages_per_second,
+                metrics.avg_message_latency_ms,
+                metrics.p95_message_latency_ms,
+                metrics.error_rate,
+                metrics.memory_usage_mb,
+                metrics.cpu_usage_percent,
+            )
+        except Exception:
+            pass
+
+    @beartype
+    async def _handle_performance_alert(self, alert: PerformanceAlert) -> None:
+        """Handle performance alert."""
+        # Store alert in cache for admin dashboard
+        alert_key = f"websocket:alert:{alert.alert_type}:{int(alert.timestamp.timestamp())}"
+        await self._cache.setex(
+            alert_key,
+            3600,  # 1 hour TTL
+            alert.model_dump_json()
+        )
+        
+        # Could also send to notification system here
+        # await notification_handler.send_admin_alert(alert)
+
+    async def _cleanup_old_data(self) -> None:
+        """Clean up old monitoring data."""
+        # Clean up old message timestamps
+        cutoff = datetime.now() - timedelta(hours=1)
+        while self._message_timestamps and self._message_timestamps[0] < cutoff:
+            self._message_timestamps.popleft()
+            if self._message_latencies:
+                self._message_latencies.popleft()

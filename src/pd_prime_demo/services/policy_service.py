@@ -1,5 +1,6 @@
 """Policy business logic service."""
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -10,6 +11,7 @@ from beartype import beartype
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.policy import Policy, PolicyCreate, PolicyStatus, PolicyType, PolicyUpdate
+from .cache_keys import CacheKeys
 from .result import Err, Ok, Result
 
 
@@ -17,10 +19,14 @@ class PolicyService:
     """Service for policy business logic."""
 
     def __init__(self, db: Database, cache: Cache) -> None:
-        """Initialize policy service."""
+        """Initialize policy service with dependency validation."""
+        if not db or not hasattr(db, 'execute'):
+            raise ValueError("Database connection required and must be active")
+        if not cache or not hasattr(cache, 'get'):
+            raise ValueError("Cache connection required and must be available")
+        
         self._db = db
         self._cache = cache
-        self._cache_prefix = "policy:"
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
@@ -68,7 +74,8 @@ class PolicyService:
             policy = self._row_to_policy(row)
 
             # Invalidate customer cache
-            await self._cache.delete(f"customer:{customer_id}:policies")
+            await self._cache.delete(CacheKeys.customer_policies(customer_id))
+            await self._cache.delete(CacheKeys.policies_by_customer(customer_id))
 
             return Ok(policy)
 
@@ -81,7 +88,7 @@ class PolicyService:
     async def get(self, policy_id: UUID) -> Result[Policy | None, str]:
         """Get policy by ID."""
         # Check cache first
-        cache_key = f"{self._cache_prefix}{policy_id}"
+        cache_key = CacheKeys.policy_by_id(policy_id)
         cached = await self._cache.get(cache_key)
         if cached:
             return Ok(Policy(**cached))
@@ -193,6 +200,10 @@ class PolicyService:
             data_updates["coverage_amount"] = str(policy_update.coverage_amount)
         if policy_update.deductible is not None:
             data_updates["deductible"] = str(policy_update.deductible)
+        
+        # Track cancellation date when status changes to CANCELLED
+        if policy_update.status == "CANCELLED" and existing.status != "CANCELLED":
+            data_updates["cancelled_at"] = datetime.now().isoformat()
 
         if data_updates:
             param_count += 1
@@ -224,7 +235,8 @@ class PolicyService:
         policy = self._row_to_policy(row)
 
         # Invalidate cache
-        await self._cache.delete(f"{self._cache_prefix}{policy_id}")
+        await self._cache.delete(CacheKeys.policy_by_id(policy_id))
+        await self._cache.delete(CacheKeys.policies_by_customer(policy.customer_id))
 
         return Ok(policy)
 
@@ -279,30 +291,31 @@ class PolicyService:
         """Convert database row to Policy model."""
         data = dict(row["data"])
 
-        # Parse policy type from data or infer from policy number
+        # Parse policy type from data
         policy_type_str = data.get("type", "AUTO")  # Default to AUTO
         try:
             policy_type = PolicyType(policy_type_str.upper())
         except ValueError:
             policy_type = PolicyType.AUTO  # Fallback to AUTO for invalid types
 
+        # Fix: Data is stored directly in the JSON, not nested under 'coverage'
         return Policy(
             id=row["id"],
             customer_id=row["customer_id"],
             policy_number=row["policy_number"],
             policy_type=policy_type,
             status=PolicyStatus(row["status"]),
-            premium_amount=Decimal(
-                str(data.get("coverage", {}).get("base_premium", "0"))
-            ),
-            coverage_amount=Decimal(
-                str(data.get("coverage", {}).get("coverage_limit", "0"))
-            ),
-            deductible=Decimal(str(data.get("coverage", {}).get("deductible", "0"))),
+            premium_amount=Decimal(str(data.get("premium", "0"))),
+            coverage_amount=Decimal(str(data.get("coverage_amount", "0"))),
+            deductible=Decimal(str(data.get("deductible", "0"))),
             effective_date=row["effective_date"],
             expiration_date=row["expiration_date"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             notes=data.get("notes"),
-            cancelled_at=None,
+            cancelled_at=(
+                datetime.fromisoformat(data["cancelled_at"])
+                if data.get("cancelled_at")
+                else None
+            ),
         )
