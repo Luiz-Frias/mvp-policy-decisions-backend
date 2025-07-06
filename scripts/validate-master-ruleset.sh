@@ -3,6 +3,13 @@
 
 set -euo pipefail
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 echo "📋 Validating master ruleset compliance..."
 
 # Check for git zombie processes first
@@ -16,13 +23,6 @@ if [[ -n "$zombies" ]]; then
 else
     echo -e "${GREEN}✓ No git zombie processes found${NC}"
 fi
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 # Track violations
 VIOLATIONS=0

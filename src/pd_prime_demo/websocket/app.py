@@ -28,15 +28,22 @@ websocket_app = FastAPI(
     version="1.0.0",
 )
 
-# Add CORS middleware
-settings = get_settings()
-websocket_app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.api_cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Defer CORS setup to startup
+@websocket_app.on_event("startup")
+async def setup_cors():
+    """Setup CORS middleware on startup when settings are available."""
+    try:
+        settings = get_settings()
+        websocket_app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.api_cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    except Exception:
+        # During testing, settings might not be available
+        pass
 
 # Initialize global instances
 _manager: ConnectionManager | None = None

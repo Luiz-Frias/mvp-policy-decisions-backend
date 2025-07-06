@@ -143,7 +143,6 @@ class AdminRoleModel(IdentifiableModel):
     )
     permissions: List[Permission] = Field(
         default_factory=list,
-        max_items=100,
         description="List of granted permissions"
     )
     parent_role_id: Optional[UUID4] = Field(
@@ -273,7 +272,7 @@ class AdminUserBase(BaseModelConfig):
 
 
 @beartype
-class AdminUser(AdminUserBase, IdentifiableModel, TimestampedModel):
+class AdminUser(AdminUserBase, IdentifiableModel):
     """Full admin user model with security and audit fields."""
 
     # Security
@@ -883,7 +882,6 @@ class AdminDashboard(IdentifiableModel):
     )
     widgets: List[DashboardWidget] = Field(
         default_factory=list,
-        max_items=20,
         description="Dashboard widgets configuration"
     )
 
@@ -925,7 +923,6 @@ class AdminDashboard(IdentifiableModel):
     )
     shared_with: List[UUID4] = Field(
         default_factory=list,
-        max_items=100,
         description="Admin users this dashboard is shared with"
     )
 

@@ -15,17 +15,22 @@ from ..result import Err, Ok, Result
 class RatingPerformanceOptimizer:
     """Optimize rating calculations for <50ms performance."""
 
-    def __init__(self, cache_size: int = 10000):
+    def __init__(self, db=None, cache=None, cache_size: int = 10000):
         """Initialize optimizer with configurable cache size.
         
         Args:
+            db: Database connection (optional, for compatibility)
+            cache: Cache instance (optional, for compatibility) 
             cache_size: Maximum number of cached calculations
         """
+        self._db = db  # Store for future use
+        self._cache = cache  # Store for future use
         self._calculation_cache: Dict[str, Tuple[Any, float]] = {}
         self._precomputed_factors: Dict[str, float] = {}
         self._cache_size = cache_size
         self._cache_ttl = 3600  # 1 hour TTL for cached calculations
         self._performance_metrics: Dict[str, List[float]] = {}
+        self._monitoring_tokens: Dict[str, float] = {}  # For tracking calculation times
 
     @beartype
     @lru_cache(maxsize=10000)
@@ -575,3 +580,126 @@ class RatingPerformanceOptimizer:
         }
         
         return Ok(results)
+
+    @beartype
+    async def initialize_performance_caches(self) -> Result[bool, str]:
+        """Initialize performance caches for optimal startup."""
+        try:
+            # Precompute common scenarios
+            self.precompute_common_scenarios()
+            
+            # Warm caches for major states
+            for state in ["CA", "TX", "NY", "FL", "IL"]:
+                self.warm_cache_for_state(state)
+            
+            return Ok(True)
+        except Exception as e:
+            return Err(f"Cache initialization failed: {str(e)}")
+
+    @beartype
+    async def warm_cache_for_common_scenarios(self) -> Result[int, str]:
+        """Warm cache for common rating scenarios."""
+        try:
+            scenarios_cached = 0
+            
+            # Common age/violation combinations
+            for age in [18, 21, 25, 30, 40, 50, 65]:
+                for violations in [0, 1, 2]:
+                    key = f"driver_{age}_{violations}"
+                    result = self._calculate_driver_factor_internal(age, violations)
+                    if result.is_ok():
+                        self._precomputed_factors[key] = result.unwrap()
+                        scenarios_cached += 1
+            
+            # Common territory factors
+            for state in ["CA", "TX", "NY", "FL"]:
+                self.warm_cache_for_state(state)
+                scenarios_cached += 10  # Approximate scenarios per state
+                
+            return Ok(scenarios_cached)
+        except Exception as e:
+            return Err(f"Cache warming failed: {str(e)}")
+
+    @beartype
+    def start_performance_monitoring(self) -> str:
+        """Start performance monitoring and return token."""
+        import uuid
+        token = str(uuid.uuid4())
+        self._monitoring_tokens[token] = time.perf_counter()
+        return token
+
+    @beartype
+    def end_performance_monitoring(self, token: str) -> int:
+        """End performance monitoring and return elapsed time in ms."""
+        if token not in self._monitoring_tokens:
+            return 0
+        
+        start_time = self._monitoring_tokens.pop(token)
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        
+        # Record the metric
+        self._record_performance_metric("calculation", elapsed_ms)
+        
+        return elapsed_ms
+
+    @beartype
+    def is_performance_target_met(self, target_ms: int = 50) -> bool:
+        """Check if performance target is being met."""
+        if "calculation" not in self._performance_metrics:
+            return True  # No data means no violations yet
+            
+        recent_timings = self._performance_metrics["calculation"][-100:]  # Last 100 calculations
+        if not recent_timings:
+            return True
+            
+        violations = sum(1 for t in recent_timings if t > target_ms)
+        violation_rate = violations / len(recent_timings)
+        
+        return violation_rate < 0.05  # Less than 5% violations
+
+    @beartype
+    async def optimize_slow_calculations(self) -> Result[List[str], str]:
+        """Analyze performance and provide optimization recommendations."""
+        try:
+            recommendations = []
+            
+            if "calculation" in self._performance_metrics:
+                timings = self._performance_metrics["calculation"]
+                if timings:
+                    avg_time = sum(timings) / len(timings)
+                    max_time = max(timings)
+                    
+                    if avg_time > 25:
+                        recommendations.append(
+                            f"Average calculation time ({avg_time:.1f}ms) exceeds recommended 25ms. "
+                            "Consider precomputing more factors."
+                        )
+                    
+                    if max_time > 100:
+                        recommendations.append(
+                            f"Peak calculation time ({max_time:.1f}ms) is very high. "
+                            "Review database query performance and add more caching."
+                        )
+                    
+                    slow_calculations = sum(1 for t in timings if t > 50)
+                    if slow_calculations > len(timings) * 0.1:
+                        recommendations.append(
+                            f"{slow_calculations} calculations exceeded 50ms target. "
+                            "Consider increasing cache size or optimizing algorithms."
+                        )
+            
+            # Check cache hit rates
+            cache_stats = self.get_cache_statistics()
+            if "hit_rate" in cache_stats and cache_stats["hit_rate"] < 0.8:
+                recommendations.append(
+                    f"Cache hit rate ({cache_stats['hit_rate']:.1%}) is low. "
+                    "Consider warming more cache scenarios or increasing cache TTL."
+                )
+            
+            if not recommendations:
+                recommendations.append("Performance is optimal. No optimizations needed.")
+                
+            return Ok(recommendations)
+            
+        except Exception as e:
+            return Err(f"Performance analysis failed: {str(e)}")

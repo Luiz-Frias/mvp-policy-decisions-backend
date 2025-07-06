@@ -1,8 +1,10 @@
 """Quick audit test for rating engine to verify core functionality."""
 
 import asyncio
+from datetime import date
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 from src.pd_prime_demo.models.quote import (
     CoverageSelection,
@@ -108,27 +110,51 @@ async def test_rating_engine_audit():
     print("  ✓ Testing quote calculation...")
     
     vehicle = VehicleInfo(
+        vin="1HGBH41JXMN109186",
         year=2022,
         make="Toyota",
         model="Camry",
-        vin="1HGBH41JXMN109186",
-        vehicle_type=VehicleType.SEDAN,
-        garage_zip="90210",
-        annual_mileage=12000,
+        trim="LE",
+        body_style="Sedan",
+        vehicle_type=VehicleType.PRIVATE_PASSENGER,
+        engine_size="2.5L",
+        fuel_type="Gasoline",
+        safety_rating=5,
         anti_theft=True,
+        usage="Personal",
+        annual_mileage=12000,
+        garage_zip="90210",
+        garage_type="Attached Garage",
+        owned=True,
+        finance_type="Owned",
+        value=Decimal("25000.00"),
+        purchase_date=date(2022, 1, 15),
+        primary_use="Work",
+        parking_location="Garage",
         safety_features=["abs", "airbags", "automatic_braking"],
+        comprehensive_deductible=Decimal("500.00"),
+        collision_deductible=Decimal("500.00"),
     )
     
     driver = DriverInfo(
         first_name="John",
         last_name="Doe",
-        date_of_birth="1990-01-01",
+        date_of_birth=date(1990, 1, 1),
         license_number="D12345678",
+        license_state="CA",
+        license_status="valid",
         years_licensed=10,
-        violations_3_years=0,
+        age=34,
+        gender="M",
+        marital_status="married",
         accidents_3_years=0,
+        violations_3_years=0,
+        claims_3_years=0,
         dui_convictions=0,
+        sr22_required=False,
         good_student=False,
+        military=False,
+        defensive_driving=False,
         occupation="Engineer",
     )
     
@@ -221,28 +247,52 @@ async def test_discount_logic():
     
     # Create customer with multiple discount qualifications
     vehicle = VehicleInfo(
+        vin="1HGBH41JXMN109186",
         year=2022,
         make="Honda",
         model="Civic",
-        vin="1HGBH41JXMN109186",
-        vehicle_type=VehicleType.SEDAN,
-        garage_zip="78701",  # Austin, TX
-        annual_mileage=8000,  # Low mileage
+        trim="LX",
+        body_style="Sedan",
+        vehicle_type=VehicleType.PRIVATE_PASSENGER,
+        engine_size="2.0L",
+        fuel_type="Gasoline",
+        safety_rating=5,
         anti_theft=True,
+        usage="Personal",
+        annual_mileage=8000,  # Low mileage
+        garage_zip="78701",  # Austin, TX
+        garage_type="Attached Garage",
+        owned=True,
+        finance_type="Owned",
+        value=Decimal("22000.00"),
+        purchase_date=date(2022, 1, 15),
+        primary_use="Commute",
+        parking_location="Garage",
         safety_features=["abs", "airbags", "lane_assist"],
+        comprehensive_deductible=Decimal("500.00"),
+        collision_deductible=Decimal("500.00"),
     )
     
     # Young driver who is a good student
     young_driver = DriverInfo(
         first_name="Jane",
         last_name="Student",
-        date_of_birth="2002-01-01",  # Age 22
+        date_of_birth=date(2002, 1, 1),  # Age 22
         license_number="D87654321",
+        license_state="TX",
+        license_status="valid",
         years_licensed=4,
-        violations_3_years=0,  # Clean record
+        age=22,
+        gender="F",
+        marital_status="single",
         accidents_3_years=0,   # No accidents
+        violations_3_years=0,  # Clean record
+        claims_3_years=0,
         dui_convictions=0,
+        sr22_required=False,
         good_student=True,     # Good student discount
+        military=False,
+        defensive_driving=False,
         occupation="Student",
     )
     
@@ -250,13 +300,22 @@ async def test_discount_logic():
     military_driver = DriverInfo(
         first_name="Mike",
         last_name="Military",
-        date_of_birth="1985-01-01",  # Age 39
+        date_of_birth=date(1985, 1, 1),  # Age 39
         license_number="D11111111",
+        license_state="TX",
+        license_status="valid",
         years_licensed=20,
-        violations_3_years=0,  # Clean record
+        age=39,
+        gender="M",
+        marital_status="married",
         accidents_3_years=0,   # No accidents
+        violations_3_years=0,  # Clean record
+        claims_3_years=0,
         dui_convictions=0,
+        sr22_required=False,
         good_student=False,
+        military=True,
+        defensive_driving=False,
         occupation="Military Officer",  # Military discount
     )
     
@@ -280,7 +339,7 @@ async def test_discount_logic():
         vehicle_info=vehicle,
         drivers=[young_driver, military_driver],
         coverage_selections=coverages,
-        customer_id="12345678-1234-1234-1234-123456789012",
+        customer_id=uuid4(),
     )
     
     if result.is_ok():
@@ -336,26 +395,50 @@ async def test_surcharge_logic():
     high_risk_driver = DriverInfo(
         first_name="Risk",
         last_name="Driver",
-        date_of_birth="1980-01-01",
+        date_of_birth=date(1980, 1, 1),
         license_number="D99999999",
+        license_state="TX",
+        license_status="valid",
         years_licensed=15,
-        violations_3_years=5,  # Multiple violations
+        age=44,
+        gender="M",
+        marital_status="single",
         accidents_3_years=3,   # Multiple accidents
+        violations_3_years=5,  # Multiple violations
+        claims_3_years=2,
         dui_convictions=1,     # DUI conviction
+        sr22_required=True,
         good_student=False,
+        military=False,
+        defensive_driving=False,
         occupation="Construction",
     )
     
     vehicle = VehicleInfo(
+        vin="1FTFW1ET0FFA12345",
         year=2015,
         make="Ford",
         model="F-150",
-        vin="1FTFW1ET0FFA12345",
-        vehicle_type=VehicleType.TRUCK,
-        garage_zip="77001",  # Houston, TX
-        annual_mileage=25000,  # High mileage
+        trim="Regular Cab",
+        body_style="Pickup",
+        vehicle_type=VehicleType.PRIVATE_PASSENGER,
+        engine_size="5.0L",
+        fuel_type="Gasoline",
+        safety_rating=4,
         anti_theft=False,
+        usage="Personal",
+        annual_mileage=25000,  # High mileage
+        garage_zip="77001",  # Houston, TX
+        garage_type="Street",
+        owned=True,
+        finance_type="Financed",
+        value=Decimal("18000.00"),
+        purchase_date=date(2015, 1, 15),
+        primary_use="Work",
+        parking_location="Street",
         safety_features=[],
+        comprehensive_deductible=Decimal("1000.00"),
+        collision_deductible=Decimal("1000.00"),
     )
     
     coverages = [
@@ -377,7 +460,7 @@ async def test_surcharge_logic():
         vehicle_info=vehicle,
         drivers=[high_risk_driver],
         coverage_selections=coverages,
-        customer_id="87654321-4321-4321-4321-210987654321",
+        customer_id=uuid4(),
     )
     
     if result.is_ok():

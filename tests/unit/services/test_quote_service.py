@@ -18,7 +18,7 @@ from pd_prime_demo.services.result import Ok, Err
 def sample_vehicle_info():
     """Sample vehicle information."""
     return VehicleInfo(
-        vin="JH4KA8260PC008269",  # Valid Honda VIN for testing
+        vin="1HGBH41JXMN109186",  # Valid Honda VIN for testing
         year=2022,
         make="Tesla",
         model="Model 3",
@@ -105,14 +105,14 @@ class TestQuoteService:
             "id": uuid4(),
             "quote_number": "QUOT-2025-000001",
             "customer_id": None,
-            "status": "DRAFT",
-            "product_type": "AUTO",
+            "status": "draft",
+            "product_type": "auto",
             "state": "CA",
             "zip_code": "94105",
             "effective_date": sample_quote_create.effective_date,
             "email": "john.doe@example.com",
             "phone": "415-555-0123",
-            "preferred_contact": "EMAIL",
+            "preferred_contact": "email",
             "vehicle_info": sample_quote_create.vehicle_info.model_dump(),
             "drivers": [d.model_dump() for d in sample_quote_create.drivers],
             "coverage_selections": [c.model_dump() for c in sample_quote_create.coverage_selections],
@@ -203,7 +203,7 @@ class TestQuoteService:
                 "effective_date": date.today() + timedelta(days=7),
                 "email": "john.doe@example.com",
                 "phone": "415-555-0123",
-                "preferred_contact": "EMAIL",
+                "preferred_contact": "email",
                 "vehicle_info": {
                     "year": 2022,
                     "make": "Tesla",
@@ -258,14 +258,14 @@ class TestQuoteService:
                 "id": quote_id,
                 "quote_number": "QUOT-2025-000001",
                 "customer_id": None,
-                "status": "QUOTED",
-                "product_type": "AUTO",
+                "status": "quoted",
+                "product_type": "auto",
                 "state": "CA",
                 "zip_code": "94105",
                 "effective_date": date.today() + timedelta(days=7),
                 "email": "john.doe@example.com",
                 "phone": "415-555-0123",
-                "preferred_contact": "EMAIL",
+                "preferred_contact": "email",
                 "vehicle_info": {
                     "year": 2022,
                     "make": "Tesla",
@@ -336,7 +336,7 @@ class TestQuoteService:
         # Create update that changes vehicle
         update_data = QuoteUpdate(
             vehicle_info=VehicleInfo(
-                vin="2HGFG12647H553766",  # Different valid VIN
+                vin="2HGBH41JXMN109187",  # Different valid VIN
                 year=2023,
                 make="Honda",
                 model="Accord",
@@ -354,16 +354,16 @@ class TestQuoteService:
             "id": quote_id,
             "quote_number": "QUOT-2025-000001",
             "customer_id": None,
-            "status": "DRAFT",
-            "product_type": "AUTO",
+            "status": "draft",
+            "product_type": "auto",
             "state": "CA",
             "zip_code": "94105",
             "effective_date": date.today() + timedelta(days=7),
             "email": "john.doe@example.com",
             "phone": "415-555-0123",
-            "preferred_contact": "EMAIL",
+            "preferred_contact": "email",
             "vehicle_info": {
-                "vin": "JH4KA8260PC008269",
+                "vin": "1HGBH41JXMN109186",
                 "year": 2022,
                 "make": "Tesla",
                 "model": "Model 3",

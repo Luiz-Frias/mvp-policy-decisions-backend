@@ -1267,13 +1267,4 @@ class QuoteOverrideRequest(BaseModelConfig):
             raise ValueError("Override new value must be different from original value")
         
         return v
-
-
-@beartype
-class ProductType(str, Enum):
-    """Insurance product types."""
-    AUTO = "auto"
-    HOME = "home"
-    COMMERCIAL = "commercial"
-    RENTERS = "renters"
-    UMBRELLA = "umbrella"
+# End of quote models
