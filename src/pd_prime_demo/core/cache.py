@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Set, Union
+from typing import TYPE_CHECKING, Any
 
 import redis.asyncio as redis
 from attrs import field, frozen
@@ -209,8 +210,9 @@ class Cache:
         result = await self._redis.srem(key, *values)
         return int(result)
 
+    # Use typing.Set to avoid name collision with the "set" method on the same class
     @beartype
-    async def smembers(self, key: str) -> set[str]:
+    async def smembers(self, key: str) -> builtins.set[str]:
         """Get all members of a set."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")
