@@ -316,7 +316,7 @@ For each parallel agent, create specific instructions that include:
 
 **Structure for Agent Instructions**:
 
-```markdown
+````markdown
 You are a specialized agent responsible for [specific task].
 
 ## Your Objective
@@ -343,7 +343,9 @@ You are a specialized agent responsible for [specific task].
    git checkout -b feat/wave1-[component-name]-$(date +%Y%m%d)
    # Example: git checkout -b feat/wave1-database-schema-20241224
    ```
-```
+````
+
+````
 
 2. Work exclusively on this branch for all your changes
 
@@ -382,7 +384,7 @@ You are a specialized agent responsible for [specific task].
    Wave: 1
    Component: [component-name]
    Status: Complete"
-   ```
+````
 
 2. Push your branch to remote:
 
@@ -422,7 +424,7 @@ You are a specialized agent responsible for [specific task].
 - [ ] Branch pushed to remote
 - [ ] PR created successfully
 
-```
+````
 
 #### 4. Agent Deployment Strategy
 You can deploy agents through various methods:
@@ -439,7 +441,7 @@ After all agents complete their tasks:
    ls -la src/db/schema.sql
    ls -la src/api/routes/
    ls -la src/components/
-```
+````
 
 2. **Quality Validation**: Run automated checks
 
@@ -773,6 +775,7 @@ function getRelevantPatterns(projectContext: ProjectContext): Pattern[] {
 ### Enhanced Pattern Recognition Engine
 
 #### Pattern Classification System
+
 ```yaml
 pattern_categories:
   architectural:
@@ -795,6 +798,7 @@ pattern_categories:
 ```
 
 #### Pattern Scoring Algorithm
+
 ```python
 class PatternScore:
     success_rate: float  # 0-1 based on implementation outcomes
@@ -813,6 +817,7 @@ class PatternScore:
 ### Automated Learning Integration
 
 #### Real-Time Pattern Detection
+
 ```yaml
 triggers:
   on_agent_completion:
@@ -833,6 +838,7 @@ triggers:
 ```
 
 #### Pattern Application Framework
+
 ```python
 def apply_learned_patterns(
     project_context: ProjectContext,
@@ -862,6 +868,7 @@ def apply_learned_patterns(
 ### Enhanced Agent Coordination
 
 #### Dependency Graph Validation
+
 ```yaml
 pre_deployment_validation:
   dependency_graph:
@@ -877,6 +884,7 @@ pre_deployment_validation:
 ```
 
 #### Real-Time Coordination Protocol
+
 ```python
 class AgentCoordinator:
     def validate_deployment(self, agents: List[Agent]) -> DeploymentPlan:
@@ -899,6 +907,7 @@ class AgentCoordinator:
 ### Quality Gate Automation
 
 #### Progressive Quality Enforcement
+
 ```yaml
 quality_gates:
   pre_commit:
@@ -921,6 +930,7 @@ quality_gates:
 ```
 
 #### Automated Remediation
+
 ```python
 class QualityGateEnforcer:
     def check_and_remediate(self, violations: List[Violation]) -> Result:
@@ -942,6 +952,7 @@ class QualityGateEnforcer:
 ### Performance Learning System
 
 #### Benchmark Pattern Recognition
+
 ```yaml
 performance_patterns:
   optimization_techniques:
@@ -958,6 +969,7 @@ performance_patterns:
 ```
 
 #### Performance Prediction Model
+
 ```python
 class PerformancePredictor:
     def predict_performance(
@@ -985,6 +997,7 @@ class PerformancePredictor:
 ### Reusable Component Registry
 
 #### Component Cataloging
+
 ```yaml
 component_registry:
   metadata:
@@ -1003,6 +1016,7 @@ component_registry:
 ```
 
 #### Component Recommendation Engine
+
 ```python
 class ComponentRecommender:
     def recommend_components(
@@ -1034,6 +1048,7 @@ class ComponentRecommender:
 ### Failure Pattern Prevention
 
 #### Proactive Failure Detection
+
 ```yaml
 failure_prevention:
   known_patterns:
@@ -1050,6 +1065,7 @@ failure_prevention:
 ```
 
 #### Risk Mitigation Framework
+
 ```python
 class RiskMitigator:
     def assess_and_mitigate(
@@ -1080,6 +1096,7 @@ class RiskMitigator:
 ### Continuous Improvement Loop
 
 #### Feedback Integration
+
 ```yaml
 feedback_loop:
   sources:
@@ -1096,6 +1113,7 @@ feedback_loop:
 ```
 
 #### Learning System Evolution
+
 ```python
 class LearningSystemEvolution:
     def evolve(self, feedback: Feedback) -> None:
@@ -1119,6 +1137,7 @@ class LearningSystemEvolution:
 ### Machine Learning Integration (Full Implementation Required)
 
 #### Pattern Recognition ML Model
+
 ```python
 class PatternRecognitionModel:
     def __init__(self):
@@ -1141,6 +1160,7 @@ class PatternRecognitionModel:
 ```
 
 #### Predictive Performance Modeling
+
 ```python
 class PerformanceModel:
     def __init__(self):
@@ -1162,6 +1182,7 @@ class PerformanceModel:
 ```
 
 #### Autonomous Remediation System
+
 ```python
 class AutonomousRemediator:
     def __init__(self):
@@ -1301,17 +1322,21 @@ You are not just coordinating code generation - you are:
 
 The goal is not just to build one project, but to create a system that can build any project better than the last.
 
-## ▶️  New Supervisor Extensions (2025-07)
+## ▶️ New Supervisor Extensions (2025-07)
 
 ### Meta-Validator Agent
-*Always active after every dev-agent commit*
+
+_Always active after every dev-agent commit_
+
 1. Runs static checks (lint, type, security) and contract tests defined in `wave_contexts/*/contracts/`.
 2. Publishes results to `core/communication/agent-validation/agent_[id]_report.md`.
-3. If any *error* severity result → writes `BLOCKERS/validation_fail_[timestamp].md` which **blocks** merge until resolved.
+3. If any _error_ severity result → writes `BLOCKERS/validation_fail_[timestamp].md` which **blocks** merge until resolved.
 4. Success path injects label `validation:passed` into PR via GitHub API.
 
 ### Auto-Regression Agent
-*Triggered when files under `services/rating/**`, `websocket/**`, or `core/performance/**` change*
+
+_Triggered when files under `services/rating/**`, `websocket/**`, or `core/performance/**` change_
+
 1. Regenerates benchmark suite (`pytest -m benchmark --benchmark-autosave`).
 2. Compares against `benchmarks/golden.json`; if Δ > budget (configurable in `pyproject.toml`) → creates failing test `tests/regression/test_perf_regression.py`.
 3. Adds comment on PR summarising regressions and suggested optimisations.

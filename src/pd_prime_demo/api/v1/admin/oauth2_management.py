@@ -1,7 +1,7 @@
 """Admin OAuth2 client management endpoints."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 import asyncpg

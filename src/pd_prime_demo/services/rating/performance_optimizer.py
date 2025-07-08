@@ -6,7 +6,7 @@ optimizations to ensure sub-50ms rating calculations per Agent 06 requirements.
 
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from beartype import beartype
 
@@ -14,12 +14,7 @@ from ...core.cache import Cache
 from ...core.database import Database
 from ..result import Err, Ok
 
-try:
-    import numpy as np
-
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
+HAS_NUMPY = False  # NumPy not used in current implementation
 
 
 @beartype

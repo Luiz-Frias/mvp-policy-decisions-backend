@@ -1,7 +1,5 @@
 """Internal schemas for system boundaries where dict is allowed."""
 
-from typing import List
-
 from pydantic import BaseModel, ConfigDict, Field
 
 

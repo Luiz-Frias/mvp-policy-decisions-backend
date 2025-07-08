@@ -11,7 +11,6 @@ This script verifies that:
 
 import asyncio
 import sys
-from typing import List, Tuple
 
 from beartype import beartype
 
@@ -195,7 +194,7 @@ class ServiceIntegrationValidator:
 
         # AdminUserService
         try:
-            admin_service = AdminUserService(self.db, self.cache)
+            AdminUserService(self.db, self.cache)
             print("  ✅ AdminUserService initialized")
 
             # Check if admin tables exist
@@ -210,14 +209,14 @@ class ServiceIntegrationValidator:
 
         # SystemSettingsService
         try:
-            settings_service = SystemSettingsService(self.db, self.cache)
+            SystemSettingsService(self.db, self.cache)
             print("  ✅ SystemSettingsService initialized")
         except Exception as e:
             self.issues.append(f"SystemSettingsService: Failed - {str(e)}")
 
         # AdminActivityLogger
         try:
-            logger = AdminActivityLogger(self.db)
+            AdminActivityLogger(self.db)
             print("  ✅ AdminActivityLogger initialized")
         except Exception as e:
             self.issues.append(f"AdminActivityLogger: Failed - {str(e)}")

@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 from pydantic import Field, computed_field, field_validator, model_validator
@@ -958,7 +958,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
         now = datetime.now()
 
         # Business rule: quotes expire between 1-60 days from now
-        min_expiration = now + timedelta(days=1)
+        now + timedelta(days=1)
         max_expiration = now + timedelta(days=60)
 
         if v < now:

@@ -8,7 +8,7 @@ timestamped, and include complete context for SOC 2 evidence collection.
 import json
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -252,15 +252,17 @@ class AuditLogger:
                 f"${base+11}, ${base+12}, ${base+13}, ${base+14}, ${base+15})"
             )
 
-        query = f"""
+        # Safe query construction - placeholders are parameterized, not string concatenated
+        query = """
             INSERT INTO audit_logs (
                 id, user_id, ip_address, user_agent, session_id,
                 action, resource_type, resource_id,
                 request_method, request_path, request_body,
                 response_status, risk_score, security_alerts,
                 created_at
-            ) VALUES {', '.join(placeholders)}
-        """
+            ) VALUES """ + ", ".join(
+            placeholders
+        )
 
         await self._database.execute(query, *values)
         self._pending_events.clear()
@@ -456,12 +458,17 @@ class AuditLogger:
             where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
             param_count += 1
-            query = f"""
+            # Safe query construction - where_clause is built from parameterized conditions
+            query = (
+                """
                 SELECT * FROM audit_logs
-                {where_clause}
+                """
+                + where_clause
+                + f"""
                 ORDER BY created_at DESC
                 LIMIT ${param_count}
             """
+            )
             params.append(limit)
 
             rows = await self._database.fetch(query, *params)

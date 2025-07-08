@@ -8,7 +8,7 @@ It checks for syntax errors, missing functions, proper revision sequences, and m
 import ast
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 def extract_migration_info(file_path: Path) -> dict[str, Any]:
@@ -131,7 +131,6 @@ def validate_migration_sequence(migrations: list[dict[str, Any]]) -> list[str]:
 
     # Check for missing revisions
     revisions = {m["revision"] for m in migrations if m["revision"]}
-    down_revisions = {m["down_revision"] for m in migrations if m["down_revision"]}
 
     # Find the base migration (no down_revision)
     base_migrations = [m for m in migrations if not m["down_revision"]]

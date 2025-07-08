@@ -1,7 +1,7 @@
 """Admin SSO configuration management service."""
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -855,7 +855,9 @@ class SSOAdminService:
             params.extend([limit, offset])
             limit_offset = f"LIMIT ${len(params)-1} OFFSET ${len(params)}"
 
-            logs_query = f"""
+            # Safe query construction - where_clause and limit_offset are built from parameterized conditions
+            logs_query = (
+                """
                 SELECT
                     sal.id, sal.action, sal.provider_id, sal.details, sal.created_at,
                     u.email as admin_email,
@@ -863,10 +865,13 @@ class SSOAdminService:
                 FROM sso_activity_logs sal
                 LEFT JOIN users u ON sal.admin_user_id = u.id
                 LEFT JOIN sso_provider_configs spc ON sal.provider_id = spc.id
-                {where_clause}
+                """
+                + where_clause
+                + """
                 ORDER BY sal.created_at DESC
-                {limit_offset}
-            """
+                """
+                + limit_offset
+            )
 
             logs = await self._db.fetch(logs_query, *params)
 

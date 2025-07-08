@@ -10,7 +10,7 @@ This module implements comprehensive availability controls including:
 
 from datetime import datetime, timedelta, timezone
 from statistics import mean
-from typing import Any, Dict, List
+from typing import Any
 
 import psutil
 from beartype import beartype
@@ -234,7 +234,7 @@ class AvailabilityControlManager:
         """Calculate system uptime metrics."""
         # Simulated uptime calculation - in production, query monitoring system
         now = datetime.now(timezone.utc)
-        measurement_start = now - timedelta(hours=24)
+        # measurement_start = now - timedelta(hours=24)  # Would be used with real monitoring
 
         # Sample data - replace with actual monitoring data
         downtime_incidents = [

@@ -2,11 +2,11 @@
 
 import json
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.cache import Cache
 from .result import Err, Ok
@@ -563,7 +563,7 @@ class QuoteWizardService:
                 min_age = int(rule_value)
                 if age < min_age:
                     return f"Must be at least {min_age} years old"
-            except:
+            except Exception:
                 return "Invalid date of birth"
 
         if rule == "future" and rule_value and value:
@@ -577,7 +577,7 @@ class QuoteWizardService:
                     return f"{field} cannot be in the past"
                 if check_date > date.today() + timedelta(days=max_days):
                     return f"{field} cannot be more than {max_days} days in the future"
-            except:
+            except Exception:
                 return "Invalid date"
 
         if rule == "in" and rule_value and value:
@@ -590,7 +590,7 @@ class QuoteWizardService:
                 min_val = float(rule_value)
                 if float(value) < min_val:
                     return f"{field} must be at least {min_val}"
-            except:
+            except (ValueError, TypeError):
                 pass
 
         if rule == "max" and rule_value and value is not None:
@@ -598,7 +598,7 @@ class QuoteWizardService:
                 max_val = float(rule_value)
                 if float(value) > max_val:
                     return f"{field} must be at most {max_val}"
-            except:
+            except (ValueError, TypeError):
                 pass
 
         if rule == "length" and rule_value and value:
@@ -636,7 +636,7 @@ class QuoteWizardService:
                 check_digit = vin_upper[8]
                 if not (check_digit.isdigit() or check_digit == "X"):
                     return "VIN check digit (position 9) must be 0-9 or X"
-            except:
+            except (IndexError, AttributeError):
                 return "Invalid VIN format"
 
         if rule == "boolean" and value is not None:

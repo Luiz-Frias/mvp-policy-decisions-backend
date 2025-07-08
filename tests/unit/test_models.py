@@ -10,7 +10,7 @@ Tests verify:
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any
 from uuid import uuid4
 
 import pytest

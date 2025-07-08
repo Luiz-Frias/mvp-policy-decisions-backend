@@ -1,7 +1,7 @@
 """Admin SSO configuration endpoints."""
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype

@@ -4,7 +4,7 @@ import asyncio
 import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -332,7 +332,7 @@ class QuoteService:
         quote_id: UUID,
         conversion_request: QuoteConversionRequest,
         user_id: UUID | None = None,
-    ) -> dict:
+    ) -> Ok[dict[str, Any]] | Err[str]:
         """Convert quote to policy."""
         try:
             # Get quote
@@ -455,7 +455,7 @@ class QuoteService:
         created_before: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> dict:
+    ) -> Ok[list[Quote]] | Err[str]:
         """Search quotes with filters."""
         query_parts = ["SELECT * FROM quotes WHERE 1=1"]
         params: list[Any] = []
@@ -509,7 +509,7 @@ class QuoteService:
         admin_user_id: UUID,
         filters: dict[str, Any],
         include_pii: bool = False,
-    ) -> dict:
+    ) -> Ok[dict[str, Any]] | Err[str]:
         """Admin search with advanced filters and PII control."""
         # Verify admin permissions
         admin_check = await self._verify_admin_permissions(
@@ -638,7 +638,7 @@ class QuoteService:
         date_from: datetime,
         date_to: datetime,
         group_by: str = "day",
-    ) -> dict:
+    ) -> Ok[dict[str, Any]] | Err[str]:
         """Get quote analytics for admin dashboards."""
         query = """
             WITH quote_metrics AS (
@@ -860,12 +860,17 @@ class QuoteService:
         update_parts.append("updated_at = CURRENT_TIMESTAMP")
         update_parts.append("status = 'DRAFT'")  # Reset to draft
 
-        query = f"""
+        # Safe query construction - update_parts are built from trusted column names
+        query = (
+            """
             UPDATE quotes SET
-                {', '.join(update_parts)}
+                """
+            + ", ".join(update_parts)
+            + """
             WHERE id = $1
             RETURNING *
         """
+        )
 
         row = await self._db.fetchrow(query, *params)
         if not row:
@@ -901,7 +906,7 @@ class QuoteService:
     @performance_monitor("process_payment")
     async def _process_payment(
         self, conversion_request: QuoteConversionRequest, amount: Decimal
-    ) -> dict:
+    ) -> Ok[dict[str, Any]] | Err[str]:
         """Process payment for policy binding."""
         # Mock payment processing
         if conversion_request.payment_method not in ["card", "bank"]:

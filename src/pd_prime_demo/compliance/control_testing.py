@@ -8,7 +8,7 @@ import asyncio
 import random
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -588,7 +588,7 @@ class ControlTestingFramework:
         await asyncio.sleep(0.1)
 
         sample_size = test_definition.sample_size or 25
-        population_size = test_definition.population_size or 1000
+        # population_size = test_definition.population_size or 1000  # Would be used for statistical analysis
 
         # Simulate testing sample transactions
         errors_found = random.randint(0, max(1, sample_size // 10))  # 0-10% error rate

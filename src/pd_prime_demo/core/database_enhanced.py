@@ -5,7 +5,7 @@ import contextlib
 import json
 import time
 from collections.abc import AsyncIterator
-from typing import Any, Dict, List
+from typing import Any
 
 import asyncpg
 from attrs import field, frozen
@@ -278,7 +278,7 @@ class Database:
 
         try:
             # Based on Agent 03 audit: warm more connections to reduce initial timeout rates
-            min_connections = self._pool.get_min_size()
+            self._pool.get_min_size()
             # Target 80% of max_size for aggressive pre-warming
             target_warmup = int(self._pool.get_max_size() * 0.8)
 

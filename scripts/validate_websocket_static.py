@@ -8,7 +8,6 @@ without requiring runtime initialization.
 import ast
 import sys
 from pathlib import Path
-from typing import List, Set
 
 
 class WebSocketStaticValidator:

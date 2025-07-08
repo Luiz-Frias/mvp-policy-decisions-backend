@@ -7,6 +7,7 @@ Successfully populated all database tables with comprehensive production-ready d
 ## Seeded Data Overview
 
 ### 1. Customer Data (100 records)
+
 - **Script**: `scripts/seed_data.py`
 - **Details**:
   - 100 diverse customer profiles with realistic demographics
@@ -15,6 +16,7 @@ Successfully populated all database tables with comprehensive production-ready d
   - Customer segments: standard, preferred, premium
 
 ### 2. Policy Data (193 records)
+
 - **Script**: `scripts/seed_data.py`
 - **Details**:
   - 106 active policies
@@ -23,6 +25,7 @@ Successfully populated all database tables with comprehensive production-ready d
   - Policy statuses: active, inactive, expired, cancelled
 
 ### 3. Claims Data (228 records)
+
 - **Script**: `scripts/seed_data.py`
 - **Details**:
   - Various claim types: accident, damage, theft, medical, liability
@@ -30,7 +33,9 @@ Successfully populated all database tables with comprehensive production-ready d
   - Realistic claim amounts and resolution timelines
 
 ### 4. Rate Tables (12 tables)
+
 # TODO: Let's research what it would take to pull ISO ERC Rate tables from the API source online
+
 - **Script**: `scripts/seed_rate_tables.py`
 - **States Covered**: CA, TX, NY, FL, MI, PA # TODO: we want ALL US states covered also
 - **Coverage Types**: liability, collision, comprehensive, dwelling
@@ -42,6 +47,7 @@ Successfully populated all database tables with comprehensive production-ready d
   - Credit score adjustments
 
 ### 5. Discount Rules (7 rules)
+
 - **Script**: `scripts/seed_rate_tables.py`
 - **Types**:
   - Multi-Policy Discount (10%)
@@ -53,6 +59,7 @@ Successfully populated all database tables with comprehensive production-ready d
   - Early Quote ($50 fixed)
 
 ### 6. Surcharge Rules (5 rules)
+
 - **Script**: `scripts/seed_rate_tables.py`
 - **Types**:
   - Young Driver Surcharge (25%)
@@ -62,11 +69,13 @@ Successfully populated all database tables with comprehensive production-ready d
   - High Risk Area (30%)
 
 ### 7. Territory Factors (25 factors)
+
 - **Script**: `scripts/seed_rate_tables.py`
 - **Coverage**: Major cities in all 6 states
 - **Factors**: Base, loss ratio, catastrophe adjustments
 
 ### 8. User Accounts (7 users)
+
 - **Script**: `scripts/seed_system_data.py`
 - **Roles**:
   - admin: System Administrator, Mike Supervisor
@@ -75,6 +84,7 @@ Successfully populated all database tables with comprehensive production-ready d
   - system: System User (for automated processes)
 
 ### 9. Demo Scenarios
+
 - **Script**: `scripts/seed_system_data.py`
 - **Scenarios**:
   - Young driver with sports car in Beverly Hills
@@ -84,6 +94,7 @@ Successfully populated all database tables with comprehensive production-ready d
 ## Testing Results
 
 All seeded data has been validated:
+
 - ✅ Rate calculations work correctly for all states
 - ✅ Territory factors applied properly
 - ✅ Discounts and surcharges query successfully
@@ -92,12 +103,12 @@ All seeded data has been validated:
 
 ## Demo Credentials
 
-| Role | Email | Password | Purpose |
-|------|-------|----------|---------|
-| Admin | admin@mvppolicy.com | Admin123!@# | Full system access |
-| Underwriter | john.underwriter@mvppolicy.com | Underwriter123! | Quote approval |
-| Agent | jane.agent@mvppolicy.com | Agent123! | Quote creation |
-| Demo | demo.agent@mvppolicy.com | Demo123! | Limited demo access |
+| Role        | Email                          | Password        | Purpose             |
+| ----------- | ------------------------------ | --------------- | ------------------- |
+| Admin       | admin@mvppolicy.com            | Admin123!@#     | Full system access  |
+| Underwriter | john.underwriter@mvppolicy.com | Underwriter123! | Quote approval      |
+| Agent       | jane.agent@mvppolicy.com       | Agent123!       | Quote creation      |
+| Demo        | demo.agent@mvppolicy.com       | Demo123!        | Limited demo access |
 
 ## Scripts Created
 
@@ -109,6 +120,7 @@ All seeded data has been validated:
 ## Usage
 
 To re-seed the database:
+
 ```bash
 # Clear and re-seed customer data
 doppler run -- uv run python scripts/seed_data.py 100
@@ -134,6 +146,7 @@ doppler run -- uv run python scripts/test_seeded_data.py
 ## Next Steps
 
 The system is now ready for:
+
 1. Quote generation testing
 2. Rating engine validation
 3. User authentication flows

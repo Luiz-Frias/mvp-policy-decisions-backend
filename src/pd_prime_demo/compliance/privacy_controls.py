@@ -11,7 +11,7 @@ This module implements comprehensive privacy controls including:
 
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype

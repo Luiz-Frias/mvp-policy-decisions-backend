@@ -149,7 +149,7 @@ async def validate_sso_implementation() -> None:
     try:
         # Test invalid SSO user info (missing required fields)
         try:
-            invalid_user = SSOUserInfo(
+            SSOUserInfo(
                 # Missing required 'sub' field
                 email="test@example.com",
                 provider="google",

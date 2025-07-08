@@ -7,7 +7,7 @@ import random
 import statistics
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 import aiohttp
 
@@ -661,6 +661,7 @@ async def main():
                     "errors_by_type": results.errors_by_type,
                 },
             },
+            f,
             indent=2,
         )
 

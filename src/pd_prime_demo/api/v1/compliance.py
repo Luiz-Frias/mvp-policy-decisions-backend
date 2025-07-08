@@ -5,11 +5,11 @@ including control execution, evidence collection, and compliance reporting.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ...compliance import (
     SOC2_CORE_CONTROLS,

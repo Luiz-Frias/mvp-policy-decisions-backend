@@ -1,6 +1,6 @@
 """Result types for error handling without exceptions."""
 
-from typing import Generic, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 from attrs import frozen
 
@@ -99,6 +99,8 @@ class Result(Generic[T, E]):
         """Create an Err result."""
         return Err(error)
 
-    def __class_getitem__(cls, params):
+    def __class_getitem__(cls, params: tuple[Any, ...]) -> type[Ok[Any] | Err[Any]]:
         """Support generic type annotations like Result[T, E]."""
-        return Union[Ok[params[0]], Err[params[1]]]
+        if not isinstance(params, tuple) or len(params) != 2:
+            raise TypeError(f"Result expects 2 type parameters, got {params}")
+        return Union[Ok[params[0]], Err[params[1]]]  # type: ignore[misc]

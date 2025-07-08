@@ -2,7 +2,7 @@
 
 import time
 from collections import deque
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from attrs import define, field, frozen
 from beartype import beartype
@@ -393,7 +393,7 @@ def rate_limit(
     """Decorator for function-level rate limiting."""
 
     def decorator(func):
-        rule = RateLimitRule(
+        RateLimitRule(
             requests_per_minute=requests_per_minute,
             requests_per_hour=requests_per_hour,
             burst_requests=burst_requests,

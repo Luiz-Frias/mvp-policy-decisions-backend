@@ -5,7 +5,7 @@ risk factors including DUI, SR-22, accidents, and other high-risk indicators.
 """
 
 from decimal import Decimal, getcontext
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 

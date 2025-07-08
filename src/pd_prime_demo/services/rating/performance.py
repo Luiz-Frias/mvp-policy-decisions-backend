@@ -6,11 +6,11 @@ import pickle
 import time
 from collections.abc import Callable
 from functools import lru_cache
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from beartype import beartype
 
-from ..result import Err, Ok
+from ..result import Err, Ok, Result
 
 
 class RatingPerformanceOptimizer:
@@ -41,7 +41,7 @@ class RatingPerformanceOptimizer:
         self,
         state: str,
         zip_code: str,
-    ):
+    ) -> Result[float, str]:
         """Cache territory factors for common ZIPs.
 
         Args:
@@ -88,7 +88,7 @@ class RatingPerformanceOptimizer:
     async def parallel_factor_calculation(
         self,
         calculation_tasks: dict[str, Callable[[], Any]],
-    ) -> dict:
+    ) -> Result[dict[str, float], str]:
         """Calculate factors in parallel for performance.
 
         Args:

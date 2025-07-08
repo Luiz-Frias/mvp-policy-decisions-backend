@@ -5,12 +5,12 @@ approval workflows, A/B testing, and analytics per Agent 06 requirements.
 """
 
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ....core.security import AdminUser, get_current_admin_user
 from ....services.admin.rate_management_service import RateManagementService

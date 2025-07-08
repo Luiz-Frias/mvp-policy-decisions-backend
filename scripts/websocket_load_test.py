@@ -13,7 +13,7 @@ import asyncio
 import json
 import statistics
 import time
-from typing import Any, Dict, List
+from typing import Any
 from uuid import uuid4
 
 import aiohttp
@@ -125,7 +125,6 @@ class WebSocketLoadTester:
         async with aiohttp.ClientSession(connector=connector) as session:
             # Create connections in batches to avoid overwhelming the server
             batch_size = min(100, target_connections)
-            tasks = []
 
             for i in range(0, target_connections, batch_size):
                 batch_end = min(i + batch_size, target_connections)

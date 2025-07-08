@@ -4,7 +4,6 @@
 import asyncio
 from datetime import date
 from decimal import Decimal
-from typing import List
 from unittest.mock import AsyncMock, MagicMock
 
 from src.pd_prime_demo.models.quote import (

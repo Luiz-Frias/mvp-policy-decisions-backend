@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, List
+from typing import Any
 from uuid import UUID
 
 import asyncpg

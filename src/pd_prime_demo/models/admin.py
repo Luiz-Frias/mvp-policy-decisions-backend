@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 from pydantic import EmailStr, Field, computed_field, field_validator, model_validator
@@ -540,7 +540,7 @@ class SystemSetting(IdentifiableModel):
             # Convert to Decimal for validation
             try:
                 Decimal(str(self.value))
-            except:
+            except Exception:
                 raise ValueError("Value must be valid decimal")
 
         # Additional validation rules

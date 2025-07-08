@@ -39,84 +39,98 @@ The SOC 2 compliance framework implements all five trust service criteria with a
 
 ## Trust Service Criteria Implementation
 
-### 1. Security Controls (SEC-*)
+### 1. Security Controls (SEC-\*)
 
 **Implemented Controls:**
+
 - **SEC-001**: Data Encryption at Rest (AES-256-GCM)
 - **SEC-002**: Transport Layer Security (TLS 1.3 enforcement)
 - **SEC-003**: Vulnerability Scanning and Assessment
 - **SEC-004**: Access Control and Authentication
 
 **Key Features:**
+
 - Real-time encryption verification
 - Automated vulnerability scanning with remediation tracking
 - Multi-factor authentication support
 - Session management and security monitoring
 
 **API Endpoints:**
+
 - `GET /api/v1/compliance/dashboards/security` - Security dashboard
 - Control execution and monitoring via standard compliance endpoints
 
-### 2. Availability Controls (AVL-*)
+### 2. Availability Controls (AVL-\*)
 
 **Implemented Controls:**
+
 - **AVL-001**: Uptime Monitoring and SLA Compliance (99.9% target)
 - **AVL-002**: Performance Monitoring and Alerting
 - **AVL-003**: Backup and Disaster Recovery
 - **AVL-004**: Automated Failover Testing
 
 **Key Features:**
+
 - Continuous uptime monitoring with SLA tracking
 - Real-time performance metrics and alerting
 - Automated backup verification and recovery testing
 - Load balancer health checks and failover mechanisms
 
 **API Endpoints:**
+
 - `GET /api/v1/compliance/dashboards/availability` - Availability dashboard
 
-### 3. Processing Integrity Controls (PI-*)
+### 3. Processing Integrity Controls (PI-\*)
 
 **Implemented Controls:**
+
 - **PI-001**: Data Validation at System Boundaries
 - **PI-002**: Automated Data Reconciliation
 - **PI-003**: Change Control and Audit Trails
 - **PI-004**: Error Detection and Correction
 
 **Key Features:**
+
 - Comprehensive input validation with Pydantic models
 - Automated reconciliation between systems
 - Complete change audit trails with integrity verification
 - Error detection and automated correction mechanisms
 
 **API Endpoints:**
+
 - `GET /api/v1/compliance/dashboards/processing-integrity` - Processing integrity dashboard
 
-### 4. Confidentiality Controls (CONF-*)
+### 4. Confidentiality Controls (CONF-\*)
 
 **Implemented Controls:**
+
 - **CONF-001**: Data Classification and Labeling
 - **CONF-002**: Role-Based Access Control Matrix
 - **CONF-003**: Data Loss Prevention (DLP)
 - **CONF-004**: Confidential Data Handling Procedures
 
 **Key Features:**
+
 - Automated data classification with ML-based detection
 - Granular role-based access control with least privilege
 - Real-time data loss prevention monitoring
 - Data masking and anonymization capabilities
 
 **API Endpoints:**
+
 - `GET /api/v1/compliance/dashboards/confidentiality` - Confidentiality dashboard
 
-### 5. Privacy Controls (PRIV-*)
+### 5. Privacy Controls (PRIV-\*)
 
 **Implemented Controls:**
+
 - **PRIV-001**: GDPR Compliance Framework
 - **PRIV-002**: Consent Management System
 - **PRIV-003**: Data Subject Rights Management
 - **PRIV-004**: CCPA Compliance Framework
 
 **Key Features:**
+
 - Complete GDPR Article 30 processing records
 - Automated consent collection and withdrawal
 - Data subject rights automation (access, rectification, erasure, portability)
@@ -124,6 +138,7 @@ The SOC 2 compliance framework implements all five trust service criteria with a
 - Privacy impact assessments (DPIA)
 
 **API Endpoints:**
+
 - `GET /api/v1/compliance/dashboards/privacy` - Privacy dashboard
 
 ## API Reference
@@ -133,21 +148,25 @@ The SOC 2 compliance framework implements all five trust service criteria with a
 ```http
 GET /api/v1/compliance/overview
 ```
+
 Get overall SOC 2 compliance overview with scores by criteria.
 
 ```http
 GET /api/v1/compliance/controls
 ```
+
 List all SOC 2 controls with optional filtering by trust service criteria.
 
 ```http
 POST /api/v1/compliance/controls/execute
 ```
+
 Execute a specific SOC 2 control and collect evidence.
 
 ```http
 GET /api/v1/compliance/controls/{control_id}/status
 ```
+
 Get current status of a specific control.
 
 ### Dashboard Endpoints
@@ -155,7 +174,9 @@ Get current status of a specific control.
 ```http
 GET /api/v1/compliance/dashboards/{criteria}
 ```
+
 Get detailed dashboard for specific trust service criteria:
+
 - `/security` - Security controls dashboard
 - `/availability` - Availability controls dashboard
 - `/processing-integrity` - Processing integrity dashboard
@@ -167,11 +188,13 @@ Get detailed dashboard for specific trust service criteria:
 ```http
 GET /api/v1/compliance/evidence/summary
 ```
+
 Get evidence collection summary for a specified period.
 
 ```http
 POST /api/v1/compliance/reports/generate
 ```
+
 Generate comprehensive compliance reports.
 
 ### Testing Framework
@@ -179,16 +202,19 @@ Generate comprehensive compliance reports.
 ```http
 GET /api/v1/compliance/testing/dashboard
 ```
+
 Get control testing dashboard with effectiveness metrics.
 
 ```http
 POST /api/v1/compliance/testing/plans
 ```
+
 Create new control testing plans.
 
 ```http
 POST /api/v1/compliance/testing/execute-all
 ```
+
 Execute all controls or controls for specific criteria.
 
 ### Audit Trail
@@ -196,6 +222,7 @@ Execute all controls or controls for specific criteria.
 ```http
 GET /api/v1/compliance/audit-trail
 ```
+
 Get compliance audit trail with filtering capabilities.
 
 ## Implementation Details

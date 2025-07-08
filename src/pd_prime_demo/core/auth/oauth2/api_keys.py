@@ -3,7 +3,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -562,7 +562,7 @@ class APIKeyManager:
 
                 # Example: Resource-specific restrictions
                 if "resource_id" in request_context:
-                    resource_id = request_context["resource_id"]
+                    request_context["resource_id"]
                     # In a real implementation, check if key has access to specific resource
                     pass
 

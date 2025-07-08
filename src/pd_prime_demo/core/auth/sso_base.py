@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import uuid4
 
 from beartype import beartype

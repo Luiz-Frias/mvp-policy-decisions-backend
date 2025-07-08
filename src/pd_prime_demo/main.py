@@ -16,6 +16,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .api.middleware.security_headers import SecurityHeadersMiddleware
 from .api.v1 import router as v1_router
 from .core.cache import get_cache
 from .core.config import get_settings
@@ -152,14 +153,14 @@ class Result(Generic[T, E]):
     _error: E | None = field(default=None, init=False)
 
     @classmethod
-    def ok(cls, value: T) -> "dict":
+    def ok(cls, value: T) -> "Result[T, E]":
         """Create a successful result."""
         result = cls()
         object.__setattr__(result, "_value", value)
         return result
 
     @classmethod
-    def err(cls, error: E) -> "dict":
+    def err(cls, error: E) -> "Result[T, E]":
         """Create an error result."""
         result = cls()
         object.__setattr__(result, "_error", error)
@@ -305,6 +306,7 @@ def create_app() -> FastAPI:
         app.add_middleware(RequestLoggingMiddleware)
 
     # Security middleware
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=["*"] if settings.is_development else ["api.example.com"],

@@ -7,7 +7,7 @@ evidence collection, and continuous monitoring.
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from attrs import define, field, frozen

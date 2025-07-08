@@ -1,7 +1,7 @@
 """Security utilities for JWT, password hashing, and authentication."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any
 
 import bcrypt
 import jwt

@@ -1,7 +1,7 @@
 """Quote API endpoints."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -14,7 +14,7 @@ from ...models.quote import (
     QuoteStatus,
     QuoteUpdate,
 )
-from ...models.user import User
+from ...models.user import User, UserRole
 from ...schemas.quote import (
     QuoteConversionResponse,
     QuoteCreateRequest,
@@ -27,6 +27,7 @@ from ...schemas.quote import (
 from ...services.performance_monitor import performance_tracker
 from ...services.quote_service import QuoteService
 from ...services.quote_wizard import QuoteWizardService, WizardState
+from ...services.result import Err
 from ..dependencies import (
     get_current_user,
     get_optional_user,
@@ -54,7 +55,7 @@ async def create_quote(
         quote_create, current_user.id if current_user else None
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     quote = result.value
@@ -76,7 +77,7 @@ async def get_quote(
     """Get quote by ID."""
     result = await quote_service.get_quote(quote_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=500, detail=result.error)
 
     quote = result.value
@@ -111,7 +112,7 @@ async def update_quote(
         quote_id, quote_update, current_user.id if current_user else None
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -127,7 +128,7 @@ async def calculate_quote(
     """Calculate or recalculate quote pricing."""
     result = await quote_service.calculate_quote(quote_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -146,7 +147,7 @@ async def convert_to_policy(
         quote_id, conversion_request, current_user.id
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -167,7 +168,7 @@ async def search_quotes(
 ) -> dict[str, Any]:
     """Search quotes with filters."""
     # If user is logged in, only show their quotes
-    if current_user and not current_user.is_admin:
+    if current_user and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
         customer_id = current_user.id
 
     result = await quote_service.search_quotes(
@@ -180,7 +181,7 @@ async def search_quotes(
         offset=offset,
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=500, detail=result.error)
 
     quotes = result.value
@@ -205,7 +206,7 @@ async def start_wizard_session(
     """Start a new quote wizard session."""
     result = await wizard_service.start_session(initial_data)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -220,7 +221,7 @@ async def get_wizard_session(
     """Get wizard session state."""
     result = await wizard_service.get_session(session_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=500, detail=result.error)
 
     state = result.value
@@ -240,7 +241,7 @@ async def update_wizard_step(
     """Update current wizard step with data."""
     result = await wizard_service.update_step(session_id, step_data)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -255,7 +256,7 @@ async def next_wizard_step(
     """Move to next step in wizard."""
     result = await wizard_service.next_step(session_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -270,7 +271,7 @@ async def previous_wizard_step(
     """Move to previous step in wizard."""
     result = await wizard_service.previous_step(session_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -288,7 +289,7 @@ async def jump_to_wizard_step(
     """Jump to a specific wizard step."""
     result = await wizard_service.jump_to_step(session_id, step_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return result.value
@@ -307,7 +308,7 @@ async def complete_wizard_session(
     # Complete wizard
     result = await wizard_service.complete_session(session_id)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     wizard_data = result.value
@@ -342,7 +343,7 @@ async def get_all_wizard_steps(
     """Get all wizard steps configuration."""
     result = await wizard_service.get_all_steps()
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=500, detail=result.error)
 
     return result.value
@@ -358,7 +359,7 @@ async def extend_wizard_session(
     """Extend wizard session expiration."""
     result = await wizard_service.extend_session(session_id, additional_minutes)
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     state = result.value
@@ -382,7 +383,7 @@ async def get_step_business_intelligence(
         session_id, step_id
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
     return {

@@ -4,7 +4,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -356,7 +356,7 @@ async def export_quotes(
                 try:
                     if len(str(cell.value)) > max_length:
                         max_length = len(str(cell.value))
-                except:
+                except Exception:
                     pass
             adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
             ws.column_dimensions[column[0].column_letter].width = adjusted_width

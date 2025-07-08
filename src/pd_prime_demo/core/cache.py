@@ -2,7 +2,7 @@
 
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Set
+from typing import TYPE_CHECKING, Any, Set, Union
 
 import redis.asyncio as redis
 from attrs import field, frozen

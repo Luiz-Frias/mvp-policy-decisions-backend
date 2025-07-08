@@ -180,14 +180,14 @@ async def seed_users(conn: asyncpg.Connection) -> None:
         last_name = name_parts[1] if len(name_parts) > 1 else ""
 
         # Insert user
-        user_id = await conn.fetchval(
+        await conn.execute(
             """
             INSERT INTO users (
                 id, email, password_hash, first_name, last_name,
                 role, is_active, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9
-            ) RETURNING id
+            )
             """,
             uuid4(),
             user["email"],
@@ -334,43 +334,45 @@ async def seed_system_configuration(conn: asyncpg.Connection) -> None:
         print("  ⚠️  Admin user not found, skipping system configuration")
         return
 
-    system_config = {
-        "rating_engine": {
-            "version": "2.0",
-            "cache_ttl_seconds": 3600,
-            "max_quote_age_days": 30,
-            "min_liability_coverage": 100000,
-            "max_liability_coverage": 1000000,
-            "supported_states": ["CA", "TX", "NY", "FL", "MI", "PA"],
-            "features": {
-                "real_time_pricing": True,
-                "competitive_analysis": True,
-                "usage_based_insurance": False,
-                "ai_risk_assessment": False,
-            },
-        },
-        "business_rules": {
-            "min_driver_age": 16,
-            "max_driver_age": 99,
-            "min_vehicle_year": 1990,
-            "max_vehicle_age_years": 30,
-            "credit_score_required_states": ["TX", "NY", "FL", "MI", "PA"],
-            "no_credit_check_states": ["CA"],  # California restrictions
-        },
-        "demo_settings": {
-            "enabled": True,
-            "demo_data_refresh_hours": 24,
-            "demo_quote_limit": 100,
-            "demo_features": ["quotes", "basic_rating", "policy_view"],
-        },
-        "api_settings": {
-            "rate_limit_per_minute": 60,
-            "rate_limit_per_hour": 1000,
-            "jwt_expiry_hours": 24,
-            "refresh_token_days": 30,
-            "cors_origins": ["http://localhost:3000", "https://mvppolicy.com"],
-        },
-    }
+    # System configuration would typically be stored in a settings table
+    # For now, we're just preparing the structure
+    # system_config = {
+    #     "rating_engine": {
+    #         "version": "2.0",
+    #         "cache_ttl_seconds": 3600,
+    #         "max_quote_age_days": 30,
+    #         "min_liability_coverage": 100000,
+    #         "max_liability_coverage": 1000000,
+    #         "supported_states": ["CA", "TX", "NY", "FL", "MI", "PA"],
+    #         "features": {
+    #             "real_time_pricing": True,
+    #             "competitive_analysis": True,
+    #             "usage_based_insurance": False,
+    #             "ai_risk_assessment": False,
+    #         },
+    #     },
+    #     "business_rules": {
+    #         "min_driver_age": 16,
+    #         "max_driver_age": 99,
+    #         "min_vehicle_year": 1990,
+    #         "max_vehicle_age_years": 30,
+    #         "credit_score_required_states": ["TX", "NY", "FL", "MI", "PA"],
+    #         "no_credit_check_states": ["CA"],  # California restrictions
+    #     },
+    #     "demo_settings": {
+    #         "enabled": True,
+    #         "demo_data_refresh_hours": 24,
+    #         "demo_quote_limit": 100,
+    #         "demo_features": ["quotes", "basic_rating", "policy_view"],
+    #     },
+    #     "api_settings": {
+    #         "rate_limit_per_minute": 60,
+    #         "rate_limit_per_hour": 1000,
+    #         "jwt_expiry_hours": 24,
+    #         "refresh_token_days": 30,
+    #         "cors_origins": ["http://localhost:3000", "https://mvppolicy.com"],
+    #     },
+    # }
 
     print("  ✓ System configuration prepared")
     print("  ✓ Configuration attached to system")

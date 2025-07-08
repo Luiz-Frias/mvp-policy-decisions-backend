@@ -6,10 +6,12 @@ import statistics
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from beartype import beartype
 
 # ---------------------------------------------------------------------------
 # Logging Setup (replaces all legacy ``print`` output with proper logging)
@@ -18,8 +20,6 @@ from pd_prime_demo.core.logging_utils import configure_logging, patch_print
 
 configure_logging()
 patch_print()
-
-from beartype import beartype
 
 
 @beartype

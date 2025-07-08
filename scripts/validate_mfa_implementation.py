@@ -4,16 +4,15 @@
 import asyncio
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add src to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    from pd_prime_demo.core.auth.mfa import MFAManager, RiskEngine, TOTPProvider
+    from pd_prime_demo.core.auth.mfa import RiskEngine, TOTPProvider
     from pd_prime_demo.core.auth.mfa.models import MFAMethod, RiskLevel
-    from pd_prime_demo.core.config import get_settings
 except ImportError as e:
     print(f"Import error: {e}")
     print("Please ensure you're running from the project root directory")
@@ -36,13 +35,14 @@ class MFAValidator:
         self.test_count += 1
 
         try:
-            from pd_prime_demo.core.auth.mfa import (
+            # Import all modules to validate they exist - these are intentionally unused
+            from pd_prime_demo.core.auth.mfa import (  # noqa: F401
                 MFAManager,
                 RiskEngine,
                 TOTPProvider,
                 WebAuthnProvider,
             )
-            from pd_prime_demo.core.auth.mfa.models import (
+            from pd_prime_demo.core.auth.mfa.models import (  # noqa: F401
                 MFAChallenge,
                 MFAConfig,
                 MFAMethod,

@@ -9,9 +9,8 @@ This module implements comprehensive security controls including:
 """
 
 import base64
-import ssl
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 from cryptography.fernet import Fernet
@@ -297,7 +296,7 @@ class SecurityControlManager:
     async def _test_tls_configuration(self) -> dict[str, Any]:
         """Test TLS configuration compliance."""
         # Simulated TLS configuration test
-        context = ssl.create_default_context()
+        # context = ssl.create_default_context()  # Would be used to test actual TLS config
 
         return {
             "min_tls_version": "TLSv1.3",

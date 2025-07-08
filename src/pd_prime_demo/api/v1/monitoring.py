@@ -1,11 +1,11 @@
 """Database and system monitoring endpoints with performance tracking."""
 
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.admin_query_optimizer import AdminQueryOptimizer
 from ...core.database_enhanced import Database

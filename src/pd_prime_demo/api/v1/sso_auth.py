@@ -1,6 +1,6 @@
 """SSO authentication endpoints for user login."""
 
-from typing import Any, Dict
+from typing import Any
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query, Request

@@ -1,7 +1,7 @@
 """WebSocket application setup."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -421,7 +421,7 @@ async def websocket_endpoint(
                 },
             )
             await manager.send_personal_message(connection_id, error_msg)
-        except:
+        except Exception:
             pass  # Connection already broken
     finally:
         # Cleanup

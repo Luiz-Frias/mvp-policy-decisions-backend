@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 from decimal import Decimal
 from functools import wraps
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype

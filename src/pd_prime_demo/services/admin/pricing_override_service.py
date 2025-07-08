@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype

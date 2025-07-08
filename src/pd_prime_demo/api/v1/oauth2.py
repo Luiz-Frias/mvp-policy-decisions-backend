@@ -1,6 +1,6 @@
 """OAuth2 authorization endpoints."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -293,7 +293,7 @@ async def revoke(
     Returns:
         Empty response on success
     """
-    result = await oauth2_server.revoke(
+    await oauth2_server.revoke(
         token=token,
         token_type_hint=token_type_hint,
         client_id=client_id,

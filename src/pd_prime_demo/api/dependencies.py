@@ -6,12 +6,17 @@ API endpoints for cross-cutting concerns.
 
 import os
 from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import asyncpg
 from beartype import beartype
 from fastapi import Depends, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
+
+if TYPE_CHECKING:
+    from ..services.quote_service import QuoteService
+    from ..services.quote_wizard import QuoteWizardService
 
 from ..core.auth.sso_manager import SSOManager
 from ..core.cache import Cache, get_redis_client

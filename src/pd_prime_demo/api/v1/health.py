@@ -8,7 +8,6 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Tuple
 
 import asyncpg
 from beartype import beartype

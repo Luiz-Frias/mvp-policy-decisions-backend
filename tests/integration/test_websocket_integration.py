@@ -9,7 +9,7 @@ Tests end-to-end WebSocket functionality including:
 """
 
 import asyncio
-from typing import Any, Dict
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -93,8 +93,6 @@ class TestWebSocketBasicIntegration:
 
     def test_websocket_connection_lifecycle(self, websocket_client: TestClient) -> None:
         """Test basic connection and disconnection."""
-        ws_client = WebSocketTestClient(websocket_client, token="demo")
-
         # Test connection
         with websocket_client.websocket_connect("/ws?token=demo") as websocket:
             # Should receive connection confirmation

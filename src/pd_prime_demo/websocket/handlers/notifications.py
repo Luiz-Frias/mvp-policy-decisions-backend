@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -320,7 +320,7 @@ class NotificationHandler:
             )
 
         # Remove from pending
-        config = self._pending_notifications.pop(notification_id)
+        self._pending_notifications.pop(notification_id)
 
         # Update statistics
         self._delivery_stats["acknowledgments_received"] += 1

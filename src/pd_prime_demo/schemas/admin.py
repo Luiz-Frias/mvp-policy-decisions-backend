@@ -1,7 +1,7 @@
 """Admin API schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, EmailStr, Field

@@ -6,7 +6,7 @@ regulatory requirements.
 """
 
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 

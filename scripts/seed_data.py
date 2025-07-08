@@ -18,7 +18,7 @@ import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 import asyncpg

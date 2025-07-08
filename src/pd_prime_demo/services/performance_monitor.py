@@ -5,7 +5,7 @@ import json
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Dict, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 from beartype import beartype
 
@@ -47,7 +47,7 @@ def performance_monitor(
 
                 tracemalloc.start()
                 snapshot_start = tracemalloc.take_snapshot()
-            except:
+            except Exception:
                 snapshot_start = None
 
             try:
@@ -72,7 +72,7 @@ def performance_monitor(
                                 / 1024
                                 / 1024
                             )
-                    except:
+                    except Exception:
                         pass
 
                 # Log performance metrics
@@ -111,7 +111,7 @@ def performance_monitor(
                 if snapshot_start:
                     try:
                         tracemalloc.stop()
-                    except:
+                    except Exception:
                         pass
 
         @wraps(func)
@@ -140,7 +140,7 @@ def performance_monitor(
 
         # Return appropriate wrapper based on function type
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper
+            return async_wrapper  # type: ignore[return-value]
         else:
             return sync_wrapper
 
@@ -196,7 +196,7 @@ async def _log_performance_metrics(
         # This could write to a monitoring file, send to logging service, etc.
         # await send_to_monitoring_system(metrics)
         pass
-    except:
+    except Exception:
         # Never fail the operation due to monitoring issues
         pass
 

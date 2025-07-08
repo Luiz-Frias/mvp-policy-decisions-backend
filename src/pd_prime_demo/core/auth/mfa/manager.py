@@ -2,7 +2,7 @@
 
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype

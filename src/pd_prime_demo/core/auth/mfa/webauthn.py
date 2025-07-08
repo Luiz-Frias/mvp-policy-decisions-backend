@@ -1,7 +1,7 @@
 """WebAuthn/FIDO2 provider implementation."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -15,12 +15,7 @@ try:
     )
     from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
     from webauthn.helpers.structs import (
-        AuthenticationCredential,
-        AuthenticatorAssertionResponse,
-        AuthenticatorAttestationResponse,
-        PublicKeyCredentialCreationOptions,
         PublicKeyCredentialDescriptor,
-        PublicKeyCredentialRequestOptions,
         PublicKeyCredentialType,
     )
 except ImportError:
@@ -385,7 +380,7 @@ class WebAuthnProvider:
         """Detect device name from credential response."""
         # This is a simplified version - in production, you might want to
         # parse the attestation statement for more details
-        client_data = credential_response.get("response", {}).get("clientDataJSON", "")
+        # client_data = credential_response.get("response", {}).get("clientDataJSON", "")
 
         # Try to detect from user agent or other metadata
         # For now, return a generic name

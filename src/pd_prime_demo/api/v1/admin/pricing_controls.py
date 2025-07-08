@@ -2,12 +2,12 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ....core.security import AdminUser, get_current_admin_user
 from ....services.admin.pricing_override_service import PricingOverrideService

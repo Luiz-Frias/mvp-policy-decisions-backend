@@ -81,4 +81,4 @@ def patch_print(*, level: int = logging.INFO) -> None:
         msg = sep.join(str(arg) for arg in args) + end.rstrip("\n")
         logger.log(level, msg)
 
-    builtins.print = _logger_print  # type: ignore[misc]
+    builtins.print = _logger_print

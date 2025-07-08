@@ -7,7 +7,6 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Dict, List
 
 from attrs import field, frozen
 from beartype import beartype

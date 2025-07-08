@@ -1,7 +1,5 @@
 """Configuration management using Pydantic Settings with Doppler integration."""
 
-from typing import List
-
 from beartype import beartype
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -174,6 +172,30 @@ class Settings(BaseSettings):
         for origin in v:
             if not origin.startswith(("http://", "https://")):
                 raise ValueError(f"Invalid CORS origin: {origin}")
+        return v
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls: type["Settings"], v: str, info: ValidationInfo) -> str:
+        """Ensure test secrets are not used in production."""
+        if "api_env" in info.data and info.data["api_env"] == "production":
+            if v.startswith("test-"):
+                raise ValueError(
+                    "Test secret key cannot be used in production. "
+                    "Set SECRET_KEY environment variable."
+                )
+        return v
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def validate_jwt_secret(cls: type["Settings"], v: str, info: ValidationInfo) -> str:
+        """Ensure test JWT secrets are not used in production."""
+        if "api_env" in info.data and info.data["api_env"] == "production":
+            if v.startswith("test-"):
+                raise ValueError(
+                    "Test JWT secret cannot be used in production. "
+                    "Set JWT_SECRET environment variable."
+                )
         return v
 
     @property

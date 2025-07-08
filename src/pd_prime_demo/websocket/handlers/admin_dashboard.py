@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -537,7 +537,10 @@ class AdminDashboardHandler:
                 params.append(filters["resource_type"])
                 where_clauses.append(f"aal.resource_type = ${len(params)}")
 
-            query = f"""
+            # Safe query construction - where_clauses are built from parameterized conditions
+            where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+            query = (
+                """
                 SELECT
                     aal.id,
                     aal.admin_user_id,
@@ -550,10 +553,13 @@ class AdminDashboardHandler:
                     aal.ip_address
                 FROM admin_activity_logs aal
                 JOIN admin_users au ON aal.admin_user_id = au.id
-                WHERE {' AND '.join(where_clauses)}
+                WHERE """
+                + where_clause
+                + """
                 ORDER BY aal.created_at DESC
                 LIMIT 50
             """
+            )
 
             rows = await self._db.fetch(query, *params)
             return Ok([dict(row) for row in rows])
@@ -577,7 +583,10 @@ class AdminDashboardHandler:
                 params.append(filters["resource_type"])
                 where_clauses.append(f"aal.resource_type = ${len(params)}")
 
-            query = f"""
+            # Safe query construction - where_clauses are built from parameterized conditions
+            where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+            query = (
+                """
                 SELECT
                     aal.id,
                     aal.admin_user_id,
@@ -590,10 +599,13 @@ class AdminDashboardHandler:
                     aal.ip_address
                 FROM admin_activity_logs aal
                 JOIN admin_users au ON aal.admin_user_id = au.id
-                WHERE {' AND '.join(where_clauses)}
+                WHERE """
+                + where_clause
+                + """
                 ORDER BY aal.created_at ASC
                 LIMIT 20
             """
+            )
 
             rows = await self._db.fetch(query, *params)
             return Ok([dict(row) for row in rows])
@@ -685,7 +697,7 @@ class AdminDashboardHandler:
                 "Must be one of: low, medium, high, critical"
             )
 
-        alert = WebSocketMessage(
+        WebSocketMessage(
             type="admin_alert",
             data={
                 "alert_type": alert_type,
@@ -698,7 +710,6 @@ class AdminDashboardHandler:
         )
 
         # Send to all admin monitoring rooms
-        pattern = "admin:system_monitoring:*"
         # Note: In production, implement pattern-based room sending
         # For now, track admin rooms separately
 

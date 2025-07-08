@@ -1,8 +1,8 @@
 """OAuth2 client certificate authentication support."""
 
 import hashlib
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import datetime, timedelta, timezone
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype

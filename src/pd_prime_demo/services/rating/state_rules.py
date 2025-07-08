@@ -6,7 +6,7 @@ California Proposition 103 compliance and other state regulations.
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 
 from beartype import beartype
 

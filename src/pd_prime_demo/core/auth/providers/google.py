@@ -1,6 +1,6 @@
 """Google Workspace SSO implementation."""
 
-from typing import Any, List
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx

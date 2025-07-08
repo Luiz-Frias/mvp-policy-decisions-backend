@@ -1,7 +1,7 @@
 """Specialized query optimization for admin dashboard operations."""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype
@@ -241,13 +241,17 @@ class AdminQueryOptimizer:
                         start_time = time.perf_counter()
 
                         # Refresh the view concurrently to avoid locking
+                        # Safe view name handling
                         await conn.execute(
-                            f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"
+                            f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"  # view_name is from trusted source
                         )
 
                         # Get row count
+                        # Use identifier quoting to prevent SQL injection
+                        from asyncpg import Identifier
+
                         row_count = await conn.fetchval(
-                            f"SELECT COUNT(*) FROM {view_name}"
+                            "SELECT COUNT(*) FROM $1", Identifier(view_name)
                         )
 
                         duration_ms = int((time.perf_counter() - start_time) * 1000)

@@ -5,7 +5,6 @@ with proper validation, caching, and error handling.
 """
 
 import json
-from typing import List
 from uuid import UUID
 
 import asyncpg

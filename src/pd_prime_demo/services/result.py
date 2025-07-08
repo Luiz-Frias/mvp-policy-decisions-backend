@@ -1,7 +1,7 @@
 """Result type implementation for error handling without exceptions."""
 
 from collections.abc import Callable
-from typing import Any, Generic, List, Tuple, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 from attrs import field, frozen
 from beartype import beartype
@@ -129,7 +129,7 @@ class Result(Generic[T, E]):
 
 
 @beartype
-def result_from_optional(value: T | None, error: E) -> Result[T, E]:
+def result_from_optional(value: T | None, error: E) -> Ok[T] | Err[E]:
     """Convert Optional to Result."""
     if value is None:
         return Err(error)
@@ -137,7 +137,7 @@ def result_from_optional(value: T | None, error: E) -> Result[T, E]:
 
 
 @beartype
-def collect_results(results: list[Result[T, E]]) -> Result[list[T], E]:
+def collect_results(results: list[Ok[T] | Err[E]]) -> Ok[list[T]] | Err[E]:
     """Collect a list of Results into a Result of list."""
     values = []
     for result in results:
@@ -148,7 +148,7 @@ def collect_results(results: list[Result[T, E]]) -> Result[list[T], E]:
 
 
 @beartype
-def try_result(func: Callable[[], T]) -> Result[T, Exception]:
+def try_result(func: Callable[[], T]) -> Ok[T] | Err[Exception]:
     """Execute function and return Result."""
     try:
         return Ok(func())

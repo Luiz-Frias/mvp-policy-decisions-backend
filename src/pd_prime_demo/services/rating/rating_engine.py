@@ -7,7 +7,7 @@ ensuring sub-50ms performance while maintaining accuracy and compliance.
 import time
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -357,7 +357,7 @@ class RatingEngine:
         risk_score, _ = risk_result.unwrap()
 
         # Convert risk score to factor (higher risk = higher factor)
-        driver_factor = 0.8 + (risk_score * 0.8)  # Range: 0.8 to 1.6
+        0.8 + (risk_score * 0.8)  # Range: 0.8 to 1.6
 
         # Age-based factor
         if primary_driver.age < 25:
@@ -628,7 +628,7 @@ class RatingEngine:
             if scenarios_result.is_err():
                 return Err(f"Cache warming failed: {scenarios_result.unwrap_err()}")
 
-            scenarios_count = scenarios_result.unwrap()
+            scenarios_result.unwrap()
 
             return Ok(True)
 

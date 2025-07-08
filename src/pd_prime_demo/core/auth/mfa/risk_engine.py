@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from ipaddress import ip_address, ip_network
-from typing import Any, Dict
+from typing import Any
 
 from beartype import beartype
 

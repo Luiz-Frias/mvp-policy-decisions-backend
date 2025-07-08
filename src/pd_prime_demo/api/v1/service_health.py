@@ -6,7 +6,6 @@ rating engine, quote service, and other critical components.
 
 import time
 from datetime import datetime
-from typing import List
 
 from beartype import beartype
 from fastapi import APIRouter, Depends
@@ -166,10 +165,10 @@ async def check_service_health(
         try:
             rating_engine = RatingEngine(db, cache)
             await rating_engine.initialize()
-        except:
+        except Exception:
             pass
 
-        quote_service = QuoteService(db, cache, rating_engine)
+        QuoteService(db, cache, rating_engine)
         quote_response_time = (time.time() - quote_start) * 1000
 
         if rating_engine is None:

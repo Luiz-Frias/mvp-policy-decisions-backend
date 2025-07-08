@@ -3,7 +3,7 @@
 import math
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, getcontext
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 from beartype import beartype

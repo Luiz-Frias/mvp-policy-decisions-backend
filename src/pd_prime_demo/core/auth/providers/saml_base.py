@@ -1,11 +1,11 @@
 """Enhanced SAML provider implementation with python3-saml integration."""
 
 import base64
-import xml.etree.ElementTree as ET
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urlencode
 from uuid import uuid4
 
+import defusedxml.ElementTree as ET  # Use defusedxml for security
 from beartype import beartype
 
 from ....services.result import Err, Ok

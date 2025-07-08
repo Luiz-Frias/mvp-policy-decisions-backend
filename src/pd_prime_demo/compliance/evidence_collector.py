@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -224,10 +224,15 @@ class EvidenceCollector:
         """Initialize evidence collector."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._database = get_database()
-        self._evidence_storage_path = Path(
-            "/tmp/soc2_evidence"
-        )  # In production, use secure storage
-        self._evidence_storage_path.mkdir(exist_ok=True)
+        # Use secure temporary directory with proper permissions
+        import os
+        import tempfile
+
+        temp_dir = os.environ.get("SOC2_EVIDENCE_PATH", tempfile.gettempdir())
+        self._evidence_storage_path = Path(temp_dir) / "soc2_evidence"
+        self._evidence_storage_path.mkdir(
+            mode=0o700, exist_ok=True
+        )  # Secure permissions
 
     @beartype
     async def collect_control_evidence(

@@ -1,6 +1,6 @@
 """Simple cache stub for connection pool testing."""
 
-from typing import Any, Dict
+from typing import Any
 
 from beartype import beartype
 

@@ -1,6 +1,6 @@
 """Query optimization utilities for database performance tuning."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype

@@ -7,7 +7,7 @@ It includes async support, database fixtures, test client setup, and mock servic
 from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
@@ -316,10 +316,10 @@ def setup_test_environment(
     # Cleanup after test - reset any singleton instances
     try:
         # Reset database singleton
-        from src.pd_prime_demo.core.database_enhanced import _database
+        import src.pd_prime_demo.core.database_enhanced as db_module
 
-        if "_database" in globals():
-            globals()["_database"] = None
+        if hasattr(db_module, "_database"):
+            db_module._database = None
     except ImportError:
         pass
 

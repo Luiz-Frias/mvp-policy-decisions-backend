@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 from beartype import beartype
 
@@ -129,7 +129,7 @@ class RatingCacheStrategy:
     async def get_quote_calculation(
         self,
         quote_hash: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Get cached quote calculation.
 
         Args:

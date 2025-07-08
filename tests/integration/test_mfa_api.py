@@ -249,7 +249,7 @@ class TestMFAChallengeEndpoint:
         mock_timedelta.total_seconds.return_value = 300
 
         # Mock the subtraction result
-        with patch("src.pd_prime_demo.api.v1.mfa.datetime") as mock_datetime:
+        with patch("src.pd_prime_demo.api.v1.mfa.datetime"):
             mock_challenge.expires_at.__sub__.return_value = mock_timedelta
 
             mock_manager = AsyncMock()

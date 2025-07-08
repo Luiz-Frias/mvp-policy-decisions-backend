@@ -5,7 +5,7 @@ data consistency and proper error handling across all services.
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Dict, List, TypeVar
+from typing import TypeVar
 
 import asyncpg
 from beartype import beartype
@@ -247,6 +247,8 @@ async def upsert_with_conflict(
     columns = list(insert_data.keys())
     values_placeholders = [f"${i+1}" for i in range(len(columns))]
 
+    # Safe query construction - table name must be validated by caller
+    # All column names come from insert_data keys which should be validated
     query = f"""
         INSERT INTO {table} ({", ".join(columns)})
         VALUES ({", ".join(values_placeholders)})

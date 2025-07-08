@@ -7,7 +7,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -169,7 +169,6 @@ class Wave2PerformanceValidator:
             # Test cache operations
             test_times = []
             for i in range(50):
-                start = time.perf_counter()
                 value, lookup_time = await perf_cache.get_with_metrics(f"test_key_{i}")
                 test_times.append(lookup_time)
 
@@ -213,12 +212,10 @@ class Wave2PerformanceValidator:
         try:
 
             from pd_prime_demo.core.rate_limiter import (
-                RateLimitConfig,
                 get_rate_limiter,
             )
 
             # Create test rate limiter
-            config = RateLimitConfig()
             rate_limiter = get_rate_limiter()
 
             # Mock request for testing
@@ -514,7 +511,7 @@ async def main():
     try:
         await validator.run_all_tests()
         validator.generate_report()
-        report_file = validator.save_results()
+        validator.save_results()
 
         # Return appropriate exit code
         success = validator.results["deployment_ready"]

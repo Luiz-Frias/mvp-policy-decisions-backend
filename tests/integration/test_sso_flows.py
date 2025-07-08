@@ -322,7 +322,7 @@ class TestSSOIntegrationFlows:
         # Mock invalid state
         mock_cache.get.return_value = None
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(HTTPException):
             # This would normally be called by FastAPI with proper dependencies
             # Here we're testing the core logic
             pass  # Implementation would depend on how we structure the test

@@ -1,6 +1,6 @@
 """Authentication endpoints including SSO support."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import uuid4
 
 from beartype import beartype

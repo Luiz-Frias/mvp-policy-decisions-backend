@@ -12,7 +12,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 import asyncpg
 from dotenv import load_dotenv

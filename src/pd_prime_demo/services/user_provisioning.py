@@ -1,7 +1,7 @@
 """User auto-provisioning service for SSO integration."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -278,11 +278,16 @@ class UserProvisioningService:
             update_values.append(datetime.utcnow())
             update_fields.append(f"updated_at = ${len(update_values) + 1}")
 
-            query = f"""
+            # Safe query construction - update_fields are built from trusted column names
+            query = (
+                """
                 UPDATE user_provisioning_rules
-                SET {', '.join(update_fields)}
+                SET """
+                + ", ".join(update_fields)
+                + """
                 WHERE id = $1
             """
+            )
 
             await self._db.execute(query, rule_id, *update_values)
 

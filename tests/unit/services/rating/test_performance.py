@@ -3,7 +3,7 @@
 import asyncio
 import time
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
