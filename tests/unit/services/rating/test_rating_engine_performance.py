@@ -353,7 +353,6 @@ class TestRatingEnginePerformance:
         initial_memory = process.memory_info().rss
 
         # Perform 1000 calculations
-        drivers = [create_test_driver()]
         coverages = create_test_coverage_selections()
 
         for i in range(1000):

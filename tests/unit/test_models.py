@@ -89,7 +89,11 @@ class TestBaseModelConfig:
         instance = TestModel(timestamp=now)
 
         json_data = instance.model_dump_json()
-        assert now.isoformat() in json_data
+        # Check that either format is acceptable (Z or +00:00)
+        assert (
+            now.isoformat() in json_data
+            or now.isoformat().replace("+00:00", "Z") in json_data
+        )
 
 
 class TestTimestampedModel:

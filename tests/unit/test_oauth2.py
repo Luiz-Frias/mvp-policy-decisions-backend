@@ -87,37 +87,7 @@ async def test_oauth2_server():
 
     db = MockDatabase()
 
-    # Create mock cache for testing
-    class MockCache:
-        _data = {}
-
-        async def connect(self):
-            pass
-
-        async def disconnect(self):
-            pass
-
-        async def set(self, key, value, ttl=None):
-            self._data[key] = value
-            return True
-
-        async def get(self, key):
-            return self._data.get(key)
-
-        async def delete(self, key):
-            if key in self._data:
-                del self._data[key]
-            return True
-
-        async def incr(self, key):
-            self._data[key] = self._data.get(key, 0) + 1
-            return self._data[key]
-
-        async def expire(self, key, ttl):
-            return True
-
-        async def delete_pattern(self, pattern):
-            return True
+    # Use existing MockCache class defined earlier
 
     cache = MockCache()
 

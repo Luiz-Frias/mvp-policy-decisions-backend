@@ -12,6 +12,103 @@ from ...core.database import Database
 from ...services.result import Err, Ok
 from ..manager import ConnectionManager, WebSocketMessage
 
+# Additional Pydantic models to replace dict usage
+
+
+class AnalyticsFilter(BaseModel):
+    """Analytics filter configuration."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    date_range: tuple[datetime, datetime] | None = None
+    states: list[str] = Field(default_factory=list)
+    product_types: list[str] = Field(default_factory=list)
+    agent_ids: list[UUID] = Field(default_factory=list)
+    customer_segments: list[str] = Field(default_factory=list)
+    quote_statuses: list[str] = Field(default_factory=list)
+
+
+class AnalyticsSummary(BaseModel):
+    """Analytics summary data."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    total_quotes: int = Field(default=0, ge=0)
+    total_conversions: int = Field(default=0, ge=0)
+    conversion_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+    avg_quote_value: float = Field(default=0.0, ge=0.0)
+    total_revenue: float = Field(default=0.0, ge=0.0)
+    active_agents: int = Field(default=0, ge=0)
+    period_comparison: float = Field(
+        default=0.0, description="Percentage change from previous period"
+    )
+
+
+class AnalyticsTimeline(BaseModel):
+    """Analytics timeline data point."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    timestamp: datetime = Field(...)
+    quotes_count: int = Field(default=0, ge=0)
+    conversions_count: int = Field(default=0, ge=0)
+    revenue: float = Field(default=0.0, ge=0.0)
+    avg_quote_value: float = Field(default=0.0, ge=0.0)
+    conversion_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class AnalyticsDistribution(BaseModel):
+    """Analytics distribution data."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    by_state: dict[str, int] = Field(default_factory=dict)
+    by_product_type: dict[str, int] = Field(default_factory=dict)
+    by_agent: dict[str, int] = Field(default_factory=dict)
+    by_status: dict[str, int] = Field(default_factory=dict)
+    by_value_range: dict[str, int] = Field(default_factory=dict)
+
+
+class AnalyticsPeriod(BaseModel):
+    """Analytics period information."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    start_date: str = Field(..., description="Period start date in ISO format")
+    end_date: str = Field(..., description="Period end date in ISO format")
+    period_type: str = Field(..., pattern="^(hour|day|week|month)$")
+    timezone: str = Field(default="UTC")
+
 
 class DashboardConfig(BaseModel):
     """Configuration for analytics dashboard streaming."""
@@ -26,7 +123,7 @@ class DashboardConfig(BaseModel):
 
     dashboard_type: str = Field(..., pattern="^(quotes|conversion|performance|admin)$")
     update_interval: int = Field(default=5, ge=1, le=60)  # seconds
-    filters: dict[str, Any] = Field(default_factory=dict)
+    filters: AnalyticsFilter = Field(default_factory=AnalyticsFilter)
     metrics: list[str] = Field(default_factory=list)
     time_range_hours: int = Field(default=24, ge=1, le=168)  # max 7 days
 
@@ -42,10 +139,10 @@ class AnalyticsMetrics(BaseModel):
         validate_default=True,
     )
 
-    summary: dict[str, Any] = Field(...)
-    timeline: list[dict[str, Any]] = Field(default_factory=list)
-    distribution: dict[str, Any] = Field(default_factory=dict)
-    period: dict[str, str] = Field(...)
+    summary: AnalyticsSummary = Field(...)
+    timeline: list[AnalyticsTimeline] = Field(default_factory=list)
+    distribution: AnalyticsDistribution = Field(default_factory=AnalyticsDistribution)
+    period: AnalyticsPeriod = Field(...)
 
 
 class AnalyticsWebSocketHandler:

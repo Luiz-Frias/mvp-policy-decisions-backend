@@ -58,7 +58,7 @@ class ComponentHealthMap(BaseModel):
 
     model_config = ConfigDict(
         frozen=True,
-        extra="forbid",
+        extra="allow",  # Allow dynamic component names
         validate_assignment=True,
         str_strip_whitespace=True,
         validate_default=True,

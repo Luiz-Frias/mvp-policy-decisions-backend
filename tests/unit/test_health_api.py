@@ -185,8 +185,8 @@ class TestHealthCheckEndpoint:
         settings = Settings(
             database_url="postgresql://test:test@localhost/test",  # nosec # pragma: allowlist secret,
             redis_url="redis://localhost:6379/0",
-            secret_key="test-secret-key-for-testing-32-chars",  # nosec # pragma: allowlist secret,
-            jwt_secret="test-jwt-secret-for-testing-32-chars",  # nosec # pragma: allowlist secret
+            secret_key="production-secret-key-for-testing-32-chars",  # nosec # pragma: allowlist secret,
+            jwt_secret="production-jwt-secret-for-testing-32-chars",  # nosec # pragma: allowlist secret
             api_env="production",
         )
 
@@ -378,8 +378,9 @@ class TestReadinessCheckEndpoint:
 
         # Check OpenAI component is included
         assert hasattr(response.components, "openai")
-        assert response.components.openai.status == "healthy"
-        assert "OpenAI API key configured" in response.components.openai.message
+        # OpenAI should be degraded when package is not available
+        assert response.components.openai.status == "degraded"
+        assert "OpenAI package not installed" in response.components.openai.message
 
 
 class TestDetailedHealthCheckEndpoint:

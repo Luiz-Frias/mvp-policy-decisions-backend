@@ -10,7 +10,7 @@ from typing import Any
 
 from beartype import beartype
 
-from ..result import Err, Ok, Result
+from ...core.result_types import Err, Ok, Result
 
 
 class RatingPerformanceOptimizer:
@@ -114,7 +114,15 @@ class RatingPerformanceOptimizer:
             for name, result in zip(factor_names, results):
                 if isinstance(result, Exception):
                     return Err(f"Factor calculation failed for {name}: {str(result)}")
-                factors[name] = float(result)
+                if isinstance(result, (int, float)):
+                    factors[name] = float(result)
+                elif isinstance(result, str):
+                    try:
+                        factors[name] = float(result)
+                    except (ValueError, TypeError):
+                        return Err(f"Invalid factor value for {name}: {result}")
+                else:
+                    return Err(f"Invalid factor value for {name}: {result}")
 
             # Record performance metrics
             elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -145,7 +153,9 @@ class RatingPerformanceOptimizer:
                 key = f"driver_{age}_{violations}"
                 result = self._calculate_driver_factor_internal(age, violations)
                 if result.is_ok():
-                    self._precomputed_factors[key] = result.unwrap()
+                    factor_value = result.unwrap()
+                    if factor_value is not None:
+                        self._precomputed_factors[key] = factor_value
 
         # Common vehicle ages
         vehicle_ages = [0, 1, 2, 3, 5, 7, 10, 15]
@@ -203,7 +213,7 @@ class RatingPerformanceOptimizer:
     async def optimize_calculation_pipeline(
         self,
         quote_data: dict[str, Any],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Optimize entire calculation pipeline for <50ms performance.
 
         Args:
@@ -250,7 +260,11 @@ class RatingPerformanceOptimizer:
             self.cache_calculation(cache_key, calculation_result)
 
             # Record metrics
-            elapsed_ms = calculation_result["calculation_time_ms"]
+            elapsed_ms_val = calculation_result["calculation_time_ms"]
+            if isinstance(elapsed_ms_val, (int, float)):
+                elapsed_ms = float(elapsed_ms_val)
+            else:
+                elapsed_ms = 0.0
             self._record_performance_metric("full_pipeline", elapsed_ms)
 
             if elapsed_ms > 50:
@@ -303,7 +317,9 @@ class RatingPerformanceOptimizer:
             self._performance_metrics[operation].pop(0)
 
     @beartype
-    def _calculate_territory_factor_internal(self, state: str, zip_code: str):
+    def _calculate_territory_factor_internal(
+        self, state: str, zip_code: str
+    ) -> Result[float, str]:
         """Internal territory factor calculation.
 
         Args:
@@ -337,7 +353,9 @@ class RatingPerformanceOptimizer:
         return Ok(base_factor)
 
     @beartype
-    def _calculate_driver_factor_internal(self, age: int, violations: int):
+    def _calculate_driver_factor_internal(
+        self, age: int, violations: int
+    ) -> Result[float, str]:
         """Internal driver factor calculation.
 
         Args:
@@ -368,7 +386,11 @@ class RatingPerformanceOptimizer:
         # Simulate async database lookup
         await asyncio.sleep(0.001)  # 1ms database latency
         result = self.get_cached_territory_factor(state, zip_code)
-        return result.unwrap_or(1.0)
+        if result.is_ok():
+            factor_value = result.unwrap()
+            return factor_value if factor_value is not None else 1.0
+        else:
+            return 1.0
 
     async def _async_driver_scoring(self, drivers: list[dict[str, Any]]) -> list[float]:
         """Async driver scoring for parallel processing."""
@@ -425,10 +447,14 @@ class RatingPerformanceOptimizer:
                     result = self._calculate_territory_factor_internal(state, zip_code)
                     if result.is_ok():
                         key = f"territory_{state}_{zip_code}"
-                        self._precomputed_factors[key] = result.unwrap()
+                        factor_value = result.unwrap()
+                        if factor_value is not None:
+                            self._precomputed_factors[key] = factor_value
 
     @beartype
-    async def batch_territory_lookup(self, zip_codes: list[str], state: str) -> dict:
+    async def batch_territory_lookup(
+        self, zip_codes: list[str], state: str
+    ) -> Result[dict[str, float], str]:
         """Batch lookup territory factors for multiple ZIP codes.
 
         Args:
@@ -463,7 +489,10 @@ class RatingPerformanceOptimizer:
                 if isinstance(result, Exception):
                     factors[zip_code] = 1.0  # Default factor on error
                 else:
-                    factors[zip_code] = result
+                    if isinstance(result, (int, float)):
+                        factors[zip_code] = float(result)
+                    else:
+                        factors[zip_code] = 1.0  # Default factor on conversion error
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         self._record_performance_metric("batch_territory_lookup", elapsed_ms)
@@ -522,7 +551,7 @@ class RatingPerformanceOptimizer:
     async def benchmark_calculation_performance(
         self,
         iterations: int = 1000,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Benchmark calculation performance under load.
 
         Args:
@@ -590,7 +619,7 @@ class RatingPerformanceOptimizer:
         return Ok(results)
 
     @beartype
-    async def initialize_performance_caches(self):
+    async def initialize_performance_caches(self) -> Result[bool, str]:
         """Initialize performance caches for optimal startup."""
         try:
             # Precompute common scenarios
@@ -605,7 +634,7 @@ class RatingPerformanceOptimizer:
             return Err(f"Cache initialization failed: {str(e)}")
 
     @beartype
-    async def warm_cache_for_common_scenarios(self):
+    async def warm_cache_for_common_scenarios(self) -> Result[int, str]:
         """Warm cache for common rating scenarios."""
         try:
             scenarios_cached = 0
@@ -616,8 +645,10 @@ class RatingPerformanceOptimizer:
                     key = f"driver_{age}_{violations}"
                     result = self._calculate_driver_factor_internal(age, violations)
                     if result.is_ok():
-                        self._precomputed_factors[key] = result.unwrap()
-                        scenarios_cached += 1
+                        factor_value = result.unwrap()
+                        if factor_value is not None:
+                            self._precomputed_factors[key] = factor_value
+                            scenarios_cached += 1
 
             # Common territory factors
             for state in ["CA", "TX", "NY", "FL"]:
@@ -669,7 +700,7 @@ class RatingPerformanceOptimizer:
         return violation_rate < 0.05  # Less than 5% violations
 
     @beartype
-    async def optimize_slow_calculations(self) -> dict:
+    async def optimize_slow_calculations(self) -> Result[list[str], str]:
         """Analyze performance and provide optimization recommendations."""
         try:
             recommendations = []

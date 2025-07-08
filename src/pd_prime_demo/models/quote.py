@@ -12,6 +12,223 @@ from pydantic.types import UUID4
 
 from .base import BaseModelConfig, IdentifiableModel, TimestampedModel
 
+# Additional Pydantic models to replace dict usage
+
+
+@beartype
+class CoverageOptions(BaseModelConfig):
+    """Options for coverage-specific configurations."""
+
+    gap_coverage: bool = Field(
+        default=False, description="Whether gap coverage is included"
+    )
+    full_glass: bool = Field(
+        default=False, description="Whether full glass coverage is included"
+    )
+    waiver_collision: bool = Field(
+        default=False, description="Whether collision waiver is included"
+    )
+    extended_warranty: bool = Field(
+        default=False, description="Whether extended warranty is included"
+    )
+    custom_equipment: Decimal | None = Field(
+        None,
+        ge=Decimal("0"),
+        decimal_places=2,
+        description="Custom equipment coverage amount",
+    )
+    rental_days: int | None = Field(
+        None, ge=0, le=365, description="Number of rental days covered"
+    )
+    roadside_mileage: int | None = Field(
+        None, ge=0, le=200, description="Roadside assistance mileage"
+    )
+
+
+@beartype
+class Surcharge(BaseModelConfig):
+    """Applied surcharge details with validation."""
+
+    surcharge_type: str = Field(
+        ..., min_length=1, max_length=100, description="Type of surcharge being applied"
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Human-readable description of the surcharge",
+    )
+    amount: Decimal = Field(
+        ...,
+        ge=Decimal("0"),
+        decimal_places=2,
+        description="Surcharge amount (positive for surcharges)",
+    )
+    percentage: Decimal | None = Field(
+        None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        decimal_places=2,
+        description="Surcharge percentage if percentage-based",
+    )
+    eligible: bool = Field(
+        default=True, description="Whether surcharge is eligible for this customer"
+    )
+    validation_notes: str | None = Field(
+        None, max_length=500, description="Notes about surcharge validation"
+    )
+
+
+@beartype
+class RatingFactors(BaseModelConfig):
+    """Detailed rating factors used in premium calculation."""
+
+    base_rate: Decimal = Field(
+        default=Decimal("0"),
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Base rate factor",
+    )
+    territory_factor: Decimal = Field(
+        default=Decimal("1"),
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Territory/location factor",
+    )
+    vehicle_factor: Decimal = Field(
+        default=Decimal("1"),
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Vehicle-specific factor",
+    )
+    driver_factor: Decimal = Field(
+        default=Decimal("1"),
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Driver-specific factor",
+    )
+    coverage_factor: Decimal = Field(
+        default=Decimal("1"),
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Coverage selection factor",
+    )
+    credit_score_factor: Decimal | None = Field(
+        None,
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Credit score factor (if applicable)",
+    )
+    multi_policy_factor: Decimal | None = Field(
+        None,
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Multi-policy discount factor",
+    )
+    claim_free_factor: Decimal | None = Field(
+        None,
+        ge=Decimal("0"),
+        decimal_places=4,
+        description="Claim-free discount factor",
+    )
+    loyalty_factor: Decimal | None = Field(
+        None, ge=Decimal("0"), decimal_places=4, description="Customer loyalty factor"
+    )
+
+
+@beartype
+class AIRiskFactors(BaseModelConfig):
+    """AI-identified risk factors and analysis."""
+
+    risk_indicators: list[str] = Field(
+        default_factory=list, description="List of AI-identified risk indicators"
+    )
+    protective_factors: list[str] = Field(
+        default_factory=list, description="List of AI-identified protective factors"
+    )
+    risk_score: float | None = Field(
+        None, ge=0.0, le=1.0, description="Overall AI risk score (0.0-1.0)"
+    )
+    confidence_score: float | None = Field(
+        None, ge=0.0, le=1.0, description="AI confidence in risk assessment (0.0-1.0)"
+    )
+    model_version: str | None = Field(
+        None, max_length=50, description="AI model version used for assessment"
+    )
+    last_updated: datetime | None = Field(
+        None, description="When AI risk factors were last updated"
+    )
+
+
+@beartype
+class PaymentDetails(BaseModelConfig):
+    """Payment method specific details."""
+
+    payment_type: str = Field(
+        ...,
+        pattern=r"^(credit_card|debit_card|bank_transfer|check|cash)$",
+        description="Type of payment method",
+    )
+    card_last_four: str | None = Field(
+        None, pattern=r"^\d{4}$", description="Last four digits of card (if applicable)"
+    )
+    card_brand: str | None = Field(
+        None, max_length=20, description="Card brand (Visa, Mastercard, etc.)"
+    )
+    bank_name: str | None = Field(
+        None, max_length=100, description="Bank name for transfers"
+    )
+    routing_number: str | None = Field(
+        None, pattern=r"^\d{9}$", description="Bank routing number (if applicable)"
+    )
+    account_last_four: str | None = Field(
+        None,
+        pattern=r"^\d{4}$",
+        description="Last four digits of account (if applicable)",
+    )
+    confirmation_number: str | None = Field(
+        None, max_length=100, description="Payment confirmation number"
+    )
+    transaction_id: str | None = Field(
+        None, max_length=100, description="Transaction identifier"
+    )
+    processing_fee: Decimal | None = Field(
+        None, ge=Decimal("0"), decimal_places=2, description="Processing fee charged"
+    )
+
+
+@beartype
+class OverrideData(BaseModelConfig):
+    """Override specific data with original and new values."""
+
+    field_name: str = Field(
+        ..., min_length=1, max_length=100, description="Name of field being overridden"
+    )
+    original_value: Any = Field(..., description="Original value before override")
+    new_value: Any = Field(..., description="New value after override")
+    override_type: str = Field(
+        ...,
+        pattern=r"^(manual|system|exception|correction)$",
+        description="Type of override",
+    )
+    requires_approval: bool = Field(
+        default=False, description="Whether override requires approval"
+    )
+    approved_by: str | None = Field(
+        None, max_length=100, description="Who approved the override"
+    )
+    approval_timestamp: datetime | None = Field(
+        None, description="When override was approved"
+    )
+
+    @field_validator("new_value")
+    @classmethod
+    def validate_new_value_different(cls, v: Any, info) -> Any:
+        """Ensure new value is different from original."""
+        if info.data.get("original_value") == v:
+            raise ValueError("New value must be different from original value")
+        return v
+
 
 class QuoteStatus(str, Enum):
     """Quote lifecycle statuses with business rules."""
@@ -575,8 +792,9 @@ class CoverageSelection(BaseModelConfig):
     )
 
     # Additional options
-    options: dict[str, Any] = Field(
-        default_factory=dict, description="Additional coverage-specific options"
+    options: "CoverageOptions" = Field(
+        default_factory=lambda: CoverageOptions(),
+        description="Additional coverage-specific options",
     )
 
     @field_validator("limit")
@@ -837,7 +1055,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
     discounts_applied: list[Discount] = Field(
         default_factory=list, description="List of applied discounts"
     )
-    surcharges_applied: list[dict[str, Any]] = Field(
+    surcharges_applied: list["Surcharge"] = Field(
         default_factory=list, description="List of applied surcharges"
     )
     total_discount_amount: Decimal | None = Field(
@@ -853,8 +1071,9 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
     )
 
     # Rating details
-    rating_factors: dict[str, Any] = Field(
-        default_factory=dict, description="Detailed rating factors used in calculation"
+    rating_factors: "RatingFactors" = Field(
+        default_factory=lambda: RatingFactors(),
+        description="Detailed rating factors used in calculation",
     )
     rating_tier: str | None = Field(
         None,
@@ -867,8 +1086,9 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
     ai_risk_score: float | None = Field(
         None, ge=0.0, le=1.0, description="AI-calculated risk score (0.0-1.0)"
     )
-    ai_risk_factors: list[str] = Field(
-        default_factory=list, description="AI-identified risk factors"
+    ai_risk_factors: "AIRiskFactors" = Field(
+        default_factory=lambda: AIRiskFactors(),
+        description="AI-identified risk factors",
     )
     ai_recommendations: list[str] = Field(
         default_factory=list, description="AI-generated recommendations"
@@ -1164,8 +1384,9 @@ class QuoteConversionRequest(BaseModelConfig):
         pattern=r"^(card|bank|check)$",
         description="Payment method: card, bank, or check",
     )
-    payment_details: dict[str, Any] = Field(
-        default_factory=dict, description="Payment method specific details"
+    payment_details: "PaymentDetails" = Field(
+        default_factory=lambda: PaymentDetails(),
+        description="Payment method specific details",
     )
     agent_id: UUID4 | None = Field(
         None, description="Agent facilitating the conversion"
@@ -1206,7 +1427,7 @@ class QuoteOverrideRequest(BaseModelConfig):
         pattern=r"^(premium|coverage|discount|surcharge|status)$",
         description="Type of override being applied",
     )
-    override_data: dict[str, Any] = Field(
+    override_data: "OverrideData" = Field(
         ..., description="Override specific data (original and new values)"
     )
     reason: str = Field(

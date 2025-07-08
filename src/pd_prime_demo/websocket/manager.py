@@ -1,13 +1,15 @@
 """WebSocket connection and room management."""
 
 import asyncio
+from collections import deque
 from datetime import datetime
-from typing import Any
+from enum import Enum
+from typing import Any, Deque
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import WebSocket
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, validator
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -15,8 +17,71 @@ from ..services.result import Err, Ok
 from .monitoring import WebSocketMonitor
 
 
+class MessageType(str, Enum):
+    """Enumeration of supported message types."""
+
+    # Connection lifecycle
+    CONNECTION = "connection"
+    DISCONNECTING = "disconnecting"
+    HEARTBEAT = "heartbeat"
+    PING = "ping"
+    PONG = "pong"
+
+    # Room management
+    SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
+    ROOM_SUBSCRIBED = "room_subscribed"
+    ROOM_EVENT = "room_event"
+
+    # Quote operations
+    QUOTE_SUBSCRIBE = "quote_subscribe"
+    QUOTE_UNSUBSCRIBE = "quote_unsubscribe"
+    QUOTE_STATE = "quote_state"
+    QUOTE_UPDATE = "quote_update"
+    QUOTE_EDIT = "quote_edit"
+    QUOTE_STATUS_CHANGED = "quote_status_changed"
+
+    # Collaborative editing
+    FIELD_FOCUS = "field_focus"
+    FIELD_LOCKED = "field_locked"
+    FIELD_UNLOCKED = "field_unlocked"
+    CURSOR_POSITION = "cursor_position"
+
+    # Analytics
+    START_ANALYTICS = "start_analytics"
+    STOP_ANALYTICS = "stop_analytics"
+    ANALYTICS_DATA = "analytics_data"
+
+    # Notifications
+    NOTIFICATION_ACKNOWLEDGE = "notification_acknowledge"
+    NOTIFICATION_RECEIVED = "notification_received"
+
+    # Admin operations
+    START_ADMIN_MONITORING = "start_admin_monitoring"
+    START_USER_ACTIVITY = "start_user_activity"
+    START_PERFORMANCE_MONITORING = "start_performance_monitoring"
+
+    # System events
+    SYSTEM_ALERT = "system_alert"
+    CALCULATION_PROGRESS = "calculation_progress"
+
+    # Error handling
+    ERROR = "error"
+    EDIT_REJECTED = "edit_rejected"
+    SUBSCRIPTION_ERROR = "subscription_error"
+
+
+class MessagePriority(str, Enum):
+    """Message priority levels for queue management."""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 class WebSocketMessage(BaseModel):
-    """WebSocket message structure."""
+    """Enhanced WebSocket message structure with validation and priority."""
 
     model_config = ConfigDict(
         frozen=True,
@@ -26,14 +91,76 @@ class WebSocketMessage(BaseModel):
         validate_default=True,
     )
 
-    type: str = Field(..., min_length=1, max_length=50)
-    data: dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.now)
-    sequence: int | None = Field(default=None, ge=0)
+    type: MessageType = Field(..., description="Message type from enum")
+    data: dict[str, Any] = Field(default_factory=dict, description="Message payload")
+    timestamp: datetime = Field(
+        default_factory=datetime.now, description="Message timestamp"
+    )
+    sequence: int | None = Field(
+        default=None, ge=0, description="Message sequence number"
+    )
+    priority: MessagePriority = Field(
+        default=MessagePriority.NORMAL, description="Message priority"
+    )
+    ttl_seconds: int | None = Field(
+        default=None, ge=1, le=3600, description="Time-to-live in seconds"
+    )
+    binary_data: bytes | None = Field(
+        default=None, description="Optional binary payload"
+    )
+
+    @validator("data")
+    @classmethod
+    def validate_data_size(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Validate message data size to prevent oversized messages."""
+        import json
+
+        data_size = len(json.dumps(v, default=str))
+        if data_size > 1024 * 1024:  # 1MB limit
+            raise ValueError(f"Message data too large: {data_size} bytes (max 1MB)")
+        return v
+
+    @validator("binary_data")
+    @classmethod
+    def validate_binary_size(cls, v: bytes | None) -> bytes | None:
+        """Validate binary data size."""
+        if v is not None and len(v) > 10 * 1024 * 1024:  # 10MB limit
+            raise ValueError(f"Binary data too large: {len(v)} bytes (max 10MB)")
+        return v
+
+    def is_expired(self) -> bool:
+        """Check if message has expired based on TTL."""
+        if self.ttl_seconds is None:
+            return False
+        return (datetime.now() - self.timestamp).total_seconds() > self.ttl_seconds
+
+    def get_size_bytes(self) -> int:
+        """Get total message size in bytes."""
+        import json
+
+        json_size = len(
+            json.dumps(self.model_dump(exclude={"binary_data"}), default=str)
+        )
+        binary_size = len(self.binary_data) if self.binary_data else 0
+        return json_size + binary_size
+
+
+class ConnectionState(str, Enum):
+    """Connection state enumeration."""
+
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    AUTHENTICATED = "authenticated"
+    IDLE = "idle"
+    ACTIVE = "active"
+    DEGRADED = "degraded"
+    DISCONNECTING = "disconnecting"
+    DISCONNECTED = "disconnected"
+    ERROR = "error"
 
 
 class ConnectionMetadata(BaseModel):
-    """Metadata for a WebSocket connection."""
+    """Enhanced metadata for a WebSocket connection."""
 
     model_config = ConfigDict(
         frozen=True,
@@ -49,10 +176,148 @@ class ConnectionMetadata(BaseModel):
     user_agent: str | None = Field(default=None)
     connected_at: datetime = Field(default_factory=datetime.now)
     last_activity: datetime = Field(default_factory=datetime.now)
+    state: ConnectionState = Field(default=ConnectionState.CONNECTING)
+    protocol_version: str = Field(default="1.0")
+    client_capabilities: dict[str, bool] = Field(default_factory=dict)
+    rate_limit_remaining: int = Field(default=1000)
+    backpressure_level: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    def is_healthy(self) -> bool:
+        """Check if connection is in healthy state."""
+        return self.state in {
+            ConnectionState.CONNECTED,
+            ConnectionState.AUTHENTICATED,
+            ConnectionState.ACTIVE,
+        }
+
+    def needs_attention(self) -> bool:
+        """Check if connection needs attention."""
+        return self.state in {
+            ConnectionState.DEGRADED,
+            ConnectionState.IDLE,
+            ConnectionState.ERROR,
+        }
+
+    def is_rate_limited(self) -> bool:
+        """Check if connection is rate limited."""
+        return self.rate_limit_remaining <= 0
+
+    def has_backpressure(self) -> bool:
+        """Check if connection has backpressure."""
+        return self.backpressure_level > 0.7
+
+
+class ConnectionPool:
+    """Connection pool with dynamic scaling and backpressure management."""
+
+    def __init__(
+        self, initial_size: int = 1000, max_size: int = 10000, scale_factor: float = 1.5
+    ):
+        """Initialize connection pool."""
+        self.initial_size = initial_size
+        self.max_size = max_size
+        self.scale_factor = scale_factor
+        self.current_capacity = initial_size
+
+        # Connection queues by priority
+        self.priority_queues: dict[MessagePriority, Deque[WebSocketMessage]] = {
+            MessagePriority.CRITICAL: deque(),
+            MessagePriority.HIGH: deque(),
+            MessagePriority.NORMAL: deque(),
+            MessagePriority.LOW: deque(),
+        }
+
+        # Backpressure tracking
+        self.backpressure_metrics = {
+            "queue_depths": {priority: 0 for priority in MessagePriority},
+            "processing_rates": {priority: 0.0 for priority in MessagePriority},
+            "drop_counts": {priority: 0 for priority in MessagePriority},
+        }
+
+        # Rate limiting
+        self.rate_limits = {
+            MessagePriority.CRITICAL: 100,  # msgs/sec
+            MessagePriority.HIGH: 50,
+            MessagePriority.NORMAL: 20,
+            MessagePriority.LOW: 10,
+        }
+
+    def should_scale_up(self, current_load: float) -> bool:
+        """Determine if pool should scale up."""
+        return (
+            current_load > 0.8
+            and self.current_capacity < self.max_size
+            and any(len(q) > 100 for q in self.priority_queues.values())
+        )
+
+    def should_scale_down(self, current_load: float) -> bool:
+        """Determine if pool should scale down."""
+        return (
+            current_load < 0.3
+            and self.current_capacity > self.initial_size
+            and all(len(q) < 10 for q in self.priority_queues.values())
+        )
+
+    def scale_up(self) -> None:
+        """Scale up the connection pool."""
+        new_capacity = min(
+            int(self.current_capacity * self.scale_factor), self.max_size
+        )
+        self.current_capacity = new_capacity
+
+    def scale_down(self) -> None:
+        """Scale down the connection pool."""
+        new_capacity = max(
+            int(self.current_capacity / self.scale_factor), self.initial_size
+        )
+        self.current_capacity = new_capacity
+
+    def add_message(self, message: WebSocketMessage, connection_id: str) -> bool:
+        """Add message to appropriate priority queue."""
+        queue = self.priority_queues[message.priority]
+
+        # Check queue capacity based on priority
+        max_queue_size = {
+            MessagePriority.CRITICAL: 1000,
+            MessagePriority.HIGH: 500,
+            MessagePriority.NORMAL: 200,
+            MessagePriority.LOW: 100,
+        }
+
+        if len(queue) >= max_queue_size[message.priority]:
+            # Drop message and record
+            self.backpressure_metrics["drop_counts"][message.priority] += 1
+            return False
+
+        queue.append(message)
+        self.backpressure_metrics["queue_depths"][message.priority] = len(queue)
+        return True
+
+    def get_next_message(self) -> WebSocketMessage | None:
+        """Get next message based on priority."""
+        # Process in priority order
+        for priority in [
+            MessagePriority.CRITICAL,
+            MessagePriority.HIGH,
+            MessagePriority.NORMAL,
+            MessagePriority.LOW,
+        ]:
+            queue = self.priority_queues[priority]
+            if queue:
+                message = queue.popleft()
+                self.backpressure_metrics["queue_depths"][priority] = len(queue)
+                return message
+        return None
+
+    def get_backpressure_level(self) -> float:
+        """Calculate overall backpressure level (0.0 to 1.0)."""
+        total_messages = sum(len(q) for q in self.priority_queues.values())
+        total_capacity = sum([1000, 500, 200, 100])  # CRITICAL  # HIGH  # NORMAL  # LOW
+        return min(total_messages / total_capacity, 1.0)
 
 
 class ConnectionManager:
-    """Manage WebSocket connections and rooms with no silent fallbacks."""
+    """Enhanced connection manager with pooling and backpressure handling."""
 
     def __init__(self, cache: Cache, db: Database) -> None:
         """Initialize connection manager."""
@@ -74,8 +339,17 @@ class ConnectionManager:
         # Message sequence tracking per connection
         self._message_sequences: dict[str, int] = {}
 
-        # Heartbeat tracking
+        # Enhanced heartbeat tracking
+        self._heartbeat_config = {
+            "interval": 30,  # seconds
+            "timeout": 90,  # seconds
+            "max_missed": 3,  # missed heartbeats before disconnect
+        }
         self._last_ping: dict[str, datetime] = {}
+        self._missed_heartbeats: dict[str, int] = {}
+
+        # Connection pool
+        self._pool = ConnectionPool()
 
         # Performance monitoring
         self._monitor = WebSocketMonitor(cache, db)
@@ -83,15 +357,40 @@ class ConnectionManager:
         # Background tasks
         self._heartbeat_task: asyncio.Task[None] | None = None
         self._health_monitor_task: asyncio.Task[None] | None = None
+        self._message_processor_task: asyncio.Task[None] | None = None
+        self._pool_scaler_task: asyncio.Task[None] | None = None
 
         # Connection pool monitoring
         self._active_connection_count = 0
         self._max_connections_allowed = 10000
 
+        # Rate limiting
+        self._rate_limiters: dict[str, dict[str, int]] = (
+            {}
+        )  # connection_id -> {"tokens": int, "last_refill": timestamp}
+        self._rate_limit_config = {
+            "tokens_per_second": 20,
+            "max_tokens": 100,
+            "refill_interval": 1.0,  # seconds
+        }
+
+        # Circuit breaker for connection health
+        self._circuit_breaker = {
+            "failure_count": 0,
+            "failure_threshold": 5,
+            "recovery_timeout": 60,  # seconds
+            "last_failure_time": None,
+            "state": "closed",  # closed, open, half-open
+        }
+
     async def start(self) -> None:
         """Start background tasks."""
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         self._health_monitor_task = asyncio.create_task(self._health_monitoring_loop())
+        self._message_processor_task = asyncio.create_task(
+            self._message_processor_loop()
+        )
+        self._pool_scaler_task = asyncio.create_task(self._pool_scaler_loop())
         await self._monitor.start_monitoring()
 
     async def stop(self) -> None:
@@ -100,7 +399,12 @@ class ConnectionManager:
         await self._monitor.stop_monitoring()
 
         # Cancel background tasks
-        for task in [self._heartbeat_task, self._health_monitor_task]:
+        for task in [
+            self._heartbeat_task,
+            self._health_monitor_task,
+            self._message_processor_task,
+            self._pool_scaler_task,
+        ]:
             if task:
                 task.cancel()
                 try:
@@ -188,7 +492,7 @@ class ConnectionManager:
 
         # Send welcome message with explicit connection state
         welcome_msg = WebSocketMessage(
-            type="connection",
+            type=MessageType.CONNECTION,
             data={
                 "status": "connected",
                 "connection_id": connection_id,
@@ -200,10 +504,15 @@ class ConnectionManager:
                 "capabilities": {
                     "rooms": True,
                     "message_sequencing": True,
-                    "heartbeat_interval": 30,
+                    "heartbeat_interval": self._heartbeat_config["interval"],
+                    "binary_messages": True,
+                    "message_priorities": True,
+                    "backpressure_detection": True,
                 },
+                "protocol_version": "1.0",
             },
             sequence=self._get_next_sequence(connection_id),
+            priority=MessagePriority.HIGH,
         )
 
         send_result = await self.send_personal_message(connection_id, welcome_msg)
@@ -246,12 +555,13 @@ class ConnectionManager:
         # Notify user of impending disconnection (unless skipping due to send failure)
         if not skip_notification and "Send failed" not in reason:
             disconnect_msg = WebSocketMessage(
-                type="disconnecting",
+                type=MessageType.DISCONNECTING,
                 data={
                     "reason": reason,
                     "connection_id": connection_id,
                     "final_sequence": self._message_sequences.get(connection_id, 0),
                 },
+                priority=MessagePriority.HIGH,
             )
             # Try to send, but don't create recursive disconnect if this fails
             try:
@@ -342,7 +652,7 @@ class ConnectionManager:
 
         # Notify room of new member
         join_msg = WebSocketMessage(
-            type="room_event",
+            type=MessageType.ROOM_EVENT,
             data={
                 "event": "member_joined",
                 "room_id": room_id,
@@ -352,18 +662,20 @@ class ConnectionManager:
                 ),
                 "member_count": member_count,
             },
+            priority=MessagePriority.NORMAL,
         )
 
         await self.send_to_room(room_id, join_msg, exclude=[connection_id])
 
         # Confirm subscription to the joining member
         confirm_msg = WebSocketMessage(
-            type="room_subscribed",
+            type=MessageType.ROOM_SUBSCRIBED,
             data={
                 "room_id": room_id,
                 "member_count": member_count,
             },
             sequence=self._get_next_sequence(connection_id),
+            priority=MessagePriority.NORMAL,
         )
 
         await self.send_personal_message(connection_id, confirm_msg)
@@ -407,7 +719,18 @@ class ConnectionManager:
                 "Cannot send message to non-existent connection."
             )
 
-        websocket = self._connections[connection_id]
+        # Check connection metadata and backpressure
+        metadata = self._connection_metadata.get(connection_id)
+        if metadata and metadata.has_backpressure():
+            # Only allow critical messages under backpressure
+            if message.priority != MessagePriority.CRITICAL:
+                return Err(
+                    f"Connection {connection_id} under backpressure, message dropped"
+                )
+
+        # Rate limiting check
+        if not self._check_rate_limit(connection_id):
+            return Err(f"Connection {connection_id} rate limited")
 
         # Set sequence number if not provided
         if message.sequence is None:
@@ -415,19 +738,48 @@ class ConnectionManager:
                 update={"sequence": self._get_next_sequence(connection_id)}
             )
 
+        # Add to priority queue for processing
+        if not self._pool.add_message(message, connection_id):
+            return Err(f"Message queue full for connection {connection_id}")
+
+        return Ok(None)
+
+    @beartype
+    async def _send_message_direct(self, connection_id: str, message: WebSocketMessage):
+        """Send message directly to WebSocket (internal use)."""
+        if connection_id not in self._connections:
+            return Err(f"Connection {connection_id} not found")
+
+        websocket = self._connections[connection_id]
+
         try:
-            message_data = message.model_dump()
-            await websocket.send_json(message_data)
+            # Handle binary messages
+            if message.binary_data:
+                await websocket.send_bytes(message.binary_data)
+            else:
+                message_data = message.model_dump(exclude={"binary_data"})
+                await websocket.send_json(message_data)
 
             # Record message sending in monitoring
-            message_size = len(str(message_data))
+            message_size = message.get_size_bytes()
             await self._monitor.record_message_sent(connection_id, message_size)
 
-            # Update last activity
+            # Update last activity and connection state
             if connection_id in self._connection_metadata:
-                self._connection_metadata[connection_id] = self._connection_metadata[
-                    connection_id
-                ].model_copy(update={"last_activity": datetime.now()})
+                metadata = self._connection_metadata[connection_id]
+                new_backpressure = self._pool.get_backpressure_level()
+
+                self._connection_metadata[connection_id] = metadata.model_copy(
+                    update={
+                        "last_activity": datetime.now(),
+                        "backpressure_level": new_backpressure,
+                        "state": (
+                            ConnectionState.ACTIVE
+                            if new_backpressure < 0.7
+                            else ConnectionState.DEGRADED
+                        ),
+                    }
+                )
             return Ok(None)
         except Exception as e:
             # Connection failed, disconnect (skip notification to prevent recursion)
@@ -536,12 +888,13 @@ class ConnectionManager:
         # Handle different message types
         if message_type == "ping":
             pong_msg = WebSocketMessage(
-                type="pong",
+                type=MessageType.PONG,
                 data={
                     "client_time": raw_message.get("timestamp"),
                     "server_time": datetime.now().isoformat(),
                 },
                 sequence=self._get_next_sequence(connection_id),
+                priority=MessagePriority.HIGH,
             )
             return await self.send_personal_message(connection_id, pong_msg)
 
@@ -566,12 +919,13 @@ class ConnectionManager:
         else:
             # Unknown message type - no silent fallback
             error_msg = WebSocketMessage(
-                type="error",
+                type=MessageType.ERROR,
                 data={
                     "error": f"Unknown message type: {message_type}",
                     "supported_types": ["ping", "subscribe", "unsubscribe"],
                 },
                 sequence=self._get_next_sequence(connection_id),
+                priority=MessagePriority.NORMAL,
             )
             await self.send_personal_message(connection_id, error_msg)
             return Err(f"Unknown message type: {message_type}")
@@ -667,8 +1021,8 @@ class ConnectionManager:
 
             except asyncio.CancelledError:
                 break
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Warning: Failed to scale connection pool: {e}")  # nosec B608
 
     @beartype
     def _get_next_sequence(self, connection_id: str) -> int:
@@ -790,3 +1144,131 @@ class ConnectionManager:
         except Exception:
             # Non-critical error, connection already cleaned up locally
             return Ok(None)
+
+    async def _message_processor_loop(self) -> None:
+        """Process messages from priority queues."""
+        while True:
+            try:
+                # Get next message from priority queue
+                message = self._pool.get_next_message()
+                if message is None:
+                    await asyncio.sleep(0.01)  # Small delay when no messages
+                    continue
+
+                # Check if message has expired
+                if message.is_expired():
+                    continue
+
+                # Find connection ID from message data
+                connection_id = message.data.get("connection_id")
+                if not connection_id:
+                    # Try to find connection ID from type-specific data
+                    if message.type == MessageType.QUOTE_UPDATE:
+                        quote_id = message.data.get("quote_id")
+                        if quote_id:
+                            # Send to all subscribers of this quote
+                            room_id = f"quote:{quote_id}"
+                            await self._send_to_room_direct(room_id, message)
+                    continue
+
+                # Send message directly
+                await self._send_message_direct(connection_id, message)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                # Log error but continue processing
+                print(f"Warning: Failed to process message: {e}")  # nosec B608
+
+    async def _pool_scaler_loop(self) -> None:
+        """Monitor and scale connection pool based on load."""
+        while True:
+            try:
+                await asyncio.sleep(30)  # Check every 30 seconds
+
+                # Calculate current load
+                current_load = (
+                    self._active_connection_count / self._pool.current_capacity
+                )
+
+                # Check if scaling is needed
+                if self._pool.should_scale_up(current_load):
+                    old_capacity = self._pool.current_capacity
+                    self._pool.scale_up()
+
+                    # Notify admins
+                    scale_msg = WebSocketMessage(
+                        type=MessageType.SYSTEM_ALERT,
+                        data={
+                            "alert_type": "pool_scaled_up",
+                            "message": f"Connection pool scaled from {old_capacity} to {self._pool.current_capacity}",
+                            "severity": "info",
+                            "load": current_load,
+                        },
+                        priority=MessagePriority.NORMAL,
+                    )
+                    await self.send_to_room("admin:monitoring", scale_msg)
+
+                elif self._pool.should_scale_down(current_load):
+                    old_capacity = self._pool.current_capacity
+                    self._pool.scale_down()
+
+                    # Notify admins
+                    scale_msg = WebSocketMessage(
+                        type=MessageType.SYSTEM_ALERT,
+                        data={
+                            "alert_type": "pool_scaled_down",
+                            "message": f"Connection pool scaled from {old_capacity} to {self._pool.current_capacity}",
+                            "severity": "info",
+                            "load": current_load,
+                        },
+                        priority=MessagePriority.NORMAL,
+                    )
+                    await self.send_to_room("admin:monitoring", scale_msg)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"Warning: Failed to scale connection pool: {e}")  # nosec B608
+
+    @beartype
+    def _check_rate_limit(self, connection_id: str) -> bool:
+        """Check if connection is within rate limits."""
+        now = datetime.now()
+
+        if connection_id not in self._rate_limiters:
+            self._rate_limiters[connection_id] = {
+                "tokens": self._rate_limit_config["max_tokens"],
+                "last_refill": now,
+            }
+
+        limiter = self._rate_limiters[connection_id]
+
+        # Refill tokens based on time passed
+        time_passed = (now - limiter["last_refill"]).total_seconds()
+        if time_passed >= self._rate_limit_config["refill_interval"]:
+            tokens_to_add = int(
+                time_passed * self._rate_limit_config["tokens_per_second"]
+            )
+            limiter["tokens"] = min(
+                limiter["tokens"] + tokens_to_add, self._rate_limit_config["max_tokens"]
+            )
+            limiter["last_refill"] = now
+
+        # Check if we have tokens
+        if limiter["tokens"] > 0:
+            limiter["tokens"] -= 1
+            return True
+
+        return False
+
+    @beartype
+    async def _send_to_room_direct(
+        self, room_id: str, message: WebSocketMessage
+    ) -> None:
+        """Send message to room directly (internal use)."""
+        if room_id not in self._room_subscriptions:
+            return
+
+        for conn_id in list(self._room_subscriptions[room_id]):
+            await self._send_message_direct(conn_id, message)

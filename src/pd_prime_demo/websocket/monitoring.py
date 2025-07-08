@@ -9,9 +9,10 @@ Provides comprehensive monitoring capabilities for the WebSocket infrastructure:
 """
 
 import asyncio
+import json
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
-from typing import Any, Deque
+from typing import Any, Deque, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -478,7 +479,7 @@ class WebSocketMonitor:
         }
 
     async def _monitoring_loop(self) -> None:
-        """Background monitoring loop."""
+        """Enhanced background monitoring loop with comprehensive metrics."""
         while True:
             try:
                 # Collect current metrics
@@ -491,6 +492,14 @@ class WebSocketMonitor:
                     current_metrics.model_dump_json(),
                 )
 
+                # Store detailed metrics by priority
+                priority_metrics = await self._get_priority_metrics()
+                await self._cache.setex(
+                    "websocket:priority_metrics",
+                    300,
+                    json.dumps(priority_metrics),
+                )
+
                 # Check for alerts
                 alerts = await self.get_performance_alerts()
                 if alerts:
@@ -500,6 +509,7 @@ class WebSocketMonitor:
                 # Store metrics in database every minute
                 if datetime.now().minute % 1 == 0:  # Every minute
                     await self._store_system_metrics(current_metrics)
+                    await self._store_priority_metrics(priority_metrics)
 
                 # Clean up old data
                 await self._cleanup_old_data()
@@ -534,9 +544,9 @@ class WebSocketMonitor:
                 user_id,
                 metadata or {},
             )
-        except Exception:
-            # Non-critical, don't fail
-            pass
+        except Exception as e:
+            # Non-critical, don't fail - log for debugging
+            print(f"Warning: Failed to record connection metrics: {e}")  # nosec B608
 
     @beartype
     async def _store_connection_stats(
@@ -565,8 +575,8 @@ class WebSocketMonitor:
                 connection.errors_count,
                 close_reason,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to store metrics: {e}")  # nosec B608
 
     @beartype
     async def _store_error_event(
@@ -587,8 +597,8 @@ class WebSocketMonitor:
                 error_type,
                 error_message,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to store metrics: {e}")  # nosec B608
 
     @beartype
     async def _store_system_metrics(self, metrics: SystemMetrics) -> None:
@@ -613,8 +623,8 @@ class WebSocketMonitor:
                 metrics.memory_usage_mb,
                 metrics.cpu_usage_percent,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to store metrics: {e}")  # nosec B608
 
     @beartype
     async def _handle_performance_alert(self, alert: PerformanceAlert) -> None:
@@ -628,6 +638,164 @@ class WebSocketMonitor:
         # Could also send to notification system here
         # await notification_handler.send_admin_alert(alert)
 
+    async def _get_priority_metrics(self) -> dict[str, Any]:
+        """Get metrics broken down by message priority."""
+        from .manager import MessagePriority
+
+        priority_metrics = {}
+
+        # Count messages by priority (would need to track this in practice)
+        for priority in MessagePriority:
+            priority_metrics[priority.value] = {
+                "total_sent": 0,
+                "total_received": 0,
+                "avg_latency_ms": 0.0,
+                "error_count": 0,
+                "queue_depth": 0,
+            }
+
+        # In practice, these would be tracked from the connection manager
+        # For now, return empty metrics structure
+        return priority_metrics
+
+    async def _store_priority_metrics(self, priority_metrics: dict[str, Any]) -> None:
+        """Store priority metrics in database."""
+        try:
+            for priority, metrics in priority_metrics.items():
+                await self._db.execute(
+                    """
+                    INSERT INTO websocket_priority_metrics
+                    (timestamp, priority, total_sent, total_received, avg_latency_ms, error_count, queue_depth)
+                    VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4, $5, $6)
+                    """,
+                    priority,
+                    metrics["total_sent"],
+                    metrics["total_received"],
+                    metrics["avg_latency_ms"],
+                    metrics["error_count"],
+                    metrics["queue_depth"],
+                )
+        except Exception:
+            # Non-critical, continue
+            pass
+
+    async def get_detailed_performance_report(self) -> dict[str, Any]:
+        """Get comprehensive performance report."""
+        current_metrics = await self.get_system_metrics()
+        alerts = await self.get_performance_alerts()
+
+        # Connection distribution by state
+        connection_states = defaultdict(int)
+        for conn in self._connection_metrics.values():
+            if (datetime.now() - conn.last_activity).total_seconds() < 60:
+                connection_states["active"] += 1
+            elif (datetime.now() - conn.last_activity).total_seconds() < 300:
+                connection_states["idle"] += 1
+            else:
+                connection_states["stale"] += 1
+
+        # Top users by activity
+        user_activity = defaultdict(int)
+        for conn in self._connection_metrics.values():
+            if conn.user_id:
+                user_activity[str(conn.user_id)] += (
+                    conn.messages_sent + conn.messages_received
+                )
+
+        top_users = sorted(user_activity.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        # Room statistics
+        room_stats = defaultdict(lambda: {"connections": 0, "messages": 0})
+        for conn in self._connection_metrics.values():
+            room_stats["total"]["connections"] += 1
+            room_stats["total"]["messages"] += (
+                conn.messages_sent + conn.messages_received
+            )
+
+        # Performance trends (last hour)
+        hourly_trends = await self._get_hourly_trends()
+
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "system_metrics": current_metrics.model_dump(),
+            "alerts": [alert.model_dump() for alert in alerts],
+            "connection_distribution": dict(connection_states),
+            "top_users_by_activity": top_users,
+            "room_statistics": dict(room_stats),
+            "performance_trends": hourly_trends,
+            "health_score": self._calculate_health_score(current_metrics),
+            "recommendations": self._get_performance_recommendations(current_metrics),
+        }
+
+    async def _get_hourly_trends(self) -> dict[str, list[float]]:
+        """Get performance trends for the last hour."""
+        # In practice, this would query the database for historical metrics
+        # For now, return sample data structure
+        return {
+            "connection_count": [],
+            "message_throughput": [],
+            "avg_latency": [],
+            "error_rate": [],
+        }
+
+    def _calculate_health_score(self, metrics: SystemMetrics) -> float:
+        """Calculate overall system health score (0-100)."""
+        score = 100.0
+
+        # Deduct points for high utilization
+        if metrics.total_connections > 0:
+            utilization = metrics.total_connections / 10000  # Assuming 10k max
+            if utilization > 0.8:
+                score -= (utilization - 0.8) * 100
+
+        # Deduct points for high latency
+        if metrics.avg_message_latency_ms > 50:
+            score -= min((metrics.avg_message_latency_ms - 50) / 10, 20)
+
+        # Deduct points for high error rate
+        if metrics.error_rate > 0.01:  # 1%
+            score -= min(metrics.error_rate * 1000, 30)
+
+        # Deduct points for high memory usage
+        if metrics.memory_usage_mb > 500:
+            score -= min((metrics.memory_usage_mb - 500) / 50, 20)
+
+        return max(score, 0.0)
+
+    def _get_performance_recommendations(self, metrics: SystemMetrics) -> list[str]:
+        """Get performance improvement recommendations."""
+        recommendations = []
+
+        if metrics.total_connections > 8000:
+            recommendations.append(
+                "Consider scaling horizontally - connection count approaching limit"
+            )
+
+        if metrics.avg_message_latency_ms > 100:
+            recommendations.append(
+                "High message latency detected - check network and processing capacity"
+            )
+
+        if metrics.error_rate > 0.05:
+            recommendations.append(
+                "High error rate - investigate error logs and connection stability"
+            )
+
+        if metrics.memory_usage_mb > 1000:
+            recommendations.append(
+                "High memory usage - consider memory optimization or scaling"
+            )
+
+        if metrics.messages_per_second < 1 and metrics.total_connections > 100:
+            recommendations.append(
+                "Low message throughput - check for connection health issues"
+            )
+
+        if not recommendations:
+            recommendations.append("System performance is optimal")
+
+        return recommendations
+
     async def _cleanup_old_data(self) -> None:
         """Clean up old monitoring data."""
         # Clean up old message timestamps
@@ -636,3 +804,22 @@ class WebSocketMonitor:
             self._message_timestamps.popleft()
             if self._message_latencies:
                 self._message_latencies.popleft()
+
+        # Clean up old error counts (keep only last 24 hours)
+        if len(self._error_counts) > 1000:
+            # Keep only the most recent error types
+            sorted_errors = sorted(
+                self._error_counts.items(), key=lambda x: x[1], reverse=True
+            )
+            self._error_counts = dict(sorted_errors[:500])
+
+        # Clean up old connection metrics (keep only active connections)
+        inactive_connections = []
+        for conn_id, metrics in self._connection_metrics.items():
+            if (
+                datetime.now() - metrics.last_activity
+            ).total_seconds() > 3600:  # 1 hour
+                inactive_connections.append(conn_id)
+
+        for conn_id in inactive_connections:
+            del self._connection_metrics[conn_id]

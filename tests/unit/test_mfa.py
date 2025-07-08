@@ -184,13 +184,58 @@ class TestRiskEngine:
         user_id = str(uuid4())
         ip_address = "10.0.0.1"  # Private network
         user_agent = "Mozilla/5.0"
+        device_fingerprint = "known_device_fingerprint"
 
-        result = await risk_engine.assess_risk(user_id, ip_address, user_agent)
+        # Pre-populate the cache with a known device to simulate trusted device
+        device_key = f"known_device:{user_id}:{device_fingerprint}"
+        from datetime import datetime, timezone
+
+        await risk_engine._cache.set(
+            device_key,
+            {
+                "first_seen": datetime.now(timezone.utc).isoformat(),
+                "user_agent": user_agent,
+            },
+            ttl=86400 * 90,  # 90 days
+        )
+
+        # Pre-populate location cache to simulate known location
+        # Use same location as _get_location_from_ip returns
+        # Set timestamp far enough in the past to avoid travel speed issues
+        from datetime import timedelta
+
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        location_key = f"last_location:{user_id}"
+        await risk_engine._cache.set(
+            location_key,
+            {
+                "location": {
+                    "country": "US",
+                    "city": "New York",
+                    "latitude": 40.7128,
+                    "longitude": -74.0060,
+                },
+                "timestamp": past_time.isoformat(),
+                "ip": ip_address,
+            },
+            ttl=86400 * 30,  # 30 days
+        )
+
+        # Pre-populate MFA enabled status
+        mfa_key = f"mfa_enabled:{user_id}"
+        await risk_engine._cache.set(mfa_key, True, ttl=86400)
+
+        result = await risk_engine.assess_risk(
+            user_id, ip_address, user_agent, device_fingerprint
+        )
 
         assert result.is_ok()
         assessment = result.value
-        # Private network should have lower risk
-        assert assessment.risk_level == RiskLevel.LOW
+        # Private network with known device should have lower risk
+        # Only risk factor should be no_mfa (0.3) since device and location are known
+        assert assessment.risk_level == RiskLevel.MEDIUM
+        assert "no_mfa" in assessment.factors
+        assert assessment.risk_score == 0.3
 
     def test_calculate_risk_score_empty_factors(self, risk_engine):
         """Test risk score calculation with no risk factors."""

@@ -9,8 +9,8 @@ import numpy as np
 from beartype import beartype
 from numpy.typing import NDArray
 
+from ...core.result_types import Err, Ok, Result
 from ..performance_monitor import performance_monitor
-from ..result import Err, Ok
 
 # Set decimal precision for financial calculations
 getcontext().prec = 10
@@ -26,7 +26,7 @@ class PremiumCalculator:
         coverage_limit: Decimal,
         base_rate: Decimal,
         exposure_units: Decimal = Decimal("1"),
-    ):
+    ) -> Result[Decimal, str]:
         """Calculate base premium with proper rounding.
 
         Args:
@@ -55,7 +55,7 @@ class PremiumCalculator:
     def apply_multiplicative_factors(
         base_premium: Decimal,
         factors: dict[str, float],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Apply rating factors with detailed breakdown.
 
         Args:

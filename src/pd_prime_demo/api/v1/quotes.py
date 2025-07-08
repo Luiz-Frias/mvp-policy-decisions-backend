@@ -6,6 +6,7 @@ from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 from ...models.quote import (
     Quote,
@@ -186,12 +187,12 @@ async def search_quotes(
 
     quotes = result.value
 
-    return {
-        "quotes": quotes,
-        "total": len(quotes),
-        "limit": limit,
-        "offset": offset,
-    }
+    return QuoteSearchResponse(
+        quotes=quotes,
+        total=len(quotes),
+        limit=limit,
+        offset=offset,
+    )
 
 
 # Quote Wizard Endpoints
@@ -295,7 +296,24 @@ async def jump_to_wizard_step(
     return result.value
 
 
-@router.post("/wizard/{session_id}/complete")
+class WizardCompletionResponse(BaseModel):
+    """Response model for wizard completion."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    session_id: UUID = Field(..., description="Wizard session ID")
+    quote_id: UUID = Field(..., description="Created quote ID")
+    quote_number: str = Field(..., description="Quote number")
+    status: QuoteStatus = Field(..., description="Quote status")
+
+
+@router.post("/wizard/{session_id}/complete", response_model=WizardCompletionResponse)
 @beartype
 async def complete_wizard_session(
     session_id: UUID,
@@ -303,7 +321,7 @@ async def complete_wizard_session(
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> dict[str, Any]:
+) -> WizardCompletionResponse:
     """Complete wizard session and create quote."""
     # Complete wizard
     result = await wizard_service.complete_session(session_id)
@@ -327,12 +345,12 @@ async def complete_wizard_session(
     # Trigger calculation
     background_tasks.add_task(quote_service.calculate_quote, quote.id)
 
-    return {
-        "session_id": wizard_data["session_id"],
-        "quote_id": str(quote.id),
-        "quote_number": quote.quote_number,
-        "status": quote.status,
-    }
+    return WizardCompletionResponse(
+        session_id=wizard_data["session_id"],
+        quote_id=quote.id,
+        quote_number=quote.quote_number,
+        status=quote.status,
+    )
 
 
 @router.get("/wizard/steps/all", response_model=list[WizardStepResponse])
@@ -349,13 +367,29 @@ async def get_all_wizard_steps(
     return result.value
 
 
-@router.post("/wizard/{session_id}/extend")
+class WizardExtensionResponse(BaseModel):
+    """Response model for wizard session extension."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    session_id: UUID = Field(..., description="Wizard session ID")
+    expires_at: datetime = Field(..., description="New expiration time")
+    extended_by_minutes: int = Field(..., description="Minutes extended")
+
+
+@router.post("/wizard/{session_id}/extend", response_model=WizardExtensionResponse)
 @beartype
 async def extend_wizard_session(
     session_id: UUID,
     additional_minutes: int = Query(30, ge=1, le=120),
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> dict[str, Any]:
+) -> WizardExtensionResponse:
     """Extend wizard session expiration."""
     result = await wizard_service.extend_session(session_id, additional_minutes)
 
@@ -364,20 +398,40 @@ async def extend_wizard_session(
 
     state = result.value
 
-    return {
-        "session_id": str(state.session_id),
-        "expires_at": state.expires_at.isoformat(),
-        "extended_by_minutes": additional_minutes,
-    }
+    return WizardExtensionResponse(
+        session_id=state.session_id,
+        expires_at=state.expires_at,
+        extended_by_minutes=additional_minutes,
+    )
 
 
-@router.get("/wizard/{session_id}/intelligence/{step_id}")
+class StepIntelligenceResponse(BaseModel):
+    """Response model for step business intelligence."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    step_id: str = Field(..., description="Step identifier")
+    session_id: UUID = Field(..., description="Session identifier")
+    intelligence: dict[str, Any] = Field(..., description="Intelligence data")
+    generated_at: datetime = Field(..., description="Generation timestamp")
+
+
+@router.get(
+    "/wizard/{session_id}/intelligence/{step_id}",
+    response_model=StepIntelligenceResponse,
+)
 @beartype
 async def get_step_business_intelligence(
     session_id: UUID,
     step_id: str,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> dict[str, Any]:
+) -> StepIntelligenceResponse:
     """Get business intelligence for a specific wizard step."""
     result = await wizard_service.get_business_intelligence_for_step(
         session_id, step_id
@@ -386,20 +440,36 @@ async def get_step_business_intelligence(
     if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error)
 
-    return {
-        "step_id": step_id,
-        "session_id": str(session_id),
-        "intelligence": result.value,
-        "generated_at": datetime.now().isoformat(),
-    }
+    return StepIntelligenceResponse(
+        step_id=step_id,
+        session_id=session_id,
+        intelligence=result.value,
+        generated_at=datetime.now(),
+    )
 
 
-@router.get("/performance/stats")
+class PerformanceStatsResponse(BaseModel):
+    """Response model for performance statistics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    performance_stats: dict[str, Any] = Field(..., description="Performance statistics")
+    collected_at: datetime = Field(..., description="Collection timestamp")
+    description: str = Field(..., description="Statistics description")
+
+
+@router.get("/performance/stats", response_model=PerformanceStatsResponse)
 @beartype
-async def get_performance_stats() -> dict[str, Any]:
+async def get_performance_stats() -> PerformanceStatsResponse:
     """Get performance statistics for quote operations."""
-    return {
-        "performance_stats": performance_tracker.get_all_stats(),
-        "collected_at": datetime.now().isoformat(),
-        "description": "Performance metrics for quote service operations",
-    }
+    return PerformanceStatsResponse(
+        performance_stats=performance_tracker.get_all_stats(),
+        collected_at=datetime.now(),
+        description="Performance metrics for quote service operations",
+    )

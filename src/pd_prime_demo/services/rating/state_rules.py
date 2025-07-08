@@ -10,7 +10,7 @@ from typing import Any
 
 from beartype import beartype
 
-from ...services.result import Err, Ok
+from ...core.result_types import Err, Ok, Result
 from ..performance_monitor import performance_monitor
 
 
@@ -423,7 +423,7 @@ class PennsylvaniaRules(StateRatingRules):
 # Factory function
 @beartype
 @performance_monitor("get_state_rules")
-def get_state_rules(state: str):
+def get_state_rules(state: str) -> Result[StateRatingRules, str]:
     """Get rules for a specific state - FAIL FAST if unsupported."""
     rules_map = {
         "CA": CaliforniaRules(),
@@ -448,7 +448,9 @@ def get_state_rules(state: str):
 
 @beartype
 @performance_monitor("validate_coverage_limits")
-def validate_coverage_limits(state: str, coverage_selections: list[Any]):
+def validate_coverage_limits(
+    state: str, coverage_selections: list[Any]
+) -> Result[bool, str]:
     """Validate that coverage selections meet state minimums."""
     state_rules_result = get_state_rules(state)
     if isinstance(state_rules_result, Err):

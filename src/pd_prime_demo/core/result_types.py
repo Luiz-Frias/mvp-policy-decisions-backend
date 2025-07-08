@@ -1,6 +1,6 @@
 """Result types for error handling without exceptions."""
 
-from typing import Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 from attrs import frozen
 
@@ -82,25 +82,27 @@ class Err(Generic[E]):
         return self.error
 
 
-# Type alias for Result
-ResultType = Union[Ok[T], Err[E]]
+# Type alias for Result - this is the proper way to define Result[T, E]
+if TYPE_CHECKING:
+    # For type checking, Result[T, E] is just an alias for Union[Ok[T], Err[E]]
+    Result = Union[Ok[T], Err[E]]
+else:
+    # At runtime, provide a convenient factory class
+    class Result(Generic[T, E]):
+        """Result class with class methods for convenient creation and generic type support."""
 
+        @staticmethod
+        def ok(value: T) -> Ok[T]:
+            """Create an Ok result."""
+            return Ok(value)
 
-class Result(Generic[T, E]):
-    """Result class with class methods for convenient creation and generic type support."""
+        @staticmethod
+        def err(error: E) -> Err[E]:
+            """Create an Err result."""
+            return Err(error)
 
-    @staticmethod
-    def ok(value: T) -> Ok[T]:
-        """Create an Ok result."""
-        return Ok(value)
-
-    @staticmethod
-    def err(error: E) -> Err[E]:
-        """Create an Err result."""
-        return Err(error)
-
-    def __class_getitem__(cls, params: tuple[Any, ...]) -> type[Ok[Any] | Err[Any]]:
-        """Support generic type annotations like Result[T, E]."""
-        if not isinstance(params, tuple) or len(params) != 2:
-            raise TypeError(f"Result expects 2 type parameters, got {params}")
-        return Union[Ok[params[0]], Err[params[1]]]  # type: ignore[misc]
+        def __class_getitem__(cls, params: Any) -> type[Ok[Any] | Err[Any]]:
+            """Support generic type annotations like Result[T, E]."""
+            # This is primarily for runtime generic support
+            # Type checkers will use the TYPE_CHECKING branch above
+            return Union[Ok[Any], Err[Any]]  # type: ignore[return-value]

@@ -1,5 +1,7 @@
 """Redis caching layer with TTL support."""
 
+from __future__ import annotations
+
 import json
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Set, Union
@@ -208,7 +210,7 @@ class Cache:
         return int(result)
 
     @beartype
-    async def smembers(self, key: str) -> set[str]:
+    async def smembers(self, key: str) -> Set[str]:
         """Get all members of a set."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")
@@ -229,7 +231,7 @@ class Cache:
 
 
 # Global cache instance
-_cache: Cache | None = None
+_cache: Union[Cache, None] = None
 
 
 @beartype

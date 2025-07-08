@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     )
 
     # API Configuration
+    app_name: str = Field(
+        default="PD Prime Demo",
+        description="Application name",
+        min_length=1,
+    )
     api_host: str = Field(
         default="0.0.0.0",  # nosec B104 - Binding to all interfaces is needed for containerized deployment
         description="API host to bind to",

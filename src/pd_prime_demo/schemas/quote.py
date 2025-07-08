@@ -1,5 +1,7 @@
 """Quote API schemas for request/response models."""
 
+from __future__ import annotations
+
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -9,10 +11,14 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.quote import (
+    AIRiskFactors,
     CoverageSelection,
     Discount,
     DriverInfo,
+    PaymentDetails,
     QuoteStatus,
+    RatingFactors,
+    Surcharge,
     VehicleInfo,
 )
 
@@ -102,15 +108,15 @@ class QuoteResponse(BaseModel):
     total_premium: Decimal | None
     monthly_premium: Decimal | None
     discounts_applied: list[Discount]
-    surcharges_applied: list[dict[str, Any]]
+    surcharges_applied: list[Surcharge]
     total_discount_amount: Decimal | None
     total_surcharge_amount: Decimal | None
 
     # Rating
-    rating_factors: dict[str, Any] | None
+    rating_factors: RatingFactors | None
     rating_tier: str | None
     ai_risk_score: Decimal | None
-    ai_risk_factors: dict[str, Any] | None
+    ai_risk_factors: AIRiskFactors | None
 
     # Metadata
     expires_at: datetime
@@ -157,7 +163,7 @@ class QuoteConversionResponse(BaseModel):
     policy_number: str
     effective_date: date
     premium: Decimal
-    payment_confirmation: dict[str, Any]
+    payment_confirmation: PaymentDetails
 
 
 # Wizard schemas
@@ -179,7 +185,7 @@ class WizardStepResponse(BaseModel):
     title: str
     description: str
     fields: list[str]
-    validations: dict[str, Any]
+    validations: WizardValidation
     next_step: str | None
     previous_step: str | None
     is_conditional: bool
@@ -203,8 +209,8 @@ class WizardSessionResponse(BaseModel):
     quote_id: UUID | None
     current_step: str
     completed_steps: list[str]
-    data: dict[str, Any]
-    validation_errors: dict[str, list[str]]
+    data: WizardStepData
+    validation_errors: ValidationErrors
     started_at: datetime
     last_updated: datetime
     expires_at: datetime
@@ -225,8 +231,8 @@ class WizardValidationResponse(BaseModel):
     )
 
     is_valid: bool
-    errors: dict[str, list[str]]
-    warnings: dict[str, list[str]]
+    errors: ValidationErrors
+    warnings: ValidationWarnings
 
 
 # Additional schemas for complete API coverage
@@ -285,8 +291,8 @@ class QuoteCalculateResponse(BaseModel):
     total_premium: Decimal
     monthly_premium: Decimal
     discounts_applied: list[Discount]
-    surcharges_applied: list[dict[str, Any]]
-    rating_factors: dict[str, Any]
+    surcharges_applied: list[Surcharge]
+    rating_factors: RatingFactors
     calculation_timestamp: datetime
 
 
@@ -321,7 +327,7 @@ class QuoteCompareResponse(BaseModel):
     )
 
     quotes: list[QuoteResponse]
-    comparison_matrix: dict[str, dict[str, Any]]
+    comparison_matrix: ComparisonMatrix
     recommendation: str | None
     best_value_quote_id: UUID | None
 
@@ -340,7 +346,7 @@ class QuoteConvertRequest(BaseModel):
 
     quote_id: UUID
     payment_method: str = Field(..., pattern=r"^(credit_card|bank_transfer|check)$")
-    payment_info: dict[str, Any]
+    payment_info: PaymentDetails
     effective_date: date | None = None
 
 
@@ -361,7 +367,7 @@ class QuoteConvertResponse(BaseModel):
     policy_number: str
     effective_date: date
     premium: Decimal
-    payment_confirmation: dict[str, Any]
+    payment_confirmation: PaymentDetails
     conversion_timestamp: datetime
 
 
@@ -414,7 +420,7 @@ class QuoteBulkActionRequest(BaseModel):
 
     quote_ids: list[UUID] = Field(..., min_items=1, max_items=100)
     action: str = Field(..., pattern=r"^(expire|archive|delete|assign_agent)$")
-    action_data: dict[str, Any] | None = None
+    action_data: BulkActionData | None = None
     reason: str | None = Field(None, max_length=500)
 
 
@@ -433,8 +439,197 @@ class QuoteBulkActionResponse(BaseModel):
     total_requested: int
     successful: int
     failed: int
-    results: list[dict[str, Any]]
+    results: list[BulkActionResult]
     errors: list[dict[str, str]]
+
+
+# Additional Pydantic models to replace dict usage in schemas
+
+
+@beartype
+class WizardValidation(BaseModel):
+    """Wizard validation data structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    required_fields: list[str] = Field(
+        default_factory=list, description="Required fields for this step"
+    )
+    validation_rules: list[str] = Field(
+        default_factory=list, description="Validation rules to apply"
+    )
+    conditional_fields: list[str] = Field(
+        default_factory=list, description="Conditionally required fields"
+    )
+    min_length: int | None = Field(None, ge=0, description="Minimum length validation")
+    max_length: int | None = Field(None, ge=0, description="Maximum length validation")
+    pattern: str | None = Field(None, description="Regex pattern validation")
+    custom_validators: list[str] = Field(
+        default_factory=list, description="Custom validator functions"
+    )
+
+
+@beartype
+class WizardStepData(BaseModel):
+    """Wizard step data structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    customer_info: dict[str, Any] = Field(
+        default_factory=dict, description="Customer information collected"
+    )
+    vehicle_info: dict[str, Any] = Field(
+        default_factory=dict, description="Vehicle information collected"
+    )
+    driver_info: dict[str, Any] = Field(
+        default_factory=dict, description="Driver information collected"
+    )
+    coverage_info: dict[str, Any] = Field(
+        default_factory=dict, description="Coverage selection information"
+    )
+    payment_info: dict[str, Any] = Field(
+        default_factory=dict, description="Payment information collected"
+    )
+    preferences: dict[str, Any] = Field(
+        default_factory=dict, description="Customer preferences"
+    )
+
+    # TODO: These dict fields should be replaced with proper Pydantic models
+    # once the underlying customer/vehicle/driver models are finalized
+
+
+@beartype
+class ValidationErrors(BaseModel):
+    """Validation error structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    field_errors: dict[str, list[str]] = Field(
+        default_factory=dict, description="Field-specific validation errors"
+    )
+    form_errors: list[str] = Field(
+        default_factory=list, description="Form-level validation errors"
+    )
+    warning_messages: list[str] = Field(
+        default_factory=list, description="Warning messages"
+    )
+
+
+@beartype
+class ValidationWarnings(BaseModel):
+    """Validation warning structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    field_warnings: dict[str, list[str]] = Field(
+        default_factory=dict, description="Field-specific warnings"
+    )
+    form_warnings: list[str] = Field(
+        default_factory=list, description="Form-level warnings"
+    )
+    info_messages: list[str] = Field(
+        default_factory=list, description="Informational messages"
+    )
+
+
+@beartype
+class ComparisonMatrix(BaseModel):
+    """Quote comparison matrix structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    premium_comparison: dict[str, Any] = Field(
+        default_factory=dict, description="Premium comparison data"
+    )
+    coverage_comparison: dict[str, Any] = Field(
+        default_factory=dict, description="Coverage comparison data"
+    )
+    discount_comparison: dict[str, Any] = Field(
+        default_factory=dict, description="Discount comparison data"
+    )
+    feature_comparison: dict[str, Any] = Field(
+        default_factory=dict, description="Feature comparison data"
+    )
+
+    # TODO: These dict fields should be replaced with proper typed models
+    # once the comparison feature requirements are finalized
+
+
+@beartype
+class BulkActionResult(BaseModel):
+    """Bulk action result structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    quote_id: UUID = Field(..., description="Quote ID that was processed")
+    action_performed: str = Field(..., description="Action that was performed")
+    success: bool = Field(..., description="Whether action was successful")
+    result_data: dict[str, Any] = Field(
+        default_factory=dict, description="Action result data"
+    )
+    error_message: str | None = Field(
+        None, description="Error message if action failed"
+    )
+    warnings: list[str] = Field(default_factory=list, description="Warning messages")
+
+
+@beartype
+class BulkActionData(BaseModel):
+    """Bulk action data structure."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    agent_id: UUID | None = Field(None, description="Agent ID for assignment actions")
+    expiration_date: datetime | None = Field(
+        None, description="New expiration date for expire actions"
+    )
+    archive_reason: str | None = Field(None, description="Reason for archiving")
+    notes: str | None = Field(None, description="Additional notes")
+    notify_customer: bool = Field(
+        default=False, description="Whether to notify customer"
+    )
 
 
 # All quote API schemas are defined above.

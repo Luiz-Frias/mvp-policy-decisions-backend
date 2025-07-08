@@ -87,7 +87,7 @@ def performance_monitor(
                     log_slow_operations=log_slow_operations,
                 )
 
-                return result
+                return result  # type: ignore[no-any-return]
 
             except Exception as e:
                 # Log failed operation

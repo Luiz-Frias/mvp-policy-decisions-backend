@@ -139,24 +139,54 @@ async def login(
     )
 
 
-@router.get("/sso/providers")
+class SSOProviderInfo(BaseModel):
+    """SSO provider information."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    name: str = Field(..., description="Provider name")
+    display_name: str = Field(..., description="Display name")
+    login_url: str = Field(..., description="Login URL")
+
+
+class SSOProvidersResponse(BaseModel):
+    """Response model for SSO providers list."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    providers: list[SSOProviderInfo] = Field(..., description="Available SSO providers")
+
+
+@router.get("/sso/providers", response_model=SSOProvidersResponse)
 @beartype
 async def list_sso_providers(
     sso_manager: SSOManager = Depends(get_sso_manager),
-) -> dict[str, Any]:
+) -> SSOProvidersResponse:
     """List available SSO providers for login."""
     providers = sso_manager.list_providers()
 
-    return {
-        "providers": [
-            {
-                "name": provider,
-                "display_name": provider.title(),
-                "login_url": f"/auth/sso/{provider}/login",
-            }
+    return SSOProvidersResponse(
+        providers=[
+            SSOProviderInfo(
+                name=provider,
+                display_name=provider.title(),
+                login_url=f"/auth/sso/{provider}/login",
+            )
             for provider in providers
         ]
-    }
+    )
 
 
 @router.get("/sso/{provider}/login")
@@ -345,13 +375,27 @@ async def sso_callback(
     )
 
 
-@router.post("/logout")
+class LogoutResponse(BaseModel):
+    """Response model for logout."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    message: str = Field(..., description="Logout confirmation message")
+
+
+@router.post("/logout", response_model=LogoutResponse)
 @beartype
 async def logout(
     session_id: str = Query(..., description="Session ID to invalidate"),
     db=Depends(get_db),
     cache=Depends(get_cache),
-) -> dict[str, str]:
+) -> LogoutResponse:
     """Logout and invalidate session.
 
     This endpoint invalidates the user's session and optionally
@@ -404,4 +448,4 @@ async def logout(
                     f"sso:refresh:{session['user_id']}:{session['provider_name']}"
                 )
 
-    return {"message": "Successfully logged out"}
+    return LogoutResponse(message="Successfully logged out")
