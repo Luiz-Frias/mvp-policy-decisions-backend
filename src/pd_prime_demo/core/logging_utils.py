@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import builtins
 import logging
-from typing import Final, Optional
+from typing import Final
 
 __all__: Final = [
     "configure_logging",
@@ -51,9 +51,7 @@ def configure_logging(
     _is_configured = True
 
 
-def get_logger(
-    name: Optional[str] = None, *, level: Optional[int] = None
-) -> logging.Logger:
+def get_logger(name: str | None = None, *, level: int | None = None) -> logging.Logger:
     """Return a module-scoped logger that is guaranteed to be configured."""
     configure_logging()
     logger = logging.getLogger(name or "pd_prime_demo")

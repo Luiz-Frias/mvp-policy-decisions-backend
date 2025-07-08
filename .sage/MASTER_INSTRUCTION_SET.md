@@ -768,6 +768,452 @@ function getRelevantPatterns(projectContext: ProjectContext): Pattern[] {
 - Refine agent instructions based on learnings
 - Build a library of proven patterns
 
+## SAGE Learning System v2 (Enhanced)
+
+### Enhanced Pattern Recognition Engine
+
+#### Pattern Classification System
+```yaml
+pattern_categories:
+  architectural:
+    - defensive_programming
+    - performance_monitoring
+    - modular_architecture
+    - security_by_design
+
+  operational:
+    - agent_coordination
+    - dependency_management
+    - communication_protocols
+    - quality_gates
+
+  technical:
+    - data_modeling
+    - database_optimization
+    - real_time_systems
+    - integration_patterns
+```
+
+#### Pattern Scoring Algorithm
+```python
+class PatternScore:
+    success_rate: float  # 0-1 based on implementation outcomes
+    reusability: float   # 0-1 based on cross-project applicability
+    impact: float        # 0-1 based on performance/quality improvement
+    complexity: float    # 0-1 based on implementation difficulty
+
+    @property
+    def effectiveness(self) -> float:
+        return (self.success_rate * 0.4 +
+                self.reusability * 0.3 +
+                self.impact * 0.2 +
+                (1 - self.complexity) * 0.1)
+```
+
+### Automated Learning Integration
+
+#### Real-Time Pattern Detection
+```yaml
+triggers:
+  on_agent_completion:
+    - Extract implementation patterns
+    - Compare with existing patterns
+    - Score effectiveness
+    - Update pattern library
+
+  on_performance_benchmark:
+    - Capture optimization techniques
+    - Record performance improvements
+    - Update best practices
+
+  on_integration_test:
+    - Identify integration patterns
+    - Document failure modes
+    - Create remediation strategies
+```
+
+#### Pattern Application Framework
+```python
+def apply_learned_patterns(
+    project_context: ProjectContext,
+    wave: int
+) -> List[Pattern]:
+    """Select and apply relevant patterns based on context."""
+
+    # Load pattern library from multiple sources
+    patterns = []
+    patterns.extend(load_patterns_from(".sage/learned_patterns.json"))
+    patterns.extend(load_patterns_from(".sage/core/registry/learned_patterns.json"))
+
+    # Filter by relevance
+    relevant = filter_patterns_by_context(patterns, project_context)
+
+    # Sort by effectiveness score
+    sorted_patterns = sorted(
+        relevant,
+        key=lambda p: p.effectiveness,
+        reverse=True
+    )
+
+    # Apply confidence threshold
+    return [p for p in sorted_patterns if p.effectiveness > 0.7]
+```
+
+### Enhanced Agent Coordination
+
+#### Dependency Graph Validation
+```yaml
+pre_deployment_validation:
+  dependency_graph:
+    - Build complete dependency map
+    - Identify circular dependencies
+    - Validate prerequisite availability
+    - Calculate optimal deployment order
+
+  synchronization_points:
+    - Define mandatory checkpoints
+    - Implement blocker protocol
+    - Establish handoff verification
+```
+
+#### Real-Time Coordination Protocol
+```python
+class AgentCoordinator:
+    def validate_deployment(self, agents: List[Agent]) -> DeploymentPlan:
+        # Build dependency graph
+        graph = self.build_dependency_graph(agents)
+
+        # Check for issues
+        if cycles := self.detect_cycles(graph):
+            raise DependencyError(f"Circular dependencies: {cycles}")
+
+        # Calculate deployment waves
+        waves = self.topological_sort(graph)
+
+        # Add synchronization points
+        plan = self.add_sync_points(waves)
+
+        return plan
+```
+
+### Quality Gate Automation
+
+#### Progressive Quality Enforcement
+```yaml
+quality_gates:
+  pre_commit:
+    - Pydantic model validation
+    - Type coverage check
+    - Performance benchmark existence
+    - Security scan
+
+  pre_wave_completion:
+    - Integration test execution
+    - Performance regression check
+    - Memory leak detection
+    - Coverage threshold
+
+  pre_production:
+    - Load testing
+    - Security audit
+    - SOC 2 compliance check
+    - Documentation completeness
+```
+
+#### Automated Remediation
+```python
+class QualityGateEnforcer:
+    def check_and_remediate(self, violations: List[Violation]) -> Result:
+        for violation in violations:
+            # Attempt automatic fix
+            if remedy := self.get_remedy(violation):
+                if self.apply_remedy(remedy):
+                    continue
+
+            # Fall back to specialist agent deployment
+            if specialist := self.get_specialist_agent(violation):
+                self.deploy_remediation_agent(specialist, violation)
+            else:
+                return Result.err(f"Unresolvable: {violation}")
+
+        return Result.ok("All violations resolved")
+```
+
+### Performance Learning System
+
+#### Benchmark Pattern Recognition
+```yaml
+performance_patterns:
+  optimization_techniques:
+    - Parallel processing identification
+    - Caching opportunity detection
+    - Query optimization patterns
+    - Memory allocation optimization
+
+  regression_prevention:
+    - Baseline establishment
+    - Regression detection
+    - Root cause analysis
+    - Preventive measures
+```
+
+#### Performance Prediction Model
+```python
+class PerformancePredictor:
+    def predict_performance(
+        self,
+        component: Component,
+        patterns: List[Pattern]
+    ) -> PerformancePrediction:
+        # Analyze component characteristics
+        characteristics = self.analyze_component(component)
+
+        # Match with successful patterns
+        matches = self.match_patterns(characteristics, patterns)
+
+        # Predict performance
+        prediction = PerformancePrediction(
+            expected_latency=self.calculate_latency(matches),
+            memory_usage=self.estimate_memory(matches),
+            scaling_factor=self.predict_scaling(matches),
+            confidence=self.calculate_confidence(matches)
+        )
+
+        return prediction
+```
+
+### Reusable Component Registry
+
+#### Component Cataloging
+```yaml
+component_registry:
+  metadata:
+    - Component ID and version
+    - Dependencies
+    - Performance characteristics
+    - Usage statistics
+    - Success metrics
+
+  categorization:
+    - Core infrastructure
+    - Security components
+    - Data models
+    - Service patterns
+    - Integration adapters
+```
+
+#### Component Recommendation Engine
+```python
+class ComponentRecommender:
+    def recommend_components(
+        self,
+        requirements: List[Requirement]
+    ) -> List[Component]:
+        # Search component registry
+        candidates = self.search_registry(requirements)
+
+        # Score by relevance and success
+        scored = [
+            (c, self.score_component(c, requirements))
+            for c in candidates
+        ]
+
+        # Filter by threshold
+        recommended = [
+            c for c, score in scored
+            if score > self.threshold
+        ]
+
+        return sorted(
+            recommended,
+            key=lambda c: c.success_rate,
+            reverse=True
+        )
+```
+
+### Failure Pattern Prevention
+
+#### Proactive Failure Detection
+```yaml
+failure_prevention:
+  known_patterns:
+    - Missing dependencies
+    - Integration gaps
+    - Performance regressions
+    - Security vulnerabilities
+
+  prevention_strategies:
+    - Early validation
+    - Automated testing
+    - Continuous monitoring
+    - Rollback mechanisms
+```
+
+#### Risk Mitigation Framework
+```python
+class RiskMitigator:
+    def assess_and_mitigate(
+        self,
+        wave_plan: WavePlan
+    ) -> MitigationPlan:
+        # Identify risks based on learned patterns
+        risks = self.identify_risks(wave_plan)
+
+        # Apply learned mitigations
+        mitigations = []
+        for risk in risks:
+            if pattern := self.find_mitigation_pattern(risk):
+                mitigations.append(
+                    self.create_mitigation(risk, pattern)
+                )
+            else:
+                # Log for future learning
+                self.log_unknown_risk(risk)
+
+        return MitigationPlan(
+            risks=risks,
+            mitigations=mitigations,
+            confidence=self.calculate_confidence(mitigations)
+        )
+```
+
+### Continuous Improvement Loop
+
+#### Feedback Integration
+```yaml
+feedback_loop:
+  sources:
+    - Agent completion reports
+    - Performance benchmarks
+    - Integration test results
+    - Production metrics
+
+  processing:
+    - Pattern extraction
+    - Success correlation
+    - Failure analysis
+    - Recommendation generation
+```
+
+#### Learning System Evolution
+```python
+class LearningSystemEvolution:
+    def evolve(self, feedback: Feedback) -> None:
+        # Extract patterns
+        patterns = self.extract_patterns(feedback)
+
+        # Update existing patterns
+        for pattern in patterns:
+            if existing := self.find_existing(pattern):
+                self.merge_pattern(existing, pattern)
+            else:
+                self.add_new_pattern(pattern)
+
+        # Prune ineffective patterns
+        self.prune_low_performing_patterns()
+
+        # Generate new recommendations
+        self.update_recommendations()
+```
+
+### Machine Learning Integration (Full Implementation Required)
+
+#### Pattern Recognition ML Model
+```python
+class PatternRecognitionModel:
+    def __init__(self):
+        self.model = self.load_or_initialize_model()
+        self.feature_extractor = FeatureExtractor()
+
+    def predict_pattern_success(
+        self,
+        pattern: Pattern,
+        context: ProjectContext
+    ) -> float:
+        features = self.feature_extractor.extract(pattern, context)
+        return self.model.predict_proba(features)[0][1]
+
+    def train_on_feedback(self, feedback: List[PatternFeedback]):
+        X = [self.feature_extractor.extract(f.pattern, f.context)
+             for f in feedback]
+        y = [f.success for f in feedback]
+        self.model.partial_fit(X, y)
+```
+
+#### Predictive Performance Modeling
+```python
+class PerformanceModel:
+    def __init__(self):
+        self.latency_model = LatencyPredictor()
+        self.memory_model = MemoryPredictor()
+        self.scaling_model = ScalingPredictor()
+
+    def predict_system_performance(
+        self,
+        architecture: Architecture,
+        load_profile: LoadProfile
+    ) -> PerformanceMetrics:
+        return PerformanceMetrics(
+            p50_latency=self.latency_model.predict_p50(architecture, load_profile),
+            p99_latency=self.latency_model.predict_p99(architecture, load_profile),
+            memory_usage=self.memory_model.predict(architecture, load_profile),
+            max_throughput=self.scaling_model.predict_max(architecture)
+        )
+```
+
+#### Autonomous Remediation System
+```python
+class AutonomousRemediator:
+    def __init__(self):
+        self.pattern_db = PatternDatabase()
+        self.action_executor = ActionExecutor()
+        self.verification_engine = VerificationEngine()
+
+    async def remediate(self, issue: Issue) -> RemediationResult:
+        # Find matching patterns
+        patterns = self.pattern_db.find_remediation_patterns(issue)
+
+        # Sort by success probability
+        sorted_patterns = sorted(
+            patterns,
+            key=lambda p: p.success_probability,
+            reverse=True
+        )
+
+        # Try patterns until success
+        for pattern in sorted_patterns:
+            result = await self.action_executor.execute(pattern.actions)
+
+            if await self.verification_engine.verify(result):
+                return RemediationResult.success(pattern, result)
+
+        return RemediationResult.failure(issue, attempted=patterns)
+```
+
+### Implementation Priority
+
+1. **Immediate (Wave 2.5)**:
+   - Dependency graph validation
+   - Real-time coordination protocol
+   - Quality gate automation
+
+2. **Required for Production (Wave 3)**:
+   - Performance learning system
+   - Component registry
+   - Failure prevention
+   - ML-based pattern recognition
+   - Predictive performance modeling
+   - Autonomous remediation
+
+### Success Metrics
+
+- Pattern effectiveness score > 0.8
+- Agent coordination failures < 5%
+- Performance regression incidents < 1%
+- Reusable component adoption > 70%
+- Learning system accuracy > 90%
+- Autonomous remediation success > 80%
+
 ## Error Recovery
 
 When things go wrong (and they will), follow this recovery protocol:

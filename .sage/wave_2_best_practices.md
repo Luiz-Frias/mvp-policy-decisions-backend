@@ -31,6 +31,7 @@ graph TD
 ```
 
 **Implementation**:
+
 - Map all agent dependencies before Wave start
 - Verify completion of prerequisites before agent deployment
 - Use dependency gates to prevent premature starts
@@ -40,23 +41,27 @@ graph TD
 Deploy agents in coordinated parallel groups to maximize efficiency:
 
 **Group 1: Foundation (Days 1-2)**
+
 - Database Migration Specialist
 - Service Integration Specialist
 - Connection Pool Specialist
 
 **Group 2: Core Features (Days 3-6)**
+
 - Quote Model Builder
 - Quote Service Developer
 - Rating Engine Architect
 - Rating Calculator
 
 **Group 3: Real-Time & Security (Days 7-10)**
+
 - WebSocket Engineer
 - SSO Integration Specialist
 - OAuth2 Server Developer
 - MFA Implementation Expert
 
 **Group 4: Compliance & Performance (Days 11-14)**
+
 - SOC 2 Compliance Engineer
 - Performance Optimization Expert
 - Deployment Specialist
@@ -115,6 +120,7 @@ async def create_quote(quote_data: QuoteCreate) -> Result[Quote, str]:
 ```
 
 **Requirements**:
+
 - Functions >10 lines MUST have performance benchmarks
 - Memory allocation <1MB per function
 - No memory growth >1MB in 1000 iterations
@@ -138,6 +144,7 @@ class QuoteService:
 ```
 
 **Benefits**:
+
 - Clear separation of concerns
 - Testable boundaries
 - Maintainable code structure
@@ -157,6 +164,7 @@ class QuoteService:
 ```
 
 **Requirements**:
+
 - 100% Pydantic model usage
 - 100% beartype decorator coverage
 - No `Any` types except at system boundaries
@@ -165,6 +173,7 @@ class QuoteService:
 ### 2. Testing Strategy
 
 **Unit Testing Requirements**:
+
 - 95%+ code coverage
 - All business logic tested
 - Mock external dependencies
@@ -172,12 +181,14 @@ class QuoteService:
 - Performance benchmarking
 
 **Integration Testing Requirements**:
+
 - End-to-end workflows
 - Cross-service communication
 - Database integration
 - Real-time features
 
 **Load Testing Requirements**:
+
 - 10,000 concurrent users
 - Connection pool stress testing
 - Memory leak detection
@@ -186,6 +197,7 @@ class QuoteService:
 ### 3. Security by Design
 
 **Requirements**:
+
 - Role-based access control (RBAC)
 - Comprehensive audit logging
 - Multi-factor authentication (MFA)
@@ -204,23 +216,29 @@ class QuoteService:
 ## Timestamp: 2025-07-05 12:00:00 UTC
 
 ### Current Status
+
 - [Current work description]
 
 ### Progress
+
 - [x] Completed tasks
 - [ ] In progress tasks
 - [ ] Pending tasks
 
 ### Blockers
+
 - [List any blockers with details]
 
 ### Next Steps
+
 - [Planned next actions]
 
 ### Dependencies
+
 - [Required from other agents]
 
 ### Confidence Level
+
 XX% - [Justification]
 ```
 
@@ -234,18 +252,23 @@ XX% - [Justification]
 ## Timestamp: 2025-07-05 XX:XX:XX UTC
 
 ## Blocker Description
+
 [Clear description of the blocker]
 
 ## Required Resolution
+
 [What needs to be done to unblock]
 
 ## Impact
+
 [How this affects timeline and dependencies]
 
 ## Attempted Solutions
+
 [What has been tried]
 
 ## Help Needed
+
 [Specific assistance required]
 ```
 
@@ -257,16 +280,19 @@ XX% - [Justification]
 # Agent XX Completion Verification
 
 ## Verified Components
+
 - [x] Component 1 - Tested and working
 - [x] Component 2 - Integrated successfully
 - [ ] Component 3 - Pending verification
 
 ## Integration Tests
+
 - [x] Unit tests passing
 - [x] Integration tests passing
 - [x] Performance benchmarks met
 
 ## Handoff Status
+
 Ready for dependent agents: [Agent YY, Agent ZZ]
 ```
 
@@ -287,18 +313,21 @@ src/pd_prime_demo/
 ### 2. File Structure Standards
 
 **Models** (`models/`):
+
 - Use Pydantic with `frozen=True`
 - Include business rule validation
 - Comprehensive docstrings
 - beartype decorators
 
 **Services** (`services/`):
+
 - Result type error handling
 - Performance monitoring
 - Dependency injection
 - Clear interfaces
 
 **APIs** (`api/`):
+
 - FastAPI with automatic OpenAPI
 - Input validation
 - Proper HTTP status codes
@@ -307,12 +336,14 @@ src/pd_prime_demo/
 ### 3. Database Standards
 
 **Migrations**:
+
 - Alembic for all schema changes
 - Rollback strategies
 - Index optimization
 - Performance testing
 
 **Connection Management**:
+
 - Intelligent connection pooling
 - Separate pools for workloads
 - Health monitoring

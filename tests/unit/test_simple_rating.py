@@ -1,10 +1,10 @@
-#\!/usr/bin/env python3
+# \!/usr/bin/env python3
 """Simple test script to verify rating engine functionality."""
 
 import asyncio
 from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import List
 from unittest.mock import AsyncMock, MagicMock
 
 from src.pd_prime_demo.models.quote import (
@@ -27,26 +27,26 @@ def create_mock_db() -> MagicMock:
             "state": "CA",
             "product_type": "auto",
             "coverage_type": "bodily_injury",
-            "base_rate": "0.85"
+            "base_rate": "0.85",
         },
         {
             "state": "CA",
             "product_type": "auto",
             "coverage_type": "property_damage",
-            "base_rate": "0.65"
+            "base_rate": "0.65",
         },
         {
             "state": "CA",
             "product_type": "auto",
             "coverage_type": "comprehensive",
-            "base_rate": "0.45"
+            "base_rate": "0.45",
         },
         {
             "state": "CA",
             "product_type": "auto",
             "coverage_type": "collision",
-            "base_rate": "0.55"
-        }
+            "base_rate": "0.55",
+        },
     ]
 
     # Mock individual fetchrow calls
@@ -55,7 +55,7 @@ def create_mock_db() -> MagicMock:
         {"policy_count": 0},
         {"first_policy_date": None},
         {"lapse_count": 0},
-        {"claim_count": 0}
+        {"claim_count": 0},
     ]
 
     return db
@@ -124,7 +124,7 @@ def create_test_driver() -> DriverInfo:
     )
 
 
-def create_test_coverages() -> List[CoverageSelection]:
+def create_test_coverages() -> list[CoverageSelection]:
     """Create test coverage selections."""
     return [
         CoverageSelection(
@@ -211,9 +211,13 @@ async def test_rating_engine():
 
     # Verify performance requirement
     if rating_result.calculation_time_ms > 50:
-        print(f"⚠️  WARNING: Calculation took {rating_result.calculation_time_ms}ms (>50ms target)")
+        print(
+            f"⚠️  WARNING: Calculation took {rating_result.calculation_time_ms}ms (>50ms target)"
+        )
     else:
-        print(f"🚀 Performance target met: {rating_result.calculation_time_ms}ms (<50ms)")
+        print(
+            f"🚀 Performance target met: {rating_result.calculation_time_ms}ms (<50ms)"
+        )
 
     # Test state-specific rules
     print("\n🏛️  Testing state-specific rules...")
@@ -273,4 +277,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-EOF < /dev/null

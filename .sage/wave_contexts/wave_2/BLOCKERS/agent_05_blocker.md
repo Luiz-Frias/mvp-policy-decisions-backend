@@ -3,11 +3,13 @@
 ## Timestamp: 2025-07-05 09:15:00 UTC
 
 ## Blocker Description
+
 Need database tables for quote system to be created by Agent 01 (Database Migration Specialist).
 
 ## Required Tables
 
 ### 1. quotes
+
 ```sql
 CREATE TABLE quotes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -71,6 +73,7 @@ CREATE INDEX idx_quotes_expires_at ON quotes(expires_at);
 ```
 
 ### 2. quote_sequences
+
 ```sql
 CREATE TABLE quote_sequences (
     year INT PRIMARY KEY,
@@ -79,6 +82,7 @@ CREATE TABLE quote_sequences (
 ```
 
 ### 3. quote_admin_overrides
+
 ```sql
 CREATE TABLE quote_admin_overrides (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,6 +101,7 @@ CREATE INDEX idx_quote_overrides_admin_user_id ON quote_admin_overrides(admin_us
 ```
 
 ### 4. quote_approvals
+
 ```sql
 CREATE TABLE quote_approvals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -115,11 +120,14 @@ CREATE INDEX idx_quote_approvals_status ON quote_approvals(status);
 ```
 
 ## Attempted Solutions
+
 - Reviewed existing migrations - none found
 - Checked for database schema files - none exist yet
 
 ## Help Needed
+
 Need Agent 01 to create these tables with proper Alembic migrations before I can test the quote service implementation.
 
 ## Impact
+
 Cannot test quote service functionality without database tables. However, I will continue implementing the API endpoints and other components.

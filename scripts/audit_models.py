@@ -113,7 +113,7 @@ def audit_validation_coverage():
 
     # Test VehicleInfo with valid data
     try:
-        vehicle = VehicleInfo(
+        _ = VehicleInfo(
             vin="1HGCM82633A004352",  # Valid VIN
             year=2023,
             make="Toyota",
@@ -128,7 +128,7 @@ def audit_validation_coverage():
 
     # Test DriverInfo validation
     try:
-        driver = DriverInfo(
+        _ = DriverInfo(
             first_name="John",
             last_name="Doe",
             date_of_birth=date(1990, 1, 1),
@@ -162,7 +162,7 @@ def audit_validation_coverage():
 
     # Test CoverageSelection validation
     try:
-        coverage = CoverageSelection(
+        _ = CoverageSelection(
             coverage_type="liability",
             limit=Decimal("50000.00"),
             deductible=Decimal("500.00"),
@@ -327,7 +327,7 @@ def audit_multi_step_wizard_support():
     # Test that QuoteCreate allows optional fields for wizard workflow
     try:
         # Should be able to create a quote with minimal data
-        quote_create = QuoteCreate(
+        _ = QuoteCreate(
             customer_id=uuid4(),
             product_type="auto",
             state="CA",
@@ -341,7 +341,7 @@ def audit_multi_step_wizard_support():
 
     # Test that QuoteUpdate allows partial updates
     try:
-        quote_update = QuoteUpdate(email="updated@example.com")  # Only updating email
+        _ = QuoteUpdate(email="updated@example.com")  # Only updating email
         wizard_tests.append("✅ QuoteUpdate: Supports partial updates")
     except Exception as e:
         wizard_tests.append(f"❌ QuoteUpdate: Cannot create partial update: {e}")

@@ -3,7 +3,7 @@ name: pre-commit
 on:
   pull_request:
   push:
-    branches: [ main, development, feat/** ]
+    branches: [main, development, feat/**]
 
 jobs:
   run-pre-commit:
@@ -13,10 +13,10 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - name: Install uv & pre-commit
         run: |
           pip install uv pre-commit
       - name: Run pre-commit
         run: |
-          pre-commit run --all-files --show-diff-on-failure 
+          pre-commit run --all-files --show-diff-on-failure

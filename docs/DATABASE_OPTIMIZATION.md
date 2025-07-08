@@ -44,6 +44,7 @@ max_connections = calculate_max_connections(
 ```
 
 Key features:
+
 - **Dynamic pool sizing** based on expected load
 - **Read replica support** for query distribution
 - **Admin pool** for complex analytical queries
@@ -105,6 +106,7 @@ python scripts/monitor_db_health.py
 ```
 
 Monitors:
+
 - Connection pool utilization
 - Query performance metrics
 - Cache hit rates

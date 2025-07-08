@@ -10,9 +10,8 @@ Usage:
 import asyncio
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-from uuid import uuid4
 
 import asyncpg
 from dotenv import load_dotenv
@@ -133,7 +132,6 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.15,
             },
         },
-
         # Texas Auto Rates (generally lower than CA)
         {
             "state": "TX",
@@ -169,7 +167,6 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.28,
             },
         },
-
         # New York Auto Rates (highest)
         {
             "state": "NY",
@@ -206,7 +203,6 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.35,
             },
         },
-
         # Home Insurance Rates
         {
             "state": "CA",
@@ -223,7 +219,7 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "95814": 1.5,  # Wildfire risk
             },
             "vehicle_factors": {},  # Not applicable for home
-            "driver_factors": {},   # Not applicable for home
+            "driver_factors": {},  # Not applicable for home
             "credit_factors": {
                 "excellent": 0.85,
                 "good": 0.92,
@@ -507,27 +503,129 @@ async def seed_territory_factors(conn: asyncpg.Connection) -> None:
     # Sample territory factors for major cities
     territories = [
         # California
-        {"state": "CA", "zip_code": "90210", "product_type": "auto", "base_factor": 1.8, "loss_ratio_factor": 1.2, "catastrophe_factor": 1.1},
-        {"state": "CA", "zip_code": "94105", "product_type": "auto", "base_factor": 1.5, "loss_ratio_factor": 1.3, "catastrophe_factor": 1.0},
-        {"state": "CA", "zip_code": "92101", "product_type": "auto", "base_factor": 1.3, "loss_ratio_factor": 1.1, "catastrophe_factor": 1.0},
-        {"state": "CA", "zip_code": "90001", "product_type": "auto", "base_factor": 1.4, "loss_ratio_factor": 1.4, "catastrophe_factor": 1.0},
-        {"state": "CA", "zip_code": "95814", "product_type": "auto", "base_factor": 1.1, "loss_ratio_factor": 1.0, "catastrophe_factor": 1.2},
-
+        {
+            "state": "CA",
+            "zip_code": "90210",
+            "product_type": "auto",
+            "base_factor": 1.8,
+            "loss_ratio_factor": 1.2,
+            "catastrophe_factor": 1.1,
+        },
+        {
+            "state": "CA",
+            "zip_code": "94105",
+            "product_type": "auto",
+            "base_factor": 1.5,
+            "loss_ratio_factor": 1.3,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "CA",
+            "zip_code": "92101",
+            "product_type": "auto",
+            "base_factor": 1.3,
+            "loss_ratio_factor": 1.1,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "CA",
+            "zip_code": "90001",
+            "product_type": "auto",
+            "base_factor": 1.4,
+            "loss_ratio_factor": 1.4,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "CA",
+            "zip_code": "95814",
+            "product_type": "auto",
+            "base_factor": 1.1,
+            "loss_ratio_factor": 1.0,
+            "catastrophe_factor": 1.2,
+        },
         # Texas
-        {"state": "TX", "zip_code": "75201", "product_type": "auto", "base_factor": 1.4, "loss_ratio_factor": 1.2, "catastrophe_factor": 1.1},
-        {"state": "TX", "zip_code": "77001", "product_type": "auto", "base_factor": 1.4, "loss_ratio_factor": 1.3, "catastrophe_factor": 1.3},
-        {"state": "TX", "zip_code": "78701", "product_type": "auto", "base_factor": 1.2, "loss_ratio_factor": 1.0, "catastrophe_factor": 1.1},
-        {"state": "TX", "zip_code": "78201", "product_type": "auto", "base_factor": 1.1, "loss_ratio_factor": 1.0, "catastrophe_factor": 1.0},
-
+        {
+            "state": "TX",
+            "zip_code": "75201",
+            "product_type": "auto",
+            "base_factor": 1.4,
+            "loss_ratio_factor": 1.2,
+            "catastrophe_factor": 1.1,
+        },
+        {
+            "state": "TX",
+            "zip_code": "77001",
+            "product_type": "auto",
+            "base_factor": 1.4,
+            "loss_ratio_factor": 1.3,
+            "catastrophe_factor": 1.3,
+        },
+        {
+            "state": "TX",
+            "zip_code": "78701",
+            "product_type": "auto",
+            "base_factor": 1.2,
+            "loss_ratio_factor": 1.0,
+            "catastrophe_factor": 1.1,
+        },
+        {
+            "state": "TX",
+            "zip_code": "78201",
+            "product_type": "auto",
+            "base_factor": 1.1,
+            "loss_ratio_factor": 1.0,
+            "catastrophe_factor": 1.0,
+        },
         # New York
-        {"state": "NY", "zip_code": "10001", "product_type": "auto", "base_factor": 2.0, "loss_ratio_factor": 1.5, "catastrophe_factor": 1.0},
-        {"state": "NY", "zip_code": "11201", "product_type": "auto", "base_factor": 1.8, "loss_ratio_factor": 1.4, "catastrophe_factor": 1.0},
-        {"state": "NY", "zip_code": "10451", "product_type": "auto", "base_factor": 1.7, "loss_ratio_factor": 1.5, "catastrophe_factor": 1.0},
-
+        {
+            "state": "NY",
+            "zip_code": "10001",
+            "product_type": "auto",
+            "base_factor": 2.0,
+            "loss_ratio_factor": 1.5,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "NY",
+            "zip_code": "11201",
+            "product_type": "auto",
+            "base_factor": 1.8,
+            "loss_ratio_factor": 1.4,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "NY",
+            "zip_code": "10451",
+            "product_type": "auto",
+            "base_factor": 1.7,
+            "loss_ratio_factor": 1.5,
+            "catastrophe_factor": 1.0,
+        },
         # Home insurance territories (high catastrophe areas)
-        {"state": "CA", "zip_code": "90210", "product_type": "home", "base_factor": 1.5, "loss_ratio_factor": 1.2, "catastrophe_factor": 2.5},  # Wildfire
-        {"state": "TX", "zip_code": "77001", "product_type": "home", "base_factor": 1.2, "loss_ratio_factor": 1.1, "catastrophe_factor": 2.0},  # Hurricane
-        {"state": "NY", "zip_code": "11234", "product_type": "home", "base_factor": 1.3, "loss_ratio_factor": 1.1, "catastrophe_factor": 1.8},  # Coastal flooding
+        {
+            "state": "CA",
+            "zip_code": "90210",
+            "product_type": "home",
+            "base_factor": 1.5,
+            "loss_ratio_factor": 1.2,
+            "catastrophe_factor": 2.5,
+        },  # Wildfire
+        {
+            "state": "TX",
+            "zip_code": "77001",
+            "product_type": "home",
+            "base_factor": 1.2,
+            "loss_ratio_factor": 1.1,
+            "catastrophe_factor": 2.0,
+        },  # Hurricane
+        {
+            "state": "NY",
+            "zip_code": "11234",
+            "product_type": "home",
+            "base_factor": 1.3,
+            "loss_ratio_factor": 1.1,
+            "catastrophe_factor": 1.8,
+        },  # Coastal flooding
     ]
 
     for territory in territories:
@@ -558,7 +656,7 @@ async def main():
 
     try:
         conn = await asyncpg.connect(database_url)
-        print(f"Connected to database")
+        print("Connected to database")
 
         # Check if data already exists
         existing = await conn.fetchval("SELECT COUNT(*) FROM rate_tables")
@@ -578,9 +676,9 @@ async def main():
         print(f"\n❌ Error seeding rate tables: {e}")
         raise
     finally:
-        if 'conn' in locals():
+        if "conn" in locals():
             await conn.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main()
+    asyncio.run(main())

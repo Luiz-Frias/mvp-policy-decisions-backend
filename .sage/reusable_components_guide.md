@@ -28,6 +28,7 @@ class BaseModelConfig(BaseModel):
 ```
 
 **Usage Pattern**:
+
 ```python
 # Inherit from BaseModelConfig for all domain models
 class YourModel(BaseModelConfig):
@@ -38,6 +39,7 @@ class YourModel(BaseModelConfig):
 **Reusability**: ⭐⭐⭐⭐⭐ (Universal - use for all domain models)
 
 **Customization Points**:
+
 - Validation rules per field
 - Serialization configuration
 - Computed fields
@@ -64,6 +66,7 @@ async def your_service_method(data: InputData) -> Result[OutputData, str]:
 ```
 
 **Usage Pattern**:
+
 ```python
 # Service layer
 result = await service.create_item(data)
@@ -80,6 +83,7 @@ return (await validate_input(data)
 **Reusability**: ⭐⭐⭐⭐⭐ (Universal - use in all services)
 
 **Benefits**:
+
 - No exceptions for control flow
 - Explicit error handling
 - Composable operations
@@ -104,6 +108,7 @@ async def create_quote(data: QuoteCreate) -> Result[Quote, str]:
 ```
 
 **Usage Pattern**:
+
 ```python
 # Apply to all functions >10 lines (master ruleset requirement)
 @performance_monitor("operation_name", max_duration_ms=1000)
@@ -115,6 +120,7 @@ def your_function():
 **Reusability**: ⭐⭐⭐⭐⭐ (Universal - use on all critical functions)
 
 **Features**:
+
 - Execution time monitoring
 - Memory usage tracking
 - Performance regression detection
@@ -141,6 +147,7 @@ class DatabaseEnhanced:
 ```
 
 **Features**:
+
 - Dynamic pool sizing based on expected load
 - Separate pools for read/write/admin operations
 - Health monitoring and metrics
@@ -148,6 +155,7 @@ class DatabaseEnhanced:
 - Prepared statement caching
 
 **Usage Pattern**:
+
 ```python
 # Configuration
 DATABASE_POOL_MIN = 5
@@ -163,6 +171,7 @@ async with db.transaction():
 **Reusability**: ⭐⭐⭐⭐⭐ (High - works with any PostgreSQL application)
 
 **Customization Points**:
+
 - Pool sizing algorithms
 - Health check strategies
 - Retry policies
@@ -191,6 +200,7 @@ class QueryOptimizer:
 ```
 
 **Features**:
+
 - EXPLAIN ANALYZE automation
 - Slow query detection
 - Index suggestion engine
@@ -208,6 +218,7 @@ class QueryOptimizer:
 **Description**: Standardized SSO provider implementations for major identity providers.
 
 **Supported Providers**:
+
 - Google Workspace (`google.py`)
 - Microsoft Azure AD (`azure.py`)
 - Okta (`okta.py`)
@@ -227,6 +238,7 @@ user_info = await google_provider.get_user_info(authorization_code)
 ```
 
 **Features**:
+
 - OAuth2/OIDC compliance
 - Token validation
 - User info extraction
@@ -257,6 +269,7 @@ class Permission(str, Enum):
 ```
 
 **Features**:
+
 - Hierarchical role system
 - Granular permissions
 - Resource-based access control
@@ -264,6 +277,7 @@ class Permission(str, Enum):
 - Default permission sets
 
 **Usage Pattern**:
+
 ```python
 # Check permissions
 @require_permission(Permission.QUOTE_APPROVE)
@@ -305,6 +319,7 @@ class ConnectionManager:
 ```
 
 **Features**:
+
 - Connection pooling and management
 - Room-based subscriptions
 - Message broadcasting
@@ -313,6 +328,7 @@ class ConnectionManager:
 - Rate limiting
 
 **Usage Pattern**:
+
 ```python
 # Real-time quote updates
 await manager.join_room(connection_id, f"quote:{quote_id}")
@@ -331,6 +347,7 @@ await manager.broadcast_to_room(
 **Description**: Performance monitoring specifically for WebSocket operations.
 
 **Features**:
+
 - Connection metrics
 - Message latency tracking
 - Throughput monitoring
@@ -346,6 +363,7 @@ await manager.broadcast_to_room(
 **Description**: Comprehensive quote lifecycle management.
 
 **Features**:
+
 - Multi-step quote wizard
 - Version management
 - Expiration handling
@@ -362,6 +380,7 @@ await manager.broadcast_to_room(
 **Description**: High-performance insurance rating with sub-50ms calculations.
 
 **Features**:
+
 - Multi-factor rating
 - State-specific rules
 - Discount calculations
@@ -393,6 +412,7 @@ class CacheKeys:
 ```
 
 **Features**:
+
 - Consistent key naming
 - TTL management
 - Cache invalidation patterns
@@ -579,17 +599,20 @@ class Settings(BaseSettings):
 ### 1. Selection Criteria
 
 **Core Infrastructure**: Use for all projects
+
 - Base models
 - Result types
 - Performance monitoring
 - Database pooling
 
 **Security Infrastructure**: Use for enterprise applications
+
 - SSO providers
 - RBAC system
 - Audit logging
 
 **Business Logic**: Adapt patterns for domain-specific needs
+
 - Quote management patterns
 - Rating engine architecture
 - Workflow management

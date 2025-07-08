@@ -5,7 +5,7 @@ data consistency and proper error handling across all services.
 """
 
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import List, TypeVar
 
 import asyncpg
 from beartype import beartype
@@ -42,7 +42,7 @@ class TransactionConfig:
 
 
 @beartype
-async def with_transaction[T](
+async def with_transaction(
     db: Database,
     operation: Callable[[], Awaitable[Result[T, str]]],
     config: TransactionConfig | None = None,
@@ -97,7 +97,7 @@ async def with_transaction[T](
 
 
 @beartype
-async def with_savepoint[T](
+async def with_savepoint(
     db: Database,
     operation: Callable[[], Awaitable[Result[T, str]]],
     savepoint_name: str,
@@ -134,7 +134,7 @@ async def with_savepoint[T](
 
 
 @beartype
-async def batch_operation[T](
+async def batch_operation(
     db: Database,
     items: list[T],
     operation: Callable[[T], Awaitable[Result[bool, str]]],
@@ -152,12 +152,12 @@ async def batch_operation[T](
         batch_size: Number of items per batch
 
     Returns:
-        Result[list[T], str]: Successfully processed items or error
+        Result[List[T], str]: Successfully processed items or error
     """
     processed: list[T] = []
 
     for i in range(0, len(items), batch_size):
-        batch = items[i:i + batch_size]
+        batch = items[i : i + batch_size]
 
         async def _batch_operation() -> Result[list[T], str]:
             batch_processed: list[T] = []
@@ -172,7 +172,9 @@ async def batch_operation[T](
 
         result = await with_transaction(db, _batch_operation)
         if isinstance(result, Err):
-            return Err(f"Batch failed: {result.error}. Processed {len(processed)} items.")
+            return Err(
+                f"Batch failed: {result.error}. Processed {len(processed)} items."
+            )
 
         processed.extend(result.unwrap())
 
@@ -180,7 +182,7 @@ async def batch_operation[T](
 
 
 @beartype
-async def with_advisory_lock[T](
+async def with_advisory_lock(
     db: Database,
     lock_id: int,
     operation: Callable[[], Awaitable[Result[T, str]]],
@@ -217,7 +219,7 @@ async def with_advisory_lock[T](
 
 
 @beartype
-async def upsert_with_conflict[T](
+async def upsert_with_conflict(
     db: Database,
     table: str,
     insert_data: dict,
