@@ -37,7 +37,7 @@ Fix all test-related issues and ensure comprehensive test coverage.
 ### ✅ PASSING TEST MODULES (72/72 tests)
 - **MFA Tests**: 16/16 tests passing
   - `TestTOTPProvider`: 7/7 tests passing
-  - `TestRiskEngine`: 7/7 tests passing  
+  - `TestRiskEngine`: 7/7 tests passing
   - `TestMFAModels`: 2/2 tests passing
 - **Model Tests**: 30/30 tests passing
   - `TestBaseModelConfig`: 5/5 tests passing
@@ -62,7 +62,7 @@ Fix all test-related issues and ensure comprehensive test coverage.
 
 ### Test Categories Status
 - **Unit Tests**: ✅ All core modules import and type errors resolved
-- **Integration Tests**: ✅ Cache and configuration dependencies fixed  
+- **Integration Tests**: ✅ Cache and configuration dependencies fixed
 - **Performance Tests**: ✅ No blocking issues identified
 - **Async Tests**: ✅ Proper async patterns verified and working
 

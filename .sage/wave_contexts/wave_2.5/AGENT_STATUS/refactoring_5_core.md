@@ -118,10 +118,10 @@ async def system_health_check() -> dict[str, Any]:
     """Comprehensive system health check."""
     db = get_database()
     cache = get_cache()
-    
+
     db_health = await db.health_check()
     cache_health = await cache.health_check()
-    
+
     return {
         "database": db_health.ok_value if db_health.is_ok() else "unhealthy",
         "cache": cache_health,
@@ -186,6 +186,6 @@ The infrastructure demonstrates enterprise-grade patterns:
 
 **Infrastructure Quality Score: 95/100**
 - Database: 98/100
-- Cache: 95/100  
+- Cache: 95/100
 - Config: 95/100
 - Auth: 92/100

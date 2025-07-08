@@ -210,7 +210,7 @@ class Cache:
         return int(result)
 
     @beartype
-    async def smembers(self, key: str) -> Set[str]:
+    async def smembers(self, key: str) -> set[str]:
         """Get all members of a set."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")
@@ -231,7 +231,7 @@ class Cache:
 
 
 # Global cache instance
-_cache: Union[Cache, None] = None
+_cache: Cache | None = None
 
 
 @beartype
