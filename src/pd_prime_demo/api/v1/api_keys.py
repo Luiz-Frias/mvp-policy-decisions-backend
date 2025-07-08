@@ -1,7 +1,7 @@
 """API key management endpoints."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -23,6 +23,9 @@ class APIKeyCreateRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     name: str = Field(..., min_length=1, max_length=100)
@@ -38,6 +41,9 @@ class APIKeyResponse(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     id: UUID

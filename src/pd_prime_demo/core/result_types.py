@@ -32,6 +32,18 @@ class Ok(Generic[T]):
         """Get the Error value (None for Ok)."""
         return None
 
+    def unwrap(self) -> T:
+        """Get the success value."""
+        return self.value
+
+    def unwrap_or(self, default: T) -> T:
+        """Get the success value."""
+        return self.value
+
+    def unwrap_err(self) -> None:
+        """Raise ValueError as this is Ok."""
+        raise ValueError("Called unwrap_err on Ok value")
+
 
 @frozen
 class Err(Generic[E]):
@@ -57,6 +69,36 @@ class Err(Generic[E]):
         """Get the Error value."""
         return self.error
 
+    def unwrap(self) -> None:
+        """Raise ValueError as this is Err."""
+        raise ValueError(f"Called unwrap on Err value: {self.error}")
+
+    def unwrap_or(self, default: T) -> T:
+        """Return default value."""
+        return default
+
+    def unwrap_err(self) -> E:
+        """Get the error value."""
+        return self.error
+
 
 # Type alias for Result
-Result = Union[Ok[T], Err[E]]
+ResultType = Union[Ok[T], Err[E]]
+
+
+class Result(Generic[T, E]):
+    """Result class with class methods for convenient creation and generic type support."""
+
+    @staticmethod
+    def ok(value: T) -> Ok[T]:
+        """Create an Ok result."""
+        return Ok(value)
+
+    @staticmethod
+    def err(error: E) -> Err[E]:
+        """Create an Err result."""
+        return Err(error)
+
+    def __class_getitem__(cls, params):
+        """Support generic type annotations like Result[T, E]."""
+        return Union[Ok[params[0]], Err[params[1]]]

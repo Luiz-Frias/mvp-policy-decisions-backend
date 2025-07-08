@@ -3,7 +3,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -13,7 +13,7 @@ from passlib.context import CryptContext
 from ....core.cache import Cache
 from ....core.config import Settings
 from ....core.database import Database
-from ....services.result import Err, Ok, Result
+from ....services.result import Err, Ok
 
 # Password hashing
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -36,6 +36,7 @@ class OAuth2Error(Exception):
         self.status_code = status_code
         super().__init__(error_description or error)
 
+    @beartype
     def to_dict(self) -> dict[str, Any]:
         """Convert to OAuth2 error response."""
         response = {"error": self.error}
@@ -84,7 +85,7 @@ class OAuth2Server:
         allowed_grant_types: list[str],
         allowed_scopes: list[str],
         client_type: str = "confidential",  # or "public"
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Create a new OAuth2 client.
 
         Args:
@@ -169,7 +170,7 @@ class OAuth2Server:
         user_id: UUID | None = None,
         code_challenge: str | None = None,
         code_challenge_method: str | None = None,
-    ) -> Result[dict[str, Any], OAuth2Error]:
+    ) -> dict:
         """Handle authorization request.
 
         Args:
@@ -298,7 +299,7 @@ class OAuth2Server:
         username: str | None = None,
         password: str | None = None,
         code_verifier: str | None = None,
-    ) -> Result[dict[str, Any], OAuth2Error]:
+    ) -> dict:
         """Handle token request.
 
         Args:
@@ -420,7 +421,7 @@ class OAuth2Server:
         token_type_hint: str | None = None,
         client_id: str | None = None,
         client_secret: str | None = None,
-    ) -> Result[bool, str]:
+    ):
         """Revoke a token.
 
         Args:
@@ -632,7 +633,7 @@ class OAuth2Server:
         redirect_uri: str | None,
         client_id: str | None,
         code_verifier: str | None = None,
-    ) -> Result[dict[str, Any], OAuth2Error]:
+    ) -> dict:
         """Handle authorization code grant type with enhanced PKCE validation."""
         if not code:
             return Err(OAuth2Error("invalid_request", "Missing authorization code"))
@@ -744,7 +745,7 @@ class OAuth2Server:
         refresh_token: str | None,
         scope: str | None,
         client: dict[str, Any],
-    ) -> Result[dict[str, Any], OAuth2Error]:
+    ) -> dict:
         """Handle refresh token grant type."""
         if not refresh_token:
             return Err(OAuth2Error("invalid_request", "Missing refresh token"))
@@ -826,7 +827,7 @@ class OAuth2Server:
         self,
         client: dict[str, Any],
         scope: str | None,
-    ) -> Result[dict[str, Any], OAuth2Error]:
+    ) -> dict:
         """Handle client credentials grant type."""
         # Validate grant type is allowed
         if "client_credentials" not in client["allowed_grant_types"]:
@@ -882,7 +883,7 @@ class OAuth2Server:
         password: str | None,
         scope: str | None,
         client: dict[str, Any],
-    ) -> Result[dict[str, Any], OAuth2Error]:
+    ) -> dict:
         """Handle password grant type (only for trusted clients)."""
         # This grant type should only be used by highly trusted clients
         if "password" not in client["allowed_grant_types"]:
@@ -1016,7 +1017,7 @@ class OAuth2Server:
         }
 
     @beartype
-    async def _revoke_refresh_token(self, token: str) -> Result[bool, str]:
+    async def _revoke_refresh_token(self, token: str):
         """Revoke a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
@@ -1074,7 +1075,7 @@ class OAuth2Server:
         self,
         client_id: str,
         operation: str = "token_request",
-    ) -> Result[bool, str]:
+    ):
         """Validate client-specific rate limiting.
 
         Args:

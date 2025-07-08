@@ -4,7 +4,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype

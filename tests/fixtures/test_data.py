@@ -6,7 +6,7 @@ All data models use Pydantic with frozen=True for immutability and strict valida
 
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from beartype import beartype

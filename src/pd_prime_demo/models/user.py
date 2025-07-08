@@ -6,6 +6,7 @@ regular users, admin users, and authentication/authorization patterns.
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from beartype import beartype
 from pydantic import EmailStr, Field, field_validator
@@ -146,7 +147,7 @@ class UserCreate(UserBase):
 
         return v
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Validate password confirmation after model creation."""
         if self.password != self.confirm_password:
             raise ValueError("Passwords do not match")
@@ -176,7 +177,7 @@ class UserPasswordUpdate(BaseModelConfig):
         ..., min_length=8, max_length=128, description="New password confirmation"
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Validate new password confirmation."""
         if self.new_password != self.confirm_new_password:
             raise ValueError("New passwords do not match")
@@ -260,7 +261,7 @@ class PasswordResetConfirm(BaseModelConfig):
         ..., min_length=8, max_length=128, description="Password confirmation"
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Validate password confirmation."""
         if self.new_password != self.confirm_password:
             raise ValueError("Passwords do not match")

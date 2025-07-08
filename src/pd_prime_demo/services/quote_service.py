@@ -4,7 +4,7 @@ import asyncio
 import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -15,7 +15,6 @@ from ..core.database import Database
 from ..models.quote import (
     CoverageSelection,
     Discount,
-    DiscountType,
     DriverInfo,
     ProductType,
     Quote,
@@ -27,7 +26,7 @@ from ..models.quote import (
     VehicleInfo,
 )
 from .performance_monitor import performance_monitor
-from .result import Err, Ok, Result
+from .result import Err, Ok
 
 # Optional imports for production features
 try:
@@ -57,7 +56,25 @@ class QuoteService:
         rating_engine: Any | None = None,  # RatingEngine when available
         websocket_manager: Any | None = None,  # ConnectionManager when available
     ) -> None:
-        """Initialize quote service."""
+        """Initialize quote service with dependency validation."""
+        if not db or not hasattr(db, "execute"):
+            raise ValueError("Database connection required and must be active")
+        if not cache or not hasattr(cache, "get"):
+            raise ValueError("Cache connection required and must be available")
+
+        # CRITICAL: Rating engine is now REQUIRED for production
+        # No fallbacks allowed - explicit configuration required
+        if rating_engine is None:
+            import warnings
+
+            warnings.warn(
+                "QuoteService initialized without RatingEngine. "
+                "Quote calculations will fail until RatingEngine is configured. "
+                "This is only acceptable during initial setup.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
         self._db = db
         self._cache = cache
         self._rating_engine = rating_engine
@@ -71,7 +88,7 @@ class QuoteService:
         self,
         quote_data: QuoteCreate,
         user_id: UUID | None = None,
-    ) -> Result[Quote, str]:
+    ):
         """Create a new quote with initial calculations."""
         try:
             # Validate business rules
@@ -150,7 +167,7 @@ class QuoteService:
 
     @beartype
     @performance_monitor("quote_calculation", max_duration_ms=1000)
-    async def calculate_quote(self, quote_id: UUID) -> Result[Quote, str]:
+    async def calculate_quote(self, quote_id: UUID):
         """Calculate or recalculate quote pricing."""
         try:
             # Get quote
@@ -175,39 +192,42 @@ class QuoteService:
                     return init_result
                 self._rating_engine._initialized = True
 
-            # Calculate rating using actual engine or fallback to mock
+            # ALWAYS require rating engine - NO FALLBACKS
             if not self._rating_engine:
-                rating_dict = await self._mock_calculate_premium(quote)
-                rating = rating_dict
-            else:
-                # Calculate rating using actual engine
-                rating_result = await self._rating_engine.calculate_premium(
-                    state=quote.state,
-                    product_type=quote.product_type,
-                    vehicle_info=quote.vehicle_info,
-                    drivers=quote.drivers,
-                    coverage_selections=quote.coverage_selections,
-                    customer_id=quote.customer_id,
+                return Err(
+                    "Rating engine not configured. "
+                    "Service must be initialized with RatingEngine instance. "
+                    "Contact system administrator to configure rating service."
                 )
 
-                if isinstance(rating_result, Err):
-                    await self._update_quote_status(quote_id, QuoteStatus.DRAFT)
-                    return rating_result
+            # Calculate rating using actual engine
+            rating_result = await self._rating_engine.calculate_premium(
+                state=quote.state,
+                product_type=quote.product_type,
+                vehicle_info=quote.vehicle_info,
+                drivers=quote.drivers,
+                coverage_selections=quote.coverage_selections,
+                customer_id=quote.customer_id,
+            )
 
-                rating_obj = rating_result.unwrap()
-                # Convert RatingResult to dict for consistency
-                rating = {
-                    "base_premium": rating_obj.base_premium,
-                    "total_premium": rating_obj.total_premium,
-                    "discounts": [d.model_dump() for d in rating_obj.discounts],
-                    "surcharges": rating_obj.surcharges,
-                    "total_discount_amount": rating_obj.total_discount_amount,
-                    "total_surcharge_amount": rating_obj.total_surcharge_amount,
-                    "factors": rating_obj.factors,
-                    "tier": rating_obj.tier,
-                    "ai_risk_score": rating_obj.ai_risk_score,
-                    "ai_risk_factors": rating_obj.ai_risk_factors,
-                }
+            if isinstance(rating_result, Err):
+                await self._update_quote_status(quote_id, QuoteStatus.DRAFT)
+                return rating_result
+
+            rating_obj = rating_result.unwrap()
+            # Convert RatingResult to dict for consistency
+            rating = {
+                "base_premium": rating_obj.base_premium,
+                "total_premium": rating_obj.total_premium,
+                "discounts": [d.model_dump() for d in rating_obj.discounts],
+                "surcharges": rating_obj.surcharges,
+                "total_discount_amount": rating_obj.total_discount_amount,
+                "total_surcharge_amount": rating_obj.total_surcharge_amount,
+                "factors": rating_obj.factors,
+                "tier": rating_obj.tier,
+                "ai_risk_score": rating_obj.ai_risk_score,
+                "ai_risk_factors": rating_obj.ai_risk_factors,
+            }
 
             # Calculate monthly (10% down + 9 payments)
             down_payment = rating["total_premium"] * Decimal("0.10")
@@ -270,12 +290,13 @@ class QuoteService:
             return Err(f"Calculation error: {str(e)}")
 
     @beartype
+    @performance_monitor("update_quote")
     async def update_quote(
         self,
         quote_id: UUID,
         update_data: QuoteUpdate,
         user_id: UUID | None = None,
-    ) -> Result[Quote, str]:
+    ):
         """Update quote and create new version if needed."""
         try:
             # Get existing quote
@@ -311,7 +332,7 @@ class QuoteService:
         quote_id: UUID,
         conversion_request: QuoteConversionRequest,
         user_id: UUID | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Convert quote to policy."""
         try:
             # Get quote
@@ -396,7 +417,8 @@ class QuoteService:
             return Err(f"Conversion error: {str(e)}")
 
     @beartype
-    async def get_quote(self, quote_id: UUID) -> Result[Quote | None, str]:
+    @performance_monitor("get_quote")
+    async def get_quote(self, quote_id: UUID):
         """Get quote by ID with caching."""
         # Check cache first
         cache_key = f"{self._cache_prefix}{quote_id}"
@@ -423,6 +445,7 @@ class QuoteService:
         return Ok(quote)
 
     @beartype
+    @performance_monitor("search_quotes")
     async def search_quotes(
         self,
         customer_id: UUID | None = None,
@@ -432,7 +455,7 @@ class QuoteService:
         created_before: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> Result[list[Quote], str]:
+    ) -> dict:
         """Search quotes with filters."""
         query_parts = ["SELECT * FROM quotes WHERE 1=1"]
         params: list[Any] = []
@@ -480,12 +503,13 @@ class QuoteService:
         return Ok(quotes)
 
     @beartype
+    @performance_monitor("admin_search_quotes")
     async def admin_search_quotes(
         self,
         admin_user_id: UUID,
         filters: dict[str, Any],
         include_pii: bool = False,
-    ) -> Result[list[Quote], str]:
+    ) -> dict:
         """Admin search with advanced filters and PII control."""
         # Verify admin permissions
         admin_check = await self._verify_admin_permissions(
@@ -538,12 +562,13 @@ class QuoteService:
         return Ok(quotes)
 
     @beartype
+    @performance_monitor("admin_override_quote")
     async def admin_override_quote(
         self,
         quote_id: UUID,
         admin_user_id: UUID,
         override_request: QuoteOverrideRequest,
-    ) -> Result[Quote, str]:
+    ):
         """Allow admin to override quote pricing or terms."""
         try:
             # Get existing quote
@@ -607,12 +632,13 @@ class QuoteService:
             return Err(f"Override failed: {str(e)}")
 
     @beartype
+    @performance_monitor("get_quote_analytics")
     async def get_quote_analytics(
         self,
         date_from: datetime,
         date_to: datetime,
         group_by: str = "day",
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get quote analytics for admin dashboards."""
         query = """
             WITH quote_metrics AS (
@@ -663,6 +689,7 @@ class QuoteService:
     # Private helper methods
 
     @beartype
+    @performance_monitor("generate_quote_number")
     async def _generate_quote_number(self) -> str:
         """Generate unique quote number."""
         year = datetime.now().year
@@ -682,7 +709,8 @@ class QuoteService:
         return f"QUOT-{year}-{sequence:06d}"
 
     @beartype
-    async def _validate_quote_data(self, quote_data: QuoteCreate) -> Result[bool, str]:
+    @performance_monitor("validate_quote_data")
+    async def _validate_quote_data(self, quote_data: QuoteCreate):
         """Validate quote business rules."""
         # Check state support
         supported_states = ["CA", "TX", "NY"]  # Demo states
@@ -712,85 +740,11 @@ class QuoteService:
 
         return Ok(True)
 
-    @beartype
-    async def _mock_calculate_premium(self, quote: Quote) -> dict[str, Any]:
-        """Mock premium calculation for demo."""
-        # Base premium calculation
-        base_premium = Decimal("1200.00")  # Annual base
-
-        # Apply factors
-        if quote.vehicle_info:
-            # Newer vehicles cost more
-            vehicle_age = datetime.now().year - quote.vehicle_info.year
-            if vehicle_age < 3:
-                base_premium *= Decimal("1.2")
-            elif vehicle_age > 10:
-                base_premium *= Decimal("0.8")
-
-        # Driver factors
-        total_discount = Decimal("0")
-        total_surcharge = Decimal("0")
-        discounts = []
-
-        for driver in quote.drivers:
-            if driver.accidents_3_years > 0:
-                total_surcharge += Decimal("200") * driver.accidents_3_years
-            if driver.violations_3_years > 0:
-                total_surcharge += Decimal("100") * driver.violations_3_years
-            if driver.good_student:
-                discount_amount = base_premium * Decimal("0.1")
-                total_discount += discount_amount
-                discounts.append(
-                    {
-                        "discount_type": DiscountType.GOOD_STUDENT,
-                        "amount": float(discount_amount),
-                        "percentage": 10.0,
-                        "description": "Good student discount",
-                        "applied": True,
-                        "eligibility_met": True,
-                    }
-                )
-
-        # Multi-policy discount (mock)
-        if quote.customer_id:
-            discount_amount = base_premium * Decimal("0.05")
-            total_discount += discount_amount
-            discounts.append(
-                {
-                    "discount_type": DiscountType.MULTI_POLICY,
-                    "amount": float(discount_amount),
-                    "percentage": 5.0,
-                    "description": "Multi-policy discount",
-                    "applied": True,
-                    "eligibility_met": True,
-                }
-            )
-
-        total_premium = base_premium - total_discount + total_surcharge
-
-        return {
-            "base_premium": base_premium,
-            "total_premium": total_premium,
-            "discounts": discounts,
-            "surcharges": [],
-            "total_discount_amount": total_discount,
-            "total_surcharge_amount": total_surcharge,
-            "factors": {
-                "base_rate": float(base_premium),
-                "vehicle_age_factor": 1.0,
-                "territory_factor": 1.0,
-                "credit_factor": 1.0,
-            },
-            "tier": "STANDARD",
-            "ai_risk_score": Decimal("75.5"),
-            "ai_risk_factors": {
-                "driving_history": "good",
-                "vehicle_safety": "average",
-                "territory_risk": "low",
-            },
-        }
+    # REMOVED: _mock_calculate_premium - NO MOCK DATA ALLOWED
+    # All calculations MUST use real RatingEngine with database-backed rate tables
 
     @beartype
+    @performance_monitor("requires_new_version")
     def _requires_new_version(self, existing: Quote, update: QuoteUpdate) -> bool:
         """Determine if update requires new version."""
         # Major changes that require versioning
@@ -815,9 +769,10 @@ class QuoteService:
         return False
 
     @beartype
+    @performance_monitor("create_quote_version")
     async def _create_quote_version(
         self, existing: Quote, update_data: QuoteUpdate, user_id: UUID | None
-    ) -> Result[Quote, str]:
+    ):
         """Create new version of quote."""
         # Create new quote with updated data
         new_quote_data = QuoteCreate(
@@ -868,9 +823,10 @@ class QuoteService:
         return Ok(new_quote_updated)
 
     @beartype
+    @performance_monitor("update_quote_inplace")
     async def _update_quote_inplace(
         self, quote_id: UUID, update_data: QuoteUpdate, user_id: UUID | None
-    ) -> Result[Quote, str]:
+    ):
         """Update quote in place for minor changes."""
         update_parts = []
         params: list[Any] = [quote_id]
@@ -921,7 +877,8 @@ class QuoteService:
         return Ok(self._row_to_quote(row))
 
     @beartype
-    def _validate_quote_conversion(self, quote: Quote) -> Result[bool, str]:
+    @performance_monitor("validate_quote_conversion")
+    def _validate_quote_conversion(self, quote: Quote):
         """Validate quote can be converted to policy."""
         if quote.status != QuoteStatus.QUOTED:
             return Err(f"Quote must be in QUOTED status, current: {quote.status}")
@@ -941,9 +898,10 @@ class QuoteService:
         return Ok(True)
 
     @beartype
+    @performance_monitor("process_payment")
     async def _process_payment(
         self, conversion_request: QuoteConversionRequest, amount: Decimal
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Process payment for policy binding."""
         # Mock payment processing
         if conversion_request.payment_method not in ["card", "bank"]:
@@ -987,6 +945,7 @@ class QuoteService:
         )
 
     @beartype
+    @performance_monitor("row_to_quote")
     def _row_to_quote(self, row: Any) -> Quote:
         """Convert database row to Quote model."""
 
@@ -1251,51 +1210,64 @@ class QuoteService:
         if not self._websocket_manager:
             return
 
-        # Send update to quote-specific channel
-        await self._websocket_manager.broadcast_to_group(
-            f"quote_{quote.id}",
-            {
-                "type": "quote_updated",
-                "quote_id": str(quote.id),
-                "quote_number": quote.quote_number,
-                "status": quote.status,
-                "total_premium": (
-                    float(quote.total_premium) if quote.total_premium else None
-                ),
-                "updated_at": (
-                    quote.updated_at.isoformat() if quote.updated_at else None
-                ),
-            },
-        )
+        try:
+            # Use the WebSocket message structure directly
+            from ..websocket.manager import WebSocketMessage
 
-        # Send to customer channel if customer exists
-        if quote.customer_id:
-            await self._websocket_manager.broadcast_to_group(
-                f"customer_{quote.customer_id}",
-                {
-                    "type": "customer_quote_updated",
+            # Send update to quote-specific room
+            room_id = f"quote:{quote.id}"
+            quote_msg = WebSocketMessage(
+                type="quote_update",
+                data={
                     "quote_id": str(quote.id),
                     "quote_number": quote.quote_number,
                     "status": quote.status,
                     "total_premium": (
                         float(quote.total_premium) if quote.total_premium else None
                     ),
+                    "updated_at": (
+                        quote.updated_at.isoformat() if quote.updated_at else None
+                    ),
                 },
             )
+            await self._websocket_manager.send_to_room(room_id, quote_msg)
 
-        # Send to admin dashboard for analytics
-        await self._websocket_manager.broadcast_to_group(
-            "admin_dashboard",
-            {
-                "type": "quote_metrics_update",
-                "event": "quote_priced",
-                "quote_id": str(quote.id),
-                "premium": float(quote.total_premium) if quote.total_premium else None,
-                "state": quote.state,
-                "product_type": quote.product_type,
-                "timestamp": datetime.now().isoformat(),
-            },
-        )
+            # Send to customer room if customer exists
+            if quote.customer_id:
+                customer_room = f"customer:{quote.customer_id}"
+                customer_msg = WebSocketMessage(
+                    type="customer_quote_update",
+                    data={
+                        "quote_id": str(quote.id),
+                        "quote_number": quote.quote_number,
+                        "status": quote.status,
+                        "total_premium": (
+                            float(quote.total_premium) if quote.total_premium else None
+                        ),
+                    },
+                )
+                await self._websocket_manager.send_to_room(customer_room, customer_msg)
+
+            # Send to admin analytics room
+            admin_room = "analytics:admin"
+            admin_msg = WebSocketMessage(
+                type="quote_metrics_update",
+                data={
+                    "event": "quote_priced",
+                    "quote_id": str(quote.id),
+                    "premium": (
+                        float(quote.total_premium) if quote.total_premium else None
+                    ),
+                    "state": quote.state,
+                    "product_type": quote.product_type,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            )
+            await self._websocket_manager.send_to_room(admin_room, admin_msg)
+
+        except Exception:
+            # Don't let WebSocket errors affect quote operations
+            pass
 
     @beartype
     async def _calculate_quote_async(self, quote_id: UUID) -> None:
@@ -1383,7 +1355,7 @@ class QuoteService:
         self,
         admin_user_id: UUID,
         required_permission: str,
-    ) -> Result[bool, str]:
+    ):
         """Verify admin user has required permission.
 
         Args:

@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, List
 from uuid import UUID
 
 import asyncpg
@@ -18,7 +18,8 @@ from ..models.claim import (
     ClaimUpdate,
 )
 from .cache_keys import CacheKeys
-from .result import Err, Ok, Result
+from .performance_monitor import performance_monitor
+from .result import Err, Ok
 
 
 class ClaimService:
@@ -36,11 +37,12 @@ class ClaimService:
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
+    @performance_monitor("create_claim")
     async def create(
         self,
         claim_data: ClaimCreate,
         policy_id: UUID,
-    ) -> Result[Claim, str]:
+    ):
         """Create a new claim."""
         try:
             # Validate business rules
@@ -105,7 +107,8 @@ class ClaimService:
             return Err(f"Database error: {str(e)}")
 
     @beartype
-    async def get(self, claim_id: UUID) -> Result[Claim | None, str]:
+    @performance_monitor("get_claim")
+    async def get(self, claim_id: UUID):
         """Get claim by ID."""
         # Check cache first
         cache_key = CacheKeys.claim_by_id(claim_id)
@@ -138,13 +141,14 @@ class ClaimService:
         return Ok(claim)
 
     @beartype
+    @performance_monitor("list_claims")
     async def list(
         self,
         policy_id: UUID | None = None,
         status: str | None = None,
         limit: int = 10,
         offset: int = 0,
-    ) -> Result[list[Claim], str]:
+    ) -> dict:
         """List claims with optional filters."""
         query_parts = ["SELECT * FROM claims WHERE 1=1"]
         params: list[Any] = []
@@ -181,7 +185,7 @@ class ClaimService:
         self,
         claim_id: UUID,
         claim_update: ClaimUpdate,
-    ) -> Result[Claim | None, str]:
+    ):
         """Update claim details."""
         # Get existing claim
         existing_result = await self.get(claim_id)
@@ -231,7 +235,7 @@ class ClaimService:
         self,
         claim_id: UUID,
         status_update: ClaimStatusUpdate,
-    ) -> Result[Claim | None, str]:
+    ):
         """Update claim status with business logic."""
         # Get existing claim
         existing_result = await self.get(claim_id)
@@ -311,7 +315,7 @@ class ClaimService:
         return Ok(claim)
 
     @beartype
-    async def delete(self, claim_id: UUID) -> Result[bool, str]:
+    async def delete(self, claim_id: UUID):
         """Delete a claim (only allowed for DRAFT status)."""
         # Get existing claim
         existing_result = await self.get(claim_id)
@@ -341,7 +345,7 @@ class ClaimService:
         self,
         claim_data: ClaimCreate,
         policy_id: UUID,
-    ) -> Result[bool, str]:
+    ):
         """Validate claim business rules."""
         # Check if policy exists and is active
         policy_query = """

@@ -1,7 +1,7 @@
 """Admin SSO configuration endpoints."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID
 
 from beartype import beartype
@@ -24,6 +24,7 @@ class SSOProviderCreateRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     provider_name: str = Field(..., description="Unique provider name")
@@ -42,6 +43,7 @@ class SSOProviderUpdateRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     provider_name: str | None = Field(None, description="New provider name")
@@ -59,6 +61,7 @@ class GroupMappingCreateRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     sso_group: str = Field(..., description="SSO group name")
@@ -78,6 +81,7 @@ class ProvisioningRuleCreateRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     rule_name: str = Field(..., description="Rule name")

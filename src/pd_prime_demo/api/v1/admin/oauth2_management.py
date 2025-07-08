@@ -1,7 +1,7 @@
 """Admin OAuth2 client management endpoints."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 import asyncpg
@@ -29,6 +29,9 @@ class OAuth2ClientCreateRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     client_name: str = Field(..., min_length=1, max_length=100)
@@ -83,6 +86,9 @@ class OAuth2ClientUpdateRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     client_name: str | None = Field(None, min_length=1, max_length=100)
@@ -101,6 +107,9 @@ class TokenRevocationRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     reason: str = Field(..., min_length=1, max_length=200)
@@ -378,6 +387,9 @@ class CertificateUploadRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     certificate_pem: str = Field(..., min_length=1)

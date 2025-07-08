@@ -6,7 +6,7 @@ versioning, A/B testing, and analytics.
 
 import json
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -14,7 +14,7 @@ from beartype import beartype
 from ...core.cache import Cache
 from ...core.database import Database
 from ..rating.rate_tables import RateTableService
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 
 @beartype
@@ -35,7 +35,7 @@ class RateManagementService:
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Create new version of rate table requiring approval."""
         # Validate admin permissions
         has_permission = await self._check_permission(admin_user_id, "rate:write")
@@ -86,7 +86,7 @@ class RateManagementService:
         version_id: UUID,
         admin_user_id: UUID,
         approval_notes: str | None = None,
-    ) -> Result[bool, str]:
+    ):
         """Approve rate table version."""
         # Check approval permissions
         has_permission = await self._check_permission(admin_user_id, "rate:approve")
@@ -134,7 +134,7 @@ class RateManagementService:
         version_id: UUID,
         admin_user_id: UUID,
         rejection_reason: str,
-    ) -> Result[bool, str]:
+    ):
         """Reject rate table version."""
         # Check approval permissions
         has_permission = await self._check_permission(admin_user_id, "rate:approve")
@@ -172,9 +172,7 @@ class RateManagementService:
         return Ok(True)
 
     @beartype
-    async def get_rate_comparison(
-        self, version_id_1: UUID, version_id_2: UUID
-    ) -> Result[dict[str, Any], str]:
+    async def get_rate_comparison(self, version_id_1: UUID, version_id_2: UUID) -> dict:
         """Compare two rate table versions with impact analysis."""
         comparison_result = await self._rate_table_service.compare_rate_versions(
             version_id_1, version_id_2
@@ -200,7 +198,7 @@ class RateManagementService:
         start_date: date,
         end_date: date,
         admin_user_id: UUID,
-    ) -> Result[UUID, str]:
+    ):
         """Schedule A/B test between rate versions."""
         # Validate inputs
         if not 0.1 <= traffic_split <= 0.5:
@@ -265,7 +263,7 @@ class RateManagementService:
     @beartype
     async def get_rate_analytics(
         self, table_name: str, date_from: date, date_to: date
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get comprehensive rate analytics for admin dashboards."""
         try:
             # Get quote volume by rate version
@@ -307,9 +305,7 @@ class RateManagementService:
             return Err(f"Analytics generation failed: {str(e)}")
 
     @beartype
-    async def get_pending_approvals(
-        self, admin_user_id: UUID
-    ) -> Result[list[dict[str, Any]], str]:
+    async def get_pending_approvals(self, admin_user_id: UUID) -> dict:
         """Get pending rate approvals for admin user."""
         query = """
             SELECT
@@ -373,9 +369,7 @@ class RateManagementService:
         return row["is_creator"] if row else False
 
     @beartype
-    async def _create_approval_workflow(
-        self, version_id: UUID, created_by: UUID
-    ) -> Result[UUID, str]:
+    async def _create_approval_workflow(self, version_id: UUID, created_by: UUID):
         """Create approval workflow for rate version."""
         workflow_id = uuid4()
         query = """

@@ -10,7 +10,7 @@ from ...core.cache import Cache
 from ...core.database import Database
 from ...models.admin import AdminUser, AdminUserCreate
 from ..cache_keys import CacheKeys
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
@@ -34,7 +34,7 @@ class AdminUserService:
         self,
         admin_data: AdminUserCreate,
         created_by: UUID,
-    ) -> Result[AdminUser, str]:
+    ):
         """Create new admin user with role assignment.
 
         Args:
@@ -125,7 +125,7 @@ class AdminUserService:
         admin_id: UUID,
         role_id: UUID,
         updated_by: UUID,
-    ) -> Result[AdminUser, str]:
+    ):
         """Update admin user's role.
 
         Args:
@@ -209,7 +209,7 @@ class AdminUserService:
         admin_id: UUID,
         resource: str,
         action: str,
-    ) -> Result[bool, str]:
+    ):
         """Check if admin has specific permission.
 
         Args:
@@ -271,7 +271,7 @@ class AdminUserService:
         return Ok(has_permission)
 
     @beartype
-    async def get_admin(self, admin_id: UUID) -> Result[AdminUser | None, str]:
+    async def get_admin(self, admin_id: UUID):
         """Get admin user by ID.
 
         Args:

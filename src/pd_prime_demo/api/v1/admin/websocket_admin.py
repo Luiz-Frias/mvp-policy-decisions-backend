@@ -1,6 +1,6 @@
 """Admin WebSocket API endpoints for real-time monitoring and control."""
 
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -22,7 +22,13 @@ from ....websocket.manager import ConnectionManager, WebSocketMessage
 class AdminWebSocketConfig(BaseModel):
     """Configuration for admin WebSocket sessions."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     dashboard_type: str = Field(..., pattern="^(system|activity|performance|alerts)$")
     update_interval: int = Field(default=5, ge=1, le=60)
@@ -36,7 +42,13 @@ class AdminWebSocketConfig(BaseModel):
 class AdminDashboardStats(BaseModel):
     """Admin dashboard statistics response."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     active_admin_connections: int = Field(ge=0)
     total_websocket_connections: int = Field(ge=0)

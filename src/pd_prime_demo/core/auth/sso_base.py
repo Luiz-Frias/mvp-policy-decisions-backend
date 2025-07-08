@@ -2,14 +2,14 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from beartype import beartype
 from pydantic import ConfigDict, Field
 
 from ...models.base import BaseModelConfig
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 
 
 class SSOUserInfo(BaseModelConfig):
@@ -91,7 +91,7 @@ class SSOProvider(ABC):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ) -> Result[str, str]:
+    ):
         """Get authorization URL for user redirect.
 
         Args:
@@ -110,7 +110,7 @@ class SSOProvider(ABC):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Exchange authorization code for tokens.
 
         Args:
@@ -127,7 +127,7 @@ class SSOProvider(ABC):
     async def get_user_info(
         self,
         access_token: str,
-    ) -> Result[SSOUserInfo, str]:
+    ):
         """Get user information from provider.
 
         Args:
@@ -143,7 +143,7 @@ class SSOProvider(ABC):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Refresh access token.
 
         Args:
@@ -160,7 +160,7 @@ class SSOProvider(ABC):
         self,
         token: str,
         token_type: str = "access_token",
-    ) -> Result[bool, str]:
+    ):
         """Revoke a token.
 
         Args:
@@ -223,7 +223,7 @@ class OIDCProvider(SSOProvider):
         self._discovery_document: dict[str, Any] | None = None
 
     @beartype
-    async def discover(self) -> Result[dict[str, Any], str]:
+    async def discover(self) -> dict:
         """Get OIDC discovery document.
 
         Returns:
@@ -251,7 +251,7 @@ class OIDCProvider(SSOProvider):
         self,
         id_token: str,
         nonce: str | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Validate and decode ID token.
 
         Args:
@@ -341,7 +341,7 @@ class SAMLProvider(SSOProvider):
     def create_saml_request(
         self,
         relay_state: str | None = None,
-    ) -> Result[str, str]:
+    ):
         """Create SAML authentication request.
 
         Args:
@@ -359,7 +359,7 @@ class SAMLProvider(SSOProvider):
         self,
         saml_response: str,
         relay_state: str | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Process SAML response and extract attributes.
 
         Args:

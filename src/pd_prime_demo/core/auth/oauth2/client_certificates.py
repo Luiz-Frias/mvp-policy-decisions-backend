@@ -2,7 +2,7 @@
 
 import hashlib
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID
 
 from beartype import beartype
@@ -13,7 +13,7 @@ from cryptography.x509.oid import NameOID
 
 from ....core.cache import Cache
 from ....core.database import Database
-from ....services.result import Err, Ok, Result
+from ....services.result import Err, Ok
 
 
 class ClientCertificateManager:
@@ -37,7 +37,7 @@ class ClientCertificateManager:
         certificate_pem: str,
         certificate_name: str,
         admin_user_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Register a client certificate for mTLS authentication.
 
         Args:
@@ -124,7 +124,7 @@ class ClientCertificateManager:
         self,
         client_id: str,
         certificate_pem: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Validate a client certificate for authentication.
 
         Args:
@@ -206,7 +206,7 @@ class ClientCertificateManager:
         certificate_id: UUID,
         reason: str,
         admin_user_id: UUID,
-    ) -> Result[bool, str]:
+    ):
         """Revoke a client certificate.
 
         Args:
@@ -258,7 +258,7 @@ class ClientCertificateManager:
         self,
         client_id: str,
         include_revoked: bool = False,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """List certificates for a client.
 
         Args:
@@ -304,7 +304,7 @@ class ClientCertificateManager:
     async def _validate_certificate(
         self,
         certificate_pem: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Validate and parse X.509 certificate.
 
         Args:
@@ -361,7 +361,7 @@ class ClientCertificateManager:
         self,
         client_id: str,
         subject_info: dict[str, str],
-    ) -> Result[dict[str, str], str]:
+    ) -> dict:
         """Create a certificate signing request (CSR) for a client.
 
         This is useful for automated certificate provisioning.

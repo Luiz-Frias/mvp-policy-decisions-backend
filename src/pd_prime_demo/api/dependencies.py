@@ -58,6 +58,10 @@ async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
         yield conn
 
 
+# Alias for backward compatibility
+get_db_raw = get_db_connection
+
+
 @beartype
 async def get_redis() -> Redis:
     """Provide Redis client for dependency injection.
@@ -66,6 +70,17 @@ async def get_redis() -> Redis:
         Redis[str]: Active Redis client with string responses
     """
     return get_redis_client()
+
+
+@beartype
+async def get_cache() -> Cache:
+    """Provide Cache instance for dependency injection.
+
+    Returns:
+        Cache: Active Cache instance
+    """
+    redis = get_redis_client()
+    return Cache(redis)
 
 
 @beartype
@@ -386,13 +401,25 @@ async def get_quote_service(
     """
     from ..core.database import Database
     from ..services.quote_service import QuoteService
+    from ..websocket.app import get_manager
 
     # Wrap connections in our database/cache interfaces
     database = Database(db)
     cache = Cache(redis)
 
+    # Get WebSocket manager for real-time updates
+    websocket_manager = None
+    try:
+        # Get the WebSocket manager instance for real-time updates
+        websocket_manager = get_manager()
+    except Exception:
+        # WebSocket manager might not be available in all contexts (e.g., testing)
+        pass
+
     # Note: Rating engine will be injected when Agent 06 creates it
-    return QuoteService(database, cache, rating_engine=None)
+    return QuoteService(
+        database, cache, rating_engine=None, websocket_manager=websocket_manager
+    )
 
 
 @beartype

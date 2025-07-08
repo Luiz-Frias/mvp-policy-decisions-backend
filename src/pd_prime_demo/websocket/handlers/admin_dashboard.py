@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -10,14 +10,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 from ..manager import ConnectionManager, WebSocketMessage
 
 
 class SystemMetrics(BaseModel):
     """System health metrics."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     database: dict[str, Any] = Field(default_factory=dict)
     websockets: dict[str, Any] = Field(default_factory=dict)
@@ -29,7 +35,13 @@ class SystemMetrics(BaseModel):
 class UserActivity(BaseModel):
     """User activity event."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     admin_user_id: UUID = Field(...)
     action: str = Field(..., min_length=1, max_length=100)
@@ -43,7 +55,13 @@ class UserActivity(BaseModel):
 class PerformanceMetrics(BaseModel):
     """Performance monitoring data."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     api_response_times: dict[str, float] = Field(default_factory=dict)
     quote_calculation_times: dict[str, float] = Field(default_factory=dict)
@@ -73,7 +91,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         dashboard_config: dict[str, Any],
-    ) -> Result[None, str]:
+    ):
         """Start real-time system monitoring for admin with explicit permission check."""
         # Verify admin permissions
         permission_result = await self._check_admin_permissions(
@@ -128,7 +146,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         filters: dict[str, Any],
-    ) -> Result[None, str]:
+    ):
         """Start real-time user activity monitoring with audit permissions."""
         # Verify audit permissions
         permission_result = await self._check_admin_permissions(
@@ -161,7 +179,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         metrics: list[str],
-    ) -> Result[None, str]:
+    ):
         """Start real-time performance monitoring."""
         # Verify performance monitoring permissions
         permission_result = await self._check_admin_permissions(
@@ -351,7 +369,7 @@ class AdminDashboardHandler:
             await self._send_stream_error(connection_id, "performance", str(e))
 
     @beartype
-    async def _collect_system_metrics(self) -> Result[dict[str, Any], str]:
+    async def _collect_system_metrics(self) -> dict:
         """Collect current system health metrics."""
         try:
             # Database connection stats
@@ -389,7 +407,7 @@ class AdminDashboardHandler:
             return Err(f"Failed to collect system metrics: {str(e)}")
 
     @beartype
-    async def _get_database_stats(self) -> Result[dict[str, Any], str]:
+    async def _get_database_stats(self) -> dict:
         """Get database connection pool statistics."""
         try:
             # Get connection pool stats
@@ -433,7 +451,7 @@ class AdminDashboardHandler:
             return Err(f"Database stats error: {str(e)}")
 
     @beartype
-    async def _get_cache_stats(self) -> Result[dict[str, Any], str]:
+    async def _get_cache_stats(self) -> dict:
         """Get Redis cache statistics."""
         try:
             # Get Redis info
@@ -460,7 +478,7 @@ class AdminDashboardHandler:
             return Err(f"Cache stats error: {str(e)}")
 
     @beartype
-    async def _get_error_statistics(self) -> Result[dict[str, Any], str]:
+    async def _get_error_statistics(self) -> dict:
         """Get recent error statistics."""
         try:
             # Get error counts by type (last hour)
@@ -504,9 +522,7 @@ class AdminDashboardHandler:
             return Err(f"Error stats error: {str(e)}")
 
     @beartype
-    async def _get_recent_user_activity(
-        self, filters: dict[str, Any]
-    ) -> Result[list[dict[str, Any]], str]:
+    async def _get_recent_user_activity(self, filters: dict[str, Any]) -> dict:
         """Get recent user activity events."""
         try:
             # Build query with filters
@@ -547,7 +563,7 @@ class AdminDashboardHandler:
     @beartype
     async def _get_user_activity_since(
         self, since: datetime, filters: dict[str, Any]
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """Get user activity since a specific time."""
         try:
             where_clauses = ["aal.created_at > $1"]
@@ -585,9 +601,7 @@ class AdminDashboardHandler:
             return Err(f"Failed to get activity updates: {str(e)}")
 
     @beartype
-    async def _collect_performance_metrics(
-        self, metrics: list[str]
-    ) -> Result[dict[str, Any], str]:
+    async def _collect_performance_metrics(self, metrics: list[str]) -> dict:
         """Collect requested performance metrics."""
         try:
             data = {}
@@ -663,7 +677,7 @@ class AdminDashboardHandler:
         message: str,
         severity: str,
         data: dict[str, Any] | None = None,
-    ) -> Result[None, str]:
+    ):
         """Broadcast alert to all admin users with proper severity validation."""
         if severity not in ["low", "medium", "high", "critical"]:
             return Err(
@@ -704,7 +718,7 @@ class AdminDashboardHandler:
     @beartype
     async def _check_admin_permissions(
         self, admin_user_id: UUID, required_permission: str
-    ) -> Result[None, str]:
+    ):
         """Check if admin user has required permission."""
         # In production, query actual permissions from database
         # For now, simplified check

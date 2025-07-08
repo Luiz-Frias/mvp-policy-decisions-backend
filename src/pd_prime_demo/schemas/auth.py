@@ -1,5 +1,7 @@
 """Authentication schemas."""
 
+from typing import List
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -11,6 +13,7 @@ class CurrentUser(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     user_id: str = Field(..., description="Unique user identifier")
@@ -27,6 +30,8 @@ class JWTPayload(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     sub: str = Field(..., description="Subject (user ID)")

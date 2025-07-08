@@ -1,6 +1,7 @@
-"""Database and system monitoring endpoints."""
+"""Database and system monitoring endpoints with performance tracking."""
 
-from typing import Any
+import time
+from typing import Any, Dict, List
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from ...core.admin_query_optimizer import AdminQueryOptimizer
 from ...core.database_enhanced import Database
+from ...core.performance_monitor import PerformanceMetrics, get_performance_collector
 from ...core.query_optimizer import QueryOptimizer
 from ..dependencies import get_db
 
@@ -17,7 +19,13 @@ router = APIRouter(prefix="/monitoring", tags=["monitoring"])
 class PoolStatsResponse(BaseModel):
     """Pool statistics response model."""
 
-    model_config = {"frozen": True}
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     size: int = Field(..., description="Current pool size")
     free_size: int = Field(..., description="Available connections")
@@ -37,7 +45,13 @@ class PoolStatsResponse(BaseModel):
 class SlowQueryResponse(BaseModel):
     """Slow query information response."""
 
-    model_config = {"frozen": True}
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     query: str = Field(..., description="Sanitized query text")
     calls: int = Field(..., description="Number of times executed")
@@ -52,7 +66,13 @@ class SlowQueryResponse(BaseModel):
 class IndexSuggestionResponse(BaseModel):
     """Index suggestion response."""
 
-    model_config = {"frozen": True}
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     table_name: str = Field(..., description="Table name")
     column_name: str = Field(..., description="Column name")
@@ -64,7 +84,13 @@ class IndexSuggestionResponse(BaseModel):
 class QueryPlanResponse(BaseModel):
     """Query execution plan response."""
 
-    model_config = {"frozen": True}
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     query: str = Field(..., description="Analyzed query")
     execution_time_ms: float = Field(..., description="Execution time")
@@ -77,7 +103,13 @@ class QueryPlanResponse(BaseModel):
 class AdminMetricsResponse(BaseModel):
     """Admin dashboard metrics response."""
 
-    model_config = {"frozen": True}
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     daily_metrics: list[dict[str, Any]] = Field(
         ..., description="Daily business metrics"
@@ -316,3 +348,220 @@ async def database_health_check(db: Database = Depends(get_db)) -> dict[str, Any
         "details": detailed_metrics,
         "warnings": detailed_metrics["health_indicators"]["warning_signs"],
     }
+
+
+# Performance Monitoring Endpoints
+
+
+class PerformanceMetricsResponse(BaseModel):
+    """Performance metrics response model."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    operation: str = Field(..., description="Operation name")
+    total_requests: int = Field(..., description="Total requests processed")
+    avg_duration_ms: float = Field(..., description="Average response time in ms")
+    p95_duration_ms: float = Field(..., description="95th percentile response time")
+    p99_duration_ms: float = Field(..., description="99th percentile response time")
+    memory_usage_mb: float = Field(..., description="Average memory usage in MB")
+    error_rate: float = Field(..., description="Error rate (0.0 to 1.0)")
+    success_rate: float = Field(..., description="Success rate (0.0 to 1.0)")
+    requests_per_second: float = Field(..., description="Current RPS")
+    meets_100ms_requirement: bool = Field(..., description="Meets <100ms requirement")
+
+
+@router.get(
+    "/performance/metrics", response_model=dict[str, PerformanceMetricsResponse]
+)
+@beartype
+async def get_performance_metrics() -> dict[str, PerformanceMetricsResponse]:
+    """Get comprehensive performance metrics for all tracked operations."""
+    collector = get_performance_collector()
+    all_metrics = await collector.get_all_metrics()
+
+    return {
+        operation: PerformanceMetricsResponse(
+            operation=metrics.operation,
+            total_requests=metrics.total_requests,
+            avg_duration_ms=metrics.avg_duration_ms,
+            p95_duration_ms=metrics.p95_duration_ms,
+            p99_duration_ms=metrics.p99_duration_ms,
+            memory_usage_mb=metrics.memory_usage_mb,
+            error_rate=metrics.error_rate,
+            success_rate=metrics.success_rate,
+            requests_per_second=metrics.requests_per_second,
+            meets_100ms_requirement=metrics.p99_duration_ms < 100.0,
+        )
+        for operation, metrics in all_metrics.items()
+    }
+
+
+@router.get(
+    "/performance/metrics/{operation}", response_model=PerformanceMetricsResponse
+)
+@beartype
+async def get_operation_metrics(operation: str) -> PerformanceMetricsResponse:
+    """Get performance metrics for a specific operation."""
+    collector = get_performance_collector()
+    result = await collector.get_metrics(operation)
+
+    if result.is_err():
+        raise HTTPException(status_code=404, detail=result.err_value)
+
+    metrics = result.ok_value
+    return PerformanceMetricsResponse(
+        operation=metrics.operation,
+        total_requests=metrics.total_requests,
+        avg_duration_ms=metrics.avg_duration_ms,
+        p95_duration_ms=metrics.p95_duration_ms,
+        p99_duration_ms=metrics.p99_duration_ms,
+        memory_usage_mb=metrics.memory_usage_mb,
+        error_rate=metrics.error_rate,
+        success_rate=metrics.success_rate,
+        requests_per_second=metrics.requests_per_second,
+        meets_100ms_requirement=metrics.p99_duration_ms < 100.0,
+    )
+
+
+@router.get("/performance/alerts")
+@beartype
+async def get_performance_alerts() -> dict[str, Any]:
+    """Get current performance alerts and warnings."""
+    collector = get_performance_collector()
+    alerts = await collector.check_performance_alerts()
+
+    # Categorize alerts
+    critical_alerts = [
+        alert
+        for alert in alerts
+        if "HIGH LATENCY" in alert or "HIGH ERROR RATE" in alert
+    ]
+    warning_alerts = [alert for alert in alerts if alert not in critical_alerts]
+
+    return {
+        "total_alerts": len(alerts),
+        "critical_alerts": critical_alerts,
+        "warning_alerts": warning_alerts,
+        "status": (
+            "critical"
+            if critical_alerts
+            else ("warning" if warning_alerts else "healthy")
+        ),
+        "timestamp": time.time(),
+    }
+
+
+@router.post("/performance/reset")
+@beartype
+async def reset_performance_metrics() -> dict[str, Any]:
+    """Reset all performance metrics (for testing/development)."""
+    collector = get_performance_collector()
+    await collector.reset_metrics()
+
+    return {
+        "status": "success",
+        "message": "Performance metrics reset successfully",
+        "timestamp": time.time(),
+    }
+
+
+@router.get("/performance/summary")
+@beartype
+async def get_performance_summary() -> dict[str, Any]:
+    """Get a summary of overall system performance."""
+    collector = get_performance_collector()
+    all_metrics = await collector.get_all_metrics()
+    alerts = await collector.check_performance_alerts()
+
+    if not all_metrics:
+        return {
+            "status": "no_data",
+            "message": "No performance data available yet",
+            "operations_tracked": 0,
+        }
+
+    # Calculate overall statistics
+    total_operations = len(all_metrics)
+    operations_meeting_100ms = sum(
+        1 for m in all_metrics.values() if m.p99_duration_ms < 100
+    )
+    operations_meeting_50ms = sum(
+        1 for m in all_metrics.values() if m.p99_duration_ms < 50
+    )
+
+    overall_error_rate = (
+        sum(m.error_rate for m in all_metrics.values()) / total_operations
+    )
+    overall_avg_latency = (
+        sum(m.avg_duration_ms for m in all_metrics.values()) / total_operations
+    )
+    overall_p99_latency = max(m.p99_duration_ms for m in all_metrics.values())
+
+    # Performance grade
+    if operations_meeting_100ms == total_operations and overall_error_rate < 0.01:
+        grade = "A" if operations_meeting_50ms == total_operations else "B"
+        status = "excellent" if grade == "A" else "good"
+    elif operations_meeting_100ms >= total_operations * 0.8:
+        grade = "C"
+        status = "acceptable"
+    else:
+        grade = "F"
+        status = "critical"
+
+    return {
+        "status": status,
+        "performance_grade": grade,
+        "operations_tracked": total_operations,
+        "operations_meeting_100ms": f"{operations_meeting_100ms}/{total_operations}",
+        "operations_meeting_50ms": f"{operations_meeting_50ms}/{total_operations}",
+        "overall_error_rate": f"{overall_error_rate:.2%}",
+        "overall_avg_latency_ms": f"{overall_avg_latency:.1f}",
+        "overall_p99_latency_ms": f"{overall_p99_latency:.1f}",
+        "active_alerts": len(alerts),
+        "production_ready": operations_meeting_100ms == total_operations
+        and overall_error_rate < 0.01,
+        "recommendations": _get_performance_recommendations(all_metrics, alerts),
+    }
+
+
+def _get_performance_recommendations(
+    metrics: dict[str, PerformanceMetrics], alerts: list[str]
+) -> list[str]:
+    """Generate performance improvement recommendations."""
+    recommendations = []
+
+    if alerts:
+        recommendations.append(f"Address {len(alerts)} active performance alerts")
+
+    slow_operations = [name for name, m in metrics.items() if m.p99_duration_ms > 100]
+    if slow_operations:
+        recommendations.append(
+            f"Optimize slow operations: {', '.join(slow_operations[:3])}"
+        )
+
+    high_error_operations = [name for name, m in metrics.items() if m.error_rate > 0.01]
+    if high_error_operations:
+        recommendations.append(
+            f"Investigate errors in: {', '.join(high_error_operations[:3])}"
+        )
+
+    high_memory_operations = [
+        name for name, m in metrics.items() if m.memory_usage_mb > 10
+    ]
+    if high_memory_operations:
+        recommendations.append(
+            f"Optimize memory usage in: {', '.join(high_memory_operations[:3])}"
+        )
+
+    if not recommendations:
+        recommendations.append(
+            "All operations performing within targets - consider load testing"
+        )
+
+    return recommendations

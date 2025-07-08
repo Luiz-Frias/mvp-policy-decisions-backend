@@ -1,14 +1,14 @@
 """Specialized query optimization for admin dashboard operations."""
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Dict, List
 
 from attrs import field, frozen
 from beartype import beartype
 
 from .cache_stub import get_cache
 from .database_enhanced import Database
-from .result_types import Err, Ok, Result
+from .result_types import Err, Ok
 
 
 @frozen
@@ -174,7 +174,7 @@ class AdminQueryOptimizer:
         }
 
     @beartype
-    async def create_materialized_views(self) -> Result[list[str], str]:
+    async def create_materialized_views(self) -> dict:
         """Create all materialized views for admin dashboards."""
         created_views = []
 
@@ -211,7 +211,7 @@ class AdminQueryOptimizer:
     async def refresh_materialized_views(
         self,
         force_refresh: bool = False,
-    ) -> Result[dict[str, bool], str]:
+    ) -> dict:
         """Refresh materialized views based on their refresh intervals."""
         refresh_results = {}
 
@@ -280,7 +280,7 @@ class AdminQueryOptimizer:
         self,
         use_cache: bool = True,
         cache_ttl_seconds: int = 300,
-    ) -> Result[AdminMetrics, str]:
+    ):
         """Get optimized admin dashboard metrics."""
         cache_key = "admin:dashboard:metrics:v2"
 
@@ -389,7 +389,7 @@ class AdminQueryOptimizer:
         report_type: str,
         start_date: datetime,
         end_date: datetime,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """Generate admin reports with optimized queries."""
         if report_type == "revenue_summary":
             query = """
@@ -486,7 +486,7 @@ class AdminQueryOptimizer:
             return Err(f"Failed to generate report: {str(e)}")
 
     @beartype
-    async def optimize_admin_queries(self) -> Result[dict[str, Any], str]:
+    async def optimize_admin_queries(self) -> dict:
         """Analyze and optimize all admin queries."""
         optimization_results = {
             "indexes_created": [],
@@ -555,7 +555,7 @@ class AdminQueryOptimizer:
             return Err(f"Failed to optimize admin queries: {str(e)}")
 
     @beartype
-    async def monitor_admin_query_performance(self) -> Result[dict[str, Any], str]:
+    async def monitor_admin_query_performance(self) -> dict:
         """Monitor admin-specific query performance metrics."""
         try:
             pool_stats = await self._db.get_pool_stats()

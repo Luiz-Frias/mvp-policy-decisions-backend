@@ -1,6 +1,6 @@
 """Authentication endpoints including SSO support."""
 
-from typing import Any
+from typing import Any, Dict
 from uuid import uuid4
 
 from beartype import beartype
@@ -26,6 +26,7 @@ class LoginRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     email: str = Field(..., description="User email")
@@ -39,6 +40,8 @@ class LoginResponse(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     access_token: str = Field(..., description="JWT access token")
@@ -54,6 +57,8 @@ class SSOLoginInitResponse(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     authorization_url: str = Field(..., description="URL to redirect user to")

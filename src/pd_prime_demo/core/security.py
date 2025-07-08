@@ -1,7 +1,7 @@
 """Security utilities for JWT, password hashing, and authentication."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Dict, List
 
 import bcrypt
 import jwt
@@ -31,6 +31,9 @@ class TokenData(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     access_token: str

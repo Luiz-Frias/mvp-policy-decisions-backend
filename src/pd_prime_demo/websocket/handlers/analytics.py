@@ -2,21 +2,27 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Dict, List, Tuple
 from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.database import Database
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 from ..manager import ConnectionManager, WebSocketMessage
 
 
 class DashboardConfig(BaseModel):
     """Configuration for analytics dashboard streaming."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     dashboard_type: str = Field(..., pattern="^(quotes|conversion|performance|admin)$")
     update_interval: int = Field(default=5, ge=1, le=60)  # seconds
@@ -28,7 +34,13 @@ class DashboardConfig(BaseModel):
 class AnalyticsMetrics(BaseModel):
     """Analytics metrics response."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     summary: dict[str, Any] = Field(...)
     timeline: list[dict[str, Any]] = Field(default_factory=list)
@@ -59,9 +71,7 @@ class AnalyticsWebSocketHandler:
         self._cache_ttl = 5  # seconds
 
     @beartype
-    async def start_analytics_stream(
-        self, connection_id: str, config: DashboardConfig
-    ) -> Result[None, str]:
+    async def start_analytics_stream(self, connection_id: str, config: DashboardConfig):
         """Start streaming analytics data to connection with explicit validation."""
         # Validate connection
         if connection_id not in self._manager._connections:
@@ -136,9 +146,7 @@ class AnalyticsWebSocketHandler:
         return Ok(None)
 
     @beartype
-    async def stop_analytics_stream(
-        self, connection_id: str, dashboard_type: str
-    ) -> Result[None, str]:
+    async def stop_analytics_stream(self, connection_id: str, dashboard_type: str):
         """Stop streaming analytics data."""
         task_key = f"{connection_id}:{dashboard_type}"
 
@@ -218,9 +226,7 @@ class AnalyticsWebSocketHandler:
             await self._manager.send_personal_message(connection_id, error_msg)
 
     @beartype
-    async def _get_dashboard_data(
-        self, config: DashboardConfig
-    ) -> Result[dict[str, Any], str]:
+    async def _get_dashboard_data(self, config: DashboardConfig) -> dict:
         """Get dashboard data based on configuration."""
         # Check cache first
         cache_key = f"{config.dashboard_type}:{config.time_range_hours}"
@@ -519,9 +525,7 @@ class AnalyticsWebSocketHandler:
         }
 
     @beartype
-    async def broadcast_event(
-        self, event_type: str, data: dict[str, Any]
-    ) -> Result[None, str]:
+    async def broadcast_event(self, event_type: str, data: dict[str, Any]):
         """Broadcast analytics event to relevant dashboard subscribers."""
         # Determine which dashboards care about this event
         affected_dashboards = []
@@ -566,7 +570,7 @@ class AnalyticsWebSocketHandler:
         message: str,
         severity: str,
         data: dict[str, Any] | None = None,
-    ) -> Result[None, str]:
+    ):
         """Send alert to admin dashboard subscribers."""
         if severity not in ["low", "medium", "high", "critical"]:
             return Err(f"Invalid severity level: {severity}")
@@ -609,7 +613,7 @@ class AnalyticsWebSocketHandler:
             del self._dashboard_configs[connection_id]
 
     @beartype
-    async def _validate_admin_access(self, user_id: UUID) -> Result[None, str]:
+    async def _validate_admin_access(self, user_id: UUID):
         """Validate user has admin access for analytics."""
         # In production, check user roles and permissions
         # For now, simplified check

@@ -3,14 +3,14 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
 
 from ....core.cache import Cache
 from ....core.database import Database
-from ....services.result import Err, Ok, Result
+from ....services.result import Err, Ok
 
 
 class APIKeyManager:
@@ -36,7 +36,7 @@ class APIKeyManager:
         expires_in_days: int | None = None,
         rate_limit_per_minute: int = 60,
         allowed_ips: list[str] | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Create a new API key.
 
         Args:
@@ -136,7 +136,7 @@ class APIKeyManager:
         api_key: str,
         required_scope: str | None = None,
         request_ip: str | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Validate API key and check permissions.
 
         Args:
@@ -224,7 +224,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         reason: str | None = None,
-    ) -> Result[bool, str]:
+    ):
         """Revoke an API key.
 
         Args:
@@ -269,7 +269,7 @@ class APIKeyManager:
     async def rotate_api_key(
         self,
         key_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Rotate an API key (revoke old, create new).
 
         Args:
@@ -325,7 +325,7 @@ class APIKeyManager:
         self,
         client_id: str | None = None,
         active_only: bool = True,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """List API keys.
 
         Args:
@@ -423,7 +423,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         days: int = 7,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get usage statistics for an API key.
 
         Args:
@@ -469,7 +469,7 @@ class APIKeyManager:
         self,
         client_id: str,
         reason: str,
-    ) -> Result[int, str]:
+    ):
         """Bulk revoke all API keys for a client.
 
         Args:
@@ -517,7 +517,7 @@ class APIKeyManager:
         api_key: str,
         required_permissions: list[str],
         request_context: dict[str, Any] | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Advanced API key validation with context-aware permissions.
 
         Args:
@@ -582,7 +582,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         limit: int = 100,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """Get security events for an API key.
 
         Args:
@@ -628,7 +628,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         client_id: str,
-    ) -> Result[bool, str]:
+    ):
         """Verify that an API key belongs to the specified client.
 
         Args:
@@ -661,7 +661,7 @@ class APIKeyManager:
         name: str,
         scopes: list[str],
         expires_in_hours: int = 24,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Create a temporary, scoped API key from a parent key.
 
         This allows creating short-lived keys with subset permissions.

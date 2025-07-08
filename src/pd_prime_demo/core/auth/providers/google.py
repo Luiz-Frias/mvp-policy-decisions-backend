@@ -1,12 +1,12 @@
 """Google Workspace SSO implementation."""
 
-from typing import Any
+from typing import Any, List
 from urllib.parse import urlencode
 
 import httpx
 from beartype import beartype
 
-from ....services.result import Err, Ok, Result
+from ....services.result import Err, Ok
 from ..sso_base import OIDCProvider, SSOUserInfo
 
 
@@ -50,7 +50,7 @@ class GoogleSSOProvider(OIDCProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ) -> Result[str, str]:
+    ):
         """Get Google authorization URL.
 
         Args:
@@ -102,7 +102,7 @@ class GoogleSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Exchange authorization code for tokens.
 
         Args:
@@ -164,7 +164,7 @@ class GoogleSSOProvider(OIDCProvider):
     async def get_user_info(
         self,
         access_token: str,
-    ) -> Result[SSOUserInfo, str]:
+    ):
         """Get user information from Google.
 
         Args:
@@ -247,7 +247,7 @@ class GoogleSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Refresh Google access token.
 
         Args:
@@ -299,7 +299,7 @@ class GoogleSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ) -> Result[bool, str]:
+    ):
         """Revoke Google token.
 
         Args:
@@ -333,7 +333,7 @@ class GoogleSSOProvider(OIDCProvider):
         self,
         access_token: str,
         user_id: str,
-    ) -> Result[list[str], str]:
+    ) -> dict:
         """Get user's Google Workspace groups.
 
         Args:

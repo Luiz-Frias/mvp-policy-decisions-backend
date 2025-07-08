@@ -23,6 +23,8 @@ import builtins
 import logging
 from typing import Final
 
+from beartype import beartype
+
 __all__: Final = [
     "configure_logging",
     "get_logger",
@@ -35,6 +37,7 @@ _DEFAULT_LOG_FORMAT: Final = (
 _is_configured: bool = False
 
 
+@beartype
 def configure_logging(
     *, level: int = logging.INFO, fmt: str = _DEFAULT_LOG_FORMAT
 ) -> None:
@@ -51,6 +54,7 @@ def configure_logging(
     _is_configured = True
 
 
+@beartype
 def get_logger(name: str | None = None, *, level: int | None = None) -> logging.Logger:
     """Return a module-scoped logger that is guaranteed to be configured."""
     configure_logging()
@@ -60,6 +64,7 @@ def get_logger(name: str | None = None, *, level: int | None = None) -> logging.
     return logger
 
 
+@beartype
 def patch_print(*, level: int = logging.INFO) -> None:
     """Redirect built-in ``print`` to the logging subsystem.
 
@@ -71,9 +76,9 @@ def patch_print(*, level: int = logging.INFO) -> None:
     logger = get_logger("print_patch")
 
     def _logger_print(*args: object, **kwargs: object) -> None:  # noqa: D401
-        sep: str = kwargs.get("sep", " ")  # type: ignore[arg-type]
-        end: str = kwargs.get("end", "\n")  # type: ignore[arg-type]
+        sep = str(kwargs.get("sep", " "))
+        end = str(kwargs.get("end", "\n"))
         msg = sep.join(str(arg) for arg in args) + end.rstrip("\n")
         logger.log(level, msg)
 
-    builtins.print = _logger_print  # type: ignore[assignment]
+    builtins.print = _logger_print  # type: ignore[misc]

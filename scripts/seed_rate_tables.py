@@ -8,6 +8,7 @@ Usage:
 """
 
 import asyncio
+import json
 import os
 import sys
 from datetime import date
@@ -203,6 +204,213 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
                 "poor": 1.35,
             },
         },
+        # Florida Auto Rates (high due to hurricanes and fraud)
+        {
+            "state": "FL",
+            "product_type": "auto",
+            "coverage_type": "liability",
+            "base_rate": Decimal("0.002800"),
+            "min_premium": Decimal("600.00"),
+            "max_premium": Decimal("6000.00"),
+            "territory_factors": {
+                "33101": 1.7,  # Miami - very high
+                "33601": 1.5,  # Tampa - high
+                "32801": 1.4,  # Orlando - high
+                "32201": 1.3,  # Jacksonville - medium-high
+                "32301": 1.1,  # Tallahassee - medium
+            },
+            "vehicle_factors": {
+                "luxury": 1.5,
+                "sports": 1.4,
+                "suv": 1.15,
+                "sedan": 1.0,
+                "economy": 0.88,
+            },
+            "driver_factors": {
+                "teen": 2.0,
+                "young_adult": 1.5,
+                "adult": 1.0,
+                "senior": 1.2,  # Higher due to retiree population
+            },
+            "credit_factors": {
+                "excellent": 0.8,
+                "good": 0.9,
+                "fair": 1.0,
+                "poor": 1.3,
+            },
+        },
+        {
+            "state": "FL",
+            "product_type": "auto",
+            "coverage_type": "comprehensive",
+            "base_rate": Decimal("0.002000"),
+            "min_premium": Decimal("150.00"),
+            "max_premium": Decimal("3000.00"),
+            "territory_factors": {
+                "33101": 1.8,  # Miami - hurricane risk
+                "33601": 1.6,  # Tampa - hurricane risk
+                "32801": 1.3,  # Orlando - inland
+                "32201": 1.4,  # Jacksonville - coastal
+                "32301": 1.1,  # Tallahassee - inland
+            },
+            "vehicle_factors": {
+                "luxury": 2.0,
+                "sports": 1.8,
+                "suv": 1.2,
+                "sedan": 1.0,
+                "economy": 0.75,
+            },
+            "driver_factors": {
+                "teen": 1.4,
+                "young_adult": 1.2,
+                "adult": 1.0,
+                "senior": 1.1,
+            },
+            "credit_factors": {
+                "excellent": 0.85,
+                "good": 0.92,
+                "fair": 1.0,
+                "poor": 1.2,
+            },
+        },
+        # Michigan Auto Rates (high due to no-fault insurance)
+        {
+            "state": "MI",
+            "product_type": "auto",
+            "coverage_type": "liability",
+            "base_rate": Decimal("0.003500"),
+            "min_premium": Decimal("900.00"),
+            "max_premium": Decimal("9000.00"),
+            "territory_factors": {
+                "48201": 2.2,  # Detroit - very high
+                "48104": 1.3,  # Ann Arbor - medium
+                "49503": 1.2,  # Grand Rapids - medium
+                "48910": 1.1,  # Lansing - medium
+                "49770": 0.9,  # Petoskey - low
+            },
+            "vehicle_factors": {
+                "luxury": 1.7,
+                "sports": 1.6,
+                "suv": 1.25,
+                "sedan": 1.0,
+                "economy": 0.8,
+            },
+            "driver_factors": {
+                "teen": 2.3,
+                "young_adult": 1.7,
+                "adult": 1.0,
+                "senior": 1.1,
+            },
+            "credit_factors": {
+                "excellent": 0.7,
+                "good": 0.85,
+                "fair": 1.0,
+                "poor": 1.4,
+            },
+        },
+        {
+            "state": "MI",
+            "product_type": "auto",
+            "coverage_type": "collision",
+            "base_rate": Decimal("0.003800"),
+            "min_premium": Decimal("300.00"),
+            "max_premium": Decimal("4000.00"),
+            "territory_factors": {
+                "48201": 2.0,  # Detroit
+                "48104": 1.2,  # Ann Arbor
+                "49503": 1.15,  # Grand Rapids
+                "48910": 1.1,  # Lansing
+                "49770": 0.85,  # Petoskey
+            },
+            "vehicle_factors": {
+                "luxury": 2.2,
+                "sports": 2.0,
+                "suv": 1.4,
+                "sedan": 1.0,
+                "economy": 0.7,
+            },
+            "driver_factors": {
+                "teen": 2.0,
+                "young_adult": 1.5,
+                "adult": 1.0,
+                "senior": 1.15,
+            },
+            "credit_factors": {
+                "excellent": 0.8,
+                "good": 0.9,
+                "fair": 1.0,
+                "poor": 1.3,
+            },
+        },
+        # Pennsylvania Auto Rates (moderate)
+        {
+            "state": "PA",
+            "product_type": "auto",
+            "coverage_type": "liability",
+            "base_rate": Decimal("0.002400"),
+            "min_premium": Decimal("500.00"),
+            "max_premium": Decimal("4500.00"),
+            "territory_factors": {
+                "19101": 1.6,  # Philadelphia - high
+                "15201": 1.4,  # Pittsburgh - medium-high
+                "18101": 1.2,  # Allentown - medium
+                "17101": 1.1,  # Harrisburg - medium
+                "16801": 1.0,  # State College - low
+            },
+            "vehicle_factors": {
+                "luxury": 1.45,
+                "sports": 1.35,
+                "suv": 1.15,
+                "sedan": 1.0,
+                "economy": 0.88,
+            },
+            "driver_factors": {
+                "teen": 1.9,
+                "young_adult": 1.45,
+                "adult": 1.0,
+                "senior": 1.08,
+            },
+            "credit_factors": {
+                "excellent": 0.82,
+                "good": 0.91,
+                "fair": 1.0,
+                "poor": 1.25,
+            },
+        },
+        {
+            "state": "PA",
+            "product_type": "auto",
+            "coverage_type": "comprehensive",
+            "base_rate": Decimal("0.001300"),
+            "min_premium": Decimal("100.00"),
+            "max_premium": Decimal("1800.00"),
+            "territory_factors": {
+                "19101": 1.5,  # Philadelphia
+                "15201": 1.3,  # Pittsburgh
+                "18101": 1.15,  # Allentown
+                "17101": 1.1,  # Harrisburg
+                "16801": 0.95,  # State College
+            },
+            "vehicle_factors": {
+                "luxury": 2.1,
+                "sports": 1.85,
+                "suv": 1.15,
+                "sedan": 1.0,
+                "economy": 0.72,
+            },
+            "driver_factors": {
+                "teen": 1.25,
+                "young_adult": 1.15,
+                "adult": 1.0,
+                "senior": 1.05,
+            },
+            "credit_factors": {
+                "excellent": 0.88,
+                "good": 0.94,
+                "fair": 1.0,
+                "poor": 1.12,
+            },
+        },
         # Home Insurance Rates
         {
             "state": "CA",
@@ -246,10 +454,10 @@ async def seed_rate_tables(conn: asyncpg.Connection) -> None:
             rate["base_rate"],
             rate["min_premium"],
             rate["max_premium"],
-            rate["territory_factors"],
-            rate["vehicle_factors"],
-            rate["driver_factors"],
-            rate["credit_factors"],
+            json.dumps(rate["territory_factors"]),
+            json.dumps(rate["vehicle_factors"]),
+            json.dumps(rate["driver_factors"]),
+            json.dumps(rate["credit_factors"]),
             date.today(),
             f"{rate['state']}-{rate['product_type']}-2025-001",
             "System Administrator",
@@ -269,7 +477,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Multi-Policy Discount",
             "description": "Discount for customers with multiple policies",
             "product_types": ["auto", "home", "renters"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "percentage",
             "discount_value": Decimal("10.00"),
             "eligibility_rules": {
@@ -284,7 +492,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Safe Driver Discount",
             "description": "No accidents or violations in 3 years",
             "product_types": ["auto"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "percentage",
             "discount_value": Decimal("15.00"),
             "eligibility_rules": {
@@ -299,7 +507,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Good Student Discount",
             "description": "Full-time student with B average or better",
             "product_types": ["auto"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "percentage",
             "discount_value": Decimal("8.00"),
             "max_discount_amount": Decimal("200.00"),
@@ -316,7 +524,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Military Discount",
             "description": "Active duty or veteran discount",
             "product_types": ["auto", "home"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "percentage",
             "discount_value": Decimal("5.00"),
             "eligibility_rules": {
@@ -330,7 +538,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Anti-Theft Device Discount",
             "description": "Vehicle equipped with anti-theft device",
             "product_types": ["auto"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "percentage",
             "discount_value": Decimal("5.00"),
             "eligibility_rules": {
@@ -344,7 +552,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Home Security Discount",
             "description": "Home with security system",
             "product_types": ["home"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "percentage",
             "discount_value": Decimal("12.00"),
             "eligibility_rules": {
@@ -358,7 +566,7 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             "name": "Early Quote Discount",
             "description": "Quote submitted 30+ days before effective date",
             "product_types": ["auto", "home"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "discount_type": "fixed",
             "discount_value": Decimal("50.00"),
             "eligibility_rules": {
@@ -382,12 +590,12 @@ async def seed_discount_rules(conn: asyncpg.Connection) -> None:
             discount["code"],
             discount["name"],
             discount["description"],
-            discount["product_types"],
-            discount["states"],
+            json.dumps(discount["product_types"]),
+            json.dumps(discount["states"]),
             discount["discount_type"],
             discount["discount_value"],
             discount.get("max_discount_amount"),
-            discount["eligibility_rules"],
+            json.dumps(discount["eligibility_rules"]),
             discount["stackable"],
             discount["priority"],
             date.today(),
@@ -407,7 +615,7 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             "name": "Young Driver Surcharge",
             "description": "Surcharge for drivers under 25",
             "product_types": ["auto"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "surcharge_type": "percentage",
             "surcharge_value": Decimal("25.00"),
             "trigger_conditions": {
@@ -420,7 +628,7 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             "name": "SR-22 Filing Surcharge",
             "description": "Required SR-22 insurance filing",
             "product_types": ["auto"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "surcharge_type": "fixed",
             "surcharge_value": Decimal("125.00"),
             "trigger_conditions": {
@@ -447,7 +655,7 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             "name": "Coverage Lapse Surcharge",
             "description": "Previous insurance lapse",
             "product_types": ["auto"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "surcharge_type": "percentage",
             "surcharge_value": Decimal("20.00"),
             "trigger_conditions": {
@@ -460,7 +668,7 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             "name": "High Risk Area Surcharge",
             "description": "Property in high-risk area",
             "product_types": ["home"],
-            "states": ["CA", "TX", "NY"],
+            "states": ["CA", "TX", "NY", "FL", "MI", "PA"],
             "surcharge_type": "percentage",
             "surcharge_value": Decimal("30.00"),
             "trigger_conditions": {
@@ -482,12 +690,12 @@ async def seed_surcharge_rules(conn: asyncpg.Connection) -> None:
             surcharge["code"],
             surcharge["name"],
             surcharge["description"],
-            surcharge["product_types"],
-            surcharge["states"],
+            json.dumps(surcharge["product_types"]),
+            json.dumps(surcharge["states"]),
             surcharge["surcharge_type"],
             surcharge["surcharge_value"],
             surcharge.get("max_surcharge_amount"),
-            surcharge["trigger_conditions"],
+            json.dumps(surcharge["trigger_conditions"]),
             surcharge["priority"],
             date.today(),
         )
@@ -626,6 +834,89 @@ async def seed_territory_factors(conn: asyncpg.Connection) -> None:
             "loss_ratio_factor": 1.1,
             "catastrophe_factor": 1.8,
         },  # Coastal flooding
+        # Florida territories
+        {
+            "state": "FL",
+            "zip_code": "33101",
+            "product_type": "auto",
+            "base_factor": 1.7,
+            "loss_ratio_factor": 1.5,
+            "catastrophe_factor": 1.2,
+        },
+        {
+            "state": "FL",
+            "zip_code": "33601",
+            "product_type": "auto",
+            "base_factor": 1.5,
+            "loss_ratio_factor": 1.4,
+            "catastrophe_factor": 1.3,
+        },
+        {
+            "state": "FL",
+            "zip_code": "32801",
+            "product_type": "auto",
+            "base_factor": 1.4,
+            "loss_ratio_factor": 1.2,
+            "catastrophe_factor": 1.1,
+        },
+        {
+            "state": "FL",
+            "zip_code": "33101",
+            "product_type": "home",
+            "base_factor": 1.6,
+            "loss_ratio_factor": 1.4,
+            "catastrophe_factor": 3.0,
+        },  # Hurricane zone
+        # Michigan territories
+        {
+            "state": "MI",
+            "zip_code": "48201",
+            "product_type": "auto",
+            "base_factor": 2.2,
+            "loss_ratio_factor": 1.8,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "MI",
+            "zip_code": "48104",
+            "product_type": "auto",
+            "base_factor": 1.3,
+            "loss_ratio_factor": 1.1,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "MI",
+            "zip_code": "49503",
+            "product_type": "auto",
+            "base_factor": 1.2,
+            "loss_ratio_factor": 1.1,
+            "catastrophe_factor": 1.0,
+        },
+        # Pennsylvania territories
+        {
+            "state": "PA",
+            "zip_code": "19101",
+            "product_type": "auto",
+            "base_factor": 1.6,
+            "loss_ratio_factor": 1.4,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "PA",
+            "zip_code": "15201",
+            "product_type": "auto",
+            "base_factor": 1.4,
+            "loss_ratio_factor": 1.2,
+            "catastrophe_factor": 1.0,
+        },
+        {
+            "state": "PA",
+            "zip_code": "18101",
+            "product_type": "auto",
+            "base_factor": 1.2,
+            "loss_ratio_factor": 1.0,
+            "catastrophe_factor": 1.0,
+        },
     ]
 
     for territory in territories:

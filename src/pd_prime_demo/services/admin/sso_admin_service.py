@@ -1,14 +1,14 @@
 """Admin SSO configuration management service."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from beartype import beartype
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 
 class SSOAdminService:
@@ -33,7 +33,7 @@ class SSOAdminService:
         provider_type: str,  # 'oidc', 'saml', 'oauth2'
         configuration: dict[str, Any],
         is_enabled: bool = False,
-    ) -> Result[UUID, str]:
+    ):
         """Create new SSO provider configuration.
 
         Args:
@@ -109,7 +109,7 @@ class SSOAdminService:
         provider_id: UUID,
         admin_user_id: UUID,
         updates: dict[str, Any],
-    ) -> Result[bool, str]:
+    ):
         """Update SSO provider configuration.
 
         Args:
@@ -219,7 +219,7 @@ class SSOAdminService:
         self,
         provider_id: UUID,
         admin_user_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Test SSO provider connection and configuration.
 
         Args:
@@ -271,7 +271,7 @@ class SSOAdminService:
     async def get_user_provisioning_rules(
         self,
         provider_id: UUID,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """Get user provisioning rules for a provider.
 
         Args:
@@ -306,7 +306,7 @@ class SSOAdminService:
         sso_group: str,
         internal_role: str,
         auto_assign: bool = True,
-    ) -> Result[UUID, str]:
+    ):
         """Create SSO group to internal role mapping.
 
         Args:
@@ -374,7 +374,7 @@ class SSOAdminService:
         self,
         date_from: datetime,
         date_to: datetime,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get SSO usage analytics for admin dashboards.
 
         Args:
@@ -469,7 +469,7 @@ class SSOAdminService:
         self,
         provider_type: str,
         config: dict[str, Any],
-    ) -> Result[bool, str]:
+    ):
         """Validate provider configuration.
 
         Args:
@@ -647,7 +647,7 @@ class SSOAdminService:
         self,
         limit: int = 50,
         offset: int = 0,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """List SSO provider configurations.
 
         Args:
@@ -691,7 +691,7 @@ class SSOAdminService:
     async def get_sso_provider(
         self,
         provider_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get SSO provider configuration details.
 
         Args:
@@ -732,7 +732,7 @@ class SSOAdminService:
         self,
         provider_id: UUID,
         admin_user_id: UUID,
-    ) -> Result[bool, str]:
+    ):
         """Delete SSO provider configuration.
 
         Args:
@@ -794,7 +794,7 @@ class SSOAdminService:
     async def list_group_mappings(
         self,
         provider_id: UUID,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """List group mappings for a provider.
 
         Args:
@@ -827,7 +827,7 @@ class SSOAdminService:
         limit: int = 50,
         offset: int = 0,
         provider_id: UUID | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get SSO administrative activity logs.
 
         Args:

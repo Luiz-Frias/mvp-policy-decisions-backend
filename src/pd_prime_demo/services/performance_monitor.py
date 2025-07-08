@@ -5,9 +5,12 @@ import json
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, Dict, ParamSpec, TypeVar
 
 from beartype import beartype
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 @beartype
@@ -16,7 +19,7 @@ def performance_monitor(
     max_duration_ms: int = 2000,
     memory_threshold_mb: int = 100,
     log_slow_operations: bool = True,
-):
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator to monitor performance of critical quote operations.
 
     This decorator follows the master ruleset requirement that functions >10 lines
@@ -32,9 +35,9 @@ def performance_monitor(
         log_slow_operations: Whether to log slow operations
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs) -> Any:
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             start_time = time.perf_counter()
             operation_id = f"{operation_name}_{int(start_time * 1000)}"
 
@@ -58,13 +61,13 @@ def performance_monitor(
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
                 # Memory tracking
-                memory_usage_mb = 0
+                memory_usage_mb = 0.0
                 if snapshot_start:
                     try:
                         snapshot_end = tracemalloc.take_snapshot()
                         top_stats = snapshot_end.compare_to(snapshot_start, "lineno")
                         if top_stats:
-                            memory_usage_mb = (
+                            memory_usage_mb = float(
                                 sum(stat.size_diff for stat in top_stats[:10])
                                 / 1024
                                 / 1024
@@ -112,7 +115,7 @@ def performance_monitor(
                         pass
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs) -> Any:
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # For synchronous functions, use simplified monitoring
             start_time = time.perf_counter()
 

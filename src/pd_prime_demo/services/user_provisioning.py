@@ -1,7 +1,7 @@
 """User auto-provisioning service for SSO integration."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -10,7 +10,7 @@ from ..core.auth.sso_base import SSOUserInfo
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.base import BaseModelConfig
-from ..services.result import Err, Ok, Result
+from ..services.result import Err, Ok
 
 
 class ProvisioningRule(BaseModelConfig):
@@ -56,7 +56,7 @@ class UserProvisioningService:
         sso_info: SSOUserInfo,
         provider_name: str,
         provider_id: UUID,
-    ) -> Result[ProvisioningResult, str]:
+    ):
         """Evaluate provisioning rules for a user.
 
         Args:
@@ -154,7 +154,7 @@ class UserProvisioningService:
         priority: int = 0,
         is_enabled: bool = True,
         created_by: UUID | None = None,
-    ) -> Result[UUID, str]:
+    ):
         """Create a new user provisioning rule.
 
         Args:
@@ -223,7 +223,7 @@ class UserProvisioningService:
         rule_id: UUID,
         updates: dict[str, Any],
         updated_by: UUID | None = None,
-    ) -> Result[bool, str]:
+    ):
         """Update an existing provisioning rule.
 
         Args:
@@ -301,7 +301,7 @@ class UserProvisioningService:
         self,
         rule_id: UUID,
         deleted_by: UUID | None = None,
-    ) -> Result[bool, str]:
+    ):
         """Delete a provisioning rule.
 
         Args:
@@ -341,7 +341,7 @@ class UserProvisioningService:
         self,
         rule_id: UUID,
         test_user_data: dict[str, Any],
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Test a provisioning rule against sample user data.
 
         Args:
@@ -396,7 +396,7 @@ class UserProvisioningService:
     async def _get_provisioning_rules(
         self,
         provider_id: UUID,
-    ) -> Result[list[ProvisioningRule], str]:
+    ) -> dict:
         """Get provisioning rules for a provider.
 
         Args:
@@ -529,7 +529,7 @@ class UserProvisioningService:
         self,
         conditions: dict[str, Any],
         actions: dict[str, Any],
-    ) -> Result[bool, str]:
+    ):
         """Validate rule conditions and actions.
 
         Args:

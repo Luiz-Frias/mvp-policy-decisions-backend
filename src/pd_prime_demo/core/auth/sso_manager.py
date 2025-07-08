@@ -1,6 +1,6 @@
 """SSO provider management and user provisioning."""
 
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -8,7 +8,7 @@ from beartype import beartype
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 from .providers.auth0 import Auth0SSOProvider
 from .providers.azure import AzureADSSOProvider
 from .providers.google import GoogleSSOProvider
@@ -47,7 +47,7 @@ class SSOManager:
         self._provider_configs: dict[str, dict[str, Any]] = {}
 
     @beartype
-    async def initialize(self) -> Result[None, str]:
+    async def initialize(self):
         """Load SSO provider configurations from database.
 
         Returns:
@@ -106,7 +106,7 @@ class SSOManager:
         provider_name: str,
         provider_type: str,
         config: dict[str, Any],
-    ) -> Result[SSOProvider, str]:
+    ):
         """Create SSO provider instance.
 
         Args:
@@ -216,7 +216,7 @@ class SSOManager:
         self,
         sso_info: SSOUserInfo,
         provider_name: str,
-    ) -> Result[User, str]:
+    ):
         """Create or update user from SSO information.
 
         Args:
@@ -296,7 +296,7 @@ class SSOManager:
         provider_name: str,
         sso_info: SSOUserInfo,
         config: dict[str, Any],
-    ) -> Result[bool, str]:
+    ):
         """Check if user auto-provisioning is allowed.
 
         Args:

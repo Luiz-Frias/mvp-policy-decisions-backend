@@ -15,13 +15,7 @@ os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-testing-32-chars")  # n
 os.environ.setdefault("API_ENV", "development")
 
 from src.pd_prime_demo.core.config import Settings
-from src.pd_prime_demo.main import (
-    BaseAppModel,
-    Result,
-    create_app,
-    lifespan,
-    main,
-)
+from src.pd_prime_demo.main import BaseAppModel, Result, create_app, lifespan, main
 
 
 class TestResultType:

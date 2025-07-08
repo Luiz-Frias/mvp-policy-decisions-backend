@@ -13,7 +13,7 @@ import asyncio
 import json
 import statistics
 import time
-from typing import Any
+from typing import Any, Dict, List
 from uuid import uuid4
 
 import aiohttp

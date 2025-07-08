@@ -2,21 +2,27 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Dict, Set
 from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...services.quote_service import QuoteService
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 from ..manager import ConnectionManager, WebSocketMessage
 
 
 class QuoteUpdateData(BaseModel):
     """Data structure for quote updates."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     update_type: str = Field(..., min_length=1, max_length=50)
     field: str | None = Field(default=None)
@@ -30,7 +36,13 @@ class QuoteUpdateData(BaseModel):
 class CollaborativeEditRequest(BaseModel):
     """Request for collaborative quote editing."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     quote_id: UUID = Field(...)
     field: str = Field(..., min_length=1, max_length=100)
@@ -59,9 +71,7 @@ class QuoteWebSocketHandler:
         self._recent_updates: dict[str, datetime] = {}
 
     @beartype
-    async def handle_quote_subscribe(
-        self, connection_id: str, quote_id: UUID
-    ) -> Result[None, str]:
+    async def handle_quote_subscribe(self, connection_id: str, quote_id: UUID):
         """Subscribe to real-time quote updates with explicit validation."""
         # Validate quote exists and user has access
         quote_result = await self._quote_service.get_quote(quote_id)
@@ -124,9 +134,7 @@ class QuoteWebSocketHandler:
         return Ok(None)
 
     @beartype
-    async def handle_quote_unsubscribe(
-        self, connection_id: str, quote_id: UUID
-    ) -> Result[None, str]:
+    async def handle_quote_unsubscribe(self, connection_id: str, quote_id: UUID):
         """Unsubscribe from quote updates."""
         room_id = f"quote:{quote_id}"
 
@@ -176,7 +184,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def broadcast_quote_update(
         self, quote_id: UUID, update_data: QuoteUpdateData
-    ) -> Result[int, str]:
+    ):
         """Broadcast quote update to all subscribers with deduplication."""
         # Deduplication check
         dedup_key = f"{quote_id}:{update_data.update_type}:{update_data.field}"
@@ -210,7 +218,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def handle_collaborative_edit(
         self, connection_id: str, edit_request: CollaborativeEditRequest
-    ) -> Result[None, str]:
+    ):
         """Handle collaborative quote editing with field-level locking."""
         quote_id = edit_request.quote_id
         field = edit_request.field
@@ -275,7 +283,7 @@ class QuoteWebSocketHandler:
         progress: float,
         stage: str,
         details: dict[str, Any] | None = None,
-    ) -> Result[int, str]:
+    ):
         """Stream calculation progress to subscribers."""
         if not 0 <= progress <= 100:
             return Err(
@@ -304,7 +312,7 @@ class QuoteWebSocketHandler:
         old_status: str,
         new_status: str,
         reason: str | None = None,
-    ) -> Result[int, str]:
+    ):
         """Notify subscribers of quote status changes."""
         room_id = f"quote:{quote_id}"
 
@@ -324,7 +332,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def handle_field_focus(
         self, connection_id: str, quote_id: UUID, field: str, focused: bool
-    ) -> Result[None, str]:
+    ):
         """Handle field focus events for collaborative awareness."""
         room_id = f"quote:{quote_id}"
 
@@ -352,7 +360,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def handle_cursor_position(
         self, connection_id: str, quote_id: UUID, field: str, position: int
-    ) -> Result[None, str]:
+    ):
         """Handle cursor position updates for real-time collaboration."""
         # Validate position
         if position < 0:

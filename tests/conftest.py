@@ -7,7 +7,7 @@ It includes async support, database fixtures, test client setup, and mock servic
 from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
@@ -292,6 +292,44 @@ def performance_threshold() -> dict[str, float]:
         "max_memory_mb": 1.0,  # 1MB max memory per operation
         "max_cpu_percent": 80.0,  # 80% max CPU usage
     }
+
+
+@pytest.fixture(autouse=True)
+def setup_test_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
+    """Setup test environment variables."""
+    # Set required environment variables for testing
+    monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv(
+        "SECRET_KEY", "test-secret-key-for-testing-only-never-use-in-production"
+    )
+    monkeypatch.setenv(
+        "JWT_SECRET", "test-jwt-secret-for-testing-only-never-use-in-production"
+    )
+    monkeypatch.setenv("ENVIRONMENT", "testing")
+    monkeypatch.setenv("DEBUG", "true")
+
+    yield
+
+    # Cleanup after test - reset any singleton instances
+    try:
+        # Reset database singleton
+        from src.pd_prime_demo.core.database_enhanced import _database
+
+        if "_database" in globals():
+            globals()["_database"] = None
+    except ImportError:
+        pass
+
+    try:
+        # Reset config singleton
+        from src.pd_prime_demo.core.config import clear_settings_cache
+
+        clear_settings_cache()
+    except ImportError:
+        pass
 
 
 @pytest.fixture(autouse=True)

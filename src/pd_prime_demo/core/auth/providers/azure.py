@@ -1,12 +1,12 @@
 """Microsoft Azure AD SSO implementation."""
 
-from typing import Any
+from typing import Any, List
 from urllib.parse import urlencode
 
 import httpx
 from beartype import beartype
 
-from ....services.result import Err, Ok, Result
+from ....services.result import Err, Ok
 from ..sso_base import OIDCProvider, SSOUserInfo
 
 
@@ -51,7 +51,7 @@ class AzureADSSOProvider(OIDCProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ) -> Result[str, str]:
+    ):
         """Get Azure AD authorization URL.
 
         Args:
@@ -104,7 +104,7 @@ class AzureADSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Exchange authorization code for tokens.
 
         Args:
@@ -162,7 +162,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def get_user_info(
         self,
         access_token: str,
-    ) -> Result[SSOUserInfo, str]:
+    ):
         """Get user information from Azure AD.
 
         Args:
@@ -225,7 +225,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Refresh Azure AD access token.
 
         Args:
@@ -273,7 +273,7 @@ class AzureADSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ) -> Result[bool, str]:
+    ):
         """Revoke Azure AD token.
 
         Note: Azure AD doesn't support token revocation via API.
@@ -295,7 +295,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def _get_user_groups(
         self,
         access_token: str,
-    ) -> Result[list[str], str]:
+    ) -> dict:
         """Get user's Azure AD groups.
 
         Args:
@@ -344,7 +344,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def get_tenant_info(
         self,
         access_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get Azure AD tenant information.
 
         Args:

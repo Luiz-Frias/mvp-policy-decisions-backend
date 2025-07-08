@@ -7,6 +7,7 @@ updates, and the core claim entity itself.
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import List
 
 from beartype import beartype
 from pydantic import Field, field_validator, model_validator

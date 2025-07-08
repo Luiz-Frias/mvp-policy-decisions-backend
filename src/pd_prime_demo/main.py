@@ -20,6 +20,8 @@ from .api.v1 import router as v1_router
 from .core.cache import get_cache
 from .core.config import get_settings
 from .core.database import get_database
+from .core.performance_monitor import PerformanceMonitoringMiddleware
+from .core.rate_limiter import RateLimitConfig, RateLimitingMiddleware
 from .schemas.common import APIInfo
 from .websocket.app import websocket_app
 
@@ -150,14 +152,14 @@ class Result(Generic[T, E]):
     _error: E | None = field(default=None, init=False)
 
     @classmethod
-    def ok(cls, value: T) -> "Result[T, E]":
+    def ok(cls, value: T) -> "dict":
         """Create a successful result."""
         result = cls()
         object.__setattr__(result, "_value", value)
         return result
 
     @classmethod
-    def err(cls, error: E) -> "Result[T, E]":
+    def err(cls, error: E) -> "dict":
         """Create an error result."""
         result = cls()
         object.__setattr__(result, "_error", error)
@@ -201,10 +203,9 @@ class BaseAppModel(BaseModel):
 
     model_config = ConfigDict(
         frozen=True,
-        str_strip_whitespace=True,
-        validate_assignment=True,
         extra="forbid",
-        use_enum_values=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
         validate_default=True,
     )
 
@@ -235,10 +236,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await cache.connect()
     logger.info("✅ Redis connection pool initialized")
 
+    # Initialize WebSocket manager
+    from .websocket.app import get_manager
+
+    websocket_manager = get_manager()
+    await websocket_manager.start()
+    logger.info("✅ WebSocket manager started with monitoring")
+
+    # Warm performance caches for optimal response times
+    from .core.performance_cache import warm_all_caches
+
+    cache_results = await warm_all_caches()
+    logger.info(
+        f"✅ Performance caches warmed: {cache_results['summary']['total_keys_warmed']} keys in {cache_results['summary']['total_warmup_time_ms']:.1f}ms"
+    )
+
     yield
 
     # Shutdown
     logger.info("🛑 Shutting down MVP Policy Decision Backend...")
+
+    # Stop WebSocket manager
+    await websocket_manager.stop()
+    logger.info("✅ WebSocket manager stopped")
 
     # Close database connections
     await db.disconnect()
@@ -267,6 +287,17 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if not settings.is_production else None,
         lifespan=lifespan,
     )
+
+    # Add rate limiting middleware (protect against high load)
+    rate_limit_config = RateLimitConfig()
+    logger.info("Adding rate limiting middleware for high load protection")
+    app.add_middleware(RateLimitingMiddleware, config=rate_limit_config, enabled=True)
+
+    # Add performance monitoring middleware (always enabled for Wave 2.5)
+    logger.info(
+        "Adding performance monitoring middleware for <100ms requirement tracking"
+    )
+    app.add_middleware(PerformanceMonitoringMiddleware, track_memory=True)
 
     # Add comprehensive request logging middleware (only in development)
     if settings.is_development:

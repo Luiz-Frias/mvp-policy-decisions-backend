@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID
 
 from beartype import beartype
@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet
 from ...core.cache import Cache
 from ...core.database import Database
 from ..cache_keys import CacheKeys
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 
 class SettingType(str, Enum):
@@ -57,7 +57,7 @@ class SystemSettingsService:
         self,
         category: str,
         key: str,
-    ) -> Result[Any, str]:
+    ):
         """Get system setting value.
 
         Args:
@@ -114,7 +114,7 @@ class SystemSettingsService:
         key: str,
         value: Any,
         updated_by: UUID,
-    ) -> Result[bool, str]:
+    ):
         """Update system setting.
 
         Args:
@@ -198,7 +198,7 @@ class SystemSettingsService:
         self,
         category: str,
         include_sensitive: bool = False,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get all settings in a category.
 
         Args:
@@ -257,7 +257,7 @@ class SystemSettingsService:
         return Ok(settings)
 
     @beartype
-    async def get_public_settings(self) -> Result[dict[str, dict[str, Any]], str]:
+    async def get_public_settings(self) -> dict:
         """Get all public settings (safe for client exposure).
 
         Returns:
@@ -321,7 +321,7 @@ class SystemSettingsService:
         value: Any,
         value_type: SettingType,
         rules: dict[str, Any],
-    ) -> Result[bool, str]:
+    ):
         """Validate value against type and rules."""
         # Type validation
         if value_type == SettingType.INTEGER:

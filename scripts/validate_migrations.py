@@ -8,7 +8,7 @@ It checks for syntax errors, missing functions, proper revision sequences, and m
 import ast
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List
 
 
 def extract_migration_info(file_path: Path) -> dict[str, Any]:

@@ -1,12 +1,12 @@
 """Query optimization utilities for database performance tuning."""
 
-from typing import Any
+from typing import Any, Dict, List
 
 from attrs import field, frozen
 from beartype import beartype
 
 from .database_enhanced import Database
-from .result_types import Err, Ok, Result
+from .result_types import Err, Ok
 
 
 @frozen
@@ -60,7 +60,7 @@ class QueryOptimizer:
         analyze: bool = True,
         buffers: bool = True,
         verbose: bool = False,
-    ) -> Result[QueryPlan, str]:
+    ):
         """Run EXPLAIN ANALYZE on a query and parse results."""
         explain_options = []
         if analyze:
@@ -150,7 +150,7 @@ class QueryOptimizer:
         self,
         table_name: str,
         min_cardinality: int = 100,
-    ) -> Result[list[IndexSuggestion], str]:
+    ) -> dict:
         """Suggest missing indexes based on table statistics."""
         query = """
             WITH column_stats AS (
@@ -225,7 +225,7 @@ class QueryOptimizer:
         self,
         threshold_ms: float = 100.0,
         limit: int = 20,
-    ) -> Result[list[SlowQuery], str]:
+    ) -> dict:
         """Find slow queries from pg_stat_statements."""
         query = """
             SELECT
@@ -288,7 +288,7 @@ class QueryOptimizer:
     async def check_table_bloat(
         self,
         threshold_percent: float = 20.0,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """Check for table bloat that affects performance."""
         query = """
             WITH constants AS (

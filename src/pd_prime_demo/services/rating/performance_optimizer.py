@@ -6,13 +6,13 @@ optimizations to ensure sub-50ms rating calculations per Agent 06 requirements.
 
 import time
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 from beartype import beartype
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 try:
     import numpy as np
@@ -44,7 +44,7 @@ class RatingPerformanceOptimizer:
         self._batch_cache: dict[str, Any] = {}
 
     @beartype
-    async def initialize_performance_caches(self) -> Result[bool, str]:
+    async def initialize_performance_caches(self):
         """Initialize performance-optimized caches."""
         try:
             # Preload common factor combinations
@@ -123,9 +123,7 @@ class RatingPerformanceOptimizer:
             self._factor_lookup_cache[key] = float(row["base_factor"])
 
     @beartype
-    async def get_optimized_factor(
-        self, factor_type: str, *args: Any
-    ) -> Result[float, str]:
+    async def get_optimized_factor(self, factor_type: str, *args: Any):
         """Get factor with optimized lookup."""
         # Build cache key
         key_parts = [factor_type] + [str(arg) for arg in args]
@@ -151,7 +149,7 @@ class RatingPerformanceOptimizer:
     @beartype
     async def _calculate_and_cache_factor(
         self, factor_type: str, cache_key: str, *args: Any
-    ) -> Result[float, str]:
+    ):
         """Calculate factor and cache result."""
         try:
             # Calculate based on factor type
@@ -222,9 +220,7 @@ class RatingPerformanceOptimizer:
             return 0.90
 
     @beartype
-    async def _calculate_territory_factor(
-        self, state: str, zip_code: str
-    ) -> Result[float, str]:
+    async def _calculate_territory_factor(self, state: str, zip_code: str):
         """Calculate territory factor with database lookup."""
         query = """
         SELECT base_factor
@@ -247,7 +243,7 @@ class RatingPerformanceOptimizer:
     @beartype
     async def get_optimized_base_rate(
         self, state: str, product_type: str, coverage_type: str
-    ) -> Result[Decimal, str]:
+    ):
         """Get base rate with optimized lookup."""
         cache_key = f"{state}:{product_type}:{coverage_type}"
 
@@ -294,7 +290,7 @@ class RatingPerformanceOptimizer:
     @beartype
     async def batch_calculate_factors(
         self, factor_requests: list[tuple[str, tuple[Any, ...]]]
-    ) -> Result[dict[str, float], str]:
+    ) -> dict:
         """Calculate multiple factors in a single optimized batch."""
         results = {}
 
@@ -431,7 +427,7 @@ class RatingPerformanceOptimizer:
         }
 
     @beartype
-    async def warm_cache_for_common_scenarios(self) -> Result[int, str]:
+    async def warm_cache_for_common_scenarios(self):
         """Warm cache with common rating scenarios."""
         try:
             scenarios_warmed = 0
@@ -498,7 +494,7 @@ class RatingPerformanceOptimizer:
         return p95_time <= target_ms
 
     @beartype
-    async def optimize_slow_calculations(self) -> Result[list[str], str]:
+    async def optimize_slow_calculations(self) -> dict:
         """Identify and suggest optimizations for slow calculations."""
         try:
             optimizations = []

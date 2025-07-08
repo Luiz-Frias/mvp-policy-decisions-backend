@@ -5,6 +5,7 @@ with proper validation, caching, and error handling.
 """
 
 import json
+from typing import List
 from uuid import UUID
 
 import asyncpg
@@ -28,7 +29,13 @@ router = APIRouter()
 class CustomerListResponse(BaseModel):
     """Response model for customer list endpoints."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     items: list[Customer] = Field(..., description="List of customers")
     total: int = Field(..., ge=0, description="Total number of customers")
@@ -39,7 +46,13 @@ class CustomerListResponse(BaseModel):
 class CustomerFilter(BaseModel):
     """Filter parameters for customer queries."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     search: str | None = Field(None, description="Search by name or email")
     state_province: str | None = Field(
@@ -427,7 +440,7 @@ async def get_customer_policies(
         current_user: Authenticated user information
 
     Returns:
-        list[PolicySummary]: List of customer's policies
+        List[PolicySummary]: List of customer's policies
 
     Raises:
         HTTPException: If customer not found

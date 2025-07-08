@@ -1,24 +1,26 @@
 """Admin API schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic.types import UUID4
 
-from ..models.admin import (
-    ActivityAction,
-    Permission,
-    SystemSettingCategory,
-)
+from ..models.admin import ActivityAction, Permission, SystemSettingCategory
 
 
 @beartype
 class AdminRoleCreateRequest(BaseModel):
     """Request schema for creating an admin role."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     name: str = Field(
         ...,
@@ -51,7 +53,13 @@ class AdminRoleCreateRequest(BaseModel):
 class AdminRoleUpdateRequest(BaseModel):
     """Request schema for updating an admin role."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     description: str | None = Field(
         None, max_length=200, description="Updated description"
@@ -70,7 +78,13 @@ class AdminRoleUpdateRequest(BaseModel):
 class AdminRoleResponse(BaseModel):
     """Response schema for admin role details."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID4
     name: str
@@ -89,7 +103,13 @@ class AdminRoleResponse(BaseModel):
 class AdminUserCreateRequest(BaseModel):
     """Request schema for creating an admin user."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     email: EmailStr
     password: str = Field(
@@ -126,7 +146,13 @@ class AdminUserCreateRequest(BaseModel):
 class AdminUserUpdateRequest(BaseModel):
     """Request schema for updating an admin user."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     role_id: UUID4 | None = None
     is_super_admin: bool | None = None
@@ -152,7 +178,13 @@ class AdminUserUpdateRequest(BaseModel):
 class AdminUserResponse(BaseModel):
     """Response schema for admin user details."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID4
     email: EmailStr
@@ -194,7 +226,13 @@ class AdminUserResponse(BaseModel):
 class AdminUserListResponse(BaseModel):
     """Response schema for listing admin users."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     users: list[AdminUserResponse]
     total: int
@@ -208,7 +246,13 @@ class AdminUserListResponse(BaseModel):
 class AdminPasswordChangeRequest(BaseModel):
     """Request schema for changing admin password."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     current_password: str = Field(..., description="Current password for verification")
     new_password: str = Field(
@@ -223,7 +267,13 @@ class AdminPasswordChangeRequest(BaseModel):
 class AdminPasswordResetRequest(BaseModel):
     """Request schema for admin password reset."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     email: EmailStr = Field(..., description="Email address of admin user")
 
@@ -232,7 +282,13 @@ class AdminPasswordResetRequest(BaseModel):
 class SystemSettingCreateRequest(BaseModel):
     """Request schema for creating a system setting."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     category: SystemSettingCategory
     key: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-\.]+$")
@@ -253,7 +309,13 @@ class SystemSettingCreateRequest(BaseModel):
 class SystemSettingUpdateRequest(BaseModel):
     """Request schema for updating a system setting."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     value: Any
     description: str | None = Field(None, max_length=500)
@@ -266,7 +328,13 @@ class SystemSettingUpdateRequest(BaseModel):
 class SystemSettingResponse(BaseModel):
     """Response schema for system setting details."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID4
     category: SystemSettingCategory
@@ -290,7 +358,13 @@ class SystemSettingResponse(BaseModel):
 class AdminActivityLogRequest(BaseModel):
     """Request schema for querying activity logs."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     # Filters
     admin_user_id: UUID4 | None = None
@@ -318,7 +392,13 @@ class AdminActivityLogRequest(BaseModel):
 class AdminActivityLogResponse(BaseModel):
     """Response schema for activity log entry."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID4
     admin_user_id: UUID4
@@ -339,7 +419,13 @@ class AdminActivityLogResponse(BaseModel):
 class AdminActivityLogListResponse(BaseModel):
     """Response schema for listing activity logs."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     logs: list[AdminActivityLogResponse]
     total: int
@@ -353,7 +439,13 @@ class AdminActivityLogListResponse(BaseModel):
 class AdminDashboardCreateRequest(BaseModel):
     """Request schema for creating a dashboard."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     name: str = Field(..., min_length=1, max_length=100)
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9\-]+$")
@@ -370,7 +462,13 @@ class AdminDashboardCreateRequest(BaseModel):
 class AdminDashboardUpdateRequest(BaseModel):
     """Request schema for updating a dashboard."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = Field(None, max_length=500)
@@ -386,7 +484,13 @@ class AdminDashboardUpdateRequest(BaseModel):
 class AdminDashboardResponse(BaseModel):
     """Response schema for dashboard details."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID4
     name: str
@@ -411,7 +515,13 @@ class AdminDashboardResponse(BaseModel):
 class AdminLoginRequest(BaseModel):
     """Request schema for admin login."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     email: EmailStr
     password: str
@@ -424,7 +534,13 @@ class AdminLoginRequest(BaseModel):
 class AdminLoginResponse(BaseModel):
     """Response schema for successful admin login."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     access_token: str
     refresh_token: str
@@ -444,7 +560,13 @@ class AdminLoginResponse(BaseModel):
 class AdminSessionResponse(BaseModel):
     """Response schema for admin session details."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     session_id: str
     user_id: UUID4
@@ -460,7 +582,13 @@ class AdminSessionResponse(BaseModel):
 class AdminStatsResponse(BaseModel):
     """Response schema for admin dashboard statistics."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     # User stats
     total_admins: int

@@ -8,6 +8,7 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from datetime import datetime
+from typing import Tuple
 
 import asyncpg
 from beartype import beartype
@@ -35,7 +36,13 @@ router = APIRouter()
 class HealthStatus(BaseModel):
     """Individual component health status."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: str = Field(..., pattern=r"^(healthy|unhealthy|degraded)$")
     response_time_ms: float | None = Field(
@@ -50,7 +57,13 @@ class HealthStatus(BaseModel):
 class ComponentHealthMap(BaseModel):
     """Strongly-typed model for component health mappings."""
 
-    model_config = ConfigDict(frozen=True, extra="allow")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     def __init__(self, **data: HealthStatus) -> None:
         """Initialize with validation that all values are HealthStatus instances."""
@@ -63,7 +76,13 @@ class ComponentHealthMap(BaseModel):
 class HealthResponse(BaseModel):
     """Overall system health response."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: str = Field(..., pattern=r"^(healthy|unhealthy|degraded)$")
     timestamp: datetime = Field(..., description="Health check timestamp")

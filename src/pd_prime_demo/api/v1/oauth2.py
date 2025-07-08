@@ -1,6 +1,6 @@
 """OAuth2 authorization endpoints."""
 
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID
 
 from beartype import beartype
@@ -12,6 +12,7 @@ from ...core.auth.oauth2 import OAuth2Server
 from ...core.cache import Cache
 from ...core.config import Settings
 from ...core.database import Database
+from ...services.result import Err
 from ..dependencies import get_db_connection, get_redis, get_settings
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])
@@ -23,6 +24,9 @@ class TokenRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     grant_type: str
@@ -43,6 +47,9 @@ class IntrospectRequest(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     token: str
@@ -51,8 +58,8 @@ class IntrospectRequest(BaseModel):
 
 @beartype
 async def get_oauth2_server(
-    db=Depends(get_db_connection),
-    redis=Depends(get_redis),
+    db: Any = Depends(get_db_connection),
+    redis: Any = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> OAuth2Server:
     """Get OAuth2 server instance."""
@@ -115,7 +122,7 @@ async def authorize(
         code_challenge_method=code_challenge_method,
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         error = result.error
         # Build error redirect
         error_params = f"error={error.error}"
@@ -198,7 +205,7 @@ async def token(
         rate_limit_result = await oauth2_server.validate_client_rate_limit(
             client_id, "token_request"
         )
-        if rate_limit_result.is_err():
+        if isinstance(rate_limit_result, Err):
             raise HTTPException(
                 status_code=429,
                 detail={
@@ -220,7 +227,7 @@ async def token(
         code_verifier=code_verifier,
     )
 
-    if result.is_err():
+    if isinstance(result, Err):
         error = result.error
         raise HTTPException(
             status_code=error.status_code,

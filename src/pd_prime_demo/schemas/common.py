@@ -11,6 +11,7 @@ class APIInfo(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     name: str = Field(..., description="API name")
@@ -26,6 +27,8 @@ class PolicySummary(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     id: str = Field(..., description="Policy ID")
@@ -43,6 +46,8 @@ class HealthDetail(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     status: str = Field(..., description="Component status")
@@ -57,6 +62,8 @@ class HealthMetadata(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     cpu_percent: float | None = Field(None, description="CPU usage percentage")

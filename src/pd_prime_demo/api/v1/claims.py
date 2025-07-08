@@ -7,6 +7,7 @@ with proper validation, state transitions, and audit logging.
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import List
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -18,9 +19,7 @@ from redis.asyncio import Redis
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.claim import ClaimCreate as ServiceClaimCreate
-from ...models.claim import (
-    ClaimPriority,
-)
+from ...models.claim import ClaimPriority
 from ...models.claim import ClaimStatus as ServiceClaimStatus
 from ...models.claim import ClaimStatusUpdate as ServiceClaimStatusUpdate
 from ...models.claim import ClaimType as ServiceClaimType
@@ -60,7 +59,13 @@ class ClaimType(str, Enum):
 class ClaimBase(BaseModel):
     """Base claim attributes shared across operations."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     policy_id: UUID = Field(..., description="Associated policy ID")
     claim_type: ClaimType = Field(..., description="Type of claim")
@@ -129,7 +134,13 @@ class ClaimCreate(ClaimBase):
 class ClaimUpdate(BaseModel):
     """Model for updating claim information."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: ClaimStatus | None = None
     amount_claimed: Decimal | None = Field(
@@ -201,7 +212,13 @@ class Claim(ClaimBase):
 class ClaimListResponse(BaseModel):
     """Response model for claim list endpoints."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     items: list[Claim] = Field(..., description="List of claims")
     total: int = Field(..., ge=0, description="Total number of claims")
@@ -212,7 +229,13 @@ class ClaimListResponse(BaseModel):
 class ClaimFilter(BaseModel):
     """Filter parameters for claim queries."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: ClaimStatus | None = None
     claim_type: ClaimType | None = None
@@ -230,7 +253,13 @@ class ClaimFilter(BaseModel):
 class ClaimStatusUpdate(BaseModel):
     """Model for claim status transitions."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: ClaimStatus = Field(..., description="New status")
     reason: str = Field(

@@ -2,7 +2,7 @@
 
 import time
 import tracemalloc
-from typing import Any
+from typing import Any, Dict, List
 
 # ---------------------------------------------------------------------------
 # Logging Setup (replaces legacy ``print`` output with structured logging)

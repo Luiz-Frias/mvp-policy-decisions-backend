@@ -6,17 +6,19 @@ import pickle
 import time
 from collections.abc import Callable
 from functools import lru_cache
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 from beartype import beartype
 
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 
 class RatingPerformanceOptimizer:
     """Optimize rating calculations for <50ms performance."""
 
-    def __init__(self, db=None, cache=None, cache_size: int = 10000):
+    def __init__(
+        self, db: Any = None, cache: Any = None, cache_size: int = 10000
+    ) -> None:
         """Initialize optimizer with configurable cache size.
 
         Args:
@@ -39,7 +41,7 @@ class RatingPerformanceOptimizer:
         self,
         state: str,
         zip_code: str,
-    ) -> Result[float, str]:
+    ):
         """Cache territory factors for common ZIPs.
 
         Args:
@@ -58,7 +60,9 @@ class RatingPerformanceOptimizer:
 
         factor = self._calculate_territory_factor_internal(state, zip_code)
         if factor.is_ok():
-            self._precomputed_factors[cache_key] = factor.unwrap()
+            factor_value = factor.unwrap()
+            assert factor_value is not None  # Type assertion for mypy
+            self._precomputed_factors[cache_key] = factor_value
 
         return factor
 
@@ -84,7 +88,7 @@ class RatingPerformanceOptimizer:
     async def parallel_factor_calculation(
         self,
         calculation_tasks: dict[str, Callable[[], Any]],
-    ) -> Result[dict[str, float], str]:
+    ) -> dict:
         """Calculate factors in parallel for performance.
 
         Args:
@@ -106,11 +110,11 @@ class RatingPerformanceOptimizer:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Check for errors
-            factors = {}
+            factors: dict[str, float] = {}
             for name, result in zip(factor_names, results):
                 if isinstance(result, Exception):
                     return Err(f"Factor calculation failed for {name}: {str(result)}")
-                factors[name] = result
+                factors[name] = float(result)
 
             # Record performance metrics
             elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -199,7 +203,7 @@ class RatingPerformanceOptimizer:
     async def optimize_calculation_pipeline(
         self,
         quote_data: dict[str, Any],
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Optimize entire calculation pipeline for <50ms performance.
 
         Args:
@@ -299,9 +303,7 @@ class RatingPerformanceOptimizer:
             self._performance_metrics[operation].pop(0)
 
     @beartype
-    def _calculate_territory_factor_internal(
-        self, state: str, zip_code: str
-    ) -> Result[float, str]:
+    def _calculate_territory_factor_internal(self, state: str, zip_code: str):
         """Internal territory factor calculation.
 
         Args:
@@ -335,9 +337,7 @@ class RatingPerformanceOptimizer:
         return Ok(base_factor)
 
     @beartype
-    def _calculate_driver_factor_internal(
-        self, age: int, violations: int
-    ) -> Result[float, str]:
+    def _calculate_driver_factor_internal(self, age: int, violations: int):
         """Internal driver factor calculation.
 
         Args:
@@ -428,9 +428,7 @@ class RatingPerformanceOptimizer:
                         self._precomputed_factors[key] = result.unwrap()
 
     @beartype
-    async def batch_territory_lookup(
-        self, zip_codes: list[str], state: str
-    ) -> Result[dict[str, float], str]:
+    async def batch_territory_lookup(self, zip_codes: list[str], state: str) -> dict:
         """Batch lookup territory factors for multiple ZIP codes.
 
         Args:
@@ -524,7 +522,7 @@ class RatingPerformanceOptimizer:
     async def benchmark_calculation_performance(
         self,
         iterations: int = 1000,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Benchmark calculation performance under load.
 
         Args:
@@ -592,7 +590,7 @@ class RatingPerformanceOptimizer:
         return Ok(results)
 
     @beartype
-    async def initialize_performance_caches(self) -> Result[bool, str]:
+    async def initialize_performance_caches(self):
         """Initialize performance caches for optimal startup."""
         try:
             # Precompute common scenarios
@@ -607,7 +605,7 @@ class RatingPerformanceOptimizer:
             return Err(f"Cache initialization failed: {str(e)}")
 
     @beartype
-    async def warm_cache_for_common_scenarios(self) -> Result[int, str]:
+    async def warm_cache_for_common_scenarios(self):
         """Warm cache for common rating scenarios."""
         try:
             scenarios_cached = 0
@@ -671,7 +669,7 @@ class RatingPerformanceOptimizer:
         return violation_rate < 0.05  # Less than 5% violations
 
     @beartype
-    async def optimize_slow_calculations(self) -> Result[list[str], str]:
+    async def optimize_slow_calculations(self) -> dict:
         """Analyze performance and provide optimization recommendations."""
         try:
             recommendations = []

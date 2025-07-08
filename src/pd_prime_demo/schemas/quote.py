@@ -2,11 +2,11 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.quote import (
     CoverageSelection,
@@ -22,6 +22,14 @@ from ..models.quote import (
 @beartype
 class QuoteCreateRequest(BaseModel):
     """Request schema for creating a quote."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     customer_id: UUID | None = None
     product_type: str = Field(..., pattern=r"^(auto|home|commercial)$")
@@ -40,6 +48,14 @@ class QuoteCreateRequest(BaseModel):
 class QuoteUpdateRequest(BaseModel):
     """Request schema for updating a quote."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     vehicle_info: VehicleInfo | None = None
     drivers: list[DriverInfo] | None = None
     coverage_selections: list[CoverageSelection] | None = None
@@ -55,6 +71,14 @@ class QuoteUpdateRequest(BaseModel):
 @beartype
 class QuoteResponse(BaseModel):
     """Response schema for quote details."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID
     quote_number: str
@@ -102,6 +126,14 @@ class QuoteResponse(BaseModel):
 class QuoteSearchResponse(BaseModel):
     """Response schema for quote search results."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     quotes: list[QuoteResponse]
     total: int
     limit: int
@@ -111,6 +143,14 @@ class QuoteSearchResponse(BaseModel):
 @beartype
 class QuoteConversionResponse(BaseModel):
     """Response schema for quote to policy conversion."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     quote_id: UUID
     policy_id: UUID
@@ -127,6 +167,14 @@ class QuoteConversionResponse(BaseModel):
 class WizardStepResponse(BaseModel):
     """Response schema for wizard step information."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     step_id: str
     title: str
     description: str
@@ -142,6 +190,14 @@ class WizardStepResponse(BaseModel):
 @beartype
 class WizardSessionResponse(BaseModel):
     """Response schema for wizard session state."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     session_id: UUID
     quote_id: UUID | None
@@ -160,6 +216,14 @@ class WizardSessionResponse(BaseModel):
 class WizardValidationResponse(BaseModel):
     """Response schema for wizard validation results."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     is_valid: bool
     errors: dict[str, list[str]]
     warnings: dict[str, list[str]]
@@ -171,6 +235,14 @@ class WizardValidationResponse(BaseModel):
 @beartype
 class QuoteListResponse(BaseModel):
     """Response schema for listing quotes."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     quotes: list[QuoteResponse]
     total: int
@@ -184,6 +256,14 @@ class QuoteListResponse(BaseModel):
 class QuoteCalculateRequest(BaseModel):
     """Request schema for calculating quote premium."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     quote_id: UUID
     force_recalculate: bool = Field(default=False)
 
@@ -191,6 +271,14 @@ class QuoteCalculateRequest(BaseModel):
 @beartype
 class QuoteCalculateResponse(BaseModel):
     """Response schema for quote calculation results."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     quote_id: UUID
     base_premium: Decimal
@@ -206,6 +294,14 @@ class QuoteCalculateResponse(BaseModel):
 class QuoteCompareRequest(BaseModel):
     """Request schema for comparing quotes."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     quote_ids: list[UUID] = Field(..., min_items=2, max_items=5)
     comparison_type: str = Field(
         default="premium", pattern=r"^(premium|coverage|features)$"
@@ -215,6 +311,14 @@ class QuoteCompareRequest(BaseModel):
 @beartype
 class QuoteCompareResponse(BaseModel):
     """Response schema for quote comparison."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     quotes: list[QuoteResponse]
     comparison_matrix: dict[str, dict[str, Any]]
@@ -226,6 +330,14 @@ class QuoteCompareResponse(BaseModel):
 class QuoteConvertRequest(BaseModel):
     """Request schema for converting quote to policy."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     quote_id: UUID
     payment_method: str = Field(..., pattern=r"^(credit_card|bank_transfer|check)$")
     payment_info: dict[str, Any]
@@ -235,6 +347,14 @@ class QuoteConvertRequest(BaseModel):
 @beartype
 class QuoteConvertResponse(BaseModel):
     """Response schema for quote to policy conversion."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     quote_id: UUID
     policy_id: UUID
@@ -248,6 +368,14 @@ class QuoteConvertResponse(BaseModel):
 @beartype
 class QuoteSearchRequest(BaseModel):
     """Request schema for searching quotes."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     customer_id: UUID | None = None
     status: list[QuoteStatus] | None = None
@@ -276,6 +404,14 @@ class QuoteSearchRequest(BaseModel):
 class QuoteBulkActionRequest(BaseModel):
     """Request schema for bulk quote actions."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     quote_ids: list[UUID] = Field(..., min_items=1, max_items=100)
     action: str = Field(..., pattern=r"^(expire|archive|delete|assign_agent)$")
     action_data: dict[str, Any] | None = None
@@ -285,6 +421,14 @@ class QuoteBulkActionRequest(BaseModel):
 @beartype
 class QuoteBulkActionResponse(BaseModel):
     """Response schema for bulk quote actions."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     total_requested: int
     successful: int

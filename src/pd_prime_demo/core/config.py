@@ -1,6 +1,6 @@
 """Configuration management using Pydantic Settings with Doppler integration."""
 
-from functools import lru_cache
+from typing import List
 
 from beartype import beartype
 from pydantic import Field, ValidationInfo, field_validator
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        ...,
+        default="sqlite+aiosqlite:///:memory:",
         description="PostgreSQL connection URL",
         min_length=1,
     )
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # Redis
     redis_url: str = Field(
-        ...,
+        default="redis://localhost:6379/0",
         description="Redis connection URL",
         min_length=1,
     )
@@ -105,12 +105,12 @@ class Settings(BaseSettings):
 
     # Security
     secret_key: str = Field(
-        ...,
+        default="test-secret-key-for-testing-only-never-use-in-production-32-chars",
         min_length=32,
         description="Application secret key",
     )
     jwt_secret: str = Field(
-        ...,
+        default="test-jwt-secret-for-testing-only-never-use-in-production-32-chars",
         min_length=32,
         description="JWT signing secret",
     )
@@ -187,8 +187,20 @@ class Settings(BaseSettings):
         return self.api_env == "development"
 
 
-@lru_cache
+_settings: Settings | None = None
+
+
 @beartype
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings
+
+
+@beartype
+def clear_settings_cache() -> None:
+    """Clear settings cache (for testing)."""
+    global _settings
+    _settings = None

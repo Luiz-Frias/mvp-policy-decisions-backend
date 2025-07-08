@@ -7,7 +7,7 @@ and deployment with proper audit trails.
 import json
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -16,7 +16,7 @@ from pydantic import Field
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 
 
 @beartype
@@ -61,7 +61,7 @@ class RateTableService:
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
-    ) -> Result[RateTableVersion, str]:
+    ):
         """Create new version of rate table requiring approval."""
         try:
             # Validate rate structure
@@ -122,7 +122,7 @@ class RateTableService:
         version_id: UUID,
         admin_user_id: UUID,
         approval_notes: str | None = None,
-    ) -> Result[bool, str]:
+    ):
         """Approve rate table version and potentially activate it."""
         try:
             # Get version
@@ -172,7 +172,7 @@ class RateTableService:
             return Err(f"Rate approval failed: {str(e)}")
 
     @beartype
-    async def get_rate_version(self, version_id: UUID) -> Result[RateTableVersion, str]:
+    async def get_rate_version(self, version_id: UUID):
         """Get specific rate table version."""
         query = """
             SELECT * FROM rate_table_versions
@@ -187,9 +187,7 @@ class RateTableService:
         return Ok(self._row_to_rate_version(row))
 
     @beartype
-    async def get_active_rates(
-        self, state: str, product_type: str
-    ) -> Result[dict[str, Decimal], str]:
+    async def get_active_rates(self, state: str, product_type: str) -> dict:
         """Get currently active rates for state/product."""
         # Check cache first
         cache_key = f"active:{state}:{product_type}"
@@ -235,7 +233,7 @@ class RateTableService:
         self,
         table_name: str,
         include_inactive: bool = False,
-    ) -> Result[list[RateTableVersion], str]:
+    ) -> dict:
         """List rate table versions."""
         query = """
             SELECT * FROM rate_table_versions
@@ -257,7 +255,7 @@ class RateTableService:
     @beartype
     async def compare_rate_versions(
         self, version_id_1: UUID, version_id_2: UUID
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Compare two rate versions."""
         # Get both versions
         v1_result = await self.get_rate_version(version_id_1)
@@ -299,7 +297,7 @@ class RateTableService:
         version_id: UUID,
         deployment_date: date,
         admin_user_id: UUID,
-    ) -> Result[UUID, str]:
+    ):
         """Schedule a rate version for future deployment."""
         # Get version
         version_result = await self.get_rate_version(version_id)
@@ -332,7 +330,7 @@ class RateTableService:
     @beartype
     async def _validate_rate_structure(
         self, table_name: str, rate_data: dict[str, Any]
-    ) -> Result[bool, str]:
+    ):
         """Validate rate table structure and data."""
         # Check required fields
         required_fields = ["coverages", "base_rates", "factors"]
@@ -407,7 +405,7 @@ class RateTableService:
         return max_version + 1
 
     @beartype
-    async def _activate_rate_version(self, version_id: UUID) -> Result[bool, str]:
+    async def _activate_rate_version(self, version_id: UUID):
         """Activate a rate version, deactivating previous versions."""
         try:
             # Get version details

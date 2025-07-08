@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List
 
 from beartype import beartype
 from pydantic import EmailStr, Field, computed_field, field_validator, model_validator
@@ -195,7 +195,7 @@ class AdminRoleModel(IdentifiableModel):
 
         return unique_perms
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def permission_count(self) -> int:
         """Count of permissions for this role."""
@@ -316,7 +316,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
     # Relationships
     role: AdminRoleModel | None = Field(None, description="Populated role information")
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_locked(self) -> bool:
         """Check if account is currently locked."""
@@ -324,7 +324,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
             return datetime.utcnow() < self.locked_until
         return False
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_active(self) -> bool:
         """Check if account is active and usable."""
@@ -337,7 +337,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
             )
         )
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def effective_permissions(self) -> list[Permission]:
         """Get all permissions including role and super admin."""
@@ -349,7 +349,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
         return []
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def requires_password_change(self) -> bool:
         """Check if password change is required."""
@@ -361,7 +361,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
         return False
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def days_since_last_login(self) -> int | None:
         """Calculate days since last login."""
@@ -572,7 +572,7 @@ class SystemSetting(IdentifiableModel):
 
         return self
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def display_value(self) -> str:
         """Get display value (masked if sensitive)."""
@@ -843,7 +843,7 @@ class AdminDashboard(IdentifiableModel):
             pass
         return v
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def widget_count(self) -> int:
         """Number of widgets in this dashboard."""

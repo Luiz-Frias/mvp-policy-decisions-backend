@@ -1,6 +1,7 @@
 """OAuth2 scope definitions and validation."""
 
 from enum import Enum
+from typing import Dict, List, Set, Tuple
 
 from beartype import beartype
 

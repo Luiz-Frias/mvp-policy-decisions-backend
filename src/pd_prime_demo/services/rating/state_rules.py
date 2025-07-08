@@ -6,11 +6,12 @@ California Proposition 103 compliance and other state regulations.
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List
 
 from beartype import beartype
 
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
+from ..performance_monitor import performance_monitor
 
 
 @beartype
@@ -47,11 +48,13 @@ class StateRatingRules(ABC):
 class CaliforniaRules(StateRatingRules):
     """California Proposition 103 compliant rating rules."""
 
+    @beartype
     def get_state_code(self) -> str:
         """Return state code."""
         return "CA"
 
     @beartype
+    @performance_monitor("california_validate_factors")
     def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply California-specific factor limits per Prop 103."""
         # Prop 103: Driving record, miles driven, years of experience
@@ -139,6 +142,7 @@ class CaliforniaRules(StateRatingRules):
 class TexasRules(StateRatingRules):
     """Texas rating rules - more permissive than California."""
 
+    @beartype
     def get_state_code(self) -> str:
         """Return state code."""
         return "TX"
@@ -183,6 +187,7 @@ class TexasRules(StateRatingRules):
 class NewYorkRules(StateRatingRules):
     """New York rating rules."""
 
+    @beartype
     def get_state_code(self) -> str:
         """Return state code."""
         return "NY"
@@ -242,11 +247,13 @@ class NewYorkRules(StateRatingRules):
 class FloridaRules(StateRatingRules):
     """Florida rating rules with hurricane/catastrophe considerations."""
 
+    @beartype
     def get_state_code(self) -> str:
         """Return state code."""
         return "FL"
 
     @beartype
+    @performance_monitor("florida_validate_factors")
     def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply Florida-specific factor limits."""
         adjusted = factors.copy()
@@ -304,6 +311,7 @@ class FloridaRules(StateRatingRules):
 class MichiganRules(StateRatingRules):
     """Michigan rating rules with no-fault PIP requirements."""
 
+    @beartype
     def get_state_code(self) -> str:
         """Return state code."""
         return "MI"
@@ -361,11 +369,13 @@ class MichiganRules(StateRatingRules):
 class PennsylvaniaRules(StateRatingRules):
     """Pennsylvania rating rules with choice no-fault options."""
 
+    @beartype
     def get_state_code(self) -> str:
         """Return state code."""
         return "PA"
 
     @beartype
+    @performance_monitor("pennsylvania_validate_factors")
     def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
         """Apply Pennsylvania-specific factor limits."""
         adjusted = factors.copy()
@@ -412,7 +422,8 @@ class PennsylvaniaRules(StateRatingRules):
 
 # Factory function
 @beartype
-def get_state_rules(state: str) -> Result[StateRatingRules, str]:
+@performance_monitor("get_state_rules")
+def get_state_rules(state: str):
     """Get rules for a specific state - FAIL FAST if unsupported."""
     rules_map = {
         "CA": CaliforniaRules(),
@@ -436,9 +447,8 @@ def get_state_rules(state: str) -> Result[StateRatingRules, str]:
 
 
 @beartype
-def validate_coverage_limits(
-    state: str, coverage_selections: list[Any]
-) -> Result[bool, str]:
+@performance_monitor("validate_coverage_limits")
+def validate_coverage_limits(state: str, coverage_selections: list[Any]):
     """Validate that coverage selections meet state minimums."""
     state_rules_result = get_state_rules(state)
     if isinstance(state_rules_result, Err):

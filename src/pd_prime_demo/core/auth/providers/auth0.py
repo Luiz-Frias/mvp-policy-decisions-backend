@@ -1,12 +1,12 @@
 """Auth0 SSO implementation."""
 
-from typing import Any
+from typing import Any, List
 from urllib.parse import urlencode
 
 import httpx
 from beartype import beartype
 
-from ....services.result import Err, Ok, Result
+from ....services.result import Err, Ok
 from ..sso_base import OIDCProvider, SSOUserInfo
 
 
@@ -57,7 +57,7 @@ class Auth0SSOProvider(OIDCProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ) -> Result[str, str]:
+    ):
         """Get Auth0 authorization URL.
 
         Args:
@@ -122,7 +122,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Exchange authorization code for tokens.
 
         Args:
@@ -180,7 +180,7 @@ class Auth0SSOProvider(OIDCProvider):
     async def get_user_info(
         self,
         access_token: str,
-    ) -> Result[SSOUserInfo, str]:
+    ):
         """Get user information from Auth0.
 
         Args:
@@ -253,7 +253,7 @@ class Auth0SSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Refresh Auth0 access token.
 
         Args:
@@ -304,7 +304,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "refresh_token",
-    ) -> Result[bool, str]:
+    ):
         """Revoke Auth0 token.
 
         Note: Auth0 only supports revoking refresh tokens.
@@ -350,7 +350,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         user_id: str,
         management_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get user details from Auth0 Management API.
 
         Args:
@@ -387,7 +387,7 @@ class Auth0SSOProvider(OIDCProvider):
         secondary_user_id: str,
         secondary_provider: str,
         management_token: str,
-    ) -> Result[bool, str]:
+    ):
         """Link two user accounts in Auth0.
 
         Args:

@@ -11,7 +11,7 @@ Provides comprehensive monitoring capabilities for the WebSocket infrastructure:
 import asyncio
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
-from typing import Any, Deque
+from typing import Any, Deque, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -24,7 +24,13 @@ from ..core.database import Database
 class ConnectionMetrics(BaseModel):
     """Metrics for a single connection."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     connection_id: str = Field(...)
     user_id: UUID | None = Field(default=None)
@@ -41,7 +47,13 @@ class ConnectionMetrics(BaseModel):
 class SystemMetrics(BaseModel):
     """System-wide WebSocket metrics."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     timestamp: datetime = Field(default_factory=datetime.now)
     total_connections: int = Field(default=0, ge=0)
@@ -58,7 +70,13 @@ class SystemMetrics(BaseModel):
 class PerformanceAlert(BaseModel):
     """Performance alert definition."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     alert_type: str = Field(..., min_length=1, max_length=50)
     severity: str = Field(..., pattern="^(low|medium|high|critical)$")

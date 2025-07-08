@@ -5,6 +5,7 @@ with proper validation, caching, and error handling.
 """
 
 from collections.abc import AsyncGenerator
+from typing import List
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -38,7 +39,13 @@ router = APIRouter()
 class PolicyListResponse(BaseModel):
     """Response model for policy list endpoints."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     items: list[Policy] = Field(..., description="List of policies")
     total: int = Field(..., ge=0, description="Total number of policies")
@@ -49,7 +56,13 @@ class PolicyListResponse(BaseModel):
 class PolicyFilter(BaseModel):
     """Filter parameters for policy queries."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: PolicyStatus | None = Field(None, description="Filter by status")
     policy_type: PolicyType | None = Field(None, description="Filter by type")

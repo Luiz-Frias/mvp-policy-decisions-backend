@@ -5,7 +5,7 @@ approval workflows, A/B testing, and analytics per Agent 06 requirements.
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -23,6 +23,13 @@ router = APIRouter(prefix="/admin/rate-management", tags=["admin-rate-management
 class RateTableVersionCreate(BaseModel):
     """Request model for creating rate table version."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     table_name: str = Field(..., min_length=1, max_length=100)
     rate_data: dict[str, Any] = Field(...)
     effective_date: date = Field(...)
@@ -32,18 +39,39 @@ class RateTableVersionCreate(BaseModel):
 class RateVersionApproval(BaseModel):
     """Request model for rate version approval."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     approval_notes: str | None = Field(None, max_length=1000)
 
 
 class RateVersionRejection(BaseModel):
     """Request model for rate version rejection."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     rejection_reason: str = Field(..., min_length=10, max_length=1000)
 
 
 class ABTestCreate(BaseModel):
     """Request model for A/B test creation."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     control_version_id: UUID = Field(...)
     test_version_id: UUID = Field(...)
     traffic_split: float = Field(..., ge=0.1, le=0.5)
@@ -54,6 +82,13 @@ class ABTestCreate(BaseModel):
 class RateAnalyticsQuery(BaseModel):
     """Request model for rate analytics query."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     table_name: str = Field(..., min_length=1)
     date_from: date = Field(...)
     date_to: date = Field(...)

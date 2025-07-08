@@ -2,21 +2,27 @@
 
 import asyncio
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.database import Database
-from ...services.result import Err, Ok, Result
+from ...services.result import Err, Ok
 from ..manager import ConnectionManager, WebSocketMessage
 
 
 class NotificationConfig(BaseModel):
     """Configuration for notification delivery."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     notification_type: str = Field(..., min_length=1, max_length=50)
     priority: str = Field(..., pattern="^(low|normal|high|urgent)$")
@@ -31,7 +37,13 @@ class NotificationConfig(BaseModel):
 class NotificationData(BaseModel):
     """Notification payload data."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     title: str = Field(..., min_length=1, max_length=200)
     message: str = Field(..., min_length=1)
@@ -43,7 +55,13 @@ class NotificationData(BaseModel):
 class SystemAlert(BaseModel):
     """System-wide alert definition."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     alert_type: str = Field(..., min_length=1, max_length=50)
     severity: str = Field(..., pattern="^(low|medium|high|critical)$")
@@ -81,7 +99,7 @@ class NotificationHandler:
         user_id: UUID,
         notification: NotificationData,
         config: NotificationConfig,
-    ) -> Result[None, str]:
+    ):
         """Send notification to a specific user with delivery tracking."""
         # Validate user exists and has active connections
         if user_id not in self._manager._user_connections:
@@ -157,7 +175,7 @@ class NotificationHandler:
         alert: SystemAlert,
         notification: NotificationData,
         target_roles: list[str] | None = None,
-    ) -> Result[int, str]:
+    ):
         """Broadcast system alert to all relevant users."""
         alert_id = (
             f"alert_{alert.alert_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -218,7 +236,7 @@ class NotificationHandler:
     @beartype
     async def send_quote_expiration_alert(
         self, quote_id: UUID, customer_user_id: UUID, expiration_time: datetime
-    ) -> Result[None, str]:
+    ):
         """Send quote expiration notification."""
         # Calculate time until expiration
         time_until_expiry = expiration_time - datetime.now()
@@ -265,7 +283,7 @@ class NotificationHandler:
     @beartype
     async def send_policy_renewal_reminder(
         self, policy_id: UUID, customer_user_id: UUID, renewal_date: datetime
-    ) -> Result[None, str]:
+    ):
         """Send policy renewal reminder."""
         days_until_renewal = (renewal_date - datetime.now()).days
 
@@ -294,7 +312,7 @@ class NotificationHandler:
     @beartype
     async def handle_notification_acknowledgment(
         self, connection_id: str, notification_id: UUID
-    ) -> Result[None, str]:
+    ):
         """Handle user acknowledgment of notification."""
         if notification_id not in self._pending_notifications:
             return Err(
@@ -418,7 +436,7 @@ class NotificationHandler:
         user_id: UUID,
         notification: NotificationData,
         config: NotificationConfig,
-    ) -> Result[None, str]:
+    ):
         """Store notification in database for later delivery."""
         try:
             await self._db.execute(

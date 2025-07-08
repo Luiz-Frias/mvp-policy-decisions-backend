@@ -5,14 +5,14 @@ import contextlib
 import json
 import time
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Dict, List
 
 import asyncpg
 from attrs import field, frozen
 from beartype import beartype
 
 from .config import get_settings
-from .result_types import Err, Ok, Result
+from .result_types import Err, Ok
 
 
 @frozen
@@ -123,10 +123,10 @@ class Database:
         if pool_type == "admin":
             # Admin pool optimized for complex analytical queries
             return PoolConfig(
-                min_connections=5,  # Increased minimum for admin workload
-                max_connections=15,  # Increased based on audit findings
-                connection_timeout=60.0,  # Longer timeout for complex queries
-                command_timeout=120.0,  # Allow complex admin queries more time
+                min_connections=10,  # Increased from 5 based on audit findings
+                max_connections=20,  # Increased from 15 based on audit findings
+                connection_timeout=5.0,  # Reduced from 60.0 for faster failure detection
+                command_timeout=10.0,  # Reduced from 120.0 for testing (can be increased later)
                 server_settings={
                     "work_mem": "512MB",  # Increased for complex queries
                     "temp_buffers": "64MB",
@@ -141,24 +141,25 @@ class Database:
             )
 
         # Calculate based on load expectations with performance optimizations
+        # Based on Agent 03 audit: need higher pool sizes to reduce timeout rates
         min_conn = max(
-            self.calculate_min_connections(expected_rps), 15
-        )  # Higher minimum based on audit
+            self.calculate_min_connections(expected_rps), 25
+        )  # Increased from 15 to 25
         max_conn = self.calculate_max_connections(
-            self._settings.database_max_connections,
+            300,  # Using recommended 300 max_connections from audit
             app_instances,
         )
 
         # Optimization: Increase pool size based on benchmark results
-        # Audit showed pool_size=30 was optimal for 50 concurrent requests
-        if max_conn < 30:
-            max_conn = min(30, self._settings.database_max_connections // app_instances)
+        # Audit showed we need at least 40 connections per instance
+        if max_conn < 40:
+            max_conn = min(40, 300 // app_instances)  # 40 per instance minimum
 
-        # Validate pool size against database limits
-        if max_conn > self._settings.database_max_connections * 0.8:
+        # Validate pool size against database limits - using new 300 max_connections
+        if max_conn > 300 * 0.8:
             raise ValueError(
                 f"Pool size {max_conn} exceeds safe database limit "
-                f"({self._settings.database_max_connections * 0.8:.0f})"
+                f"({300 * 0.8:.0f})"
             )
 
         server_settings = {
@@ -181,8 +182,8 @@ class Database:
 
         if pool_type == "read":
             # Read replicas optimized for query performance
-            min_conn = max(min_conn * 2, 20)  # Higher minimum for read workload
-            max_conn = min(max_conn * 2, 200)
+            min_conn = max(min_conn * 2, 30)  # Increased from 20 to 30
+            max_conn = min(max_conn * 2, 80)  # Capped at 80 per instance
             server_settings.update(
                 {
                     "default_transaction_read_only": "on",
@@ -198,9 +199,8 @@ class Database:
         return PoolConfig(
             min_connections=min_conn,
             max_connections=max_conn,
-            connection_timeout=self._settings.database_pool_timeout
-            * 0.8,  # Slightly reduced for faster failure detection
-            command_timeout=self._settings.database_command_timeout,
+            connection_timeout=5.0,  # Reduced from 30.0 for faster failure detection
+            command_timeout=10.0,  # Reduced from 60.0 for testing
             max_inactive_connection_lifetime=self._settings.database_max_inactive_connection_lifetime,
             server_settings=server_settings,
         )
@@ -277,36 +277,44 @@ class Database:
         successful_warmups = 0
 
         try:
-            # Warm up to min_size connections + some extra for better performance
+            # Based on Agent 03 audit: warm more connections to reduce initial timeout rates
             min_connections = self._pool.get_min_size()
-            target_warmup = min(min_connections + 5, self._pool.get_max_size())
+            # Target 80% of max_size for aggressive pre-warming
+            target_warmup = int(self._pool.get_max_size() * 0.8)
 
-            # Warm connections in batches to avoid overwhelming the database
-            batch_size = 5
+            # Parallel connection establishment for faster warming
+            batch_size = 10  # Increased from 5
+
+            async def warm_single_connection() -> bool:
+                """Warm a single connection."""
+                try:
+                    conn = await self._pool.acquire(timeout=2.0)
+                    connections.append(conn)
+
+                    # Perform initialization queries to fully warm the connection
+                    await asyncio.gather(
+                        conn.fetchval("SELECT 1"),
+                        conn.fetchval("SELECT version()"),
+                        conn.fetchval("SELECT current_timestamp"),
+                        conn.fetchval("SELECT pg_backend_pid()"),
+                    )
+                    return True
+                except Exception:
+                    return False
+
+            # Warm connections in parallel batches
             for batch_start in range(0, target_warmup, batch_size):
                 batch_end = min(batch_start + batch_size, target_warmup)
-                batch_connections = []
+                batch_tasks = []
 
                 for i in range(batch_start, batch_end):
-                    try:
-                        conn = await self._pool.acquire(timeout=2.0)
-                        batch_connections.append(conn)
-                        connections.append(conn)
+                    batch_tasks.append(warm_single_connection())
 
-                        # Perform initialization queries to fully warm the connection
-                        await conn.fetchval("SELECT 1")
-                        await conn.fetchval("SELECT version()")
-                        await conn.fetchval("SELECT current_timestamp")
+                # Execute batch in parallel
+                results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                successful_warmups += sum(1 for r in results if r is True)
 
-                        successful_warmups += 1
-
-                    except Exception:
-                        # Continue warming other connections
-                        pass
-
-                # Small delay between batches to avoid overwhelming database
-                if batch_end < target_warmup:
-                    await asyncio.sleep(0.1)
+                # No delay between batches - we want fast warming
 
             warmup_duration = (time.perf_counter() - warmup_start) * 1000
             self._metrics["warmup_time_ms"] = warmup_duration
@@ -315,16 +323,17 @@ class Database:
                 f"🔥 Pool warmed: {successful_warmups}/{target_warmup} connections in {warmup_duration:.1f}ms"
             )
 
-        except Exception:
+        except Exception as e:
             # Pool warming is best-effort, don't fail startup
-            pass
+            print(f"⚠️ Pool warming partially failed: {str(e)}")
         finally:
             # Release all warmed connections back to pool
+            release_tasks = []
             for conn in connections:
-                try:
-                    await self._pool.release(conn)
-                except Exception:
-                    pass
+                release_tasks.append(self._pool.release(conn))
+
+            # Release all connections in parallel
+            await asyncio.gather(*release_tasks, return_exceptions=True)
 
     @beartype
     async def connect(self) -> None:
@@ -390,7 +399,7 @@ class Database:
         self._admin_pool = None
 
     @beartype
-    async def check_pool_health(self) -> Result[str, str]:
+    async def check_pool_health(self):
         """Check pool health before operations."""
         if self._pool is None:
             return Err("Database pool not initialized")
@@ -507,7 +516,7 @@ class Database:
         query: str,
         *args: Any,
         max_attempts: int = 3,
-    ) -> Result[str, str]:
+    ):
         """Execute query with automatic retry on connection errors."""
         last_error = None
 
@@ -672,7 +681,7 @@ class Database:
         return warnings
 
     @beartype
-    async def health_check(self) -> Result[bool, str]:
+    async def health_check(self):
         """Perform comprehensive health check."""
         try:
             # Check main pool

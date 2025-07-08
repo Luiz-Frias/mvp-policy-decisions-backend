@@ -1,6 +1,6 @@
 """SSO authentication endpoints for user login."""
 
-from typing import Any
+from typing import Any, Dict
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -24,6 +24,7 @@ class SSOInitiateRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     provider: str = Field(..., description="SSO provider name")
@@ -38,6 +39,7 @@ class SSOCallbackRequest(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     code: str = Field(..., description="Authorization code")

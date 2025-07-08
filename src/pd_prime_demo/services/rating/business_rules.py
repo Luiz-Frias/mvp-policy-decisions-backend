@@ -6,12 +6,12 @@ regulatory requirements.
 """
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List
 
 from beartype import beartype
 
 from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 
 @beartype
@@ -41,6 +41,7 @@ class BusinessRuleViolation:
         self.field = field
         self.suggested_action = suggested_action
 
+    @beartype
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -92,7 +93,7 @@ class RatingBusinessRules:
         total_premium: Decimal,
         discounts: list[Any],
         surcharges: list[dict[str, Any]],
-    ) -> Result[list[BusinessRuleViolation], str]:
+    ) -> dict:
         """Validate complete premium calculation against business rules.
 
         Args:

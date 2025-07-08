@@ -3,14 +3,14 @@
 import hashlib
 import secrets
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from beartype import beartype
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ..result import Err, Ok, Result
+from ..result import Err, Ok
 
 
 class OAuth2AdminService:
@@ -39,7 +39,7 @@ class OAuth2AdminService:
         description: str | None = None,
         token_lifetime: int = 3600,  # 1 hour default
         refresh_token_lifetime: int = 86400 * 7,  # 1 week default
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Create new OAuth2 client application.
 
         Args:
@@ -171,7 +171,7 @@ class OAuth2AdminService:
         client_id: str,
         admin_user_id: UUID,
         updates: dict[str, Any],
-    ) -> Result[bool, str]:
+    ):
         """Update OAuth2 client configuration.
 
         Args:
@@ -274,7 +274,7 @@ class OAuth2AdminService:
         self,
         client_id: str,
         admin_user_id: UUID,
-    ) -> Result[str, str]:
+    ):
         """Regenerate client secret for confidential clients.
 
         Args:
@@ -337,7 +337,7 @@ class OAuth2AdminService:
         client_id: str,
         date_from: datetime,
         date_to: datetime,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get OAuth2 client usage analytics.
 
         Args:
@@ -457,7 +457,7 @@ class OAuth2AdminService:
         client_id: str,
         admin_user_id: UUID,
         reason: str,
-    ) -> Result[int, str]:
+    ):
         """Revoke all active tokens for a client.
 
         Args:
@@ -537,7 +537,7 @@ class OAuth2AdminService:
         active_only: bool = True,
         limit: int = 50,
         offset: int = 0,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """List OAuth2 clients.
 
         Args:
@@ -582,7 +582,7 @@ class OAuth2AdminService:
     async def get_client_details(
         self,
         client_id: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get detailed information about a client.
 
         Args:

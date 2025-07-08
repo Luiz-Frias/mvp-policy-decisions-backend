@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -15,7 +15,13 @@ from ..core.database import Database
 class ConnectionMetrics(BaseModel):
     """WebSocket connection performance metrics."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     connection_id: str = Field(...)
     user_id: UUID | None = Field(default=None)
@@ -32,7 +38,13 @@ class ConnectionMetrics(BaseModel):
 class RoomMetrics(BaseModel):
     """WebSocket room performance metrics."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     room_id: str = Field(...)
     subscriber_count: int = Field(default=0, ge=0)
@@ -47,7 +59,13 @@ class RoomMetrics(BaseModel):
 class PerformanceAlert(BaseModel):
     """Performance alert definition."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     alert_type: str = Field(...)
     severity: str = Field(..., pattern="^(low|medium|high|critical)$")

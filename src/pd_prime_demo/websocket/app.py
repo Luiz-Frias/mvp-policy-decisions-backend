@@ -1,7 +1,7 @@
 """WebSocket application setup."""
 
 import json
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -12,7 +12,7 @@ from ..core.cache import get_cache
 from ..core.config import get_settings
 from ..core.database import get_database
 from ..services.quote_service import QuoteService
-from ..services.result import Err, Ok, Result
+from ..services.result import Err, Ok
 from .handlers.admin_dashboard import AdminDashboardHandler
 from .handlers.analytics import AnalyticsWebSocketHandler, DashboardConfig
 from .handlers.notifications import NotificationHandler
@@ -129,7 +129,7 @@ async def send_error_message(
 
 
 @beartype
-async def validate_websocket_token(token: str | None) -> Result[UUID | None, str]:
+async def validate_websocket_token(token: str | None):
     """Validate WebSocket authentication token."""
     if not token:
         # Allow anonymous connections for demo

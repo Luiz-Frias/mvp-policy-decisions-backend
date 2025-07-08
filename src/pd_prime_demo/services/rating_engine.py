@@ -8,7 +8,7 @@ import hashlib
 import json
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 try:
@@ -33,10 +33,11 @@ from ..models.quote import (
     DriverInfo,
     VehicleInfo,
 )
+from .performance_monitor import performance_monitor
 from .rating.business_rules import RatingBusinessRules
 from .rating.performance_optimizer import RatingPerformanceOptimizer
 from .rating.territory_management import TerritoryManager
-from .result import Err, Ok, Result
+from .result import Err, Ok
 
 
 @beartype
@@ -94,7 +95,8 @@ class RatingEngine:
         self._performance_optimizer = RatingPerformanceOptimizer(db, cache)
 
     @beartype
-    async def initialize(self) -> Result[bool, str]:
+    @performance_monitor("rating_engine_initialize")
+    async def initialize(self):
         """Preload rating data for performance."""
         try:
             # Load base rates
@@ -132,6 +134,7 @@ class RatingEngine:
             return Err(f"Rating engine initialization failed: {str(e)}")
 
     @beartype
+    @performance_monitor("calculate_premium", max_duration_ms=50)
     async def calculate_premium(
         self,
         state: str,
@@ -140,7 +143,7 @@ class RatingEngine:
         drivers: list[DriverInfo],
         coverage_selections: list[CoverageSelection],
         customer_id: UUID | None = None,
-    ) -> Result[RatingResult, str]:
+    ):
         """Calculate premium with all factors - MUST complete in <50ms."""
         # Start performance monitoring
         perf_token = self._performance_optimizer.start_performance_monitoring()
@@ -320,13 +323,14 @@ class RatingEngine:
             return Err(f"Rating calculation error: {str(e)}")
 
     @beartype
+    @performance_monitor("validate_rating_inputs")
     def _validate_rating_inputs(
         self,
         state: str,
         product_type: str,
         drivers: list[DriverInfo],
         coverage_selections: list[CoverageSelection],
-    ) -> Result[bool, str]:
+    ):
         """Validate rating inputs - FAIL FAST."""
         # Validate state support
         if state not in self._state_rules:
@@ -369,9 +373,8 @@ class RatingEngine:
         return Ok(True)
 
     @beartype
-    async def _get_base_rates(
-        self, state: str, product_type: str
-    ) -> Result[dict[str, Decimal], str]:
+    @performance_monitor("get_base_rates")
+    async def _get_base_rates(self, state: str, product_type: str) -> dict:
         """Get base rates for state/product - NO DEFAULTS."""
         cache_key = f"base_rates:{state}:{product_type}"
 
@@ -416,13 +419,14 @@ class RatingEngine:
         return Ok(rates)
 
     @beartype
+    @performance_monitor("calculate_factors")
     async def _calculate_factors(
         self,
         state: str,
         vehicle_info: VehicleInfo | None,
         drivers: list[DriverInfo],
         customer_id: UUID | None,
-    ) -> Result[dict[str, float], str]:
+    ) -> dict:
         """Calculate all rating factors."""
         factors = {}
 
@@ -468,9 +472,8 @@ class RatingEngine:
         return Ok(validated_factors.value)
 
     @beartype
-    async def _calculate_vehicle_factors(
-        self, vehicle: VehicleInfo
-    ) -> Result[dict[str, float], str]:
+    @performance_monitor("calculate_vehicle_factors")
+    async def _calculate_vehicle_factors(self, vehicle: VehicleInfo) -> dict:
         """Calculate vehicle-specific factors."""
         factors = {}
 
@@ -512,9 +515,8 @@ class RatingEngine:
         return Ok(factors)
 
     @beartype
-    async def _calculate_driver_factors(
-        self, drivers: list[DriverInfo]
-    ) -> Result[dict[str, float], str]:
+    @performance_monitor("calculate_driver_factors")
+    async def _calculate_driver_factors(self, drivers: list[DriverInfo]) -> dict:
         """Calculate driver-specific factors."""
         # Find primary driver (youngest regular driver typically has highest impact)
         primary_driver = min(drivers, key=lambda d: d.age)
@@ -569,6 +571,7 @@ class RatingEngine:
         return Ok(factors)
 
     @beartype
+    @performance_monitor("calculate_discounts")
     async def _calculate_discounts(
         self,
         state: str,
@@ -577,7 +580,7 @@ class RatingEngine:
         drivers: list[DriverInfo],
         customer_id: UUID | None,
         base_premium: Decimal,
-    ) -> Result[list[Discount], str]:
+    ) -> dict:
         """Calculate applicable discounts."""
         discounts = []
 
@@ -668,9 +671,10 @@ class RatingEngine:
         return Ok(discounts)
 
     @beartype
+    @performance_monitor("calculate_surcharges")
     async def _calculate_surcharges(
         self, state: str, drivers: list[DriverInfo], customer_id: UUID | None
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> dict:
         """Calculate applicable surcharges."""
         surcharges = []
 
@@ -712,6 +716,7 @@ class RatingEngine:
         return Ok(surcharges)
 
     @beartype
+    @performance_monitor("determine_tier")
     def _determine_tier(self, factors: dict[str, float], premium: Decimal) -> str:
         """Determine rating tier based on factors and premium."""
         # Calculate composite risk score
@@ -732,6 +737,7 @@ class RatingEngine:
             return "high_risk"
 
     @beartype
+    @performance_monitor("generate_cache_key")
     def _generate_cache_key(
         self,
         state: str,
@@ -767,21 +773,20 @@ class RatingEngine:
         return hashlib.sha256(key_string.encode()).hexdigest()[:16]
 
     @beartype
-    async def _get_territory_factor(
-        self, state: str, zip_code: str
-    ) -> Result[float, str]:
+    async def _get_territory_factor(self, state: str, zip_code: str):
         """Get territory factor for ZIP code using territory manager."""
         return await self._territory_manager.get_territory_factor(state, zip_code)
 
     @beartype
-    async def _get_credit_factor(self, customer_id: UUID) -> Result[float, str]:
+    async def _get_credit_factor(self, customer_id: UUID):
         """Get credit-based insurance score factor."""
         # Mock implementation for now
         # In production, this would call a credit bureau API
         return Ok(1.0)
 
     @beartype
-    async def _get_claims_factor(self, customer_id: UUID) -> Result[float, str]:
+    @performance_monitor("get_claims_factor")
+    async def _get_claims_factor(self, customer_id: UUID):
         """Get claims history factor."""
         query = """
             SELECT COUNT(*) as claim_count
@@ -804,9 +809,8 @@ class RatingEngine:
             return Ok(1.50)
 
     @beartype
-    async def _get_minimum_premium(
-        self, state: str, product_type: str
-    ) -> Result[Decimal, str]:
+    @performance_monitor("get_minimum_premium")
+    async def _get_minimum_premium(self, state: str, product_type: str):
         """Get minimum premium for state/product."""
         query = """
             SELECT minimum_premium
@@ -825,7 +829,7 @@ class RatingEngine:
         return Ok(Decimal(str(row["minimum_premium"])))
 
     @beartype
-    async def _get_customer_policy_count(self, customer_id: UUID) -> Result[int, str]:
+    async def _get_customer_policy_count(self, customer_id: UUID):
         """Get count of active policies for customer."""
         query = """
             SELECT COUNT(*) as policy_count
@@ -837,7 +841,8 @@ class RatingEngine:
         return Ok(row["policy_count"] if row else 0)
 
     @beartype
-    async def _get_customer_tenure_years(self, customer_id: UUID) -> Result[int, str]:
+    @performance_monitor("get_customer_tenure_years")
+    async def _get_customer_tenure_years(self, customer_id: UUID):
         """Get customer tenure in years."""
         query = """
             SELECT MIN(created_at) as first_policy_date
@@ -854,7 +859,7 @@ class RatingEngine:
         return Ok(tenure_days // 365)
 
     @beartype
-    async def _check_coverage_lapse(self, customer_id: UUID) -> Result[bool, str]:
+    async def _check_coverage_lapse(self, customer_id: UUID):
         """Check if customer had coverage lapse."""
         # Simplified check - in production would be more sophisticated
         query = """
@@ -869,12 +874,13 @@ class RatingEngine:
         return Ok(row["lapse_count"] > 0 if row else False)
 
     @beartype
+    @performance_monitor("get_ai_risk_assessment")
     async def _get_ai_risk_assessment(
         self,
         customer_id: UUID,
         vehicle_info: VehicleInfo | None,
         drivers: list[DriverInfo],
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get AI risk assessment if available."""
         # Import here to avoid circular imports
         from .rating.calculators import AIRiskScorer
@@ -947,9 +953,8 @@ class RatingEngine:
             return Err(f"AI risk assessment error: {str(e)}")
 
     @beartype
-    async def _get_customer_data_for_ai(
-        self, customer_id: UUID
-    ) -> Result[dict[str, Any], str]:
+    @performance_monitor("get_customer_data_for_ai")
+    async def _get_customer_data_for_ai(self, customer_id: UUID) -> dict:
         """Get customer data formatted for AI scoring."""
         try:
             # Query customer data from database
@@ -997,9 +1002,10 @@ class RatingEngine:
             return Err(f"Customer data query failed: {str(e)}")
 
     @beartype
+    @performance_monitor("get_external_data_for_ai")
     async def _get_external_data_for_ai(
         self, customer_id: UUID, vehicle_info: VehicleInfo | None
-    ) -> Result[dict[str, Any] | None, str]:
+    ) -> dict:
         """Get external data factors for AI scoring."""
         try:
             external_data = {}
@@ -1057,7 +1063,8 @@ class RatingEngine:
         print(f"WARNING: Slow rating calculation: {calc_time_ms}ms, factors: {factors}")
 
     @beartype
-    async def _load_base_rates(self) -> Result[bool, str]:
+    @performance_monitor("load_base_rates")
+    async def _load_base_rates(self):
         """Load base rates into memory."""
         query = """
             SELECT state, product_type, coverage_type, base_rate
@@ -1079,20 +1086,21 @@ class RatingEngine:
         return Ok(True)
 
     @beartype
-    async def _load_discount_rules(self) -> Result[bool, str]:
+    async def _load_discount_rules(self):
         """Load discount rules."""
         # In production, load from database
         # For now, rules are hardcoded in calculate_discounts
         return Ok(True)
 
     @beartype
-    async def _load_territory_factors(self) -> Result[bool, str]:
+    async def _load_territory_factors(self):
         """Load common territory factors."""
         # In production, preload most common ZIP codes
         return Ok(True)
 
     @beartype
-    async def _load_state_rules(self) -> Result[bool, str]:
+    @performance_monitor("load_state_rules")
+    async def _load_state_rules(self):
         """Load state-specific rules."""
         query = """
             SELECT state, rules_data
@@ -1131,9 +1139,8 @@ class RatingEngine:
         return Ok(True)
 
     @beartype
-    def _apply_state_factor_rules(
-        self, state: str, factors: dict[str, float]
-    ) -> Result[dict[str, float], str]:
+    @performance_monitor("apply_state_factor_rules")
+    def _apply_state_factor_rules(self, state: str, factors: dict[str, float]) -> dict:
         """Apply state-specific factor validation rules."""
         if state not in self._state_rules:
             return Err(f"No rules configured for state {state}")
@@ -1192,11 +1199,11 @@ class RatingEngine:
         return self._performance_optimizer.is_performance_target_met(target_ms)
 
     @beartype
-    async def optimize_performance(self) -> Result[list[str], str]:
+    async def optimize_performance(self) -> dict:
         """Get performance optimization recommendations."""
         return await self._performance_optimizer.optimize_slow_calculations()
 
     @beartype
-    async def warm_caches(self) -> Result[int, str]:
+    async def warm_caches(self):
         """Warm caches for better performance."""
         return await self._performance_optimizer.warm_cache_for_common_scenarios()

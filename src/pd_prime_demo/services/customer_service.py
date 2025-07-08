@@ -12,7 +12,8 @@ from ..models.customer import Customer, CustomerCreate, CustomerUpdate
 from ..models.update_data import CustomerUpdateData
 from ..schemas.common import PolicySummary
 from .cache_keys import CacheKeys
-from .result import Err, Ok, Result
+from .performance_monitor import performance_monitor
+from .result import Err, Ok
 
 
 class CustomerService:
@@ -30,7 +31,8 @@ class CustomerService:
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
-    async def create(self, customer_data: CustomerCreate) -> Result[Customer, str]:
+    @performance_monitor("create_customer")
+    async def create(self, customer_data: CustomerCreate):
         """Create a new customer."""
         try:
             # Validate business rules
@@ -91,7 +93,8 @@ class CustomerService:
             return Err(f"Database error: {str(e)}")
 
     @beartype
-    async def get(self, customer_id: UUID) -> Result[Customer | None, str]:
+    @performance_monitor("get_customer")
+    async def get(self, customer_id: UUID):
         """Get customer by ID."""
         # Check cache first
         cache_key = CacheKeys.customer_by_id(customer_id)
@@ -122,10 +125,11 @@ class CustomerService:
         return Ok(customer)
 
     @beartype
+    @performance_monitor("get_by_customer_number")
     async def get_by_customer_number(
         self,
         customer_number: str,
-    ) -> Result[Customer | None, str]:
+    ):
         """Get customer by customer number."""
         query = """
             SELECT id, external_id, data, created_at, updated_at
@@ -145,7 +149,7 @@ class CustomerService:
         self,
         limit: int = 10,
         offset: int = 0,
-    ) -> Result[list[Customer], str]:
+    ) -> dict:
         """List customers with pagination."""
         query = """
             SELECT id, external_id, data, created_at, updated_at
@@ -160,11 +164,12 @@ class CustomerService:
         return Ok(customers)
 
     @beartype
+    @performance_monitor("update_customer")
     async def update(
         self,
         customer_id: UUID,
         customer_update: CustomerUpdate,
-    ) -> Result[Customer | None, str]:
+    ):
         """Update customer."""
         # Get existing customer
         existing_result = await self.get(customer_id)
@@ -219,7 +224,7 @@ class CustomerService:
         return Ok(customer)
 
     @beartype
-    async def delete(self, customer_id: UUID) -> Result[bool, str]:
+    async def delete(self, customer_id: UUID):
         """Delete a customer and all related data."""
         # Note: This is a hard delete with CASCADE
         # In production, consider soft delete instead
@@ -235,7 +240,8 @@ class CustomerService:
         return Ok(deleted)
 
     @beartype
-    async def get_policies(self, customer_id: UUID) -> Result[list[PolicySummary], str]:
+    @performance_monitor("get_customer_policies")
+    async def get_policies(self, customer_id: UUID) -> dict:
         """Get all policies for a customer."""
         query = """
             SELECT id, policy_number, data->>'type' as policy_type,
@@ -265,7 +271,7 @@ class CustomerService:
     async def _validate_customer_data(
         self,
         customer_data: CustomerCreate,
-    ) -> Result[bool, str]:
+    ):
         """Validate customer business rules."""
         # Check if email already exists
         query = "SELECT 1 FROM customers WHERE data->>'email' = $1"
@@ -279,6 +285,7 @@ class CustomerService:
         return Ok(True)
 
     @beartype
+    @performance_monitor("row_to_customer")
     def _row_to_customer(self, row: asyncpg.Record) -> Customer:
         """Convert database row to Customer model."""
         data = dict(row["data"])

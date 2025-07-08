@@ -2,19 +2,26 @@
 
 import json
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from beartype import beartype
 from pydantic import BaseModel, Field
 
 from ..core.cache import Cache
-from .result import Err, Ok, Result
+from .result import Err, Ok
 
 
 class WizardStep(BaseModel):
     """Individual wizard step configuration."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     step_id: str
     title: str
     description: str
@@ -30,6 +37,13 @@ class WizardStep(BaseModel):
 class WizardState(BaseModel):
     """Current state of quote wizard."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     session_id: UUID
     quote_id: UUID | None
     current_step: str
@@ -46,6 +60,13 @@ class WizardState(BaseModel):
 class WizardValidation(BaseModel):
     """Validation result for wizard step."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     is_valid: bool
     errors: dict[str, list[str]] = Field(default_factory=dict)
     warnings: dict[str, list[str]] = Field(default_factory=dict)
@@ -162,9 +183,7 @@ class QuoteWizardService:
         }
 
     @beartype
-    async def start_session(
-        self, initial_data: dict[str, Any] | None = None
-    ) -> Result[WizardState, str]:
+    async def start_session(self, initial_data: dict[str, Any] | None = None):
         """Start a new wizard session."""
         session_id = uuid4()
         now = datetime.now()
@@ -194,7 +213,7 @@ class QuoteWizardService:
         return Ok(state)
 
     @beartype
-    async def get_session(self, session_id: UUID) -> Result[WizardState | None, str]:
+    async def get_session(self, session_id: UUID):
         """Get wizard session by ID."""
         cache_key = f"{self._cache_prefix}{session_id}"
         cached = await self._cache.get(cache_key)
@@ -216,9 +235,7 @@ class QuoteWizardService:
             return Err(f"Failed to deserialize session: {str(e)}")
 
     @beartype
-    async def update_step(
-        self, session_id: UUID, step_data: dict[str, Any]
-    ) -> Result[WizardState, str]:
+    async def update_step(self, session_id: UUID, step_data: dict[str, Any]):
         """Update current step with data."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -262,7 +279,7 @@ class QuoteWizardService:
         return Ok(state)
 
     @beartype
-    async def next_step(self, session_id: UUID) -> Result[WizardState, str]:
+    async def next_step(self, session_id: UUID):
         """Move to next step in wizard."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -297,7 +314,7 @@ class QuoteWizardService:
         return Ok(state)
 
     @beartype
-    async def previous_step(self, session_id: UUID) -> Result[WizardState, str]:
+    async def previous_step(self, session_id: UUID):
         """Move to previous step in wizard."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -321,9 +338,7 @@ class QuoteWizardService:
         return Ok(state)
 
     @beartype
-    async def jump_to_step(
-        self, session_id: UUID, step_id: str
-    ) -> Result[WizardState, str]:
+    async def jump_to_step(self, session_id: UUID, step_id: str):
         """Jump to a specific step (if allowed)."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -352,7 +367,7 @@ class QuoteWizardService:
         return Ok(state)
 
     @beartype
-    async def get_step_info(self, step_id: str) -> Result[WizardStep, str]:
+    async def get_step_info(self, step_id: str):
         """Get information about a specific step."""
         step = self._steps.get(step_id)
         if not step:
@@ -360,7 +375,7 @@ class QuoteWizardService:
         return Ok(step)
 
     @beartype
-    async def get_all_steps(self) -> Result[list[WizardStep], str]:
+    async def get_all_steps(self) -> dict:
         """Get all wizard steps in order."""
         # Return steps in logical order
         ordered_steps = []
@@ -376,7 +391,7 @@ class QuoteWizardService:
         return Ok(ordered_steps)
 
     @beartype
-    async def validate_session(self, session_id: UUID) -> Result[WizardValidation, str]:
+    async def validate_session(self, session_id: UUID):
         """Validate entire session data."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -405,7 +420,7 @@ class QuoteWizardService:
         return Ok(validation)
 
     @beartype
-    async def complete_session(self, session_id: UUID) -> Result[dict[str, Any], str]:
+    async def complete_session(self, session_id: UUID) -> dict:
         """Complete wizard session and return collected data."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -441,9 +456,7 @@ class QuoteWizardService:
         )
 
     @beartype
-    async def extend_session(
-        self, session_id: UUID, additional_minutes: int = 30
-    ) -> Result[WizardState, str]:
+    async def extend_session(self, session_id: UUID, additional_minutes: int = 30):
         """Extend session expiration time."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -700,7 +713,7 @@ class QuoteWizardService:
     @beartype
     async def get_business_intelligence_for_step(
         self, session_id: UUID, step_id: str
-    ) -> Result[dict[str, Any], str]:
+    ) -> dict:
         """Get business intelligence data for current step to help user decisions."""
         # Get session
         session_result = await self.get_session(session_id)

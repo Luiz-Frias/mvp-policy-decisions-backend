@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List
 
 from beartype import beartype
 from pydantic import Field, computed_field, field_validator, model_validator
@@ -506,7 +506,7 @@ class DriverInfo(BaseModelConfig):
             pass
         return v
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def years_licensed(self) -> int:
         """Calculate years of driving experience."""
@@ -515,7 +515,7 @@ class DriverInfo(BaseModelConfig):
             return max(0, int(years))
         return 0
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def age(self) -> int:
         """Calculate current age in years."""
@@ -968,13 +968,13 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
         return v
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_expired(self) -> bool:
         """Check if quote has expired."""
         return datetime.now() > self.expires_at
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def days_until_expiration(self) -> int:
         """Calculate days until quote expires."""
@@ -983,7 +983,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
         delta = self.expires_at - datetime.now()
         return max(0, delta.days)
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def total_savings(self) -> Decimal:
         """Calculate total savings from discounts."""
@@ -991,7 +991,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
             return abs(self.total_discount_amount)
         return Decimal("0")
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_convertible(self) -> bool:
         """Check if quote can be converted to policy."""

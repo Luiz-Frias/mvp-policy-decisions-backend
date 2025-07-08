@@ -3,20 +3,28 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 PRE-WAVE 2.5 DEPLOYMENT:
+
 # TODO: integrate last wave 2 implementation learnings into the right locations within .sage/ (learned_patterns.json in root vs in .sage/core/registry/)+(.sage/{reusable_components_guide.md, wave_2_best_practices.md} in the right docs or .sage/languages/python/{guardrails/, patterns/, templates/})
-# TODO: Move all core/communication/messages/*.md into .sage/core/communication/history/ if you believe thats where it should go. Else leave for now and relay you're reasoning why it needs a different location.
+
+# TODO: Move all core/communication/messages/\*.md into .sage/core/communication/history/ if you believe thats where it should go. Else leave for now and relay you're reasoning why it needs a different location.
+
 # TODO: supervising agent to review and pull coderabbit.ai comments from the extension in Cursor's IDE and integrate every single comment (I insist) into the full implementation of wave 2.
+
 # TODO: run pre-commit run --all-files to identify what's broken and what needs fixing in addition to the rest of the above as part 2 of wave 2's implementation!
-# TODO: supervising agent (you) to read all *.py files in scripts/ to then relay to agents what's currently available so that no duplicate work is implemented.
+
+# TODO: supervising agent (you) to read all \*.py files in scripts/ to then relay to agents what's currently available so that no duplicate work is implemented.
 
 AT WAVE 2.5 DEPLOYMENT TIME:
+
 # TODO: Update CLAUDE.md with FULL context to be able to 'pick up the pen' in a hand-off type way.
+
 # TODO: Instruct the agents to come to you as the acting git commit manager (I strongly insist that no --no-verify commands are added to commits). Context: we faced git locks in wave 2 as a result of the pre-commits running. If you have a way to solve for this, bring this solution up during pre-deployment.
+
 # TODO: have agents read master-ruleset, read their instructions and all doc references, audit the implementation of their domain/scope, idenitfy what left to be implemented for full production grade enterprise level system implementation. No DEMO level code generation. This IS the real thing.
 
 POST WAVE 2.5 DEPLOYMENT:
-# TODO: Implement proper logging instead of print across codebase, not just patches.
 
+# TODO: Implement proper logging instead of print across codebase, not just patches.
 
 ## Project Overview
 

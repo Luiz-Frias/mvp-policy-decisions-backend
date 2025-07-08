@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List
 from uuid import UUID
 
 from beartype import beartype
@@ -20,6 +20,13 @@ router = APIRouter(prefix="/admin/pricing", tags=["admin-pricing"])
 class PricingOverrideRequest(BaseModel):
     """Request model for pricing override."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     override_type: str = Field(
         ...,
         description="Type of override: premium_adjustment, discount_override, special_rate",
@@ -33,6 +40,13 @@ class PricingOverrideRequest(BaseModel):
 class ManualDiscountRequest(BaseModel):
     """Request model for manual discount."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     discount_amount: Decimal = Field(..., gt=0, decimal_places=2)
     reason: str = Field(..., min_length=10, max_length=500)
     expires_at: datetime | None = Field(default=None)
@@ -41,6 +55,13 @@ class ManualDiscountRequest(BaseModel):
 class SpecialPricingRuleRequest(BaseModel):
     """Request model for special pricing rule."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     rule_name: str = Field(..., min_length=3, max_length=100)
     conditions: dict[str, Any] = Field(..., description="Rule conditions")
     adjustments: dict[str, Any] = Field(..., description="Pricing adjustments")
@@ -51,6 +72,13 @@ class SpecialPricingRuleRequest(BaseModel):
 class ApprovalRequest(BaseModel):
     """Request model for override approval."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
     approval_notes: str | None = Field(default=None, max_length=500)
 
 

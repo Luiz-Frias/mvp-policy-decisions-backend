@@ -7,9 +7,13 @@ set -euo pipefail
 # Timeout configuration to prevent git locks
 TIMEOUT_SECONDS=300  # 5 minutes max for all checks
 
-# Wrap entire script in timeout to prevent git locks
-exec timeout --preserve-status $TIMEOUT_SECONDS bash -c '
-set -euo pipefail
+# If not already running under timeout, re-exec the script within timeout to avoid git locks.
+if [ -z "${INSIDE_TIMEOUT:-}" ]; then
+    export INSIDE_TIMEOUT=1
+    exec timeout --preserve-status $TIMEOUT_SECONDS "$0" "$@"
+fi
+
+# -----------------------------------------------------------------------------
 
 # Colors for output
 RED='\033[0;31m'
@@ -98,7 +102,7 @@ print_success "✅ MyPy strict mode validation passed"
 # 3. MANDATORY: Performance Benchmark Validation
 print_status "⚡ MASTER RULE: Performance benchmark validation..."
 LONG_FUNCTIONS=$(find src -name "*.py" -exec grep -c "^def \|^    def " {} \; 2>/dev/null | \
-    awk -F: '$2 > 10 {print $1}' | wc -l)
+    awk -F: "{if (\$2 > 10) print \$1}" | wc -l)
 BENCHMARK_FILES=$(find tests -name "*benchmark*" -o -name "*perf*" 2>/dev/null | wc -l)
 if [ "$LONG_FUNCTIONS" -gt 0 ] && [ "$BENCHMARK_FILES" -eq 0 ]; then
     print_warning "⚠️ PERFORMANCE RULE: Functions >10 lines should have performance benchmarks"
@@ -242,13 +246,3 @@ print_success "✅ Memory Leak Detection: VERIFIED"
 print_success "✅ Code Quality (Ruff): PASSED"
 print_header "🚀 ALL MASTER RULESET REQUIREMENTS SATISFIED!"
 print_status "💡 Build and comprehensive benchmarks will run in CI pipeline"
-' || {
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -eq 124 ]; then
-        echo -e "\033[0;31m[ERROR]\033[0m Pre-commit hook timed out after $TIMEOUT_SECONDS seconds!"
-        echo -e "\033[1;33m[WARNING]\033[0m This prevents git locks. Check for performance issues."
-        exit 1
-    else
-        exit $EXIT_CODE
-    fi
-}

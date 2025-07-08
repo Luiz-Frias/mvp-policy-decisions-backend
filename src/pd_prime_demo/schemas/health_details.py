@@ -13,6 +13,7 @@ class DatabasePoolStats(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     size: int | None = Field(
@@ -37,6 +38,7 @@ class DatabaseHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     version: str = Field(..., description="Database version string")
@@ -53,6 +55,7 @@ class RedisHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     version: str = Field(..., description="Redis version")
@@ -84,6 +87,7 @@ class SystemResourceDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     total_gb: float | None = Field(
@@ -105,6 +109,7 @@ class CPUHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     count: int | None = Field(None, ge=1, description="Number of CPU cores")
@@ -121,6 +126,7 @@ class MemoryHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     total_gb: float = Field(..., ge=0, description="Total memory in GB")

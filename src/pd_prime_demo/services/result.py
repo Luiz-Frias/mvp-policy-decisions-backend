@@ -1,7 +1,7 @@
 """Result type implementation for error handling without exceptions."""
 
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, Generic, List, Tuple, TypeVar, Union
 
 from attrs import field, frozen
 from beartype import beartype
@@ -43,12 +43,12 @@ class Ok(Generic[T]):
         raise ValueError("Called unwrap_err on Ok value")
 
     @beartype
-    def map(self, func: Callable[[T], U]) -> "Result[U, Any]":
+    def map(self, func: Callable[[T], U]) -> "Ok[U]":
         """Transform the success value."""
         return Ok(func(self.value))
 
     @beartype
-    def map_err(self, func: Callable[[Any], Any]) -> "Result[T, Any]":
+    def map_err(self, func: Callable[[Any], Any]) -> "Ok[T]":
         """No-op for Ok values."""
         return self
 
@@ -90,23 +90,42 @@ class Err(Generic[E]):
         return self.error
 
     @beartype
-    def map(self, func: Callable[[Any], Any]) -> "Result[Any, E]":
+    def map(self, func: Callable[[Any], Any]) -> "Err[E]":
         """No-op for Err values."""
         return self
 
     @beartype
-    def map_err(self, func: Callable[[E], U]) -> "Result[Any, U]":
+    def map_err(self, func: Callable[[E], U]) -> "Err[U]":
         """Transform the error value."""
         return Err(func(self.error))
 
     @beartype
     def and_then(self, func: Callable[[Any], "Result[Any, E]"]) -> "Result[Any, E]":
         """No-op for Err values."""
-        return self
+        return self  # type: ignore[return-value]
 
 
 # Union type for Result
-Result = Union[Ok[T], Err[E]]
+ResultType = Union[Ok[T], Err[E]]
+
+
+class Result(Generic[T, E]):
+    """Result class with class methods for convenient creation and generic type support."""
+
+    @staticmethod
+    def ok(value: T) -> Ok[T]:
+        """Create an Ok result."""
+        return Ok(value)
+
+    @staticmethod
+    def err(error: E) -> Err[E]:
+        """Create an Err result."""
+        return Err(error)
+
+    @classmethod
+    def __class_getitem__(cls, params: tuple[type, type]) -> type:
+        """Support generic type annotations like Result[T, E]."""
+        return cls
 
 
 @beartype

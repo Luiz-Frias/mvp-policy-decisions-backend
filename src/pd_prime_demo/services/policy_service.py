@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, List
 from uuid import UUID
 
 import asyncpg
@@ -12,7 +12,8 @@ from ..core.cache import Cache
 from ..core.database import Database
 from ..models.policy import Policy, PolicyCreate, PolicyStatus, PolicyType, PolicyUpdate
 from .cache_keys import CacheKeys
-from .result import Err, Ok, Result
+from .performance_monitor import performance_monitor
+from .result import Err, Ok
 
 
 class PolicyService:
@@ -30,11 +31,12 @@ class PolicyService:
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
+    @performance_monitor("create_policy")
     async def create(
         self,
         policy_data: PolicyCreate,
         customer_id: UUID,
-    ) -> Result[Policy, str]:
+    ):
         """Create a new policy."""
         try:
             # Validate business rules
@@ -85,7 +87,8 @@ class PolicyService:
             return Err(f"Database error: {str(e)}")
 
     @beartype
-    async def get(self, policy_id: UUID) -> Result[Policy | None, str]:
+    @performance_monitor("get_policy")
+    async def get(self, policy_id: UUID):
         """Get policy by ID."""
         # Check cache first
         cache_key = CacheKeys.policy_by_id(policy_id)
@@ -117,13 +120,14 @@ class PolicyService:
         return Ok(policy)
 
     @beartype
+    @performance_monitor("list_policies")
     async def list(
         self,
         customer_id: UUID | None = None,
         status: str | None = None,
         limit: int = 10,
         offset: int = 0,
-    ) -> Result[list[Policy], str]:
+    ) -> dict:
         """List policies with optional filters."""
         query_parts = ["SELECT * FROM policies WHERE 1=1"]
         params: list[Any] = []
@@ -156,11 +160,12 @@ class PolicyService:
         return Ok(policies)
 
     @beartype
+    @performance_monitor("update_policy")
     async def update(
         self,
         policy_id: UUID,
         policy_update: PolicyUpdate,
-    ) -> Result[Policy | None, str]:
+    ):
         """Update policy."""
         # Get existing policy
         existing_result = await self.get(policy_id)
@@ -241,7 +246,8 @@ class PolicyService:
         return Ok(policy)
 
     @beartype
-    async def delete(self, policy_id: UUID) -> Result[bool, str]:
+    @performance_monitor("delete_policy")
+    async def delete(self, policy_id: UUID):
         """Soft delete a policy by setting status to CANCELLED."""
         result = await self.update(
             policy_id,
@@ -261,9 +267,8 @@ class PolicyService:
         return Ok(policy is not None)
 
     @beartype
-    async def _validate_policy_data(
-        self, policy_data: PolicyCreate
-    ) -> Result[bool, str]:
+    @performance_monitor("validate_policy_data")
+    async def _validate_policy_data(self, policy_data: PolicyCreate):
         """Validate policy business rules."""
         # Check dates
         if policy_data.expiration_date <= policy_data.effective_date:
@@ -287,6 +292,7 @@ class PolicyService:
         return Ok(True)
 
     @beartype
+    @performance_monitor("row_to_policy")
     def _row_to_policy(self, row: asyncpg.Record) -> Policy:
         """Convert database row to Policy model."""
         data = dict(row["data"])
