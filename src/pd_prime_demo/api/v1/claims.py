@@ -15,6 +15,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from redis.asyncio import Redis
 
+from pd_prime_demo.core.result_types import Err
+
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.claim import ClaimCreate as ServiceClaimCreate
@@ -25,7 +27,6 @@ from ...models.claim import ClaimType as ServiceClaimType
 from ...models.claim import ClaimUpdate as ServiceClaimUpdate
 from ...schemas.auth import CurrentUser
 from ...services.claim_service import ClaimService
-from pd_prime_demo.core.result_types import Err
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()

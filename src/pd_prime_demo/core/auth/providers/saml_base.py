@@ -9,6 +9,7 @@ import defusedxml.ElementTree as ET  # Use defusedxml for security
 from beartype import beartype
 
 from pd_prime_demo.core.result_types import Err, Ok
+
 from ..sso_base import SAMLProvider, SSOUserInfo
 
 

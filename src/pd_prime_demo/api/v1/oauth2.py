@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict
 
+from pd_prime_demo.core.result_types import Err
+
 from ...core.auth.oauth2 import OAuth2Server
 from ...core.cache import Cache
 from ...core.config import Settings
 from ...core.database import Database
-from pd_prime_demo.core.result_types import Err
 from ..dependencies import get_db_connection, get_redis, get_settings
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])

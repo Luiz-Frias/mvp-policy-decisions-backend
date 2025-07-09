@@ -88,8 +88,9 @@ except ImportError:
         PUBLIC_KEY = "public-key"
 
 
-from ....core.config import Settings
 from pd_prime_demo.core.result_types import Err, Ok
+
+from ....core.config import Settings
 from .models import WebAuthnCredential
 
 

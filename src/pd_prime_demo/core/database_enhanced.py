@@ -79,7 +79,9 @@ class Database:
     unchanged.
     """
 
-    def __init__(self, connection: asyncpg.Connection | None = None) -> None:  # noqa: D401
+    def __init__(
+        self, connection: asyncpg.Connection | None = None
+    ) -> None:  # noqa: D401
         """Create the manager.
 
         Args:

@@ -8,8 +8,9 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...services.quote_service import QuoteService
 from pd_prime_demo.core.result_types import Err, Ok
+
+from ...services.quote_service import QuoteService
 from ..manager import ConnectionManager, WebSocketMessage
 
 

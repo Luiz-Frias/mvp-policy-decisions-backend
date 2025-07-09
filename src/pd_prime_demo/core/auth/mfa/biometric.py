@@ -9,9 +9,10 @@ from beartype import beartype
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ....core.cache import Cache
 from ....core.config import Settings
-from pd_prime_demo.core.result_types import Err, Ok
 
 
 class BiometricProvider:

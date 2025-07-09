@@ -4,7 +4,7 @@ import pytest
 
 from pd_prime_demo import __version__
 from pd_prime_demo.models.base import BaseModelConfig
-from pd_prime_demo.services.result import Err, Ok, Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 def test_version() -> None:

@@ -10,8 +10,9 @@ import qrcode
 from beartype import beartype
 from cryptography.fernet import Fernet
 
-from ....core.config import Settings
 from pd_prime_demo.core.result_types import Err, Ok
+
+from ....core.config import Settings
 from .models import TOTPSetupData
 
 

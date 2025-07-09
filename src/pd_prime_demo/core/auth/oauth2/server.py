@@ -10,10 +10,11 @@ from beartype import beartype
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ....core.cache import Cache
 from ....core.config import Settings
 from ....core.database import Database
-from pd_prime_demo.core.result_types import Err, Ok
 
 # Password hashing
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")

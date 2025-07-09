@@ -8,9 +8,10 @@ from uuid import UUID
 
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ....core.cache import Cache
 from ....core.database import Database
-from pd_prime_demo.core.result_types import Err, Ok
 
 
 class APIKeyManager:

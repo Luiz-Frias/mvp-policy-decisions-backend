@@ -22,7 +22,7 @@ from pd_prime_demo.models.base import (
     IdentifiableModel,
     TimestampedModel,
 )
-from pd_prime_demo.services.result import Err, Ok, Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 from tests.fixtures.test_data import (
     VALID_POLICY_DATA,
     DecisionFactorModel,

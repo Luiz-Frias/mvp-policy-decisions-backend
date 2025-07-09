@@ -1,7 +1,5 @@
 """Health check detail schemas for component-specific information."""
 
-from typing import Union
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -137,10 +135,10 @@ class MemoryHealthDetails(BaseModel):
 
 
 # Union type for all possible health details
-HealthDetails = Union[
-    RedisHealthDetails,
-    DatabaseHealthDetails,
-    MemoryHealthDetails,
-    CPUHealthDetails,
-    SystemResourceDetails,
-]
+HealthDetails = (
+    RedisHealthDetails
+    | DatabaseHealthDetails
+    | MemoryHealthDetails
+    | CPUHealthDetails
+    | SystemResourceDetails
+)

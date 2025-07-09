@@ -14,7 +14,7 @@ from beartype import beartype
 from ...core.cache import Cache
 from ...core.database import Database
 from ..rating.rate_tables import RateTableService
-from ..result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 @beartype

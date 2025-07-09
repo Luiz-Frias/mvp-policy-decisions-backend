@@ -11,7 +11,7 @@ import asyncpg
 from beartype import beartype
 
 from ..core.database import Database
-from .result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 T = TypeVar("T")
 E = TypeVar("E", bound=str)

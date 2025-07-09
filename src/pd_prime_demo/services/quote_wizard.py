@@ -9,7 +9,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.cache import Cache
-from .result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class WizardStep(BaseModel):

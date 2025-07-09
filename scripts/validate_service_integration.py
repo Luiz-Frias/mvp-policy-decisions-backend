@@ -30,7 +30,7 @@ from src.pd_prime_demo.services.customer_service import CustomerService
 from src.pd_prime_demo.services.policy_service import PolicyService
 from src.pd_prime_demo.services.quote_service import QuoteService
 from src.pd_prime_demo.services.rating_engine import RatingEngine
-from src.pd_prime_demo.services.result import Ok
+from src.pd_prime_demo.core.result_types import Ok, Err, Result
 
 
 class ServiceIntegrationValidator:

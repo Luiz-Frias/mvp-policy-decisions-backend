@@ -11,9 +11,10 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ....core.cache import Cache
 from ....core.database import Database
-from pd_prime_demo.core.result_types import Err, Ok
 
 
 class ClientCertificateManager:

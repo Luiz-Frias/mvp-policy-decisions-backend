@@ -7,7 +7,7 @@ risk factors including DUI, SR-22, accidents, and other high-risk indicators.
 # Standard lib
 # Set decimal precision for financial calculations
 from decimal import Decimal, getcontext
-from typing import Any, Tuple
+from typing import Any
 
 # Third-party
 from beartype import beartype
@@ -31,7 +31,7 @@ class SurchargeCalculator:
         vehicle_info: VehicleInfo | None,
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate all applicable surcharges.
 
         Args:
@@ -143,7 +143,7 @@ class SurchargeCalculator:
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate DUI and SR-22 surcharges."""
         surcharges = []
         total_amount = Decimal("0")
@@ -199,7 +199,7 @@ class SurchargeCalculator:
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharges for high-risk drivers (multiple violations/accidents)."""
         surcharges = []
         total_amount = Decimal("0")
@@ -247,7 +247,7 @@ class SurchargeCalculator:
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharges for young drivers."""
         surcharges = []
         total_amount = Decimal("0")
@@ -300,7 +300,7 @@ class SurchargeCalculator:
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharges for inexperienced drivers."""
         surcharges = []
         total_amount = Decimal("0")
@@ -339,7 +339,7 @@ class SurchargeCalculator:
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharge for lapse in coverage."""
         surcharges = []
         total_amount = Decimal("0")
@@ -390,7 +390,7 @@ class SurchargeCalculator:
         vehicle_info: VehicleInfo,
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate vehicle-based surcharges."""
         surcharges = []
         total_amount = Decimal("0")
@@ -467,7 +467,7 @@ class SurchargeCalculator:
         total_amount: Decimal,
         state: str,
         base_premium: Decimal,
-    ) -> Result[Tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Apply state-specific surcharge caps."""
         # State-specific maximum surcharge percentages
         state_caps = {

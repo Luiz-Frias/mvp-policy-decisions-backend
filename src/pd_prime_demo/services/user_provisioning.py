@@ -6,11 +6,12 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.auth.sso_base import SSOUserInfo
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.base import BaseModelConfig
-from pd_prime_demo.core.result_types import Err, Ok
 
 
 class ProvisioningRule(BaseModelConfig):

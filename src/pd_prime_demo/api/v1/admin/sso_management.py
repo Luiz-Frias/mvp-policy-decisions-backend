@@ -8,9 +8,10 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.result_types import Err
+
 from ....models.admin import AdminUser, Permission
 from ....services.admin.sso_admin_service import SSOAdminService
-from pd_prime_demo.core.result_types import Err
 from ...dependencies import get_current_admin_user, get_sso_admin_service
 
 router = APIRouter(prefix="/admin/sso", tags=["admin-sso"])

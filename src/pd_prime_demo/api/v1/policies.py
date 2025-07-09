@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
+from pd_prime_demo.core.result_types import Err
+
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.policy import (
@@ -24,7 +26,6 @@ from ...models.policy import (
 )
 from ...schemas.auth import CurrentUser
 from ...services.policy_service import PolicyService
-from pd_prime_demo.core.result_types import Err
 from ..dependencies import (
     PaginationParams,
     get_db,

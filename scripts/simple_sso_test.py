@@ -149,7 +149,7 @@ def test_result_types():
     print("\n🔍 Testing Result Type Patterns...")
 
     try:
-        from pd_prime_demo.services.result import Err, Ok
+        from pd_prime_demo.core.result_types import Err, Ok, Result
 
         # Test Ok result
         success = Ok("success value")

@@ -1,6 +1,6 @@
 """Result types for error handling without exceptions."""
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from attrs import frozen
 
@@ -84,8 +84,8 @@ class Err(Generic[E]):
 
 # Type alias for Result - this is the proper way to define Result[T, E]
 if TYPE_CHECKING:
-    # For type checking, Result[T, E] is just an alias for Union[Ok[T], Err[E]]
-    Result = Union[Ok[T], Err[E]]
+    # For type checking, Result[T, E] is just an alias for Ok[T] | Err[E]
+    Result = Ok[T] | Err[E]
 else:
     # At runtime, provide a convenient factory class
     class Result(Generic[T, E]):
@@ -105,4 +105,4 @@ else:
             """Support generic type annotations like Result[T, E]."""
             # This is primarily for runtime generic support
             # Type checkers will use the TYPE_CHECKING branch above
-            return Union[Ok[Any], Err[Any]]  # type: ignore[return-value]
+            return Ok[Any] | Err[Any]  # type: ignore[return-value]

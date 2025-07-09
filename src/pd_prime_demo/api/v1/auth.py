@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.result_types import Err
+
 from ...core.auth.sso_manager import SSOManager
 from ...core.cache import get_cache
 from ...core.database import get_db
 from ...core.security import get_security
-from pd_prime_demo.core.result_types import Err
 from ..dependencies import get_sso_manager
 
 router = APIRouter(prefix="/auth", tags=["authentication"])

@@ -12,7 +12,7 @@ import asyncio
 import json
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
-from typing import Any, Deque
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -98,13 +98,13 @@ class WebSocketMonitor:
 
         # Connection tracking
         self._connection_metrics: dict[str, ConnectionMetrics] = {}
-        self._system_metrics_history: Deque[SystemMetrics] = deque(maxlen=1000)
+        self._system_metrics_history: deque[SystemMetrics] = deque(maxlen=1000)
 
         # Performance tracking
-        self._message_latencies: Deque[float] = deque(
+        self._message_latencies: deque[float] = deque(
             maxlen=10000
         )  # Keep last 10k latencies
-        self._message_timestamps: Deque[datetime] = deque(maxlen=10000)
+        self._message_timestamps: deque[datetime] = deque(maxlen=10000)
         self._error_counts: dict[str, int] = defaultdict(int)
 
         # Peak tracking

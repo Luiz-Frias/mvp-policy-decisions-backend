@@ -8,11 +8,12 @@ from beartype import beartype
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.cache import get_cache
 from ..core.config import get_settings
 from ..core.database import get_database
 from ..services.quote_service import QuoteService
-from pd_prime_demo.core.result_types import Err, Ok
 from .handlers.admin_dashboard import AdminDashboardHandler
 from .handlers.analytics import AnalyticsWebSocketHandler, DashboardConfig
 from .handlers.notifications import NotificationHandler

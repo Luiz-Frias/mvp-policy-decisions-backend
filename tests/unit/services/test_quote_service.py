@@ -17,7 +17,7 @@ from pd_prime_demo.models.quote import (
     VehicleInfo,
 )
 from pd_prime_demo.services.quote_service import QuoteService
-from pd_prime_demo.services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 @pytest.fixture

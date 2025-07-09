@@ -26,7 +26,7 @@ from ..models.quote import (
     VehicleInfo,
 )
 from .performance_monitor import performance_monitor
-from .result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 # Optional imports for production features
 try:

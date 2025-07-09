@@ -5,10 +5,11 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
-from pd_prime_demo.core.result_types import Err, Ok
 from .providers.auth0 import Auth0SSOProvider
 from .providers.azure import AzureADSSOProvider
 from .providers.google import GoogleSSOProvider

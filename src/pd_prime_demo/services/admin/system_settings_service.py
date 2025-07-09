@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet
 from ...core.cache import Cache
 from ...core.database import Database
 from ..cache_keys import CacheKeys
-from ..result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class SettingType(str, Enum):

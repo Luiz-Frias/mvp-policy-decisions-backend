@@ -138,7 +138,7 @@ async def get_optional_user(
         settings: Application settings
 
     Returns:
-        Optional[CurrentUser]: User information if authenticated, None otherwise
+        CurrentUser | None: User information if authenticated, None otherwise
     """
     if not credentials:
         return None

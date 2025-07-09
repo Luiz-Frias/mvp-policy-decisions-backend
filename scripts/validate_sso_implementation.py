@@ -20,7 +20,7 @@ from pd_prime_demo.core.auth.providers.google import GoogleSSOProvider
 from pd_prime_demo.core.auth.providers.okta import OktaSSOProvider
 from pd_prime_demo.core.auth.sso_base import SSOUserInfo
 from pd_prime_demo.core.auth.sso_manager import SSOManager
-from pd_prime_demo.services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 @beartype

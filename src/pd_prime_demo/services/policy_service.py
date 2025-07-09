@@ -13,7 +13,7 @@ from ..core.database import Database
 from ..models.policy import Policy, PolicyCreate, PolicyStatus, PolicyType, PolicyUpdate
 from .cache_keys import CacheKeys
 from .performance_monitor import performance_monitor
-from .result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class PolicyService:
@@ -36,7 +36,7 @@ class PolicyService:
         self,
         policy_data: PolicyCreate,
         customer_id: UUID,
-    ):
+    ) -> Result[Policy, str]:
         """Create a new policy."""
         try:
             # Validate business rules
@@ -88,7 +88,7 @@ class PolicyService:
 
     @beartype
     @performance_monitor("get_policy")
-    async def get(self, policy_id: UUID):
+    async def get(self, policy_id: UUID) -> Result[Policy, str]:
         """Get policy by ID."""
         # Check cache first
         cache_key = CacheKeys.policy_by_id(policy_id)
@@ -106,7 +106,7 @@ class PolicyService:
 
         row = await self._db.fetchrow(query, policy_id)
         if not row:
-            return Ok(None)
+            return Err("Policy not found")
 
         policy = self._row_to_policy(row)
 
@@ -127,7 +127,7 @@ class PolicyService:
         status: str | None = None,
         limit: int = 10,
         offset: int = 0,
-    ) -> dict:
+    ) -> Result[list[Policy], str]:
         """List policies with optional filters."""
         query_parts = ["SELECT * FROM policies WHERE 1=1"]
         params: list[Any] = []
@@ -165,7 +165,7 @@ class PolicyService:
         self,
         policy_id: UUID,
         policy_update: PolicyUpdate,
-    ):
+    ) -> Result[Policy, str]:
         """Update policy."""
         # Get existing policy
         existing_result = await self.get(policy_id)
@@ -174,7 +174,7 @@ class PolicyService:
 
         existing = existing_result.unwrap()
         if not existing:
-            return Ok(None)
+            return Err("Policy not found")
 
         # Validate update
         if policy_update.status == "CANCELLED" and existing.status == "CANCELLED":
@@ -247,7 +247,7 @@ class PolicyService:
 
     @beartype
     @performance_monitor("delete_policy")
-    async def delete(self, policy_id: UUID):
+    async def delete(self, policy_id: UUID) -> Result[bool, str]:
         """Soft delete a policy by setting status to CANCELLED."""
         result = await self.update(
             policy_id,
@@ -268,7 +268,7 @@ class PolicyService:
 
     @beartype
     @performance_monitor("validate_policy_data")
-    async def _validate_policy_data(self, policy_data: PolicyCreate):
+    async def _validate_policy_data(self, policy_data: PolicyCreate) -> Result[bool, str]:
         """Validate policy business rules."""
         # Check dates
         if policy_data.expiration_date <= policy_data.effective_date:

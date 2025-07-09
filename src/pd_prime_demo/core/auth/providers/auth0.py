@@ -7,6 +7,7 @@ import httpx
 from beartype import beartype
 
 from pd_prime_demo.core.result_types import Err, Ok
+
 from ..sso_base import OIDCProvider, SSOUserInfo
 
 

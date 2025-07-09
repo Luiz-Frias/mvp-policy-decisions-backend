@@ -13,13 +13,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
+from pd_prime_demo.core.result_types import Err
+
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.customer import Customer, CustomerCreate, CustomerUpdate
 from ...schemas.auth import CurrentUser
 from ...schemas.common import PolicySummary
 from ...services.customer_service import CustomerService
-from pd_prime_demo.core.result_types import Err
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()
@@ -439,7 +440,7 @@ async def get_customer_policies(
         current_user: Authenticated user information
 
     Returns:
-        List[PolicySummary]: List of customer's policies
+        list[PolicySummary]: List of customer's policies
 
     Raises:
         HTTPException: If customer not found

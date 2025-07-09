@@ -13,7 +13,7 @@ from ..models.update_data import CustomerUpdateData
 from ..schemas.common import PolicySummary
 from .cache_keys import CacheKeys
 from .performance_monitor import performance_monitor
-from .result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class CustomerService:

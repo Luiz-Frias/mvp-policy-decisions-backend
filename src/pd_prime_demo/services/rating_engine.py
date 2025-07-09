@@ -37,7 +37,7 @@ from .performance_monitor import performance_monitor
 from .rating.business_rules import RatingBusinessRules
 from .rating.performance_optimizer import RatingPerformanceOptimizer
 from .rating.territory_management import TerritoryManager
-from .result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 @beartype

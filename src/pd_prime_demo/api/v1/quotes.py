@@ -8,6 +8,8 @@ from beartype import beartype
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.result_types import Err
+
 from ...models.quote import (
     Quote,
     QuoteConversionRequest,
@@ -28,7 +30,6 @@ from ...schemas.quote import (
 from ...services.performance_monitor import performance_tracker
 from ...services.quote_service import QuoteService
 from ...services.quote_wizard import QuoteWizardService, WizardState
-from pd_prime_demo.core.result_types import Err
 from ..dependencies import (
     get_current_user,
     get_optional_user,

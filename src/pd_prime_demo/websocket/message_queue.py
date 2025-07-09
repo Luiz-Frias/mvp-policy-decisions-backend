@@ -8,8 +8,9 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..core.cache import Cache
 from pd_prime_demo.core.result_types import Err, Ok, Result
+
+from ..core.cache import Cache
 from .manager import MessagePriority, WebSocketMessage
 
 logger = logging.getLogger(__name__)

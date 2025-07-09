@@ -4,16 +4,17 @@ import asyncio
 from collections import deque
 from datetime import datetime
 from enum import Enum
-from typing import Any, Deque
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import WebSocket
 from pydantic import BaseModel, ConfigDict, Field, validator
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.cache import Cache
 from ..core.database import Database
-from pd_prime_demo.core.result_types import Err, Ok
 from .monitoring import WebSocketMonitor
 
 
@@ -220,7 +221,7 @@ class ConnectionPool:
         self.current_capacity = initial_size
 
         # Connection queues by priority
-        self.priority_queues: dict[MessagePriority, Deque[WebSocketMessage]] = {
+        self.priority_queues: dict[MessagePriority, deque[WebSocketMessage]] = {
             MessagePriority.CRITICAL: deque(),
             MessagePriority.HIGH: deque(),
             MessagePriority.NORMAL: deque(),
