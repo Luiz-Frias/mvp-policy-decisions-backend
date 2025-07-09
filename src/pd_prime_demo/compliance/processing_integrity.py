@@ -546,7 +546,7 @@ class ProcessingIntegrityManager:
         """Reconcile data between two systems."""
         # Simulated reconciliation
         discrepancy_details: list[dict[str, Any]] = []
-        
+
         if data_type == "policies":
             records_compared = 1000
             matches = 998
@@ -1054,7 +1054,7 @@ class ProcessingIntegrityManager:
         # Calculate processing integrity metrics
         total_controls = len(results)
         passing_controls = sum(
-            1 for r in results 
+            1 for r in results
             if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
         )
         integrity_score = (

@@ -677,7 +677,7 @@ class SecurityControlManager:
         # Calculate security metrics
         total_controls = len(results)
         passing_controls = sum(
-            1 for r in results 
+            1 for r in results
             if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
         )
         security_score = (

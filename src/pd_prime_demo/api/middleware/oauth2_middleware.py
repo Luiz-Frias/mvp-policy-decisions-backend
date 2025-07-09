@@ -175,7 +175,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
 
             # Success - token is valid
             return None
-            
+
         except jwt.ExpiredSignatureError:
             # Middleware returns Response directly for errors
             error = ErrorResponse(
@@ -259,7 +259,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                     status_code=HTTP_401_UNAUTHORIZED,
                     content=error.model_dump()
                 )
-            
+
             # Success - API key is valid
             return None
 
@@ -373,7 +373,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                         status_code=HTTP_401_UNAUTHORIZED,
                         content=error.model_dump()
                     )
-                    
+
                 # Success - certificate is valid
                 return None
 

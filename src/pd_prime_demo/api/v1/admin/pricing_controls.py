@@ -219,7 +219,7 @@ async def get_pending_overrides(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 

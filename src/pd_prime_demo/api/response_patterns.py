@@ -11,9 +11,9 @@ T = TypeVar('T')
 
 
 @beartype
-class ErrorResponse(BaseModel):
-    """Standardized error response for business logic failures."""
-    
+class ErrorDetails(BaseModel):
+    """Structured error details to replace dict[str, Any] usage."""
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -21,90 +21,130 @@ class ErrorResponse(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
+    error_code: str | None = Field(default=None, description="Machine-readable error code")
+    field_errors: dict[str, str] | None = Field(default=None, description="Field-specific validation errors")
+    validation_errors: list[str] | None = Field(default=None, description="General validation error messages")
+    context: dict[str, str | int | bool | float | None] | None = Field(default=None, description="Additional error context")
+    request_id: str | None = Field(default=None, description="Request ID for debugging")
+    timestamp: str | None = Field(default=None, description="Error timestamp")
+    suggestion: str | None = Field(default=None, description="Suggested fix for the error")
+
+
+@beartype
+class ValidationErrorDetails(BaseModel):
+    """Structured validation error details for form/request validation."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    field: str = Field(..., description="Field name that failed validation")
+    message: str = Field(..., description="Human-readable error message")
+    rejected_value: str | int | float | bool | None = Field(default=None, description="The value that was rejected")
+    constraint: str | None = Field(default=None, description="Constraint that was violated")
+    location: list[str] | None = Field(default=None, description="Path to the field in nested objects")
+
+
+@beartype
+class ErrorResponse(BaseModel):
+    """Standardized error response for business logic failures."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     success: bool = Field(default=False, description="Always false for error responses")
     error: str = Field(..., description="Human-readable error message")
     error_code: str | None = Field(default=None, description="Machine-readable error code")
-    details: dict[str, Any] | None = Field(default=None, description="Additional error context")
+    details: ErrorDetails | None = Field(default=None, description="Structured error details")
 
 
 @beartype
 class SuccessResponse(BaseModel, Generic[T]):
     """Standardized success response wrapper."""
-    
+
     model_config = ConfigDict(
         frozen=True,
-        extra="forbid", 
+        extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     success: bool = Field(default=True, description="Always true for success responses")
     data: T = Field(..., description="Response payload")
 
 
 class APIResponseHandler:
     """Elite API response handler implementing Result[T,E] + HTTP semantics pattern."""
-    
+
     @staticmethod
     @beartype
     def map_error_to_status(error: str) -> int:
         """Map business logic errors to appropriate HTTP status codes.
-        
+
         Args:
             error: Business logic error message
-            
+
         Returns:
             HTTP status code following RESTful conventions
         """
         error_lower = error.lower()
-        
+
         # Resource not found
         if any(phrase in error_lower for phrase in ["not found", "does not exist", "missing"]):
             return 404
-            
-        # Authorization failures  
+
+        # Authorization failures
         if any(phrase in error_lower for phrase in ["unauthorized", "not authorized", "access denied"]):
             return 401
-            
+
         # Permission failures
         if any(phrase in error_lower for phrase in ["forbidden", "insufficient permissions", "not allowed"]):
             return 403
-            
+
         # Validation failures
         if any(phrase in error_lower for phrase in [
             "validation", "invalid", "malformed", "bad request", "required field"
         ]):
             return 400
-            
+
         # Conflict states
         if any(phrase in error_lower for phrase in [
             "already exists", "conflict", "duplicate", "concurrent modification"
         ]):
             return 409
-            
+
         # Rate limiting
         if any(phrase in error_lower for phrase in ["rate limit", "too many requests", "throttled"]):
             return 429
-            
+
         # Default to 422 for business logic errors
         return 422
-    
+
     @staticmethod
-    @beartype 
+    @beartype
     def from_result(
-        result: Result[T, str], 
+        result: Result[T, str],
         response: Response,
         success_status: int = 200
     ) -> Union[T, ErrorResponse]:
         """Convert Result[T,E] to HTTP response with proper status codes.
-        
+
         Args:
             result: Service layer Result
             response: FastAPI Response object to set status code
             success_status: HTTP status for successful operations (default 200)
-            
+
         Returns:
             Either the unwrapped success value or ErrorResponse
         """
@@ -112,32 +152,32 @@ class APIResponseHandler:
             error_msg = result.unwrap_err()
             response.status_code = APIResponseHandler.map_error_to_status(error_msg)
             return ErrorResponse(error=error_msg)
-            
+
         response.status_code = success_status
         return result.unwrap()
-    
+
     @staticmethod
     @beartype
     def from_result_wrapped(
         result: Result[T, str],
-        response: Response, 
+        response: Response,
         success_status: int = 200
     ) -> Union[SuccessResponse[T], ErrorResponse]:
         """Convert Result[T,E] to wrapped response format.
-        
+
         Args:
             result: Service layer Result
             response: FastAPI Response object to set status code
             success_status: HTTP status for successful operations
-            
+
         Returns:
             Either SuccessResponse[T] or ErrorResponse
         """
         if result.is_err():
-            error_msg = result.unwrap_err() 
+            error_msg = result.unwrap_err()
             response.status_code = APIResponseHandler.map_error_to_status(error_msg)
             return ErrorResponse(error=error_msg)
-            
+
         response.status_code = success_status
         return SuccessResponse(data=result.unwrap())
 
@@ -148,7 +188,7 @@ class APIResponseHandler:
 # Convenience functions for common patterns
 @beartype
 def handle_result(
-    result: Result[T, str], 
+    result: Result[T, str],
     response: Response,
     success_status: int = 200
 ) -> Union[T, ErrorResponse]:
@@ -156,11 +196,11 @@ def handle_result(
     # Type assertion to satisfy mypy - we know T won't be ErrorResponse here
     return APIResponseHandler.from_result(cast(Result[Union[T, ErrorResponse], str], result), response, success_status)
 
-@beartype  
+@beartype
 def handle_result_wrapped(
     result: Result[T, str],
     response: Response,
-    success_status: int = 200  
+    success_status: int = 200
 ) -> Union[SuccessResponse[T], ErrorResponse]:
     """Convenience function for wrapped result handling."""
     return APIResponseHandler.from_result_wrapped(result, response, success_status)

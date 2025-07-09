@@ -408,7 +408,7 @@ class SSOManager:
 
         # Get full user record
         row = await self._db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
-        
+
         if not row:
             raise ValueError(f"User {user_id} not found after creation")
 
@@ -455,7 +455,7 @@ class SSOManager:
 
         # Get updated user
         row = await self._db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
-        
+
         if not row:
             raise ValueError(f"User {user_id} not found after update")
 

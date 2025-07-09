@@ -921,7 +921,7 @@ class RatingEngine:
                 # Calculate age from year
                 current_year = datetime.now().year
                 age = current_year - vehicle_info.year
-                
+
                 vehicle_data = {
                     "age": age,
                     "value": 25000,  # Default value as VehicleInfo doesn't have value field

@@ -145,7 +145,7 @@ async def get_compliance_overview(
             return handle_result(Err(metrics_result.err_value or "Failed to generate compliance report"), response)
 
         metrics = metrics_result.ok_value
-        
+
         # Type narrowing - metrics should not be None if is_ok() is True
         if metrics is None:
             return handle_result(Err("Internal server error: compliance metrics is None"), response)
@@ -181,7 +181,7 @@ async def get_compliance_overview(
                 else "non_compliant"
             ),
         )
-        
+
         return compliance_response
 
     except Exception as e:
@@ -231,7 +231,7 @@ async def list_controls(
 @router.post("/controls/execute", response_model=ControlExecutionResponse)
 @beartype
 async def execute_control(
-    request: ControlExecutionRequest, 
+    request: ControlExecutionRequest,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
 ) -> Union[ControlExecutionResponse, ErrorResponse]:
@@ -246,7 +246,7 @@ async def execute_control(
             return handle_result(Err(execution_result.err_value or "Failed to execute control"), response)
 
         execution = execution_result.ok_value
-        
+
         # Type narrowing - execution should not be None if is_ok() is True
         if execution is None:
             return handle_result(Err("Internal server error: control execution is None"), response)
@@ -261,7 +261,7 @@ async def execute_control(
             findings=execution.findings,
             execution_time_ms=execution.execution_time_ms,
         )
-        
+
         return execution_response
 
     except Exception as e:
@@ -271,7 +271,7 @@ async def execute_control(
 @router.get("/controls/{control_id}/status")
 @beartype
 async def get_control_status(
-    control_id: str, 
+    control_id: str,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -283,7 +283,7 @@ async def get_control_status(
             return handle_result(Err(status_result.err_value or "Failed to get control status"), response)
 
         control_status = status_result.ok_value
-        
+
         # Type narrowing - control_status should not be None if is_ok() is True
         if control_status is None:
             return handle_result(Err("Internal server error: control status is None"), response)
@@ -406,7 +406,7 @@ async def get_evidence_summary(
         summary = summary_result.ok_value
         if summary is None:
             return handle_result(Err("Evidence summary returned None"), response)
-        
+
         # Return the summary directly (it's already a dict)
         return summary
 
@@ -417,7 +417,7 @@ async def get_evidence_summary(
 @router.post("/reports/generate")
 @beartype
 async def generate_compliance_report(
-    request: ComplianceReportRequest, 
+    request: ComplianceReportRequest,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -437,7 +437,7 @@ async def generate_compliance_report(
             return handle_result(Err(report_result.err_value or "Failed to generate compliance report"), response)
 
         report = report_result.ok_value
-        
+
         # Type narrowing - report should not be None if is_ok() is True
         if report is None:
             return handle_result(Err("Internal server error: compliance report is None"), response)
@@ -458,7 +458,7 @@ async def generate_compliance_report(
                 "end": report.assessment_period_end.isoformat(),
             },
         }
-        
+
         return report_response
 
     except Exception as e:
@@ -483,7 +483,7 @@ async def get_testing_dashboard(
 @router.post("/testing/plans")
 @beartype
 async def create_test_plan(
-    request: TestPlanRequest, 
+    request: TestPlanRequest,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -510,7 +510,7 @@ async def create_test_plan(
             return handle_result(Err(plan_result.err_value or "Failed to create test plan"), response)
 
         plan = plan_result.ok_value
-        
+
         # Type narrowing - plan should not be None if is_ok() is True
         if plan is None:
             return handle_result(Err("Internal server error: test plan is None"), response)
@@ -529,7 +529,7 @@ async def create_test_plan(
             "total_tests": plan.total_tests,
             "status": plan.status,
         }
-        
+
         return plan_response
 
     except Exception as e:
@@ -560,7 +560,7 @@ async def execute_all_controls(
             return handle_result(Err(execution_result.err_value or "Failed to execute all controls"), response)
 
         executions = execution_result.ok_value
-        
+
         # Type narrowing - executions should not be None if is_ok() is True
         if executions is None:
             return handle_result(Err("Internal server error: control executions result is None"), response)
@@ -595,7 +595,7 @@ async def execute_all_controls(
                 for exec in executions
             ],
         }
-        
+
         return executions_response
 
     except Exception as e:

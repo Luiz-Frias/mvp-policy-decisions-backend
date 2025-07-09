@@ -243,7 +243,7 @@ async def setup_totp(
         return ErrorResponse(error=setup_result.err_value or "Unknown error")
 
     setup_data = setup_result.ok_value
-    
+
     # Type narrowing - setup_data should not be None if is_ok() is True
     if setup_data is None:
         response.status_code = 500
@@ -399,7 +399,7 @@ async def create_mfa_challenge(
         return ErrorResponse(error=challenge_result.err_value or "Unknown error")
 
     challenge = challenge_result.ok_value
-    
+
     # Type narrowing - challenge should not be None if is_ok() is True
     if challenge is None:
         response.status_code = 500
@@ -434,7 +434,7 @@ async def verify_mfa_challenge(
         return ErrorResponse(error=verify_result.err_value or "Unknown error")
 
     result = verify_result.ok_value
-    
+
     # Type narrowing - result should not be None if is_ok() is True
     if result is None:
         response.status_code = 500
@@ -501,7 +501,7 @@ async def trust_device(
         return ErrorResponse(error=trust_result.err_value or "Unknown error")
 
     device_trust = trust_result.ok_value
-    
+
     # Type narrowing - device_trust should not be None if is_ok() is True
     if device_trust is None:
         response.status_code = 500

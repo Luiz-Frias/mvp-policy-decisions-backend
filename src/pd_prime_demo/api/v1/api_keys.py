@@ -136,9 +136,9 @@ async def get_api_key_manager(
 @beartype
 async def create_api_key(
     request: APIKeyCreateRequest,
+    response: Response,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> Union[APIKeyCreateResponse, ErrorResponse]:
     """Create a new API key.
 
@@ -181,7 +181,7 @@ async def create_api_key(
     key_data = result.ok_value
     if key_data is None:
         return _handle_service_error("Unexpected null result", response)
-    
+
     # Convert to response and return with proper status
     response.status_code = 201
     return APIKeyCreateResponse(
@@ -198,10 +198,10 @@ async def create_api_key(
 @router.get("/", response_model=list[APIKeyResponse])
 @beartype
 async def list_api_keys(
+    response: Response,
     active_only: bool = Query(True, description="Show only active keys"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> Union[list[APIKeyResponse], ErrorResponse]:
     """List API keys for the current user.
 
@@ -253,10 +253,10 @@ async def list_api_keys(
 @beartype
 async def revoke_api_key(
     key_id: UUID,
+    response: Response,
     reason: str = Query(..., description="Reason for revocation"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> Union[APIKeyRevokeResponse, ErrorResponse]:
     """Revoke an API key.
 
@@ -299,9 +299,9 @@ async def revoke_api_key(
 @beartype
 async def rotate_api_key(
     key_id: UUID,
+    response: Response,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> Union[APIKeyCreateResponse, ErrorResponse]:
     """Rotate an API key.
 
@@ -339,7 +339,7 @@ async def rotate_api_key(
     key_data = result.ok_value
     if key_data is None:
         return _handle_service_error("Unexpected null result", response)
-    
+
     # Convert to response and return with proper status
     response.status_code = 201
     return APIKeyCreateResponse(
@@ -357,10 +357,10 @@ async def rotate_api_key(
 @beartype
 async def get_api_key_usage(
     key_id: UUID,
+    response: Response,
     days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> Union[APIKeyUsageResponse, ErrorResponse]:
     """Get usage statistics for an API key.
 
@@ -391,7 +391,7 @@ async def get_api_key_usage(
     stats = result.ok_value
     if stats is None:
         return _handle_service_error("Unexpected null result", response)
-    
+
     # Return success
     response.status_code = 200
     return APIKeyUsageResponse(

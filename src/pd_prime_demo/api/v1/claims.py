@@ -737,7 +737,7 @@ async def update_claim_status(
     return claim
 
 
-@router.delete("/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{claim_id}")
 @beartype
 async def delete_claim(
     claim_id: UUID,

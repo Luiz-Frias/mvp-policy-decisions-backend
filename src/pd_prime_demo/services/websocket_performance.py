@@ -107,6 +107,7 @@ class WebSocketPerformanceService:
         self._monitoring_task: asyncio.Task[None] | None = None
         self._cleanup_task: asyncio.Task[None] | None = None
 
+    @beartype
     async def start_monitoring(self) -> None:
         """Start performance monitoring tasks."""
         if self._monitoring_task is None:
@@ -117,6 +118,7 @@ class WebSocketPerformanceService:
         if self._cleanup_task is None:
             self._cleanup_task = asyncio.create_task(self._cleanup_loop())
 
+    @beartype
     async def stop_monitoring(self) -> None:
         """Stop performance monitoring tasks."""
         if self._monitoring_task:
@@ -398,6 +400,7 @@ class WebSocketPerformanceService:
 
         return optimizations_applied or ["No optimizations needed"]
 
+    @beartype
     async def _performance_monitoring_loop(self) -> None:
         """Background loop for performance monitoring."""
         while True:
@@ -427,6 +430,7 @@ class WebSocketPerformanceService:
                 # Log error but continue monitoring
                 pass
 
+    @beartype
     async def _cleanup_loop(self) -> None:
         """Background loop for cleaning up old metrics."""
         while True:
@@ -520,16 +524,19 @@ class WebSocketPerformanceService:
                 # Non-critical operation
                 pass
 
+    @beartype
     async def _enable_connection_throttling(self) -> None:
         """Enable connection throttling to reduce load."""
         # Store throttling configuration in cache
         await self._cache.set("ws:throttling:enabled", "true", 3600)  # 1 hour
 
+    @beartype
     async def _enable_message_batching(self) -> None:
         """Enable message batching to improve efficiency."""
         # Store batching configuration in cache
         await self._cache.set("ws:batching:enabled", "true", 3600)  # 1 hour
 
+    @beartype
     async def _suggest_room_partitioning(self, room_size: float) -> None:
         """Suggest room partitioning for large rooms."""
         # Store partitioning suggestion in cache

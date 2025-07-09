@@ -614,7 +614,7 @@ class Database:
         return PoolMetrics(
             # Use pool config values and estimates since newer asyncpg doesn't expose these methods
             size=len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else 0,
-            free_size=len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0,  
+            free_size=len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0,
             min_size=self._main_config.min_connections if self._main_config else 5,
             max_size=self._main_config.max_connections if self._main_config else 20,
             connections_active=self._metrics["connections_active"],
@@ -757,6 +757,7 @@ class Database:
             return Err(f"Health check failed: {str(e)}")
 
     # Backward compatibility methods
+    @beartype
     async def execute(self, query: str, *args: Any) -> str:
         """Execute a query without returning results."""
         # Shortcut when wrapping a direct connection – no retries.

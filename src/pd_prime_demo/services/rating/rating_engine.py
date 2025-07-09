@@ -517,7 +517,7 @@ class RatingEngine:
         )
         if stacked_result.is_err():
             return Err(stacked_result.unwrap_err())
-        
+
         stacked_discounts = stacked_result.unwrap()
         # Convert StackedDiscounts to expected format - convert Discount objects to dicts
         discount_dicts = [discount.model_dump() for discount in stacked_discounts.applied_discounts]

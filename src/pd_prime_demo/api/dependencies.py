@@ -47,6 +47,7 @@ async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
         yield conn
 
 
+@beartype
 async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
     """Provide direct database connection for beartype-compatible injection.
 

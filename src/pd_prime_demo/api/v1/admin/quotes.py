@@ -211,7 +211,7 @@ async def get_quote_analytics(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 

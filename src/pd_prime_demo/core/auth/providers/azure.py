@@ -105,7 +105,7 @@ class AzureADSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Azure AD API token response
         """Exchange authorization code for tokens.
 
         Args:
@@ -141,7 +141,7 @@ class AzureADSSOProvider(OIDCProvider):
                     )
                     return Err(f"Token exchange failed: {error_msg}")
 
-            tokens = response.json()
+            tokens = response.json()  # SYSTEM_BOUNDARY - Azure AD API response parsing
 
             # Validate ID token if present
             if "id_token" in tokens:
@@ -188,7 +188,7 @@ class AzureADSSOProvider(OIDCProvider):
                         f"Failed to fetch user info: HTTP {response.status_code}"
                     )
 
-            user_data = response.json()
+            user_data = response.json()  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
 
             # Get user groups if permission granted
             groups: list[str] = []
@@ -226,7 +226,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Azure AD API token response
         """Refresh Azure AD access token.
 
         Args:
@@ -260,7 +260,7 @@ class AzureADSSOProvider(OIDCProvider):
                     )
                     return Err(f"Token refresh failed: {error_msg}")
 
-            return Ok(response.json())
+            return Ok(response.json())  # SYSTEM_BOUNDARY - Azure AD API response parsing
 
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
@@ -345,7 +345,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def get_tenant_info(
         self,
         access_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Azure AD Graph API response
         """Get Azure AD tenant information.
 
         Args:

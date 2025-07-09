@@ -259,10 +259,10 @@ async def create_policy_api(
     """API endpoint using elite Result[T,E] + HTTP semantics pattern."""
     # Service layer returns Result[Policy, str]
     result = await policy_service.create_policy(request)
-    
+
     # Elite pattern: automatic error mapping to HTTP status codes
     # "Policy not found" → 404
-    # "Invalid policy data" → 400  
+    # "Invalid policy data" → 400
     # "Policy already exists" → 409
     # "Database error" → 500
     # Other business errors → 422
@@ -333,7 +333,7 @@ async def create_policy_api(
 ### **Performance Optimization (LOW PRIORITY)**
 
 1. **MyPy Errors**: ✅ **97% COMPLETE** - Only 18 minor errors remain (down from 585)
-2. **Database Optimization**: Implement connection pooling improvements  
+2. **Database Optimization**: Implement connection pooling improvements
 3. **Cache Strategy**: Optimize Redis usage patterns
 4. **WebSocket Performance**: Address connection handling issues
 
@@ -408,7 +408,7 @@ This project uses the SAGE (Supervisor Agent-Generated Engineering) system for m
 class Settings(BaseSettings):
     demo_mode: bool = Field(default=False, env="DEMO_MODE")
     demo_allowed_operations: list[str] = Field(default=["read"])
-    
+
     # Demo accounts (only active when demo_mode=true)
     demo_accounts: list[dict] = Field(default=[
         {"username": "demo_viewer", "scopes": ["read"]}
@@ -433,7 +433,7 @@ class DopplerEncryptionProvider:
         # Doppler automatically injects ENCRYPTION_KEY
         self.key = os.getenv("ENCRYPTION_KEY")
         self.cipher = Fernet(base64.b64decode(self.key))
-    
+
     async def encrypt(self, data: str) -> str:
         return self.cipher.encrypt(data.encode()).decode()
 ```
@@ -741,7 +741,7 @@ groups:
         annotations:
           summary: "High error rate detected"
           runbook_url: "https://wiki/runbooks/high-error-rate"
-      
+
       - alert: QuoteServiceLatency
         expr: histogram_quantile(0.99, quote_generation_duration) > 0.1
         annotations:
@@ -756,17 +756,17 @@ observability_stack:
     metrics: Prometheus (15s scrape interval)
     traces: OpenTelemetry → Jaeger
     logs: Fluentd → Elasticsearch
-    
+
   storage:
     metrics: Prometheus (30d) → Thanos (1y)
     traces: Jaeger (7d retention)
     logs: Elasticsearch (30d hot, 90d warm)
-    
+
   visualization:
-    dashboards: Grafana 
+    dashboards: Grafana
     logs: Kibana
     traces: Jaeger UI
-    
+
   alerting:
     rules: Prometheus AlertManager
     routing: PagerDuty / Slack / Email
@@ -784,7 +784,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports: ["9090:9090"]
-    
+
   grafana:
     image: grafana/grafana
     environment:
@@ -792,12 +792,12 @@ services:
     volumes:
       - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
     ports: ["3000:3000"]
-    
+
   jaeger:
     image: jaegertracing/all-in-one
     environment:
       - COLLECTOR_ZIPKIN_HOST_PORT=:9411
-    ports: 
+    ports:
       - "5775:5775/udp"
       - "6831:6831/udp"
       - "6832:6832/udp"

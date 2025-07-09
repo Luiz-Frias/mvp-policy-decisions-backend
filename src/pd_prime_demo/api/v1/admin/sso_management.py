@@ -152,7 +152,7 @@ async def list_sso_providers(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -178,7 +178,7 @@ async def get_sso_provider(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -235,7 +235,7 @@ async def test_sso_provider(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -301,7 +301,7 @@ async def list_group_mappings(
 
     # Ensure we have valid mappings
     mappings = result.unwrap()
-    
+
     return {"mappings": mappings, "total": len(mappings)}
 
 
@@ -330,7 +330,7 @@ async def list_provisioning_rules(
 
     # Ensure we have valid rules
     rules = result.unwrap()
-    
+
     return {"rules": rules, "total": len(rules)}
 
 
@@ -357,7 +357,7 @@ async def get_sso_analytics(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -411,5 +411,5 @@ async def get_sso_activity_logs(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()

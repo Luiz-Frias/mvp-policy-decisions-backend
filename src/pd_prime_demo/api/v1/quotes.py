@@ -91,11 +91,11 @@ def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionRespon
     """Convert WizardState to WizardSessionResponse."""
     # Convert dict data to WizardStepData
     from ...schemas.quote import WizardStepData, ValidationErrors, FieldError
-    
+
     # Create WizardStepData with default values for missing fields
     # This is a simplified conversion - in production, you'd want proper mapping
     step_data = WizardStepData()
-    
+
     # Convert validation errors from dict to ValidationErrors
     field_errors = []
     for field, errors in state.validation_errors.items():
@@ -105,13 +105,13 @@ def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionRespon
             error_code=None,
             suggested_fix=None
         ))
-    
+
     validation_errors = ValidationErrors(
         field_errors=field_errors,
         form_errors=[],
         warning_messages=[]
     )
-    
+
     return WizardSessionResponse(
         session_id=state.session_id,
         quote_id=state.quote_id,
@@ -306,7 +306,7 @@ async def search_quotes(
 
     # Convert Quote objects to QuoteResponse objects
     quote_responses = [_convert_quote_to_response(quote) for quote in quotes]
-    
+
     # Return success with proper status
     response.status_code = 200
     return QuoteSearchResponse(
@@ -571,7 +571,7 @@ async def extend_wizard_session(
         return _handle_service_error(result.unwrap_err(), response)
 
     state = result.ok_value
-    
+
     # Type narrowing - this should never be None due to service logic
     if state is None:
         return _handle_service_error("Internal server error: session state is None", response)

@@ -12,13 +12,13 @@ from decimal import Decimal
 from beartype import beartype
 
 from pd_prime_demo.api.response_patterns import (
-    APIResponseHandler, 
-    ErrorResponse, 
+    APIResponseHandler,
+    ErrorResponse,
     handle_result
 )
 from pd_prime_demo.schemas.responses import (
     CreatedResponse,
-    UpdatedResponse, 
+    UpdatedResponse,
     DeletedResponse,
     CreatedResult,
     UpdatedResult,
@@ -51,7 +51,7 @@ async def create_quote(
     current_user = Depends(get_current_user)
 ) -> Union[QuoteResponse, ErrorResponse]:
     """Create a new quote using elite Result[T,E] + HTTP semantics pattern.
-    
+
     Returns:
         QuoteResponse on success (201 Created)
         ErrorResponse on failure (400/404/422 with business-appropriate status)
@@ -68,7 +68,7 @@ async def create_quote(
         created_at=datetime.now(),
         updated_at=datetime.now()
     ))
-    
+
     # Convert Result to HTTP response with proper status codes
     return APIResponseHandler.from_result(result, response, success_status=201)
 
@@ -83,7 +83,7 @@ async def get_quote(
     """Get quote by ID using elite pattern."""
     # Mock service call for example
     from pd_prime_demo.core.result_types import Ok, Err
-    
+
     if str(quote_id) == "12345678-1234-5678-1234-567812345678":
         result: Result[QuoteResponse, str] = Ok(QuoteResponse(
             quote_id=quote_id,
@@ -97,7 +97,7 @@ async def get_quote(
         ))
     else:
         result = Err("Quote not found")
-    
+
     # Using convenience function (equivalent to above)
     return handle_result(result, response)
 
@@ -107,17 +107,17 @@ async def get_quote(
 async def update_quote(
     quote_id: UUID,
     request: QuoteRequest,
-    response: Response, 
+    response: Response,
     current_user = Depends(get_current_user)
 ) -> UpdatedResult:
     """Update quote using standard response schema."""
     result = await quote_service.update_quote(quote_id, request, current_user.user_id)
-    
+
     return handle_result(result, response)
 
 
 @router.delete("/quotes/{quote_id}", status_code=204)
-@beartype  
+@beartype
 async def delete_quote(
     quote_id: UUID,
     response: Response,
@@ -125,7 +125,7 @@ async def delete_quote(
 ) -> DeletedResult:
     """Delete quote with proper HTTP semantics."""
     result = await quote_service.delete_quote(quote_id, current_user.user_id)
-    
+
     return handle_result(result, response, success_status=204)
 
 
@@ -138,18 +138,18 @@ async def validate_quote(
     current_user = Depends(get_current_user)
 ) -> Union[dict, ErrorResponse]:
     """Demonstrate automatic error type mapping."""
-    
+
     # Service returns different error types
     result = await quote_service.validate_quote(quote_id)
-    
+
     # APIResponseHandler automatically maps:
     # "Quote not found" -> 404
-    # "Invalid coverage amount" -> 400  
+    # "Invalid coverage amount" -> 400
     # "Insufficient permissions" -> 403
     # "Rate limit exceeded" -> 429
     # "Quote already finalized" -> 409
     # Other errors -> 422
-    
+
     return handle_result(result, response)
 
 
@@ -158,12 +158,12 @@ async def validate_quote(
 async def business_logic_example() -> Result[str, str]:
     """Example service layer function."""
     # This could return various business errors:
-    
+
     # return Err("Quote not found")  # -> 404
     # return Err("Invalid coverage amount")  # -> 400
-    # return Err("Insufficient permissions")  # -> 403  
+    # return Err("Insufficient permissions")  # -> 403
     # return Err("Quote processing failed")  # -> 422
-    
+
     return Ok("Success")
 
 
@@ -194,7 +194,7 @@ CONVERSION CHECKLIST FOR AGENTS:
 
 AGENT SCOPE CATEGORIES:
 - Core Business (quotes, policies, claims)
-- Admin Operations (user management, system config)  
+- Admin Operations (user management, system config)
 - Authentication/Security (mfa, oauth, api_keys)
 - Compliance/Monitoring (audit, performance)
 - Middleware/Dependencies (global error handling)

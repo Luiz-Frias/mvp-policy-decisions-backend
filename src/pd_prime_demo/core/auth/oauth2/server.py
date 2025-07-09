@@ -38,7 +38,7 @@ class OAuth2Error(Exception):
         super().__init__(error_description or error)
 
     @beartype
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 error response format
         """Convert to OAuth2 error response."""
         response = {"error": self.error}
         if self.error_description:
@@ -271,7 +271,7 @@ class OAuth2Server:
                         "state": state,
                     }
                 )
-            
+
             # This should not happen as response_type is validated above
             else:
                 return Err(f"unsupported_response_type: {response_type}")
@@ -362,7 +362,7 @@ class OAuth2Server:
         token_type_hint: str | None = None,
         client_id: str | None = None,
         client_secret: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 token introspection response
         """Introspect a token.
 
         Args:
@@ -482,7 +482,7 @@ class OAuth2Server:
         return secrets.token_urlsafe(32)
 
     @beartype
-    async def _get_client(self, client_id: str) -> dict[str, Any] | None:
+    async def _get_client(self, client_id: str) -> dict[str, Any] | None:  # SYSTEM_BOUNDARY - Database row mapping
         """Get client configuration from database."""
         row = await self._db.fetchrow(
             """
@@ -497,12 +497,12 @@ class OAuth2Server:
         if not row:
             return None
 
-        return dict(row)
+        return dict(row)  # SYSTEM_BOUNDARY - Database row conversion
 
     @beartype
     async def _authenticate_client(
         self, client_id: str | None, client_secret: str | None
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any] | None:  # SYSTEM_BOUNDARY - Database row mapping
         """Authenticate OAuth2 client."""
         if not client_id:
             return None
@@ -560,7 +560,7 @@ class OAuth2Server:
         client_id: str,
         user_id: UUID | None,
         scopes: list[str],
-    ) -> dict[str, str]:
+    ) -> dict[str, str]:  # SYSTEM_BOUNDARY - OAuth2 token storage format
         """Generate access and refresh tokens."""
         # Get client configuration for token lifetime
         client = await self._get_client(client_id)
@@ -963,7 +963,7 @@ class OAuth2Server:
         return revoked is not None
 
     @beartype
-    async def _introspect_refresh_token(self, token: str) -> dict[str, Any]:
+    async def _introspect_refresh_token(self, token: str) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 refresh token introspection response
         """Introspect a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
@@ -1093,7 +1093,7 @@ class OAuth2Server:
         return Ok(True)
 
     @beartype
-    async def get_server_health(self) -> dict[str, Any]:
+    async def get_server_health(self) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 server health metrics response
         """Get OAuth2 server health metrics.
 
         Returns:

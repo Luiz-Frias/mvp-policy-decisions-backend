@@ -123,7 +123,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Auth0 API token response
         """Exchange authorization code for tokens.
 
         Args:
@@ -159,7 +159,7 @@ class Auth0SSOProvider(OIDCProvider):
                     )
                     return Err(f"Token exchange failed: {error_msg}")
 
-            tokens = response.json()
+            tokens = response.json()  # SYSTEM_BOUNDARY - Auth0 API response parsing
 
             # Validate ID token if present
             if "id_token" in tokens:
@@ -205,7 +205,7 @@ class Auth0SSOProvider(OIDCProvider):
                         f"Failed to fetch user info: HTTP {response.status_code}"
                     )
 
-            user_data = response.json()
+            user_data = response.json()  # SYSTEM_BOUNDARY - Auth0 API response parsing
 
             # Extract custom claims and roles
             groups = []
@@ -254,7 +254,7 @@ class Auth0SSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Auth0 API token response
         """Refresh Auth0 access token.
 
         Args:
@@ -291,7 +291,7 @@ class Auth0SSOProvider(OIDCProvider):
                     )
                     return Err(f"Token refresh failed: {error_msg}")
 
-            return Ok(response.json())
+            return Ok(response.json())  # SYSTEM_BOUNDARY - Auth0 API response parsing
 
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
@@ -351,7 +351,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         user_id: str,
         management_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Auth0 Management API response
         """Get user details from Auth0 Management API.
 
         Args:
@@ -376,7 +376,7 @@ class Auth0SSOProvider(OIDCProvider):
                         f"Failed to fetch user details: HTTP {response.status_code}"
                     )
 
-            return Ok(response.json())
+            return Ok(response.json())  # SYSTEM_BOUNDARY - Auth0 API response parsing
 
         except Exception as e:
             return Err(f"Failed to get user details: {str(e)}")
@@ -388,7 +388,7 @@ class Auth0SSOProvider(OIDCProvider):
         secondary_user_id: str,
         secondary_provider: str,
         management_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Auth0 Management API response
         """Link two user accounts in Auth0.
 
         Args:

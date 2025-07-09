@@ -270,7 +270,7 @@ async def get_policy(
         await redis.setex(cache_key, 300, policy.model_dump_json())
 
         return policy
-    
+
     # This should never be reached as the dependency should provide a connection
     return handle_result(Err("Database connection not available"), response)
 
@@ -329,12 +329,12 @@ async def update_policy(
             await redis.delete(key)
 
         return policy
-    
+
     # This should never be reached as the dependency should provide a connection
     return handle_result(Err("Database connection not available"), response)
 
 
-@router.delete("/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{policy_id}")
 @beartype
 async def delete_policy(
     policy_id: UUID,
@@ -381,8 +381,8 @@ async def delete_policy(
         pattern = "policies:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
-        
+
         return None
-    
+
     # This should never be reached as the dependency should provide a connection
     return handle_result(Err("Database connection not available"), response)

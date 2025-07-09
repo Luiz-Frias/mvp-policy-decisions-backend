@@ -103,7 +103,7 @@ class GoogleSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Google OAuth2 API token response
         """Exchange authorization code for tokens.
 
         Args:
@@ -143,7 +143,7 @@ class GoogleSSOProvider(OIDCProvider):
                     )
                     return Err(f"Token exchange failed: {error_msg}")
 
-            tokens = response.json()
+            tokens = response.json()  # SYSTEM_BOUNDARY - Google OAuth2 API response parsing
 
             # Validate ID token if present
             if "id_token" in tokens:
@@ -196,7 +196,7 @@ class GoogleSSOProvider(OIDCProvider):
                         f"Failed to fetch user info: HTTP {response.status_code}"
                     )
 
-            user_data = response.json()
+            user_data = response.json()  # SYSTEM_BOUNDARY - Google OAuth2 API response parsing
 
             # Check domain restriction
             if self.hosted_domain:
@@ -248,7 +248,7 @@ class GoogleSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Google OAuth2 API token response
         """Refresh Google access token.
 
         Args:
@@ -286,7 +286,7 @@ class GoogleSSOProvider(OIDCProvider):
                     )
                     return Err(f"Token refresh failed: {error_msg}")
 
-            return Ok(response.json())
+            return Ok(response.json())  # SYSTEM_BOUNDARY - Google OAuth2 API response parsing
 
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
@@ -365,7 +365,7 @@ class GoogleSSOProvider(OIDCProvider):
                 if response.status_code != 200:
                     return Err(f"Failed to fetch groups: HTTP {response.status_code}")
 
-            data = response.json()
+            data = response.json()  # SYSTEM_BOUNDARY - Google Admin API response parsing
             groups = [group["name"] for group in data.get("groups", [])]
             return Ok(groups)
 

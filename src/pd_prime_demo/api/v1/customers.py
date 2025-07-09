@@ -357,7 +357,7 @@ async def update_customer(
         return handle_result(Err(f"Failed to update customer: {str(e)}"), response)
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{customer_id}")
 @beartype
 async def delete_customer(
     customer_id: UUID,
@@ -466,7 +466,7 @@ async def get_customer_policies(
         return ErrorResponse(error=error_msg)
 
     policies = result.ok_value
-    
+
     # Type narrowing - policies should not be None if is_ok() is True
     if policies is None:
         return handle_result(Err("Internal server error: policies result is None"), response)

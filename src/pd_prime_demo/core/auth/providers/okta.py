@@ -110,7 +110,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Okta API token response
         """Exchange authorization code for tokens.
 
         Args:
@@ -137,13 +137,13 @@ class OktaSSOProvider(OIDCProvider):
                 )
 
                 if response.status_code != 200:
-                    error_data = response.json()
+                    error_data = response.json()  # SYSTEM_BOUNDARY - Okta API error response parsing
                     error_msg = error_data.get(
                         "error_description", error_data.get("error", "Unknown error")
                     )
                     return Err(f"Token exchange failed: {error_msg}")
 
-            tokens = response.json()
+            tokens = response.json()  # SYSTEM_BOUNDARY - Okta API response parsing
 
             # Validate ID token if present
             if "id_token" in tokens:
@@ -189,7 +189,7 @@ class OktaSSOProvider(OIDCProvider):
                         f"Failed to fetch user info: HTTP {response.status_code}"
                     )
 
-            user_data = response.json()
+            user_data = response.json()  # SYSTEM_BOUNDARY - Okta API response parsing
 
             # Extract groups from Okta claims
             groups = []
@@ -228,7 +228,7 @@ class OktaSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Okta API token response
         """Refresh Okta access token.
 
         Args:
@@ -253,13 +253,13 @@ class OktaSSOProvider(OIDCProvider):
                 )
 
                 if response.status_code != 200:
-                    error_data = response.json()
+                    error_data = response.json()  # SYSTEM_BOUNDARY - Okta API error response parsing
                     error_msg = error_data.get(
                         "error_description", error_data.get("error", "Unknown error")
                     )
                     return Err(f"Token refresh failed: {error_msg}")
 
-            return Ok(response.json())
+            return Ok(response.json())  # SYSTEM_BOUNDARY - Okta API response parsing
 
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
@@ -313,7 +313,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Okta API introspection response
         """Introspect Okta token to check its validity and metadata.
 
         Args:

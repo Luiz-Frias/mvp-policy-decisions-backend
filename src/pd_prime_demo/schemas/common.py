@@ -323,6 +323,378 @@ class ApiOperation(BaseModel):
 # Common domain models for reuse across schemas
 
 
+# SOC 2 Compliance Models - Replace dict[str, Any] usage
+
+
+class EvidenceContent(BaseModel):
+    """Evidence content structure for SOC 2 compliance artifacts."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    control_execution: dict[str, str | bool | list[str]] | None = Field(
+        None, description="Control execution details"
+    )
+    system_data: dict[str, Any] | None = Field(
+        None, description="System data collected as evidence"
+    )
+    collection_metadata: dict[str, str | bool | datetime] = Field(
+        ..., description="Evidence collection metadata"
+    )
+    data_integrity_hash: str | None = Field(
+        None, description="Data integrity verification hash"
+    )
+    verification_status: str = Field(
+        default="pending", description="Evidence verification status"
+    )
+    additional_context: dict[str, Any] = Field(
+        default_factory=dict, description="Additional evidence context"
+    )
+
+
+class ComplianceScores(BaseModel):
+    """Trust service criteria compliance scores."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    security: float = Field(..., ge=0.0, le=100.0, description="Security score")
+    availability: float = Field(..., ge=0.0, le=100.0, description="Availability score")
+    processing_integrity: float = Field(
+        ..., ge=0.0, le=100.0, description="Processing integrity score"
+    )
+    confidentiality: float = Field(
+        ..., ge=0.0, le=100.0, description="Confidentiality score"
+    )
+    privacy: float = Field(..., ge=0.0, le=100.0, description="Privacy score")
+    overall_score: float = Field(
+        ..., ge=0.0, le=100.0, description="Overall compliance score"
+    )
+
+
+class MetricsCollection(BaseModel):
+    """Collection of compliance and system metrics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    total_controls: int = Field(..., ge=0, description="Total number of controls")
+    active_controls: int = Field(..., ge=0, description="Active controls count")
+    effective_controls: int = Field(..., ge=0, description="Effective controls count")
+    ineffective_controls: int = Field(
+        ..., ge=0, description="Ineffective controls count"
+    )
+    compliance_percentage: float = Field(
+        ..., ge=0.0, le=100.0, description="Overall compliance percentage"
+    )
+    evidence_artifacts_count: int = Field(
+        ..., ge=0, description="Total evidence artifacts"
+    )
+    last_assessment_date: datetime = Field(
+        ..., description="Last assessment timestamp"
+    )
+    next_assessment_due: datetime = Field(
+        ..., description="Next assessment due date"
+    )
+    high_risk_findings: int = Field(..., ge=0, description="High risk findings count")
+    medium_risk_findings: int = Field(
+        ..., ge=0, description="Medium risk findings count"
+    )
+    low_risk_findings: int = Field(..., ge=0, description="Low risk findings count")
+
+
+class ControlEvidence(BaseModel):
+    """Evidence collected from control execution."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    control_id: str = Field(..., min_length=1, max_length=50, description="Control ID")
+    execution_id: str = Field(
+        ..., min_length=1, max_length=100, description="Execution ID"
+    )
+    timestamp: datetime = Field(..., description="Execution timestamp")
+    status: str = Field(
+        ..., min_length=1, max_length=20, description="Execution status"
+    )
+    result: bool = Field(..., description="Control execution result")
+    findings: list[str] = Field(default_factory=list, description="Control findings")
+    evidence_items: list[str] = Field(
+        default_factory=list, description="Evidence items collected"
+    )
+    execution_time_ms: int = Field(
+        ..., ge=0, description="Execution time in milliseconds"
+    )
+    criteria: str = Field(
+        ..., min_length=1, max_length=50, description="Trust service criteria"
+    )
+    automated: bool = Field(
+        default=True, description="Whether control is automated"
+    )
+    remediation_required: bool = Field(
+        default=False, description="Whether remediation is required"
+    )
+    remediation_actions: list[str] = Field(
+        default_factory=list, description="Remediation actions needed"
+    )
+
+
+class ComplianceFinding(BaseModel):
+    """Individual compliance finding or deficiency."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    finding_id: str = Field(
+        ..., min_length=1, max_length=20, description="Finding identifier"
+    )
+    severity: str = Field(
+        ..., min_length=1, max_length=20, description="Finding severity level"
+    )
+    criteria: str = Field(
+        ..., min_length=1, max_length=50, description="Trust service criteria"
+    )
+    control_id: str | None = Field(
+        None, max_length=50, description="Related control ID"
+    )
+    title: str = Field(..., min_length=1, max_length=200, description="Finding title")
+    description: str = Field(
+        ..., min_length=1, max_length=2000, description="Finding description"
+    )
+    recommendation: str = Field(
+        ..., min_length=1, max_length=1000, description="Recommendation"
+    )
+    risk_level: str = Field(
+        ..., min_length=1, max_length=20, description="Risk level"
+    )
+    detected_at: datetime = Field(..., description="Detection timestamp")
+    remediation_deadline: datetime | None = Field(
+        None, description="Remediation deadline"
+    )
+    status: str = Field(
+        default="open", min_length=1, max_length=20, description="Finding status"
+    )
+    assigned_to: str | None = Field(
+        None, max_length=100, description="Assigned person"
+    )
+    estimated_effort: str | None = Field(
+        None, max_length=50, description="Estimated effort"
+    )
+    business_impact: str | None = Field(
+        None, max_length=500, description="Business impact"
+    )
+
+
+class ComplianceRecommendation(BaseModel):
+    """Compliance improvement recommendation."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    recommendation_id: str = Field(
+        ..., min_length=1, max_length=20, description="Recommendation ID"
+    )
+    priority: str = Field(
+        ..., min_length=1, max_length=20, description="Priority level"
+    )
+    title: str = Field(
+        ..., min_length=1, max_length=200, description="Recommendation title"
+    )
+    description: str = Field(
+        ..., min_length=1, max_length=2000, description="Recommendation description"
+    )
+    category: str = Field(
+        ..., min_length=1, max_length=50, description="Recommendation category"
+    )
+    estimated_effort: str | None = Field(
+        None, max_length=50, description="Estimated effort"
+    )
+    responsible_party: str | None = Field(
+        None, max_length=100, description="Responsible party"
+    )
+    target_completion: datetime | None = Field(
+        None, description="Target completion date"
+    )
+    expected_benefit: str | None = Field(
+        None, max_length=500, description="Expected benefit"
+    )
+    implementation_notes: str | None = Field(
+        None, max_length=1000, description="Implementation notes"
+    )
+    dependencies: list[str] = Field(
+        default_factory=list, description="Dependencies"
+    )
+    status: str = Field(
+        default="pending", min_length=1, max_length=20, description="Status"
+    )
+
+
+class ManagementResponse(BaseModel):
+    """Management response to compliance findings."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    response_id: str = Field(
+        ..., min_length=1, max_length=20, description="Response ID"
+    )
+    finding_id: str = Field(
+        ..., min_length=1, max_length=20, description="Related finding ID"
+    )
+    response_date: datetime = Field(..., description="Response date")
+    respondent: str = Field(
+        ..., min_length=1, max_length=100, description="Respondent name"
+    )
+    response_text: str = Field(
+        ..., min_length=1, max_length=2000, description="Response text"
+    )
+    agreed_action: str = Field(
+        ..., min_length=1, max_length=1000, description="Agreed action"
+    )
+    target_date: datetime | None = Field(
+        None, description="Target completion date"
+    )
+    assigned_owner: str | None = Field(
+        None, max_length=100, description="Assigned owner"
+    )
+    risk_acceptance: bool = Field(
+        default=False, description="Risk acceptance flag"
+    )
+    alternative_controls: list[str] = Field(
+        default_factory=list, description="Alternative controls"
+    )
+    status: str = Field(
+        default="pending", min_length=1, max_length=20, description="Response status"
+    )
+
+
+class EvidenceQualityMetrics(BaseModel):
+    """Evidence quality assessment metrics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    completeness_score: float = Field(
+        ..., ge=0.0, le=100.0, description="Evidence completeness score"
+    )
+    accuracy_score: float = Field(
+        ..., ge=0.0, le=100.0, description="Evidence accuracy score"
+    )
+    timeliness_score: float = Field(
+        ..., ge=0.0, le=100.0, description="Evidence timeliness score"
+    )
+    relevance_score: float = Field(
+        ..., ge=0.0, le=100.0, description="Evidence relevance score"
+    )
+    integrity_verified: bool = Field(
+        ..., description="Evidence integrity verification status"
+    )
+    source_reliability: float = Field(
+        ..., ge=0.0, le=100.0, description="Source reliability score"
+    )
+    automated_collection_rate: float = Field(
+        ..., ge=0.0, le=100.0, description="Automated collection rate"
+    )
+    manual_review_required: bool = Field(
+        default=False, description="Manual review requirement"
+    )
+    retention_compliance: bool = Field(
+        default=True, description="Retention policy compliance"
+    )
+    access_control_verified: bool = Field(
+        default=True, description="Access control verification"
+    )
+
+
+class SystemDataMetrics(BaseModel):
+    """System data and performance metrics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    cpu_usage_percent: float = Field(
+        ..., ge=0.0, le=100.0, description="CPU usage percentage"
+    )
+    memory_usage_mb: float = Field(
+        ..., ge=0.0, description="Memory usage in MB"
+    )
+    disk_usage_percent: float = Field(
+        ..., ge=0.0, le=100.0, description="Disk usage percentage"
+    )
+    network_throughput_mbps: float = Field(
+        ..., ge=0.0, description="Network throughput in Mbps"
+    )
+    active_connections: int = Field(
+        ..., ge=0, description="Active connections count"
+    )
+    error_rate_percent: float = Field(
+        ..., ge=0.0, le=100.0, description="Error rate percentage"
+    )
+    response_time_ms: float = Field(
+        ..., ge=0.0, description="Average response time in ms"
+    )
+    uptime_percent: float = Field(
+        ..., ge=0.0, le=100.0, description="System uptime percentage"
+    )
+    security_events_count: int = Field(
+        ..., ge=0, description="Security events count"
+    )
+    backup_status: str = Field(
+        ..., min_length=1, max_length=20, description="Backup status"
+    )
+    last_backup_time: datetime = Field(
+        ..., description="Last backup timestamp"
+    )
+    sync_status: str = Field(
+        ..., min_length=1, max_length=20, description="Synchronization status"
+    )
+
+
 class Money(BaseModel):
     """Money value with currency."""
 

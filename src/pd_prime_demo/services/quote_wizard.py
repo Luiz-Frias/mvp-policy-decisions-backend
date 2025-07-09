@@ -264,7 +264,7 @@ class QuoteWizardService:
         # Clear validation errors and update state data
         updated_data = state.data.copy()
         updated_data.update(step_data)
-        
+
         # Mark step as completed if not already
         updated_completed_steps = state.completed_steps.copy()
         if state.current_step not in updated_completed_steps:
@@ -272,7 +272,7 @@ class QuoteWizardService:
 
         # Calculate completion
         completion_percentage = self._calculate_completion(state)
-        
+
         # Create updated state
         state = state.model_copy(update={
             'validation_errors': {},
@@ -816,7 +816,7 @@ class QuoteWizardService:
                             "reason": "Protects your vehicle in accidents",
                         },
                         {
-                            "type": "comprehensive", 
+                            "type": "comprehensive",
                             "reason": "Protects against theft, vandalism, weather",
                         },
                         {

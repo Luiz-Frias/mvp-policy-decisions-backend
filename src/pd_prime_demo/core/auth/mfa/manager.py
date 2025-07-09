@@ -259,7 +259,7 @@ class MFAManager:
                 # Check if phone is configured
                 if not config.sms_phone_encrypted:
                     return Err("SMS phone number not configured")
-                
+
                 # Send SMS code
                 sms_result = await self._sms_provider.send_verification_code(
                     str(user_id), config.sms_phone_encrypted, purpose="mfa"

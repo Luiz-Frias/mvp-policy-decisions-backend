@@ -102,6 +102,60 @@ class QueryPlanResponse(BaseModel):
     suggestions: list[str] = Field(..., description="Optimization suggestions")
 
 
+class DailyMetricItem(BaseModel):
+    """Individual daily metric item."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    date: str = Field(..., description="Date of metrics")
+    quotes_generated: int = Field(..., description="Number of quotes generated")
+    policies_created: int = Field(..., description="Number of policies created")
+    claims_processed: int = Field(..., description="Number of claims processed")
+    revenue: float = Field(..., description="Daily revenue")
+
+
+class UserActivityItem(BaseModel):
+    """Individual user activity item."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    user_id: str = Field(..., description="User identifier")
+    user_name: str = Field(..., description="User name")
+    activity_type: str = Field(..., description="Type of activity")
+    timestamp: str = Field(..., description="Activity timestamp")
+    details: str | None = Field(default=None, description="Additional activity details")
+
+
+class SystemHealthMetrics(BaseModel):
+    """System health metrics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    cpu_usage: float = Field(..., description="CPU usage percentage")
+    memory_usage: float = Field(..., description="Memory usage percentage")
+    disk_usage: float = Field(..., description="Disk usage percentage")
+    database_connections: int = Field(..., description="Active database connections")
+    response_time_avg: float = Field(..., description="Average response time in ms")
+
+
 class AdminMetricsResponse(BaseModel):
     """Admin dashboard metrics response."""
 
@@ -113,11 +167,11 @@ class AdminMetricsResponse(BaseModel):
         validate_default=True,
     )
 
-    daily_metrics: list[dict[str, Any]] = Field(
+    daily_metrics: list[DailyMetricItem] = Field(
         ..., description="Daily business metrics"
     )
-    user_activity: list[dict[str, Any]] = Field(..., description="Admin user activity")
-    system_health: dict[str, Any] = Field(..., description="System health metrics")
+    user_activity: list[UserActivityItem] = Field(..., description="Admin user activity")
+    system_health: SystemHealthMetrics = Field(..., description="System health metrics")
     cache_hit_rate: float = Field(..., description="Cache hit rate percentage")
 
 
@@ -183,7 +237,7 @@ async def get_slow_queries(
         )
         for sq in slow_queries
     ]
-    
+
     return slow_query_responses
 
 
@@ -202,11 +256,11 @@ async def analyze_query(
         return handle_result(Err(result.err_value or "Failed to analyze query"), response)
 
     plan = result.ok_value
-    
+
     # Type narrowing - plan should not be None if is_ok() is True
     if plan is None:
         return handle_result(Err("Internal server error: query plan is None"), response)
-    
+
     # Convert domain model to response model
     plan_response = QueryPlanResponse(
         query=plan.query,
@@ -216,7 +270,7 @@ async def analyze_query(
         rows_returned=plan.rows_returned,
         suggestions=plan.suggestions,
     )
-    
+
     return plan_response
 
 
@@ -255,11 +309,25 @@ async def get_index_suggestions(
         )
         for suggestion in suggestions
     ]
-    
+
     return suggestion_responses
 
 
-@router.get("/table-bloat")
+class TableBloatResponse(BaseModel):
+    """Response model for table bloat check."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    bloated_tables: list[dict[str, Any]] = Field(..., description="List of bloated tables")
+
+
+@router.get("/table-bloat", response_model=TableBloatResponse)
 @beartype
 async def check_table_bloat(
     response: Response,
@@ -267,7 +335,7 @@ async def check_table_bloat(
         20.0, ge=5.0, le=50.0, description="Bloat threshold percentage"
     ),
     db: Database = Depends(get_db),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[TableBloatResponse, ErrorResponse]:
     """Check for table bloat that affects performance."""
     optimizer = QueryOptimizer(db)
     result = await optimizer.check_table_bloat(threshold_percent)
@@ -276,7 +344,7 @@ async def check_table_bloat(
         return handle_result(Err(result.err_value or "Failed to check table bloat"), response)
 
     # Return the formatted response
-    return {"bloated_tables": result.ok_value}
+    return TableBloatResponse(bloated_tables=result.ok_value or [])
 
 
 @router.get("/admin/metrics", response_model=AdminMetricsResponse)
@@ -299,23 +367,67 @@ async def get_admin_metrics(
     cache_hit_rate = 85.0 if use_cache else 0.0
 
     # Convert domain model to response model
-    metrics_response = AdminMetricsResponse(
-        daily_metrics=metrics.daily_metrics,
-        user_activity=metrics.user_activity,
-        system_health=metrics.system_health,
-        cache_hit_rate=cache_hit_rate,
+    daily_metrics_converted = [
+        DailyMetricItem(
+            date=item.get("date", ""),
+            quotes_generated=item.get("quotes_generated", 0),
+            policies_created=item.get("policies_created", 0),
+            claims_processed=item.get("claims_processed", 0),
+            revenue=item.get("revenue", 0.0)
+        )
+        for item in metrics.daily_metrics
+    ]
+    
+    user_activity_converted = [
+        UserActivityItem(
+            user_id=item.get("user_id", ""),
+            user_name=item.get("user_name", ""),
+            activity_type=item.get("activity_type", ""),
+            timestamp=item.get("timestamp", ""),
+            details=item.get("details")
+        )
+        for item in metrics.user_activity
+    ]
+    
+    system_health_converted = SystemHealthMetrics(
+        cpu_usage=metrics.system_health.get("cpu_usage", 0.0),
+        memory_usage=metrics.system_health.get("memory_usage", 0.0),
+        disk_usage=metrics.system_health.get("disk_usage", 0.0),
+        database_connections=metrics.system_health.get("database_connections", 0),
+        response_time_avg=metrics.system_health.get("response_time_avg", 0.0)
     )
     
+    metrics_response = AdminMetricsResponse(
+        daily_metrics=daily_metrics_converted,
+        user_activity=user_activity_converted,
+        system_health=system_health_converted,
+        cache_hit_rate=cache_hit_rate,
+    )
+
     return metrics_response
 
 
-@router.post("/admin/refresh-views")
+class AdminViewsRefreshResponse(BaseModel):
+    """Response model for admin views refresh."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    refreshed_views: list[str] = Field(..., description="List of refreshed views")
+
+
+@router.post("/admin/refresh-views", response_model=AdminViewsRefreshResponse)
 @beartype
 async def refresh_admin_views(
     response: Response,
     force: bool = Query(False, description="Force refresh all views"),
     db: Database = Depends(get_db),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[AdminViewsRefreshResponse, ErrorResponse]:
     """Refresh admin materialized views."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.refresh_materialized_views(force_refresh=force)
@@ -327,16 +439,16 @@ async def refresh_admin_views(
     refreshed_views = result.ok_value
     if refreshed_views is None:
         return handle_result(Err("Internal server error: refreshed views result is None"), response)
-    
-    return {"refreshed_views": refreshed_views}
+
+    return AdminViewsRefreshResponse(refreshed_views=refreshed_views)
 
 
-@router.post("/admin/optimize")
+@router.post("/admin/optimize", response_model=AdminOptimizationResponse)
 @beartype
 async def optimize_admin_queries(
     response: Response,
     db: Database = Depends(get_db)
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[AdminOptimizationResponse, ErrorResponse]:
     """Run admin query optimization routine."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.optimize_admin_queries()
@@ -348,16 +460,21 @@ async def optimize_admin_queries(
     optimization_result = result.ok_value
     if optimization_result is None:
         return handle_result(Err("Internal server error: optimization result is None"), response)
-    
-    return optimization_result
+
+    # Convert dict response to structured model
+    return AdminOptimizationResponse(
+        optimizations_applied=optimization_result.get("optimizations_applied", 0),
+        queries_optimized=optimization_result.get("queries_optimized", []),
+        performance_improvement=optimization_result.get("performance_improvement", 0.0)
+    )
 
 
-@router.get("/admin/performance")
+@router.get("/admin/performance", response_model=AdminPerformanceResponse)
 @beartype
 async def monitor_admin_performance(
     response: Response,
     db: Database = Depends(get_db)
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[AdminPerformanceResponse, ErrorResponse]:
     """Monitor admin-specific query performance."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.monitor_admin_query_performance()
@@ -369,42 +486,54 @@ async def monitor_admin_performance(
     performance_result = result.ok_value
     if performance_result is None:
         return handle_result(Err("Internal server error: performance result is None"), response)
-    
-    return performance_result
+
+    # Convert dict response to structured model
+    return AdminPerformanceResponse(
+        slow_queries=performance_result.get("slow_queries", []),
+        average_response_time=performance_result.get("average_response_time", 0.0),
+        total_queries=performance_result.get("total_queries", 0)
+    )
 
 
-@router.get("/pool-metrics/detailed")
+@router.get("/pool-metrics/detailed", response_model=DetailedPoolMetricsResponse)
 @beartype
-async def get_detailed_pool_metrics(db: Database = Depends(get_db)) -> dict[str, Any]:
+async def get_detailed_pool_metrics(db: Database = Depends(get_db)) -> DetailedPoolMetricsResponse:
     """Get detailed connection pool metrics with advanced monitoring."""
-    return await db.get_detailed_pool_metrics()
+    metrics = await db.get_detailed_pool_metrics()
+    return DetailedPoolMetricsResponse(
+        connection_stats=metrics.get("connection_stats", {}),
+        health_indicators=metrics.get("health_indicators", {}),
+        performance_metrics=metrics.get("performance_metrics", {})
+    )
 
 
-@router.get("/health/database")
+@router.get("/health/database", response_model=DatabaseHealthCheckResponse)
 @beartype
-async def database_health_check(db: Database = Depends(get_db)) -> dict[str, Any]:
+async def database_health_check(db: Database = Depends(get_db)) -> DatabaseHealthCheckResponse:
     """Comprehensive database health check."""
     health_result = await db.health_check()
 
     if health_result.is_err():
-        return {
-            "status": "unhealthy",
-            "error": health_result.err_value,
-            "details": {},
-        }
+        return DatabaseHealthCheckResponse(
+            status="unhealthy",
+            details={"error": health_result.err_value},
+            warnings=[]
+        )
 
     is_healthy = health_result.ok_value
     detailed_metrics = await db.get_detailed_pool_metrics()
 
-    return {
-        "status": (
-            "healthy"
-            if is_healthy and detailed_metrics["health_indicators"]["is_healthy"]
-            else "degraded"
-        ),
-        "details": detailed_metrics,
-        "warnings": detailed_metrics["health_indicators"]["warning_signs"],
-    }
+    status = (
+        "healthy"
+        if is_healthy and detailed_metrics["health_indicators"]["is_healthy"]
+        else "degraded"
+    )
+    
+    return DatabaseHealthCheckResponse(
+        status=status,
+        details=detailed_metrics,
+        warnings=detailed_metrics["health_indicators"]["warning_signs"]
+    )
 
 
 # Performance Monitoring Endpoints
@@ -431,6 +560,128 @@ class PerformanceMetricsResponse(BaseModel):
     success_rate: float = Field(..., description="Success rate (0.0 to 1.0)")
     requests_per_second: float = Field(..., description="Current RPS")
     meets_100ms_requirement: bool = Field(..., description="Meets <100ms requirement")
+
+
+class AdminOptimizationResponse(BaseModel):
+    """Response model for admin query optimization."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    optimizations_applied: int = Field(..., description="Number of optimizations applied")
+    queries_optimized: list[str] = Field(..., description="List of optimized queries")
+    performance_improvement: float = Field(..., description="Performance improvement percentage")
+
+
+class AdminPerformanceResponse(BaseModel):
+    """Response model for admin performance monitoring."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    slow_queries: list[str] = Field(..., description="List of slow queries")
+    average_response_time: float = Field(..., description="Average response time in ms")
+    total_queries: int = Field(..., description="Total number of queries")
+
+
+class DetailedPoolMetricsResponse(BaseModel):
+    """Response model for detailed pool metrics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    connection_stats: dict[str, Any] = Field(..., description="Connection statistics")
+    health_indicators: dict[str, Any] = Field(..., description="Health indicators")
+    performance_metrics: dict[str, Any] = Field(..., description="Performance metrics")
+
+
+class DatabaseHealthCheckResponse(BaseModel):
+    """Response model for database health check."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    status: str = Field(..., description="Health status (healthy/degraded/unhealthy)")
+    details: dict[str, Any] = Field(..., description="Detailed health metrics")
+    warnings: list[str] = Field(..., description="Warning messages")
+
+
+class PerformanceAlertsResponse(BaseModel):
+    """Response model for performance alerts."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    total_alerts: int = Field(..., description="Total number of alerts")
+    critical_alerts: list[str] = Field(..., description="Critical alerts")
+    warning_alerts: list[str] = Field(..., description="Warning alerts")
+    status: str = Field(..., description="Overall alert status")
+    timestamp: float = Field(..., description="Alert timestamp")
+
+
+class PerformanceResetResponse(BaseModel):
+    """Response model for performance metrics reset."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    status: str = Field(..., description="Reset status")
+    message: str = Field(..., description="Reset confirmation message")
+    timestamp: float = Field(..., description="Reset timestamp")
+
+
+class PerformanceSummaryResponse(BaseModel):
+    """Response model for performance summary."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    status: str = Field(..., description="Overall performance status")
+    performance_grade: str = Field(..., description="Performance grade (A-F)")
+    operations_tracked: int = Field(..., description="Number of operations tracked")
+    operations_meeting_100ms: str = Field(..., description="Operations meeting 100ms requirement")
+    operations_meeting_50ms: str = Field(..., description="Operations meeting 50ms requirement")
+    overall_error_rate: str = Field(..., description="Overall error rate")
+    overall_avg_latency_ms: str = Field(..., description="Overall average latency")
+    overall_p99_latency_ms: str = Field(..., description="Overall P99 latency")
+    active_alerts: int = Field(..., description="Number of active alerts")
+    production_ready: bool = Field(..., description="Whether system is production ready")
+    recommendations: list[str] = Field(..., description="Performance recommendations")
 
 
 @router.get(
@@ -475,7 +726,7 @@ async def get_operation_metrics(
         return handle_result(Err(result.err_value or "Failed to get operation metrics"), response)
 
     metrics = result.unwrap()  # Safe to unwrap after checking is_err()
-    
+
     # Convert domain model to response model
     metrics_response = PerformanceMetricsResponse(
         operation=metrics.operation,
@@ -489,13 +740,13 @@ async def get_operation_metrics(
         requests_per_second=metrics.requests_per_second,
         meets_100ms_requirement=metrics.p99_duration_ms < 100.0,
     )
-    
+
     return metrics_response
 
 
-@router.get("/performance/alerts")
+@router.get("/performance/alerts", response_model=PerformanceAlertsResponse)
 @beartype
-async def get_performance_alerts() -> dict[str, Any]:
+async def get_performance_alerts() -> PerformanceAlertsResponse:
     """Get current performance alerts and warnings."""
     collector = get_performance_collector()
     alerts = await collector.check_performance_alerts()
@@ -508,47 +759,57 @@ async def get_performance_alerts() -> dict[str, Any]:
     ]
     warning_alerts = [alert for alert in alerts if alert not in critical_alerts]
 
-    return {
-        "total_alerts": len(alerts),
-        "critical_alerts": critical_alerts,
-        "warning_alerts": warning_alerts,
-        "status": (
-            "critical"
-            if critical_alerts
-            else ("warning" if warning_alerts else "healthy")
-        ),
-        "timestamp": time.time(),
-    }
+    status = (
+        "critical"
+        if critical_alerts
+        else ("warning" if warning_alerts else "healthy")
+    )
+    
+    return PerformanceAlertsResponse(
+        total_alerts=len(alerts),
+        critical_alerts=critical_alerts,
+        warning_alerts=warning_alerts,
+        status=status,
+        timestamp=time.time()
+    )
 
 
-@router.post("/performance/reset")
+@router.post("/performance/reset", response_model=PerformanceResetResponse)
 @beartype
-async def reset_performance_metrics() -> dict[str, Any]:
+async def reset_performance_metrics() -> PerformanceResetResponse:
     """Reset all performance metrics (for testing/development)."""
     collector = get_performance_collector()
     await collector.reset_metrics()
 
-    return {
-        "status": "success",
-        "message": "Performance metrics reset successfully",
-        "timestamp": time.time(),
-    }
+    return PerformanceResetResponse(
+        status="success",
+        message="Performance metrics reset successfully",
+        timestamp=time.time()
+    )
 
 
-@router.get("/performance/summary")
+@router.get("/performance/summary", response_model=PerformanceSummaryResponse)
 @beartype
-async def get_performance_summary() -> dict[str, Any]:
+async def get_performance_summary() -> PerformanceSummaryResponse:
     """Get a summary of overall system performance."""
     collector = get_performance_collector()
     all_metrics = await collector.get_all_metrics()
     alerts = await collector.check_performance_alerts()
 
     if not all_metrics:
-        return {
-            "status": "no_data",
-            "message": "No performance data available yet",
-            "operations_tracked": 0,
-        }
+        return PerformanceSummaryResponse(
+            status="no_data",
+            performance_grade="N/A",
+            operations_tracked=0,
+            operations_meeting_100ms="0/0",
+            operations_meeting_50ms="0/0",
+            overall_error_rate="N/A",
+            overall_avg_latency_ms="N/A",
+            overall_p99_latency_ms="N/A",
+            active_alerts=0,
+            production_ready=False,
+            recommendations=["No performance data available yet"]
+        )
 
     # Calculate overall statistics
     total_operations = len(all_metrics)
@@ -578,20 +839,19 @@ async def get_performance_summary() -> dict[str, Any]:
         grade = "F"
         status = "critical"
 
-    return {
-        "status": status,
-        "performance_grade": grade,
-        "operations_tracked": total_operations,
-        "operations_meeting_100ms": f"{operations_meeting_100ms}/{total_operations}",
-        "operations_meeting_50ms": f"{operations_meeting_50ms}/{total_operations}",
-        "overall_error_rate": f"{overall_error_rate:.2%}",
-        "overall_avg_latency_ms": f"{overall_avg_latency:.1f}",
-        "overall_p99_latency_ms": f"{overall_p99_latency:.1f}",
-        "active_alerts": len(alerts),
-        "production_ready": operations_meeting_100ms == total_operations
-        and overall_error_rate < 0.01,
-        "recommendations": _get_performance_recommendations(all_metrics, alerts),
-    }
+    return PerformanceSummaryResponse(
+        status=status,
+        performance_grade=grade,
+        operations_tracked=total_operations,
+        operations_meeting_100ms=f"{operations_meeting_100ms}/{total_operations}",
+        operations_meeting_50ms=f"{operations_meeting_50ms}/{total_operations}",
+        overall_error_rate=f"{overall_error_rate:.2%}",
+        overall_avg_latency_ms=f"{overall_avg_latency:.1f}",
+        overall_p99_latency_ms=f"{overall_p99_latency:.1f}",
+        active_alerts=len(alerts),
+        production_ready=operations_meeting_100ms == total_operations and overall_error_rate < 0.01,
+        recommendations=_get_performance_recommendations(all_metrics, alerts)
+    )
 
 
 def _get_performance_recommendations(

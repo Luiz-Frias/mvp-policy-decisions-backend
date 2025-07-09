@@ -142,7 +142,7 @@ async def create_rate_table_version(
         error_msg = result.unwrap_err()
         response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     response.status_code = 201
     return result.unwrap()
 
@@ -239,7 +239,7 @@ async def compare_rate_versions(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -305,7 +305,7 @@ async def get_rate_analytics(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -332,7 +332,7 @@ async def get_pending_approvals(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -435,7 +435,7 @@ async def get_active_rates(
 
     # Convert Decimal values to float for JSON serialization
     rates_data = result.unwrap()
-    
+
     rates = {}
     for coverage_type, rate_value in rates_data.items():
         rates[coverage_type] = float(rate_value)

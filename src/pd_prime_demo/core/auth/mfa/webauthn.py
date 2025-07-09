@@ -130,7 +130,7 @@ class WebAuthnProvider:
         self._timeout = 60000  # 60 seconds
         self._user_verification: "UserVerificationRequirement" = "preferred"  # type: ignore[assignment]
         self._attestation: "AttestationConveyancePreference" = "none"  # type: ignore[assignment]
-        
+
         # Challenge storage - in production, use Redis with proper TTL
         self._challenge_store: dict[str, dict[str, str]] = {}
 
@@ -197,7 +197,7 @@ class WebAuthnProvider:
                 exclude_credentials=exclude_list,
                 authenticator_selection={  # type: ignore[arg-type]
                     "user_verification": self._user_verification,
-                    "authenticator_attachment": "cross-platform", 
+                    "authenticator_attachment": "cross-platform",
                     "require_resident_key": False,
                 },
                 attestation=self._attestation,
@@ -417,7 +417,7 @@ class WebAuthnProvider:
         # Simple in-memory storage for demo - production should use Redis
         key = f"{user_id}:{operation}"
         from datetime import datetime, timedelta
-        
+
         # Store with expiration time
         self._challenge_store[key] = {
             "challenge": challenge,
@@ -433,10 +433,10 @@ class WebAuthnProvider:
         # Simple in-memory retrieval for demo - production should use Redis
         key = f"{user_id}:{operation}"
         stored = self._challenge_store.get(key)
-        
+
         if not stored:
             return None
-            
+
         # Check if expired
         from datetime import datetime
         try:
@@ -449,7 +449,7 @@ class WebAuthnProvider:
             # Invalid expiration data, remove
             del self._challenge_store[key]
             return None
-            
+
         return stored["challenge"]
 
     @beartype

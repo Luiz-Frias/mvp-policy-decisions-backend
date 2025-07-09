@@ -163,7 +163,7 @@ async def create_oauth2_client(
         error_msg = result.unwrap_err()
         response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     response.status_code = 201
     return result.unwrap()
 
@@ -205,7 +205,7 @@ async def list_oauth2_clients(
         error_msg = result.unwrap_err()
         response.status_code = 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -236,7 +236,7 @@ async def get_oauth2_client(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -365,7 +365,7 @@ async def get_client_analytics(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
@@ -480,7 +480,7 @@ async def upload_client_certificate(
         error_msg = result.unwrap_err()
         response.status_code = 400 if "invalid" in error_msg.lower() else 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     response.status_code = 201
     return result.unwrap()
 
@@ -530,7 +530,7 @@ async def list_client_certificates(
         error_msg = result.unwrap_err()
         response.status_code = 404 if "not found" in error_msg.lower() else 500
         return ErrorResponse(error=error_msg)
-    
+
     return result.unwrap()
 
 
