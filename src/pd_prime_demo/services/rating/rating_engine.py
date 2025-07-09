@@ -120,7 +120,7 @@ class RatingEngine:
                     state, effective_date, coverage_selections
                 ),
                 "territory_factor": self._get_territory_factor(
-                    state, drivers[0].zip_code
+                    state, vehicle_info.garage_zip
                 ),
                 "driver_factors": self._calculate_driver_factors(drivers, state),
                 "vehicle_factor": self._calculate_vehicle_factor(vehicle_info),
@@ -143,9 +143,13 @@ class RatingEngine:
                 return base_premium_result
 
             base_premiums = base_premium_result.unwrap()
+            if base_premiums is None:
+                return Err("Base premium calculation returned None")
             total_base_premium = sum(base_premiums.values())
 
             # Apply state-specific factor validation
+            if state_rules is None:
+                return Err("State rules not found")
             validated_factors = state_rules.validate_factors(factors)
 
             # Apply all rating factors
@@ -256,8 +260,8 @@ class RatingEngine:
                 ),
                 "final_premium": float(final_premium),
                 "factors": {k: float(v) for k, v in validated_factors.items()},
-                "factor_impacts": {k: float(v) for k, v in factor_impacts.items()},
-                "coverage_premiums": {k: float(v) for k, v in base_premiums.items()},
+                "factor_impacts": {k: float(v) for k, v in (factor_impacts.items() if isinstance(factor_impacts, dict) else [])},
+                "coverage_premiums": {k: float(v) for k, v in (base_premiums.items() if base_premiums else [])},
                 "ai_risk_score": ai_risk_score,
                 "business_rule_validation": business_rule_report,
                 "performance_metrics": {
@@ -299,7 +303,7 @@ class RatingEngine:
             coverage_type = coverage.coverage_type.value
 
             # Get base rate from rate tables
-            rate_result = await self._rate_table_service.get_base_rate(
+            rate_result = await self._rate_table_service.get_active_rates(
                 state, coverage_type, effective_date
             )
 

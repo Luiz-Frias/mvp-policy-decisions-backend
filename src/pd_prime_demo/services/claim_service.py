@@ -325,7 +325,7 @@ class ClaimService:
 
         existing = existing_result.unwrap()
         if not existing:
-            return Ok(False)
+            return Err("Claim not found")
 
         if existing.status != "DRAFT":
             return Err("Can only delete claims in DRAFT status")
@@ -339,7 +339,7 @@ class ClaimService:
             # Invalidate cache
             await self._cache.delete(CacheKeys.claim_by_id(claim_id))
 
-        return Ok(deleted)
+        return Ok(None)
 
     @beartype
     async def _validate_claim_data(

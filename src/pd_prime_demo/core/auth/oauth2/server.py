@@ -191,34 +191,28 @@ class OAuth2Server:
             # Validate client
             client = await self._get_client(client_id)
             if not client:
-                return Err(OAuth2Error("invalid_client", "Client not found"))
+                return Err("invalid_client: Client not found")
 
             # Validate response type
             if response_type not in self._supported_response_types:
-                return Err(OAuth2Error("unsupported_response_type"))
+                return Err("unsupported_response_type")
 
             # Validate redirect URI
             if redirect_uri not in client["redirect_uris"]:
-                return Err(OAuth2Error("invalid_request", "Invalid redirect_uri"))
+                return Err("invalid_request: Invalid redirect_uri")
 
             # Validate scope - EXPLICIT validation, no defaults
             if not scope:
                 return Err(
-                    OAuth2Error(
-                        "invalid_request",
-                        "OAuth2 error: scope parameter is required. "
-                        "Required action: Include 'scope' in authorization request.",
-                    )
+                    "invalid_request: OAuth2 error: scope parameter is required. "
+                    "Required action: Include 'scope' in authorization request."
                 )
 
             requested_scopes = scope.split()
             if not requested_scopes:
                 return Err(
-                    OAuth2Error(
-                        "invalid_scope",
-                        "OAuth2 error: at least one scope must be specified. "
-                        "Required action: Include valid scopes in the request.",
-                    )
+                    "invalid_scope: OAuth2 error: at least one scope must be specified. "
+                    "Required action: Include valid scopes in the request."
                 )
 
             # Validate all requested scopes are allowed for this client
@@ -227,16 +221,13 @@ class OAuth2Server:
                     s for s in requested_scopes if s not in client["allowed_scopes"]
                 ]
                 return Err(
-                    OAuth2Error(
-                        "invalid_scope",
-                        f"Client not authorized for scopes: {', '.join(invalid_scopes)}. "
-                        f"Allowed scopes: {', '.join(client['allowed_scopes'])}",
-                    )
+                    f"invalid_scope: Client not authorized for scopes: {', '.join(invalid_scopes)}. "
+                    f"Allowed scopes: {', '.join(client['allowed_scopes'])}"
                 )
 
             # Require user authentication for authorization code flow
             if response_type == "code" and not user_id:
-                return Err(OAuth2Error("access_denied", "User authentication required"))
+                return Err("access_denied: User authentication required")
 
             # Generate authorization code
             if response_type == "code":
@@ -260,10 +251,7 @@ class OAuth2Server:
             elif response_type == "token":
                 if client["client_type"] != "public":
                     return Err(
-                        OAuth2Error(
-                            "unauthorized_client",
-                            "Implicit flow not allowed for confidential clients",
-                        )
+                        "unauthorized_client: Implicit flow not allowed for confidential clients"
                     )
 
                 tokens = await self._generate_tokens(
@@ -283,9 +271,9 @@ class OAuth2Server:
                 )
 
         except OAuth2Error as e:
-            return Err(e)
+            return Err(f"{e.error}: {e.error_description or e.error}")
         except Exception as e:
-            return Err(OAuth2Error("server_error", str(e)))
+            return Err(f"server_error: {str(e)}")
 
     @beartype
     async def token(
@@ -321,12 +309,12 @@ class OAuth2Server:
         try:
             # Validate grant type
             if grant_type not in self._supported_grant_types:
-                return Err(OAuth2Error("unsupported_grant_type"))
+                return Err("unsupported_grant_type")
 
             # Authenticate client (except for public clients using authorization_code)
             client = await self._authenticate_client(client_id, client_secret)
             if not client and grant_type != "authorization_code":
-                return Err(OAuth2Error("invalid_client"))
+                return Err("invalid_client")
 
             # Handle different grant types
             if grant_type == "authorization_code":
@@ -348,12 +336,12 @@ class OAuth2Server:
                 )
 
             else:
-                return Err(OAuth2Error("unsupported_grant_type"))
+                return Err("unsupported_grant_type")
 
         except OAuth2Error as e:
-            return Err(e)
+            return Err(f"{e.error}: {e.error_description or e.error}")
         except Exception as e:
-            return Err(OAuth2Error("server_error", str(e)))
+            return Err(f"server_error: {str(e)}")
 
     @beartype
     async def introspect(
@@ -637,30 +625,30 @@ class OAuth2Server:
     ) -> Result[dict[str, Any], str]:
         """Handle authorization code grant type with enhanced PKCE validation."""
         if not code:
-            return Err(OAuth2Error("invalid_request", "Missing authorization code"))
+            return Err("invalid_request: Missing authorization code")
 
         if not redirect_uri:
-            return Err(OAuth2Error("invalid_request", "Missing redirect_uri"))
+            return Err("invalid_request: Missing redirect_uri")
 
         if not client_id:
-            return Err(OAuth2Error("invalid_request", "Missing client_id"))
+            return Err("invalid_request: Missing client_id")
 
         # Retrieve code details
         code_data = await self._cache.get(f"auth_code:{code}")
         if not code_data:
             return Err(
-                OAuth2Error("invalid_grant", "Invalid or expired authorization code")
+                "invalid_grant: Invalid or expired authorization code"
             )
 
         # Validate client
         if code_data["client_id"] != client_id:
             return Err(
-                OAuth2Error("invalid_grant", "Code was issued to a different client")
+                "invalid_grant: Code was issued to a different client"
             )
 
         # Validate redirect URI
         if code_data["redirect_uri"] != redirect_uri:
-            return Err(OAuth2Error("invalid_grant", "Redirect URI mismatch"))
+            return Err("invalid_grant: Redirect URI mismatch")
 
         # Enhanced PKCE validation per 2024 best practices
         code_challenge = code_data.get("code_challenge")
@@ -668,7 +656,7 @@ class OAuth2Server:
             # PKCE is mandatory when challenge was provided
             if not code_verifier:
                 return Err(
-                    OAuth2Error("invalid_request", "Code verifier required for PKCE")
+                    "invalid_request: Code verifier required for PKCE"
                 )
 
             challenge_method = code_data.get("code_challenge_method", "plain")
@@ -684,34 +672,24 @@ class OAuth2Server:
 
                 if computed_challenge != code_challenge:
                     return Err(
-                        OAuth2Error(
-                            "invalid_grant", "PKCE code verifier validation failed"
-                        )
+                        "invalid_grant: PKCE code verifier validation failed"
                     )
 
             elif challenge_method == "plain":
                 # Plain method: verifier must match challenge exactly
                 if code_verifier != code_challenge:
                     return Err(
-                        OAuth2Error(
-                            "invalid_grant", "PKCE code verifier validation failed"
-                        )
+                        "invalid_grant: PKCE code verifier validation failed"
                     )
             else:
                 return Err(
-                    OAuth2Error(
-                        "invalid_request",
-                        f"Unsupported PKCE challenge method: {challenge_method}",
-                    )
+                    f"invalid_request: Unsupported PKCE challenge method: {challenge_method}"
                 )
 
         # Check if code verifier provided but no challenge (PKCE downgrade attack prevention)
         elif code_verifier:
             return Err(
-                OAuth2Error(
-                    "invalid_request",
-                    "Code verifier provided but no PKCE challenge was used",
-                )
+                "invalid_request: Code verifier provided but no PKCE challenge was used"
             )
 
         # Delete code to prevent reuse (one-time use enforcement)
@@ -749,7 +727,7 @@ class OAuth2Server:
     ) -> Result[dict[str, Any], str]:
         """Handle refresh token grant type."""
         if not refresh_token:
-            return Err(OAuth2Error("invalid_request", "Missing refresh token"))
+            return Err("invalid_request: Missing refresh token")
 
         # Hash token for lookup
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -765,16 +743,16 @@ class OAuth2Server:
         )
 
         if not row:
-            return Err(OAuth2Error("invalid_grant", "Invalid refresh token"))
+            return Err("invalid_grant: Invalid refresh token")
 
         # Check expiration
         if row["expires_at"] < datetime.now(timezone.utc):
-            return Err(OAuth2Error("invalid_grant", "Refresh token has expired"))
+            return Err("invalid_grant: Refresh token has expired")
 
         # Validate client
         if row["client_id"] != client["client_id"]:
             return Err(
-                OAuth2Error("invalid_grant", "Token was issued to a different client")
+                "invalid_grant: Token was issued to a different client"
             )
 
         # Handle scope narrowing
@@ -785,9 +763,7 @@ class OAuth2Server:
             # Ensure requested scopes are subset of original
             if not all(s in original_scopes for s in requested_scopes):
                 return Err(
-                    OAuth2Error(
-                        "invalid_scope", "Cannot request scopes not in original grant"
-                    )
+                    "invalid_scope: Cannot request scopes not in original grant"
                 )
 
             scopes = requested_scopes
@@ -833,19 +809,14 @@ class OAuth2Server:
         # Validate grant type is allowed
         if "client_credentials" not in client["allowed_grant_types"]:
             return Err(
-                OAuth2Error(
-                    "unauthorized_client", "Client not authorized for this grant type"
-                )
+                "unauthorized_client: Client not authorized for this grant type"
             )
 
         # Validate scope
         if not scope:
             return Err(
-                OAuth2Error(
-                    "invalid_request",
-                    "OAuth2 error: scope parameter is required for client_credentials grant. "
-                    "Required action: Include 'scope' in token request.",
-                )
+                "invalid_request: OAuth2 error: scope parameter is required for client_credentials grant. "
+                "Required action: Include 'scope' in token request."
             )
 
         requested_scopes = scope.split()
@@ -854,10 +825,7 @@ class OAuth2Server:
                 s for s in requested_scopes if s not in client["allowed_scopes"]
             ]
             return Err(
-                OAuth2Error(
-                    "invalid_scope",
-                    f"Client not authorized for scopes: {', '.join(invalid_scopes)}",
-                )
+                f"invalid_scope: Client not authorized for scopes: {', '.join(invalid_scopes)}"
             )
 
         # Generate tokens (no user_id for client credentials)
@@ -889,34 +857,29 @@ class OAuth2Server:
         # This grant type should only be used by highly trusted clients
         if "password" not in client["allowed_grant_types"]:
             return Err(
-                OAuth2Error(
-                    "unauthorized_client", "Client not authorized for password grant"
-                )
+                "unauthorized_client: Client not authorized for password grant"
             )
 
         if not username or not password:
-            return Err(OAuth2Error("invalid_request", "Username and password required"))
+            return Err("invalid_request: Username and password required")
 
         # Authenticate user (delegate to user service)
         # This is a placeholder - actual implementation would verify credentials
         user_id = await self._authenticate_user(username, password)
         if not user_id:
-            return Err(OAuth2Error("invalid_grant", "Invalid username or password"))
+            return Err("invalid_grant: Invalid username or password")
 
         # Handle scopes
         if scope:
             requested_scopes = scope.split()
             if not all(s in client["allowed_scopes"] for s in requested_scopes):
-                return Err(OAuth2Error("invalid_scope"))
+                return Err("invalid_scope")
             scopes = requested_scopes
         else:
             # No default scopes - must be explicit
             return Err(
-                OAuth2Error(
-                    "invalid_request",
-                    "OAuth2 error: scope parameter is required. "
-                    "Required action: Include 'scope' in token request.",
-                )
+                "invalid_request: OAuth2 error: scope parameter is required. "
+                "Required action: Include 'scope' in token request."
             )
 
         # Generate tokens

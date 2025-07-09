@@ -216,25 +216,62 @@ class PremiumCalculator:
         age_risk = 0.0
         if age < 25:
             age_risk = 0.3 * (25 - age) / 5  # Linear increase for young
-            risk_factors.append(f"Young driver (age {age})")
+            risk_factors.append(
+                RiskFactor(
+                    factor_type="age",
+                    severity="medium" if age >= 20 else "high",
+                    impact_score=min(age_risk, 1.0),
+                    description=f"Young driver (age {age})"
+                )
+            )
         elif age > 70:
             age_risk = 0.2 * (age - 70) / 10  # Linear increase for senior
-            risk_factors.append(f"Senior driver (age {age})")
+            risk_factors.append(
+                RiskFactor(
+                    factor_type="age",
+                    severity="medium" if age <= 75 else "high",
+                    impact_score=min(age_risk, 1.0),
+                    description=f"Senior driver (age {age})"
+                )
+            )
 
         # Experience curve (exponential decay)
         exp_risk = 0.3 * math.exp(-experience / 5)
         if experience < 3:
-            risk_factors.append(f"New driver ({experience} years)")
+            risk_factors.append(
+                RiskFactor(
+                    factor_type="experience",
+                    severity="high" if experience < 1 else "medium",
+                    impact_score=min(exp_risk, 1.0),
+                    description=f"New driver ({experience} years)"
+                )
+            )
 
         # Violation risk (linear)
         viol_risk = 0.15 * violations
         if violations > 0:
-            risk_factors.append(f"{violations} violations")
+            severity = "low" if violations == 1 else "medium" if violations <= 3 else "high"
+            risk_factors.append(
+                RiskFactor(
+                    factor_type="violations",
+                    severity=severity,
+                    impact_score=min(viol_risk, 1.0),
+                    description=f"{violations} violations"
+                )
+            )
 
         # Accident risk (exponential)
         acc_risk = 0.25 * (math.exp(min(accidents, 5)) - 1)
         if accidents > 0:
-            risk_factors.append(f"{accidents} accidents")
+            severity = "low" if accidents == 1 else "medium" if accidents <= 2 else "high"
+            risk_factors.append(
+                RiskFactor(
+                    factor_type="accidents",
+                    severity=severity,
+                    impact_score=min(acc_risk, 1.0),
+                    description=f"{accidents} accidents"
+                )
+            )
 
         # Combine risks (weighted sum)
         total_risk = age_risk + exp_risk + viol_risk + acc_risk
@@ -368,7 +405,7 @@ class DiscountCalculator:
             applicable_discounts, key=lambda d: d.get("priority", 100)
         )
 
-        applied_discounts = []
+        applied_discounts: list[Discount] = []
         remaining_premium = base_premium
         total_discount_amount = Decimal("0")
 
@@ -386,14 +423,18 @@ class DiscountCalculator:
                     discount_amount = (
                         base_premium * max_total_discount - total_discount_amount
                     )
-                    discount["applied_rate"] = float(
-                        discount_amount / remaining_premium
-                    )
+                    applied_rate = float(discount_amount / remaining_premium)
                 else:
-                    discount["applied_rate"] = discount["rate"]
+                    applied_rate = discount["rate"]
 
-                discount["amount"] = discount_amount.quantize(Decimal("0.01"))
-                applied_discounts.append(discount)
+                discount_obj = Discount(
+                    rate=discount["rate"],
+                    amount=discount_amount.quantize(Decimal("0.01")),
+                    applied_rate=applied_rate,
+                    stackable=discount.get("stackable", True),
+                    priority=discount.get("priority", 1)
+                )
+                applied_discounts.append(discount_obj)
 
                 total_discount_amount += discount_amount
                 remaining_premium -= discount_amount
@@ -408,9 +449,14 @@ class DiscountCalculator:
 
                 # Only apply if it's better than current total
                 if discount_amount > total_discount_amount:
-                    applied_discounts = [discount]
-                    discount["amount"] = discount_amount.quantize(Decimal("0.01"))
-                    discount["applied_rate"] = discount["rate"]
+                    discount_obj = Discount(
+                        rate=discount["rate"],
+                        amount=discount_amount.quantize(Decimal("0.01")),
+                        applied_rate=discount["rate"],
+                        stackable=discount.get("stackable", True),
+                        priority=discount.get("priority", 1)
+                    )
+                    applied_discounts = [discount_obj]
                     total_discount_amount = discount_amount
 
         return Ok(

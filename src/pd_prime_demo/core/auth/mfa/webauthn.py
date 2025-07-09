@@ -108,6 +108,9 @@ class WebAuthnProvider:
         self._timeout = 60000  # 60 seconds
         self._user_verification = "preferred"
         self._attestation = "none"  # We don't need attestation for most use cases
+        
+        # Challenge storage - in production, use Redis with proper TTL
+        self._challenge_store: dict[str, dict[str, str]] = {}
 
     @beartype
     def _get_rp_id(self) -> str:
@@ -198,7 +201,7 @@ class WebAuthnProvider:
                 "timeout": options.timeout,
                 "excludeCredentials": [
                     {"type": cred.type, "id": bytes_to_base64url(cred.id)}
-                    for cred in options.exclude_credentials
+                    for cred in (options.exclude_credentials or [])
                 ],
                 "authenticatorSelection": options.authenticator_selection,
                 "attestation": options.attestation,
@@ -242,7 +245,7 @@ class WebAuthnProvider:
                 require_user_verification=self._user_verification == "required",
             )
 
-            if not verification.verified:
+            if not verification.user_verified:  # type: ignore[attr-defined]
                 return Err("Registration verification failed")
 
             # Extract credential data
@@ -310,7 +313,7 @@ class WebAuthnProvider:
                 "rpId": options.rp_id,
                 "allowCredentials": [
                     {"type": cred.type, "id": bytes_to_base64url(cred.id)}
-                    for cred in options.allow_credentials
+                    for cred in (options.allow_credentials or [])
                 ],
                 "userVerification": options.user_verification,
             }
@@ -361,7 +364,7 @@ class WebAuthnProvider:
                 require_user_verification=self._user_verification == "required",
             )
 
-            if not verification.verified:
+            if not verification.user_verified:  # type: ignore[attr-defined]
                 return Err("Authentication verification failed")
 
             # Update counter to prevent replay attacks
@@ -393,9 +396,15 @@ class WebAuthnProvider:
 
         In production, this should use Redis or similar with TTL.
         """
-        # TODO: Implement proper challenge storage
-        # For now, store in memory (not suitable for production)
-        pass
+        # Simple in-memory storage for demo - production should use Redis
+        key = f"{user_id}:{operation}"
+        from datetime import datetime, timedelta
+        
+        # Store with expiration time
+        self._challenge_store[key] = {
+            "challenge": challenge,
+            "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+        }
 
     @beartype
     def _get_stored_challenge(self, user_id: UUID, operation: str) -> str | None:
@@ -403,9 +412,27 @@ class WebAuthnProvider:
 
         In production, this should retrieve from Redis or similar.
         """
-        # TODO: Implement proper challenge retrieval
-        # For now, return a dummy challenge (not suitable for production)
-        return None
+        # Simple in-memory retrieval for demo - production should use Redis
+        key = f"{user_id}:{operation}"
+        stored = self._challenge_store.get(key)
+        
+        if not stored:
+            return None
+            
+        # Check if expired
+        from datetime import datetime
+        try:
+            expires_at = datetime.fromisoformat(stored["expires_at"])
+            if datetime.now() > expires_at:
+                # Clean up expired challenge
+                del self._challenge_store[key]
+                return None
+        except (ValueError, KeyError):
+            # Invalid expiration data, remove
+            del self._challenge_store[key]
+            return None
+            
+        return stored["challenge"]
 
     @beartype
     def _clear_challenge(self, user_id: UUID, operation: str) -> None:
@@ -413,5 +440,6 @@ class WebAuthnProvider:
 
         In production, this should remove from Redis or similar.
         """
-        # TODO: Implement proper challenge clearing
-        pass
+        # Simple in-memory clearing for demo - production should use Redis
+        key = f"{user_id}:{operation}"
+        self._challenge_store.pop(key, None)

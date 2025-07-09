@@ -230,7 +230,7 @@ async def setup_totp(
 
     # Check if TOTP already enabled
     config_result = await mfa_manager.get_user_mfa_config(user_id)
-    if config_result.is_ok() and config_result.ok_value.totp_enabled:
+    if config_result.is_ok() and config_result.ok_value is not None and config_result.ok_value.totp_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="TOTP already enabled for this account",
@@ -244,6 +244,13 @@ async def setup_totp(
         )
 
     setup_data = setup_result.ok_value
+    
+    # Type narrowing - setup_data should not be None if is_ok() is True
+    if setup_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error: setup data is None"
+        )
 
     return TOTPSetupResponse(
         qr_code=setup_data.qr_code,
@@ -399,6 +406,13 @@ async def create_mfa_challenge(
         )
 
     challenge = challenge_result.ok_value
+    
+    # Type narrowing - challenge should not be None if is_ok() is True
+    if challenge is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error: challenge is None"
+        )
 
     return MFAChallengeResponse(
         challenge_id=challenge.challenge_id,
@@ -431,6 +445,13 @@ async def verify_mfa_challenge(
         )
 
     result = verify_result.ok_value
+    
+    # Type narrowing - result should not be None if is_ok() is True
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error: verification result is None"
+        )
 
     if not result.success:
         raise HTTPException(
@@ -494,6 +515,13 @@ async def trust_device(
         )
 
     device_trust = trust_result.ok_value
+    
+    # Type narrowing - device_trust should not be None if is_ok() is True
+    if device_trust is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error: device trust is None"
+        )
 
     return {
         "device_id": str(device_trust.device_id),

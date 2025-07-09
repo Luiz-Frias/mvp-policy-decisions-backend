@@ -23,6 +23,7 @@ from ...compliance import (
     get_evidence_collector,
     get_testing_framework,
 )
+from ...core.result_types import Result, Ok, Err
 from ..dependencies import get_current_user
 
 router = APIRouter(prefix="/compliance", tags=["SOC 2 Compliance"])
@@ -145,6 +146,13 @@ async def get_compliance_overview(
             )
 
         metrics = metrics_result.ok_value
+        
+        # Type narrowing - metrics should not be None if is_ok() is True
+        if metrics is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: compliance metrics is None"
+            )
 
         # Get detailed scores by criteria
         criteria_scores = {
@@ -250,6 +258,13 @@ async def execute_control(
             )
 
         execution = execution_result.ok_value
+        
+        # Type narrowing - execution should not be None if is_ok() is True
+        if execution is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: control execution is None"
+            )
 
         return ControlExecutionResponse(
             execution_id=str(execution.execution_id),
@@ -286,6 +301,13 @@ async def get_control_status(
             )
 
         control_status = status_result.ok_value
+        
+        # Type narrowing - control_status should not be None if is_ok() is True
+        if control_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: control status is None"
+            )
 
         return {
             "control_id": control_id,
@@ -412,13 +434,13 @@ async def get_evidence_summary(
             period_start, period_end
         )
 
-        if summary_result.is_err():
+        if summary_result.is_err():  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get evidence summary: {summary_result.err_value}",
+                detail=f"Failed to get evidence summary: {summary_result.err_value}",  # type: ignore[attr-defined]
             )
 
-        return summary_result.ok_value
+        return summary_result.ok_value  # type: ignore[attr-defined]
 
     except HTTPException:
         raise
@@ -453,6 +475,13 @@ async def generate_compliance_report(
             )
 
         report = report_result.ok_value
+        
+        # Type narrowing - report should not be None if is_ok() is True
+        if report is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: compliance report is None"
+            )
 
         return {
             "report_id": str(report.report_id),
@@ -530,6 +559,13 @@ async def create_test_plan(
             )
 
         plan = plan_result.ok_value
+        
+        # Type narrowing - plan should not be None if is_ok() is True
+        if plan is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: test plan is None"
+            )
 
         return {
             "plan_id": str(plan.plan_id),
@@ -583,10 +619,17 @@ async def execute_all_controls(
             )
 
         executions = execution_result.ok_value
+        
+        # Type narrowing - executions should not be None if is_ok() is True
+        if executions is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: control executions result is None"
+            )
 
         # Summarize results
-        total_executions = len(executions) if executions else 0
-        successful_executions = sum(1 for exec in executions if exec.result) if executions else 0
+        total_executions = len(executions)
+        successful_executions = sum(1 for exec in executions if exec.result)
         failed_executions = total_executions - successful_executions
 
         return {
@@ -643,13 +686,13 @@ async def get_audit_trail(
             start_date=start_date, end_date=end_date, control_id=control_id, limit=limit
         )
 
-        if trail_result.is_err():
+        if trail_result.is_err():  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get audit trail: {trail_result.err_value}",
+                detail=f"Failed to get audit trail: {trail_result.err_value}",  # type: ignore[attr-defined]
             )
 
-        audit_records = trail_result.ok_value
+        audit_records = trail_result.ok_value  # type: ignore[attr-defined]
 
         return {
             "total_records": len(audit_records),

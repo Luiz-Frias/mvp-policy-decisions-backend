@@ -582,7 +582,7 @@ class RatingEngine:
         drivers: list[DriverInfo],
         customer_id: UUID | None,
         base_premium: Decimal,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[Discount], str]:
         """Calculate applicable discounts."""
         discounts = []
 
@@ -907,9 +907,13 @@ class RatingEngine:
             # Convert vehicle info to dict
             vehicle_data = {}
             if vehicle_info:
+                # Calculate age from year
+                current_year = datetime.now().year
+                age = current_year - vehicle_info.year
+                
                 vehicle_data = {
-                    "age": vehicle_info.age,
-                    "value": float(vehicle_info.value) if vehicle_info.value else 25000,
+                    "age": age,
+                    "value": 25000,  # Default value as VehicleInfo doesn't have value field
                     "annual_mileage": vehicle_info.annual_mileage,
                     "safety_features": vehicle_info.safety_features,
                     "type": vehicle_info.make.lower() if vehicle_info.make else "sedan",

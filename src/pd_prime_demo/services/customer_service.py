@@ -238,7 +238,7 @@ class CustomerService:
             # Invalidate cache
             await self._cache.delete(CacheKeys.customer_by_id(customer_id))
 
-        return Ok(deleted)
+        return Ok(None)
 
     @beartype
     @performance_monitor("get_customer_policies")

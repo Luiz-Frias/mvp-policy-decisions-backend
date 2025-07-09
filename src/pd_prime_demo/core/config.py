@@ -105,6 +105,11 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000"],
         description="Allowed CORS origins",
     )
+    api_url: str = Field(
+        default="http://localhost:8000",
+        description="API base URL",
+        min_length=1,
+    )
 
     # Security
     secret_key: str = Field(

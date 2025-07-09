@@ -1150,23 +1150,30 @@ class PrivacyControlManager:
 
         # Calculate privacy metrics
         total_controls = len(results)
-        passing_controls = sum(1 for r in results if r.is_ok() and r.unwrap().result)
+        passing_controls = sum(
+            1 for r in results 
+            if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
+        )
         privacy_score = (
             (passing_controls / total_controls) * 100 if total_controls > 0 else 0
         )
 
         # Get specific metrics
-        consent_evidence = (
-            consent_result.unwrap().evidence_collected if consent_result.is_ok() else {}
-        )
-        rights_evidence = (
-            rights_result.unwrap().evidence_collected if rights_result.is_ok() else {}
-        )
+        consent_evidence = {}
+        if consent_result.is_ok():
+            consent_unwrapped = consent_result.unwrap()
+            if consent_unwrapped is not None:
+                consent_evidence = consent_unwrapped.evidence_collected
+        rights_evidence = {}
+        if rights_result.is_ok():
+            rights_unwrapped = rights_result.unwrap()
+            if rights_unwrapped is not None:
+                rights_evidence = rights_unwrapped.evidence_collected
 
         return {
             "privacy_score": privacy_score,
-            "gdpr_compliant": gdpr_result.is_ok() and gdpr_result.unwrap().result,
-            "ccpa_compliant": ccpa_result.is_ok() and ccpa_result.unwrap().result,
+            "gdpr_compliant": gdpr_result.is_ok() and (gdpr_unwrapped := gdpr_result.unwrap()) is not None and gdpr_unwrapped.result,
+            "ccpa_compliant": ccpa_result.is_ok() and (ccpa_unwrapped := ccpa_result.unwrap()) is not None and ccpa_unwrapped.result,
             "consent_management_score": consent_evidence.get(
                 "consent_collection", {}
             ).get("consent_clarity_score", 0),
@@ -1187,12 +1194,12 @@ class PrivacyControlManager:
                 "compliant" if privacy_score >= 95 else "non_compliant"
             ),
             "control_results": [
-                {
-                    "control_id": r.unwrap().control_id if r.is_ok() else "unknown",
-                    "status": r.unwrap().status.value if r.is_ok() else "error",
-                    "result": r.unwrap().result if r.is_ok() else False,
-                    "findings_count": len(r.unwrap().findings) if r.is_ok() else 1,
-                }
+                (lambda unwrapped: {
+                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
+                    "status": unwrapped.status.value if unwrapped is not None else "error",
+                    "result": unwrapped.result if unwrapped is not None else False,
+                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
+                })(r.unwrap() if r.is_ok() else None)
                 for r in results
             ],
         }

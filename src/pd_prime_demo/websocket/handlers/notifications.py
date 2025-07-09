@@ -109,8 +109,8 @@ class NotificationHandler:
                 user_id, notification, config
             )
             if store_result.is_err():
-                return store_result
-            return Ok(None)  # Stored for later delivery
+                return Err(store_result.err_value)
+            return Ok(1)  # Stored for later delivery - count of 1
 
         # Create notification ID for tracking
         notification_id = UUID()

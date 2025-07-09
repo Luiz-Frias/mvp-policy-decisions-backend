@@ -148,7 +148,7 @@ class CustomerCreate(CustomerBase):
             raise ValueError("Tax ID must be 9 digits")
 
         # Mask for storage (keep only last 4 digits visible)
-        return f"XXX-XX-{cleaned[-4:]}"
+        return f"***-**-{cleaned[-4:]}"
 
 
 @beartype

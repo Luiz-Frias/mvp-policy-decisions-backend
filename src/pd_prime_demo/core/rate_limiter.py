@@ -286,7 +286,7 @@ class RateLimiter:
                 }
                 for tracker in self.clients.values()
             ],
-            key=lambda x: x["requests_minute"],
+            key=lambda x: int(x["requests_minute"]),
             reverse=True,
         )[:10]
 

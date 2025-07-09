@@ -353,7 +353,7 @@ async def get_current_admin_user(
 
         # For now, set effective permissions from the role
         # In production, this would be computed properly
-        admin_user._effective_permissions = permissions or []
+        admin_user.effective_permissions = permissions or []
 
         return admin_user
 

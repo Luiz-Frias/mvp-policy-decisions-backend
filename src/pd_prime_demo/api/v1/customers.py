@@ -478,6 +478,13 @@ async def get_customer_policies(
         )
 
     policies = result.ok_value
+    
+    # Type narrowing - policies should not be None if is_ok() is True
+    if policies is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error: policies result is None"
+        )
 
     # Cache the result for 300 seconds (5 minutes)
     await redis.setex(

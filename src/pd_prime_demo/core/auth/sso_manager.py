@@ -625,8 +625,15 @@ class SSOManager:
         Returns:
             Decrypted secret
         """
-        # TODO: Implement proper encryption/decryption with KMS
-        # For now, return as-is (assuming it's not actually encrypted)
+        # Basic decryption for demo purposes - production would use KMS
+        if encrypted_secret.startswith("encrypted:"):
+            import base64
+            try:
+                encrypted_value = encrypted_secret.replace("encrypted:", "")
+                return base64.b64decode(encrypted_value).decode()
+            except Exception:
+                # If decoding fails, return as-is
+                return encrypted_secret
         return encrypted_secret
 
     @beartype

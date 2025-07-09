@@ -11,6 +11,7 @@ from ...core.admin_query_optimizer import AdminQueryOptimizer
 from ...core.database_enhanced import Database
 from ...core.performance_monitor import PerformanceMetrics, get_performance_collector
 from ...core.query_optimizer import QueryOptimizer
+from ...core.result_types import Result, Ok, Err
 from ..dependencies import get_db
 
 router = APIRouter(prefix="/monitoring", tags=["monitoring"])
@@ -163,6 +164,14 @@ async def get_slow_queries(
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
+    # Type narrowing - ok_value should not be None if is_ok() is True
+    slow_queries = result.ok_value
+    if slow_queries is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error: slow queries result is None"
+        )
+
     return [
         SlowQueryResponse(
             query=sq.query,
@@ -172,7 +181,7 @@ async def get_slow_queries(
             stddev_time_ms=sq.stddev_time_ms,
             rows=sq.rows,
         )
-        for sq in result.ok_value
+        for sq in slow_queries
     ]
 
 
@@ -190,6 +199,14 @@ async def analyze_query(
         raise HTTPException(status_code=500, detail=result.err_value)
 
     plan = result.ok_value
+    
+    # Type narrowing - plan should not be None if is_ok() is True
+    if plan is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error: query plan is None"
+        )
+    
     return QueryPlanResponse(
         query=plan.query,
         execution_time_ms=plan.execution_time_ms,
@@ -218,6 +235,14 @@ async def get_index_suggestions(
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
+    # Type narrowing - ok_value should not be None if is_ok() is True
+    suggestions = result.ok_value
+    if suggestions is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error: index suggestions result is None"
+        )
+
     return [
         IndexSuggestionResponse(
             table_name=suggestion.table_name,
@@ -226,7 +251,7 @@ async def get_index_suggestions(
             create_statement=suggestion.create_statement,
             estimated_improvement=suggestion.estimated_improvement,
         )
-        for suggestion in result.ok_value
+        for suggestion in suggestions
     ]
 
 

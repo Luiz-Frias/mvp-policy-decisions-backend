@@ -360,7 +360,7 @@ async def list_claims(
         offset=0,
     )
 
-    total = len(count_result.ok_value) if count_result.is_ok() else 0
+    total = len(count_result.ok_value) if count_result.is_ok() and count_result.ok_value is not None else 0
 
     response = ClaimListResponse(
         items=claims, total=total, skip=pagination.skip, limit=pagination.limit

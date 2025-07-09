@@ -1,6 +1,6 @@
 """Quote API endpoints."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -167,7 +167,7 @@ async def search_quotes(
     offset: int = Query(0, ge=0),
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> dict[str, Any]:
+) -> QuoteSearchResponse:
     """Search quotes with filters."""
     # If user is logged in, only show their quotes
     if current_user and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
@@ -186,10 +186,46 @@ async def search_quotes(
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
-    quotes = result.ok_value
+    quotes: list[Quote] = result.ok_value
 
+    # Convert Quote objects to QuoteResponse objects
+    quote_responses = [QuoteResponse(
+        id=quote.id,
+        quote_number=quote.quote_number,
+        customer_id=quote.customer_id,
+        product_type=quote.product_type,
+        state=quote.state,
+        zip_code=quote.zip_code,
+        effective_date=quote.effective_date,
+        status=quote.status,
+        email=quote.email,
+        phone=quote.phone,
+        preferred_contact=quote.preferred_contact,
+        vehicle_info=quote.vehicle_info,
+        drivers=quote.drivers,
+        coverage_selections=quote.coverage_selections,
+        base_premium=quote.base_premium,
+        total_premium=quote.total_premium,
+        monthly_premium=quote.monthly_premium,
+        discounts_applied=quote.discounts_applied,
+        surcharges_applied=quote.surcharges_applied,
+        total_discount_amount=quote.total_discount_amount,
+        total_surcharge_amount=quote.total_surcharge_amount,
+        rating_factors=quote.rating_factors,
+        rating_tier=quote.rating_tier,
+        ai_risk_score=quote.ai_risk_score,
+        ai_risk_factors=quote.ai_risk_factors,
+        expires_at=quote.expires_at,
+        is_expired=quote.expires_at < datetime.now(timezone.utc),
+        days_until_expiration=max(0, (quote.expires_at - datetime.now(timezone.utc)).days),
+        can_be_bound=quote.status == QuoteStatus.QUOTED,
+        version=quote.version,
+        created_at=quote.created_at,
+        updated_at=quote.updated_at,
+    ) for quote in quotes]
+    
     return QuoteSearchResponse(
-        quotes=quotes,
+        quotes=quote_responses,
         total=len(quotes),
         limit=limit,
         offset=offset,
@@ -400,6 +436,10 @@ async def extend_wizard_session(
         raise HTTPException(status_code=400, detail=result.err_value)
 
     state = result.ok_value
+    
+    # Type narrowing - this should never be None due to service logic
+    if state is None:
+        raise HTTPException(status_code=500, detail="Internal server error: session state is None")
 
     return WizardExtensionResponse(
         session_id=state.session_id,
@@ -446,7 +486,7 @@ async def get_step_business_intelligence(
     return StepIntelligenceResponse(
         step_id=step_id,
         session_id=session_id,
-        intelligence=result.ok_value,
+        intelligence=result.ok_value if result.ok_value is not None else {},
         generated_at=datetime.now(),
     )
 

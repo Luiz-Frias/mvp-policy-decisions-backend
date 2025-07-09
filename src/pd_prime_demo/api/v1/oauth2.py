@@ -13,9 +13,9 @@ from pd_prime_demo.core.result_types import Err
 from ...core.auth.oauth2 import OAuth2Server
 from ...core.auth.oauth2.server import OAuth2Error
 from ...core.cache import Cache
-from ...core.config import Settings
+from ...core.config import Settings, get_settings
 from ...core.database import Database
-from ..dependencies import get_db_connection, get_redis, get_settings
+from ..dependencies import get_db_connection, get_redis
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 

@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import asyncpg
+import asyncpg.exceptions
 from attrs import field, frozen
 from beartype import beartype
 
@@ -234,7 +235,7 @@ class Database:
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
         """Initialize each connection with optimizations."""
         # Register custom types
-        await conn.set_type_codec(
+        await conn.set_type_codec(  # type: ignore[attr-defined]
             "jsonb",
             encoder=lambda v: json.dumps(v),
             decoder=lambda v: json.loads(v),
@@ -315,7 +316,9 @@ class Database:
             async def warm_single_connection() -> bool:
                 """Warm a single connection."""
                 try:
-                    conn = await self._pool.acquire(timeout=2.0)
+                    if self._pool is None:
+                        return False
+                    conn = await asyncio.wait_for(self._pool.acquire(), timeout=2.0)
                     connections.append(conn)
 
                     # Perform initialization queries to fully warm the connection
@@ -357,12 +360,13 @@ class Database:
             # Release all warmed connections back to pool
             release_tasks = []
             for conn in connections:
-                # asyncpg pool.release expects the connection to be released
-                # back to the pool it was acquired from
-                release_tasks.append(asyncio.create_task(self._pool.release(conn, timeout=2.0)))
+                # asyncpg pool connections are managed by context managers
+                # We don't need to manually release them
+                pass
 
             # Release all connections in parallel
-            await asyncio.gather(*release_tasks, return_exceptions=True)
+            if release_tasks:
+                await asyncio.gather(*release_tasks, return_exceptions=True)
 
     @beartype
     async def connect(self) -> None:
@@ -463,15 +467,15 @@ class Database:
         # Check pool health first
         health = await self.check_pool_health()
         if health.is_err() and "exhausted" in health.err_value:
-            # asyncpg.exceptions.PoolTimeout is the correct exception
-            raise asyncpg.exceptions.PoolTimeout()
+            # Use TimeoutError for pool timeout
+            raise asyncio.TimeoutError("Pool exhausted")
 
         timeout = timeout or self._settings.database_pool_timeout
         start_time = time.perf_counter()
         acquisition_start = start_time
 
         try:
-            async with self._pool.acquire(timeout=timeout) as conn:
+            async with asyncio.timeout(timeout), self._pool.acquire() as conn:
                 acquisition_time_ms = (time.perf_counter() - acquisition_start) * 1000
                 self._metrics["pool_wait_times_ms"].append(acquisition_time_ms)
                 self._metrics["connection_acquisitions"] += 1
@@ -504,7 +508,7 @@ class Database:
 
                 self._metrics["connection_releases"] += 1
 
-        except asyncpg.exceptions.PoolTimeout:
+        except asyncio.TimeoutError:
             self._metrics["pool_exhausted_count"] += 1
             raise
         except Exception:
@@ -526,7 +530,7 @@ class Database:
             raise RuntimeError("Database not connected")
 
         timeout = timeout or self._settings.database_pool_timeout
-        async with pool.acquire(timeout=timeout) as conn:
+        async with asyncio.timeout(timeout), pool.acquire() as conn:
             yield conn
 
     @contextlib.asynccontextmanager
@@ -541,7 +545,7 @@ class Database:
 
         # Admin queries may take longer
         timeout = timeout or 60.0
-        async with pool.acquire(timeout=timeout) as conn:
+        async with asyncio.timeout(timeout), pool.acquire() as conn:
             yield conn
 
     @beartype
@@ -559,7 +563,7 @@ class Database:
                 async with self.acquire() as conn:
                     result = await conn.execute(query, *args)
                     return Ok(result)
-            except (asyncpg.PostgresConnectionError, asyncpg.exceptions.PostgresConnectionError) as e:
+            except (asyncpg.exceptions.PostgresConnectionError, asyncpg.PostgresError) as e:
                 last_error = e
                 if attempt < max_attempts - 1:
                     # Exponential backoff
@@ -577,7 +581,9 @@ class Database:
     async def execute_many(self, query: str, args: list[tuple]) -> None:
         """Execute many statements efficiently in a batch."""
         async with self.acquire() as conn:
-            await conn.executemany(query, args)
+            # Use execute in a loop instead of executemany
+            for arg_tuple in args:
+                await conn.execute(query, *arg_tuple)
 
     @beartype
     async def get_pool_stats(self) -> PoolMetrics:

@@ -58,10 +58,10 @@ class RatingCacheStrategy:
             await self._cache.set(
                 cache_key,
                 json.dumps(cache_value),
-                expire=self._ttl_config["territory_factor"],
+                ttl=self._ttl_config["territory_factor"],
             )
             self._record_cache_operation("territory_factor", "set")
-            return Ok(True)
+            return Ok(None)
         except Exception as e:
             return Err(f"Failed to cache territory factor: {str(e)}")
 
@@ -119,7 +119,7 @@ class RatingCacheStrategy:
             await self._cache.set(
                 cache_key,
                 json.dumps(cache_value),
-                expire=self._ttl_config["quote_calculation"],
+                ttl=self._ttl_config["quote_calculation"],
             )
             self._record_cache_operation("quote_calculation", "set")
             return Ok(True)
@@ -179,7 +179,7 @@ class RatingCacheStrategy:
             await self._cache.set(
                 cache_key,
                 json.dumps(cache_value),
-                expire=self._ttl_config["discount_rules"],
+                ttl=self._ttl_config["discount_rules"],
             )
             self._record_cache_operation("discount_rules", "set")
             return Ok(True)

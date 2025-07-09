@@ -211,7 +211,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         # Type cast Redis sadd return value to int
-        result = await self._redis.sadd(key, *values)
+        result = await self._redis.sadd(key, *values)  # type: ignore[attr-defined]
         return int(result)
 
     @beartype
@@ -221,7 +221,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         # Type cast Redis srem return value to int
-        result = await self._redis.srem(key, *values)
+        result = await self._redis.srem(key, *values)  # type: ignore[attr-defined]
         return int(result)
 
     # Use typing.Set to avoid name collision with the "set" method on the same class
@@ -232,7 +232,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         # Type cast Redis smembers return value to set
-        result = await self._redis.smembers(key)
+        result = await self._redis.smembers(key)  # type: ignore[attr-defined]
         return set(result) if result else set()
 
     @beartype
@@ -242,7 +242,108 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         # Type cast Redis scard return value to int
-        result = await self._redis.scard(key)
+        result = await self._redis.scard(key)  # type: ignore[attr-defined]
+        return int(result)
+
+    @beartype
+    async def keys(self, pattern: str) -> list[str]:
+        """Get all keys matching pattern."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        keys = []
+        async for key in self._redis.scan_iter(match=pattern):  # type: ignore[attr-defined]
+            keys.append(key)
+        return keys
+
+    @beartype
+    async def incr(self, key: str, amount: int = 1) -> int:
+        """Increment counter value."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.incr(key, amount)  # type: ignore[attr-defined]
+        return int(result)
+
+    @beartype
+    async def expire(self, key: str, seconds: int) -> bool:
+        """Set key expiration."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.expire(key, seconds)  # type: ignore[attr-defined]
+        return bool(result)
+
+    @beartype
+    async def lpush(self, key: str, *values: str) -> int:
+        """Push values to left of list."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.lpush(key, *values)  # type: ignore[attr-defined]
+        return int(result)
+
+    @beartype
+    async def brpoplpush(self, source: str, destination: str, timeout: int = 0) -> str | None:
+        """Pop from right of source and push to left of destination."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.brpoplpush(source, destination, timeout)  # type: ignore[attr-defined]
+        return result
+
+    @beartype
+    async def lrem(self, key: str, count: int, value: str) -> int:
+        """Remove elements from list."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.lrem(key, count, value)  # type: ignore[attr-defined]
+        return int(result)
+
+    @beartype
+    async def lrange(self, key: str, start: int, end: int) -> list[str]:
+        """Get range of elements from list."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.lrange(key, start, end)  # type: ignore[attr-defined]
+        return result
+
+    @beartype
+    async def llen(self, key: str) -> int:
+        """Get length of list."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.llen(key)  # type: ignore[attr-defined]
+        return int(result)
+
+    @beartype
+    async def hgetall(self, key: str) -> dict[str, str]:
+        """Get all fields and values from hash."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.hgetall(key)  # type: ignore[attr-defined]
+        return result
+
+    @beartype
+    async def hset(self, key: str, field: str, value: str) -> int:
+        """Set field in hash."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.hset(key, field, value)  # type: ignore[attr-defined]
+        return int(result)
+
+    @beartype
+    async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
+        """Increment field value in hash."""
+        if self._redis is None:
+            raise RuntimeError("Cache not connected")
+
+        result = await self._redis.hincrby(key, field, amount)  # type: ignore[attr-defined]
         return int(result)
 
 

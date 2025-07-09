@@ -6,7 +6,7 @@ from uuid import UUID
 from beartype import beartype
 from passlib.context import CryptContext
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -99,10 +99,8 @@ class AdminUserService:
             admin_user = AdminUser(
                 id=row["id"],
                 email=row["email"],
-                first_name=row["first_name"],
-                last_name=row["last_name"],
+                full_name=f"{row['first_name']} {row['last_name']}" if row["first_name"] and row["last_name"] else row["first_name"] or row["last_name"] or "",
                 role_id=row["role_id"],
-                is_active=row["is_active"],
                 is_super_admin=row["is_super_admin"],
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
@@ -182,10 +180,8 @@ class AdminUserService:
         updated_admin = AdminUser(
             id=row["id"],
             email=row["email"],
-            first_name=row["first_name"],
-            last_name=row["last_name"],
+            full_name=f"{row['first_name']} {row['last_name']}" if row["first_name"] and row["last_name"] else row["first_name"] or row["last_name"] or "",
             role_id=row["role_id"],
-            is_active=row["is_active"],
             is_super_admin=row["is_super_admin"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
@@ -309,10 +305,8 @@ class AdminUserService:
         admin = AdminUser(
             id=row["id"],
             email=row["email"],
-            first_name=row["first_name"],
-            last_name=row["last_name"],
+            full_name=f"{row['first_name']} {row['last_name']}" if row["first_name"] and row["last_name"] else row["first_name"] or row["last_name"] or "",
             role_id=row["role_id"],
-            is_active=row["is_active"],
             is_super_admin=row["is_super_admin"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],

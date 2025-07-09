@@ -676,7 +676,10 @@ class SecurityControlManager:
 
         # Calculate security metrics
         total_controls = len(results)
-        passing_controls = sum(1 for r in results if r.is_ok() and r.unwrap().result)
+        passing_controls = sum(
+            1 for r in results 
+            if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
+        )
         security_score = (
             (passing_controls / total_controls) * 100 if total_controls > 0 else 0
         )
@@ -684,8 +687,8 @@ class SecurityControlManager:
         # Collect all findings
         all_findings: list[str] = []
         for result in results:
-            if result.is_ok():
-                all_findings.extend(result.unwrap().findings)
+            if result.is_ok() and (unwrapped := result.unwrap()) is not None:
+                all_findings.extend(unwrapped.findings)
 
         return {
             "security_score": security_score,
@@ -703,12 +706,12 @@ class SecurityControlManager:
                 "compliant" if security_score >= 95 else "non_compliant"
             ),
             "control_results": [
-                {
-                    "control_id": r.unwrap().control_id if r.is_ok() else "unknown",
-                    "status": r.unwrap().status.value if r.is_ok() else "error",
-                    "result": r.unwrap().result if r.is_ok() else False,
-                    "findings_count": len(r.unwrap().findings) if r.is_ok() else 1,
-                }
+                (lambda unwrapped: {
+                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
+                    "status": unwrapped.status.value if unwrapped is not None else "error",
+                    "result": unwrapped.result if unwrapped is not None else False,
+                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
+                })(r.unwrap() if r.is_ok() else None)
                 for r in results
             ],
         }

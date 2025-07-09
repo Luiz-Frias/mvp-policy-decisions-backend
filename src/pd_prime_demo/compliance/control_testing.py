@@ -478,6 +478,15 @@ class ControlTestingFramework:
 
         if control_result.is_ok():
             execution = control_result.unwrap()
+            if execution is None:
+                return {
+                    "test_result": TestResult.INCONCLUSIVE,
+                    "deficiencies": [{"type": DeficiencyType.CONTROL_GAP.value, "description": "Control execution returned None", "severity": "high"}],
+                    "exceptions_noted": [],
+                    "evidence_obtained": [],
+                    "conclusion": "Control execution failed",
+                    "recommendations": ["Investigate control execution failure"]
+                }
 
             # Analyze results for test conclusion
             if execution.result:
@@ -493,10 +502,10 @@ class ControlTestingFramework:
                         "description": finding,
                         "severity": "medium",
                     }
-                    for finding in execution.findings
+                    for finding in (execution.findings or [])
                 ]
                 exceptions = []
-                conclusion = f"Control deficiencies identified: {len(execution.findings)} findings"
+                conclusion = f"Control deficiencies identified: {len(execution.findings or [])} findings"
         else:
             test_result = TestResult.INCONCLUSIVE
             deficiencies = [
@@ -792,14 +801,15 @@ class ControlTestingFramework:
 
                 if test_result.is_ok():
                     executed_test = test_result.unwrap()
-                    executed_tests.append(executed_test)
+                    if executed_test is not None:
+                        executed_tests.append(executed_test)
 
-                    if executed_test.test_result == TestResult.EFFECTIVE:
-                        effective_controls += 1
-                    else:
-                        ineffective_controls += 1
+                        if executed_test.test_result == TestResult.EFFECTIVE:
+                            effective_controls += 1
+                        else:
+                            ineffective_controls += 1
 
-                    deficiencies_identified += len(executed_test.deficiencies)
+                        deficiencies_identified += len(executed_test.deficiencies or [])
 
             # Update test plan with execution results
             updated_plan = test_plan.model_copy(

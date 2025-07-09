@@ -1117,25 +1117,30 @@ class ConfidentialityControlManager:
 
         # Calculate confidentiality metrics
         total_controls = len(results)
-        passing_controls = sum(1 for r in results if r.is_ok() and r.unwrap().result)
+        passing_controls = sum(
+            1 for r in results 
+            if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
+        )
         confidentiality_score = (
             (passing_controls / total_controls) * 100 if total_controls > 0 else 0
         )
 
         # Get specific metrics
-        classification_evidence = (
-            classification_result.unwrap().evidence_collected
-            if classification_result.is_ok()
-            else {}
-        )
-        access_evidence = (
-            access_control_result.unwrap().evidence_collected
-            if access_control_result.is_ok()
-            else {}
-        )
-        dlp_evidence = (
-            dlp_result.unwrap().evidence_collected if dlp_result.is_ok() else {}
-        )
+        classification_evidence = {}
+        if classification_result.is_ok():
+            classification_unwrapped = classification_result.unwrap()
+            if classification_unwrapped is not None:
+                classification_evidence = classification_unwrapped.evidence_collected
+        access_evidence = {}
+        if access_control_result.is_ok():
+            access_unwrapped = access_control_result.unwrap()
+            if access_unwrapped is not None:
+                access_evidence = access_unwrapped.evidence_collected
+        dlp_evidence = {}
+        if dlp_result.is_ok():
+            dlp_unwrapped = dlp_result.unwrap()
+            if dlp_unwrapped is not None:
+                dlp_evidence = dlp_unwrapped.evidence_collected
 
         return {
             "confidentiality_score": confidentiality_score,
@@ -1152,9 +1157,9 @@ class ConfidentialityControlManager:
             "passing_controls": passing_controls,
             "failing_controls": total_controls - passing_controls,
             "high_risk_violations": sum(
-                len([f for f in r.unwrap().findings if "high" in f.lower()])
+                len([f for f in unwrapped.findings if "high" in f.lower()])
                 for r in results
-                if r.is_ok()
+                if r.is_ok() and (unwrapped := r.unwrap()) is not None
             ),
             "data_leakage_events_24h": dlp_evidence.get("dlp_events", {}).get(
                 "high_risk_events", 0
@@ -1164,12 +1169,12 @@ class ConfidentialityControlManager:
                 "compliant" if confidentiality_score >= 95 else "non_compliant"
             ),
             "control_results": [
-                {
-                    "control_id": r.unwrap().control_id if r.is_ok() else "unknown",
-                    "status": r.unwrap().status.value if r.is_ok() else "error",
-                    "result": r.unwrap().result if r.is_ok() else False,
-                    "findings_count": len(r.unwrap().findings) if r.is_ok() else 1,
-                }
+                (lambda unwrapped: {
+                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
+                    "status": unwrapped.status.value if unwrapped is not None else "error",
+                    "result": unwrapped.result if unwrapped is not None else False,
+                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
+                })(r.unwrap() if r.is_ok() else None)
                 for r in results
             ],
         }

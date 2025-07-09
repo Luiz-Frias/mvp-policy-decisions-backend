@@ -48,6 +48,14 @@ class TimestampedModel(BaseModelConfig):
 class TimestampMixin(BaseModelConfig):
     """Mixin for models that need timestamp tracking."""
 
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
     created_at: datetime = Field(
         ..., description="Timestamp when the entity was created"
     )

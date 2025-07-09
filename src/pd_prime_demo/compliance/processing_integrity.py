@@ -174,7 +174,7 @@ class ChangeRecord(BaseModel):
             "before": values.get("before_values"),
             "after": values.get("after_values"),
             "timestamp": (
-                values.get("timestamp").isoformat() if values.get("timestamp") is not None else None
+                timestamp.isoformat() if (timestamp := values.get("timestamp")) is not None and hasattr(timestamp, 'isoformat') else None
             ),
         }
         change_json = json.dumps(change_data, sort_keys=True, default=str)
@@ -379,6 +379,7 @@ class ProcessingIntegrityManager:
             records_passed=records_passed,
             records_failed=records_failed,
             validation_errors=validation_errors,
+            data_quality_score=0.0,  # Will be calculated by validator
         )
 
     @beartype
@@ -1048,17 +1049,20 @@ class ProcessingIntegrityManager:
 
         # Calculate processing integrity metrics
         total_controls = len(results)
-        passing_controls = sum(1 for r in results if r.is_ok() and r.unwrap().result)
+        passing_controls = sum(
+            1 for r in results 
+            if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
+        )
         integrity_score = (
             (passing_controls / total_controls) * 100 if total_controls > 0 else 0
         )
 
         # Get specific metrics
-        validation_evidence = (
-            validation_result.unwrap().evidence_collected
-            if validation_result.is_ok()
-            else {}
-        )
+        validation_evidence = {}
+        if validation_result.is_ok():
+            validation_unwrapped = validation_result.unwrap()
+            if validation_unwrapped is not None:
+                validation_evidence = validation_unwrapped.evidence_collected
         overall_quality = validation_evidence.get("overall_data_quality", 0)
 
         return {
@@ -1074,22 +1078,23 @@ class ProcessingIntegrityManager:
             ),
             "reconciliation_discrepancies": sum(
                 result.get("discrepancies", 0)
-                for result in reconciliation_result.unwrap().evidence_collected.get(
-                    "reconciliation_results", []
+                for result in (
+                    reconciliation_unwrapped.evidence_collected.get("reconciliation_results", [])
+                    if reconciliation_result.is_ok() and (reconciliation_unwrapped := reconciliation_result.unwrap()) is not None
+                    else []
                 )
-                if reconciliation_result.is_ok()
             ),
             "last_assessment": datetime.now(timezone.utc).isoformat(),
             "compliance_status": (
                 "compliant" if integrity_score >= 95 else "non_compliant"
             ),
             "control_results": [
-                {
-                    "control_id": r.unwrap().control_id if r.is_ok() else "unknown",
-                    "status": r.unwrap().status.value if r.is_ok() else "error",
-                    "result": r.unwrap().result if r.is_ok() else False,
-                    "findings_count": len(r.unwrap().findings) if r.is_ok() else 1,
-                }
+                (lambda unwrapped: {
+                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
+                    "status": unwrapped.status.value if unwrapped is not None else "error",
+                    "result": unwrapped.result if unwrapped is not None else False,
+                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
+                })(r.unwrap() if r.is_ok() else None)
                 for r in results
             ],
         }

@@ -8,6 +8,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 import asyncpg
+import asyncpg.exceptions
 from beartype import beartype
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
@@ -296,7 +297,7 @@ async def ensure_transaction_valid(db: Database) -> Result[bool, str]:
         if result != 1:
             return Err("Transaction check failed")
         return Ok(True)
-    except asyncpg.InFailedSQLTransactionError:
+    except asyncpg.exceptions.InFailedSQLTransactionError:
         return Err("Transaction is in failed state")
     except Exception as e:
         return Err(f"Transaction validation failed: {str(e)}")

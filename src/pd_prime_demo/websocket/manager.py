@@ -446,7 +446,7 @@ class ConnectionManager:
         if user_id:
             permission_check = await self._validate_user_permissions(user_id)
             if permission_check.is_err():
-                return permission_check
+                return Err(permission_check.err_value)
 
         try:
             await websocket.accept()
@@ -489,7 +489,7 @@ class ConnectionManager:
             self._active_connection_count -= 1
             if user_id and user_id in self._user_connections:
                 self._user_connections[user_id].discard(connection_id)
-            return store_result
+            return Err(store_result.err_value)
 
         # Send welcome message with explicit connection state
         welcome_msg = WebSocketMessage(
@@ -520,7 +520,7 @@ class ConnectionManager:
         if send_result.is_err():
             # Connection failed immediately
             await self.disconnect(connection_id, "Initial message send failed")
-            return send_result
+            return Err(send_result.err_value)
 
         # Record successful connection in monitoring
         await self._monitor.record_connection_established(

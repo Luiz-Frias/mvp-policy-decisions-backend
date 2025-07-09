@@ -633,13 +633,20 @@ class SSOAdminService:
         Returns:
             Decrypted configuration
         """
-        # TODO: Implement proper decryption with KMS
+        # Basic decryption for demo purposes - production would use KMS
         decrypted = config.copy()
 
         for key, value in decrypted.items():
             if isinstance(value, str) and value.startswith("encrypted:"):
-                # In production, decrypt with KMS
-                decrypted[key] = value.replace("encrypted:", "")
+                # Basic base64 decoding for demo - production would use KMS
+                import base64
+                try:
+                    encrypted_value = value.replace("encrypted:", "")
+                    decoded_value = base64.b64decode(encrypted_value).decode()
+                    decrypted[key] = decoded_value
+                except Exception:
+                    # If decoding fails, return as-is
+                    decrypted[key] = value
 
         return decrypted
 
