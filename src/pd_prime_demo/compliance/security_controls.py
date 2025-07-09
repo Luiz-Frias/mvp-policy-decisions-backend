@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 from pd_prime_demo.schemas.compliance import SecurityControlConfig, SecurityAssessment, VulnerabilityFinding
-from pd_prime_demo.schemas.common import ControlEvidence
+from pd_prime_demo.schemas.common import ControlEvidence, EvidenceContent
 
 from ..core.config import get_settings
 from .audit_logger import AuditLogger, get_audit_logger
@@ -83,6 +83,184 @@ class TLSConfig(BaseModel):
         )
 
 
+class TLSTestResult(BaseModel):
+    """TLS configuration test result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    version_compliance: bool = Field(...)
+    cipher_strength: str = Field(...)
+    certificate_valid: bool = Field(...)
+    protocol_security: str = Field(...)
+
+
+class CertificateValidation(BaseModel):
+    """Certificate validation result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    valid: bool = Field(...)
+    expiry_days: int = Field(...)
+    issuer_trusted: bool = Field(...)
+    chain_complete: bool = Field(...)
+    revocation_checked: bool = Field(...)
+
+
+class DeprecatedProtocolScan(BaseModel):
+    """Deprecated protocol scan result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    deprecated_found: bool = Field(...)
+    protocols_detected: list[str] = Field(default_factory=list)
+    severity: str = Field(...)
+
+
+class HSTSCheck(BaseModel):
+    """HSTS header check result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    enabled: bool = Field(...)
+    max_age: int = Field(ge=0)
+    include_subdomains: bool = Field(...)
+    preload: bool = Field(...)
+
+
+class DependencyScan(BaseModel):
+    """Dependency scan result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    total_dependencies: int = Field(ge=0)
+    vulnerable_dependencies: int = Field(ge=0)
+    outdated_dependencies: int = Field(ge=0)
+    security_advisories: int = Field(ge=0)
+
+
+class SecurityConfiguration(BaseModel):
+    """Security configuration check result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    secure_headers: bool = Field(...)
+    content_security_policy: bool = Field(...)
+    cors_configured: bool = Field(...)
+    rate_limiting: bool = Field(...)
+    input_validation: bool = Field(...)
+
+
+class AuthenticationCheck(BaseModel):
+    """Authentication mechanism check result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    mfa_enabled: bool = Field(...)
+    password_policy_enforced: bool = Field(...)
+    account_lockout: bool = Field(...)
+    session_timeout: bool = Field(...)
+    brute_force_protection: bool = Field(...)
+
+
+class AuthorizationCheck(BaseModel):
+    """Authorization control check result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    rbac_implemented: bool = Field(...)
+    least_privilege: bool = Field(...)
+    access_reviews: bool = Field(...)
+    privilege_escalation_protected: bool = Field(...)
+
+
+class SecurityDashboard(BaseModel):
+    """Security dashboard data structure."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    security_score: float = Field(ge=0.0, le=100.0)
+    total_controls: int = Field(ge=0)
+    passing_controls: int = Field(ge=0)
+    failing_controls: int = Field(ge=0)
+    critical_vulnerabilities: int = Field(ge=0)
+    encryption_compliant: bool = Field(...)
+    tls_compliant: bool = Field(...)
+    vulnerability_scan_passed: bool = Field(...)
+    access_control_passed: bool = Field(...)
+    last_assessment: datetime = Field(...)
+
+
+class SessionManagement(BaseModel):
+    """Session management check result."""
+    
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+    
+    secure_session_handling: bool = Field(...)
+    session_regeneration: bool = Field(...)
+    secure_cookies: bool = Field(...)
+    session_invalidation: bool = Field(...)
+
+
 class VulnerabilityAssessment(BaseModel):
     """Vulnerability assessment result."""
 
@@ -102,7 +280,7 @@ class VulnerabilityAssessment(BaseModel):
     medium_count: int = Field(ge=0)
     low_count: int = Field(ge=0)
     scan_coverage: float = Field(ge=0.0, le=100.0)
-    findings: list[dict[str, Any]] = Field(default_factory=list)
+    findings: list[VulnerabilityFinding] = Field(default_factory=list)
 
     @beartype
     def is_compliant(self) -> bool:
@@ -218,7 +396,7 @@ class SecurityControlManager:
                     ControlStatus.ACTIVE if len(findings) == 0 else ControlStatus.FAILED
                 ),
                 result=len(findings) == 0,
-                evidence_collected=evidence,
+                evidence_collected=evidence_data,
                 findings=findings,
                 remediation_actions=(
                     [
@@ -238,7 +416,7 @@ class SecurityControlManager:
             return Err(f"Security control execution failed: {str(e)}")
 
     @beartype
-    async def _scan_database_encryption(self) -> dict[str, Any]:
+    async def _scan_database_encryption(self) -> EvidenceContent:
         """Scan database for encryption compliance."""
         # Simulated database encryption scan
         return {
@@ -260,30 +438,48 @@ class SecurityControlManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence = {}
+            evidence_data: list[EvidenceContent] = []
 
             # Check TLS configuration
             tls_config = TLSConfig()
-            evidence["tls_config"] = tls_config.model_dump()
+            evidence_data.append(EvidenceContent(
+                system_data=tls_config.model_dump(),
+                collection_metadata={"evidence_type": "tls_config", "timestamp": start_time.isoformat()}
+            ))
 
             if not tls_config.is_compliant():
                 findings.append("TLS configuration does not meet SOC 2 requirements")
 
             # Test TLS connectivity
-            evidence["tls_test"] = await self._test_tls_configuration()
+            tls_test = await self._test_tls_configuration()
+            evidence_data.append(EvidenceContent(
+                system_data=tls_test.model_dump(),
+                collection_metadata={"evidence_type": "tls_test", "timestamp": start_time.isoformat()}
+            ))
 
             # Check certificate validation
-            evidence["certificate_validation"] = await self._validate_certificates()
+            cert_validation = await self._validate_certificates()
+            evidence_data.append(EvidenceContent(
+                system_data=cert_validation.model_dump(),
+                collection_metadata={"evidence_type": "certificate_validation", "timestamp": start_time.isoformat()}
+            ))
 
             # Check for deprecated protocols
             deprecated_protocols = await self._scan_deprecated_protocols()
-            evidence["deprecated_protocols"] = deprecated_protocols
+            evidence_data.append(EvidenceContent(
+                system_data=deprecated_protocols.model_dump(),
+                collection_metadata={"evidence_type": "deprecated_protocols", "timestamp": start_time.isoformat()}
+            ))
 
             if deprecated_protocols["found_deprecated"]:
                 findings.extend(deprecated_protocols["deprecated_found"])
 
             # Check HSTS headers
-            evidence["hsts_check"] = await self._check_hsts_headers()
+            hsts_check = await self._check_hsts_headers()
+            evidence_data.append(EvidenceContent(
+                system_data=hsts_check.model_dump(),
+                collection_metadata={"evidence_type": "hsts_check", "timestamp": start_time.isoformat()}
+            ))
 
             end_time = datetime.now(timezone.utc)
             execution_time_ms = int((end_time - start_time).total_seconds() * 1000)
@@ -295,7 +491,7 @@ class SecurityControlManager:
                     ControlStatus.ACTIVE if len(findings) == 0 else ControlStatus.FAILED
                 ),
                 result=len(findings) == 0,
-                evidence_collected=evidence,
+                evidence_collected=evidence_data,
                 findings=findings,
                 remediation_actions=(
                     [
@@ -316,7 +512,7 @@ class SecurityControlManager:
             return Err(f"TLS control execution failed: {str(e)}")
 
     @beartype
-    async def _test_tls_configuration(self) -> dict[str, Any]:
+    async def _test_tls_configuration(self) -> TLSTestResult:
         """Test TLS configuration compliance."""
         # Simulated TLS configuration test
         # context = ssl.create_default_context()  # Would be used to test actual TLS config
@@ -335,7 +531,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def _validate_certificates(self) -> dict[str, Any]:
+    async def _validate_certificates(self) -> CertificateValidation:
         """Validate SSL certificates."""
         return {
             "certificate_valid": True,
@@ -349,7 +545,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def _scan_deprecated_protocols(self) -> dict[str, Any]:
+    async def _scan_deprecated_protocols(self) -> DeprecatedProtocolScan:
         """Scan for deprecated TLS protocols."""
         return {
             "found_deprecated": False,
@@ -359,7 +555,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def _check_hsts_headers(self) -> dict[str, Any]:
+    async def _check_hsts_headers(self) -> HSTSCheck:
         """Check HTTP Strict Transport Security headers."""
         return {
             "hsts_enabled": True,
@@ -375,11 +571,14 @@ class SecurityControlManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence = {}
+            evidence_data: list[EvidenceContent] = []
 
             # Perform vulnerability assessment
             vulnerability_assessment = await self._perform_vulnerability_scan()
-            evidence["vulnerability_scan"] = vulnerability_assessment.model_dump()
+            evidence_data.append(EvidenceContent(
+                system_data=vulnerability_assessment.model_dump(),
+                collection_metadata={"evidence_type": "vulnerability_scan", "timestamp": start_time.isoformat()}
+            ))
 
             if not vulnerability_assessment.is_compliant():
                 findings.append(
@@ -396,7 +595,10 @@ class SecurityControlManager:
 
             # Check dependency vulnerabilities
             dependency_scan = await self._scan_dependencies()
-            evidence["dependency_scan"] = dependency_scan
+            evidence_data.append(EvidenceContent(
+                system_data=dependency_scan.model_dump(),
+                collection_metadata={"evidence_type": "dependency_scan", "timestamp": start_time.isoformat()}
+            ))
 
             if dependency_scan["vulnerable_packages"] > 0:
                 findings.append(
@@ -405,7 +607,10 @@ class SecurityControlManager:
 
             # Check for security misconfigurations
             security_config = await self._check_security_configuration()
-            evidence["security_config"] = security_config
+            evidence_data.append(EvidenceContent(
+                system_data=security_config.model_dump(),
+                collection_metadata={"evidence_type": "security_config", "timestamp": start_time.isoformat()}
+            ))
 
             if security_config["misconfigurations"]:
                 findings.extend(security_config["misconfigurations"])
@@ -420,7 +625,7 @@ class SecurityControlManager:
                     ControlStatus.ACTIVE if len(findings) == 0 else ControlStatus.FAILED
                 ),
                 result=len(findings) == 0,
-                evidence_collected=evidence,
+                evidence_collected=evidence_data,
                 findings=findings,
                 remediation_actions=(
                     [
@@ -478,7 +683,7 @@ class SecurityControlManager:
         )
 
     @beartype
-    async def _scan_dependencies(self) -> dict[str, Any]:
+    async def _scan_dependencies(self) -> DependencyScan:
         """Scan dependencies for known vulnerabilities."""
         return {
             "total_packages": 45,
@@ -503,7 +708,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def _check_security_configuration(self) -> dict[str, Any]:
+    async def _check_security_configuration(self) -> SecurityConfiguration:
         """Check for security misconfigurations."""
         misconfigurations = []
 
@@ -535,25 +740,34 @@ class SecurityControlManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence = {}
+            evidence_data: list[EvidenceContent] = []
 
             # Check authentication mechanisms
             auth_check = await self._check_authentication_mechanisms()
-            evidence["authentication"] = auth_check
+            evidence_data.append(EvidenceContent(
+                system_data=auth_check.model_dump(),
+                collection_metadata={"evidence_type": "authentication", "timestamp": start_time.isoformat()}
+            ))
 
             if not auth_check["compliant"]:
                 findings.extend(auth_check["issues"])
 
             # Check authorization controls
             authz_check = await self._check_authorization_controls()
-            evidence["authorization"] = authz_check
+            evidence_data.append(EvidenceContent(
+                system_data=authz_check.model_dump(),
+                collection_metadata={"evidence_type": "authorization", "timestamp": start_time.isoformat()}
+            ))
 
             if not authz_check["compliant"]:
                 findings.extend(authz_check["issues"])
 
             # Check session management
             session_check = await self._check_session_management()
-            evidence["session_management"] = session_check
+            evidence_data.append(EvidenceContent(
+                system_data=session_check.model_dump(),
+                collection_metadata={"evidence_type": "session_management", "timestamp": start_time.isoformat()}
+            ))
 
             if not session_check["compliant"]:
                 findings.extend(session_check["issues"])
@@ -568,7 +782,7 @@ class SecurityControlManager:
                     ControlStatus.ACTIVE if len(findings) == 0 else ControlStatus.FAILED
                 ),
                 result=len(findings) == 0,
-                evidence_collected=evidence,
+                evidence_collected=evidence_data,
                 findings=findings,
                 remediation_actions=(
                     [
@@ -589,7 +803,7 @@ class SecurityControlManager:
             return Err(f"Access control check failed: {str(e)}")
 
     @beartype
-    async def _check_authentication_mechanisms(self) -> dict[str, Any]:
+    async def _check_authentication_mechanisms(self) -> AuthenticationCheck:
         """Check authentication mechanism compliance."""
         issues = []
 
@@ -623,7 +837,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def _check_authorization_controls(self) -> dict[str, Any]:
+    async def _check_authorization_controls(self) -> AuthorizationCheck:
         """Check authorization control compliance."""
         issues = []
 
@@ -657,7 +871,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def _check_session_management(self) -> dict[str, Any]:
+    async def _check_session_management(self) -> SessionManagement:
         """Check session management compliance."""
         issues = []
 
@@ -683,7 +897,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def get_security_dashboard(self) -> dict[str, Any]:
+    async def get_security_dashboard(self) -> SecurityDashboard:
         """Get comprehensive security dashboard data."""
         # Execute all security controls
         encryption_result = await self.execute_encryption_control()
@@ -709,28 +923,17 @@ class SecurityControlManager:
             if result.is_ok() and (unwrapped := result.unwrap()) is not None:
                 all_findings.extend(unwrapped.findings)
 
-        return {
-            "security_score": security_score,
-            "total_controls": total_controls,
-            "passing_controls": passing_controls,
-            "failing_controls": total_controls - passing_controls,
-            "critical_findings": len(
-                [f for f in all_findings if "critical" in f.lower()]
-            ),
-            "high_findings": len([f for f in all_findings if "high" in f.lower()]),
-            "medium_findings": len([f for f in all_findings if "medium" in f.lower()]),
-            "low_findings": len([f for f in all_findings if "low" in f.lower()]),
-            "last_assessment": datetime.now(timezone.utc).isoformat(),
-            "compliance_status": (
-                "compliant" if security_score >= 95 else "non_compliant"
-            ),
-            "control_results": [
-                (lambda unwrapped: {
-                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
-                    "status": unwrapped.status.value if unwrapped is not None else "error",
-                    "result": unwrapped.result if unwrapped is not None else False,
-                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
-                })(r.unwrap() if r.is_ok() else None)
-                for r in results
-            ],
-        }
+        critical_vulnerabilities = len([f for f in all_findings if "critical" in f.lower()])
+
+        return SecurityDashboard(
+            security_score=security_score,
+            total_controls=total_controls,
+            passing_controls=passing_controls,
+            failing_controls=total_controls - passing_controls,
+            critical_vulnerabilities=critical_vulnerabilities,
+            encryption_compliant=encryption_result.is_ok() and encryption_result.unwrap().result if encryption_result.is_ok() else False,
+            tls_compliant=tls_result.is_ok() and tls_result.unwrap().result if tls_result.is_ok() else False,
+            vulnerability_scan_passed=vulnerability_result.is_ok() and vulnerability_result.unwrap().result if vulnerability_result.is_ok() else False,
+            access_control_passed=access_result.is_ok() and access_result.unwrap().result if access_result.is_ok() else False,
+            last_assessment=datetime.now(timezone.utc),
+        )

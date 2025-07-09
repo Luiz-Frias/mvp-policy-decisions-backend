@@ -114,6 +114,114 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.config import Settings
 from .models import WebAuthnCredential
+from pydantic import BaseModel, ConfigDict, Field
+from beartype import beartype
+
+
+@beartype
+class WebAuthnChallenge(BaseModel):
+    """WebAuthn challenge storage."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    challenge: str
+    expires_at: str  # ISO datetime
+
+
+@beartype
+class WebAuthnRegistrationOptions(BaseModel):
+    """WebAuthn registration options."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    challenge: str
+    rp: "RelyingParty"
+    user: "WebAuthnUser"
+    pub_key_cred_params: list[dict[str, Any]]
+    timeout: int
+    exclude_credentials: list["CredentialDescriptor"]
+    authenticator_selection: dict[str, Any]
+    attestation: str
+
+
+@beartype
+class RelyingParty(BaseModel):
+    """WebAuthn relying party info."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    id: str
+    name: str
+
+
+@beartype
+class WebAuthnUser(BaseModel):
+    """WebAuthn user info."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    id: str
+    name: str
+    display_name: str
+
+
+@beartype
+class CredentialDescriptor(BaseModel):
+    """WebAuthn credential descriptor."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    type: str
+    id: str
+
+
+@beartype
+class WebAuthnAuthenticationOptions(BaseModel):
+    """WebAuthn authentication options."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    challenge: str
+    timeout: int
+    rp_id: str
+    allow_credentials: list[CredentialDescriptor]
+    user_verification: str
 
 
 class WebAuthnProvider:
@@ -132,7 +240,7 @@ class WebAuthnProvider:
         self._attestation: "AttestationConveyancePreference" = "none"  # type: ignore[assignment]
 
         # Challenge storage - in production, use Redis with proper TTL
-        self._challenge_store: dict[str, dict[str, str]] = {}
+        self._challenge_store: dict[str, WebAuthnChallenge] = {}
 
     @beartype
     def _get_rp_id(self) -> str:
@@ -210,24 +318,27 @@ class WebAuthnProvider:
                 ],
             )
 
-            # Convert to JSON-serializable format
-            options_dict = {
-                "challenge": bytes_to_base64url(options.challenge),
-                "rp": {"id": options.rp.id, "name": options.rp.name},
-                "user": {
-                    "id": options.user.id,
-                    "name": options.user.name,
-                    "displayName": options.user.display_name,
-                },
-                "pubKeyCredParams": options.pub_key_cred_params,
-                "timeout": options.timeout,
-                "excludeCredentials": [
-                    {"type": cred.type, "id": bytes_to_base64url(cred.id)}
+            # Convert to structured format
+            options_result = WebAuthnRegistrationOptions(
+                challenge=bytes_to_base64url(options.challenge),
+                rp=RelyingParty(id=options.rp.id, name=options.rp.name),
+                user=WebAuthnUser(
+                    id=options.user.id,
+                    name=options.user.name,
+                    display_name=options.user.display_name,
+                ),
+                pub_key_cred_params=options.pub_key_cred_params,
+                timeout=options.timeout,
+                exclude_credentials=[
+                    CredentialDescriptor(type=cred.type, id=bytes_to_base64url(cred.id))
                     for cred in (options.exclude_credentials or [])
                 ],
-                "authenticatorSelection": options.authenticator_selection,
-                "attestation": options.attestation,
-            }
+                authenticator_selection=options.authenticator_selection,
+                attestation=options.attestation,
+            )
+            
+            # Convert to dict for JSON serialization
+            options_dict = options_result.model_dump()
 
             # Store challenge for verification
             self._store_challenge(
@@ -324,17 +435,20 @@ class WebAuthnProvider:
                 timeout=self._timeout,
             )
 
-            # Convert to JSON-serializable format
-            options_dict = {
-                "challenge": bytes_to_base64url(options.challenge),
-                "timeout": options.timeout,
-                "rpId": options.rp_id,
-                "allowCredentials": [
-                    {"type": cred.type, "id": bytes_to_base64url(cred.id)}
+            # Convert to structured format
+            options_result = WebAuthnAuthenticationOptions(
+                challenge=bytes_to_base64url(options.challenge),
+                timeout=options.timeout,
+                rp_id=options.rp_id,
+                allow_credentials=[
+                    CredentialDescriptor(type=cred.type, id=bytes_to_base64url(cred.id))
                     for cred in (options.allow_credentials or [])
                 ],
-                "userVerification": options.user_verification,
-            }
+                user_verification=options.user_verification,
+            )
+            
+            # Convert to dict for JSON serialization
+            options_dict = options_result.model_dump()
 
             # Store challenge for verification
             self._store_challenge(
@@ -419,10 +533,10 @@ class WebAuthnProvider:
         from datetime import datetime, timedelta
 
         # Store with expiration time
-        self._challenge_store[key] = {
-            "challenge": challenge,
-            "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
-        }
+        self._challenge_store[key] = WebAuthnChallenge(
+            challenge=challenge,
+            expires_at=(datetime.now() + timedelta(minutes=5)).isoformat()
+        )
 
     @beartype
     def _get_stored_challenge(self, user_id: UUID, operation: str) -> str | None:
@@ -440,7 +554,7 @@ class WebAuthnProvider:
         # Check if expired
         from datetime import datetime
         try:
-            expires_at = datetime.fromisoformat(stored["expires_at"])
+            expires_at = datetime.fromisoformat(stored.expires_at)
             if datetime.now() > expires_at:
                 # Clean up expired challenge
                 del self._challenge_store[key]
@@ -450,7 +564,7 @@ class WebAuthnProvider:
             del self._challenge_store[key]
             return None
 
-        return stored["challenge"]
+        return stored.challenge
 
     @beartype
     def _clear_challenge(self, user_id: UUID, operation: str) -> None:

@@ -53,7 +53,7 @@ class MFAConfig(BaseModel):
     totp_enabled: bool = False
     totp_secret_encrypted: str | None = None
     webauthn_enabled: bool = False
-    webauthn_credentials: list[dict[str, Any]] = Field(default_factory=list)
+    webauthn_credentials: list["WebAuthnCredential"] = Field(default_factory=list)
     sms_enabled: bool = False
     sms_phone_encrypted: str | None = None
     recovery_codes_encrypted: list[str] = Field(default_factory=list)
@@ -118,6 +118,41 @@ class WebAuthnCredential(BaseModel):
 
 
 @beartype
+class AuthenticatorSelection(BaseModel):
+    """WebAuthn authenticator selection criteria."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    authenticator_attachment: str | None = None  # "platform" or "cross-platform"
+    require_resident_key: bool = False
+    user_verification: str = "preferred"  # "required", "preferred", "discouraged"
+
+
+@beartype
+class WebAuthnExtensions(BaseModel):
+    """WebAuthn extensions configuration."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    credential_protection_policy: str | None = None
+    enforce_credential_protection_policy: bool | None = None
+    cred_blob: str | None = None
+    min_pin_length: int | None = None
+
+
+@beartype
 class WebAuthnChallenge(BaseModel):
     """WebAuthn challenge for registration/authentication."""
 
@@ -136,9 +171,30 @@ class WebAuthnChallenge(BaseModel):
     rp_id: str  # Relying party ID
     rp_name: str  # Relying party name
     timeout: int = 60000  # milliseconds
-    authenticator_selection: dict[str, Any] = Field(default_factory=dict)
+    authenticator_selection: AuthenticatorSelection = Field(default_factory=AuthenticatorSelection)
     attestation: str = "none"
-    extensions: dict[str, Any] = Field(default_factory=dict)
+    extensions: WebAuthnExtensions = Field(default_factory=WebAuthnExtensions)
+
+
+@beartype
+class MFAChallengeMetadata(BaseModel):
+    """MFA challenge metadata."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    ip_address: str | None = None
+    user_agent: str | None = None
+    device_fingerprint: str | None = None
+    risk_level: str | None = None
+    sms_phone_number: str | None = None
+    webauthn_challenge: str | None = None
+    biometric_type: str | None = None
 
 
 @beartype
@@ -161,8 +217,29 @@ class MFAChallenge(BaseModel):
     expires_at: datetime
     attempts: int = 0
     max_attempts: int = 3
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: MFAChallengeMetadata = Field(default_factory=MFAChallengeMetadata)
     verified_at: datetime | None = None
+
+
+@beartype
+class RiskFactors(BaseModel):
+    """Risk assessment factors with scores."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    location_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    device_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    behavioral_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    time_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    network_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    velocity_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    credential_risk: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 @beartype
@@ -179,10 +256,48 @@ class RiskAssessment(BaseModel):
 
     risk_level: RiskLevel
     risk_score: float = Field(..., ge=0.0, le=1.0)
-    factors: dict[str, float] = Field(default_factory=dict)
+    factors: RiskFactors = Field(default_factory=RiskFactors)
     require_mfa: bool
     recommended_methods: list[MFAMethod]
     reason: str
+
+
+@beartype
+class WebAuthnCredentialResponse(BaseModel):
+    """WebAuthn credential response."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    credential_id: str
+    authenticator_data: str
+    client_data_json: str
+    signature: str
+    user_handle: str | None = None
+
+
+@beartype
+class BiometricData(BaseModel):
+    """Biometric verification data."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    biometric_type: str  # "fingerprint", "face", "voice", "iris"
+    template_data: str  # Base64 encoded biometric template
+    quality_score: float = Field(..., ge=0.0, le=1.0)
+    liveness_check: bool = False
+    capture_timestamp: datetime
 
 
 @beartype
@@ -199,8 +314,8 @@ class MFAVerificationRequest(BaseModel):
 
     challenge_id: UUID
     code: str | None = None  # For TOTP/SMS
-    credential_response: dict[str, Any] | None = None  # For WebAuthn
-    biometric_data: dict[str, Any] | None = None  # For biometric
+    credential_response: WebAuthnCredentialResponse | None = None  # For WebAuthn
+    biometric_data: BiometricData | None = None  # For biometric
 
 
 @beartype

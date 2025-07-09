@@ -5,11 +5,84 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
+from pydantic import ConfigDict
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
+
+
+class SSOProviderUpdate(BaseModelConfig):
+    """Model for updating SSO provider configuration."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    provider_name: str | None = None
+    configuration: dict[str, Any] | None = None
+    is_enabled: bool | None = None
+
+
+class SSOConnectionTestResult(BaseModelConfig):
+    """Result of SSO connection test."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    success: bool
+    error: str | None = None
+    details: dict[str, Any]
+    note: str | None = None
+
+
+class SSOAnalytics(BaseModelConfig):
+    """SSO analytics model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    login_statistics: list[dict[str, Any]]
+    provisioning_statistics: list[dict[str, Any]]
+    sync_statistics: dict[str, Any]
+    provider_statistics: list[dict[str, Any]]
+    period: dict[str, str]
+
+
+class SSOProviderList(BaseModelConfig):
+    """SSO provider list response."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    providers: list[dict[str, Any]]
+    total: int
+    limit: int
+    offset: int
+
+
+class SSOProviderDetails(BaseModelConfig):
+    """SSO provider details."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    id: UUID
+    provider_name: str
+    provider_type: str
+    configuration: dict[str, Any]
+    is_enabled: bool
+    created_by: UUID | None
+    updated_by: UUID | None
+    created_at: datetime
+    updated_at: datetime | None
+
+
+class SSOActivityLogs(BaseModelConfig):
+    """SSO activity logs response."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    activities: list[dict[str, Any]]
+    total: int
+    limit: int
+    offset: int
 
 
 class SSOAdminService:
@@ -109,7 +182,7 @@ class SSOAdminService:
         self,
         provider_id: UUID,
         admin_user_id: UUID,
-        updates: dict[str, Any],
+        updates: SSOProviderUpdate,
     ) -> Result[bool, str]:
         """Update SSO provider configuration.
 
@@ -220,7 +293,7 @@ class SSOAdminService:
         self,
         provider_id: UUID,
         admin_user_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[SSOConnectionTestResult, str]:
         """Test SSO provider connection and configuration.
 
         Args:

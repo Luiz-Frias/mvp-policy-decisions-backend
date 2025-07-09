@@ -15,7 +15,8 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.compliance import AuditLogEntry
+from pd_prime_demo.schemas.compliance import AuditLogEntry, AuditTrailSummary
+from pd_prime_demo.schemas.common import EvidenceContent, MetadataItem
 
 from ..core.database import get_database
 
@@ -113,9 +114,9 @@ class ComplianceEvent(BaseModel):
     compliance_tags: list[str] = Field(default_factory=list)
 
     # Event Data
-    event_data: dict[str, Any] = Field(default_factory=dict)
-    before_state: dict[str, Any] | None = Field(default=None)
-    after_state: dict[str, Any] | None = Field(default=None)
+    event_data: EvidenceContent | None = Field(default=None)
+    before_state: EvidenceContent | None = Field(default=None)
+    after_state: EvidenceContent | None = Field(default=None)
 
     # Processing Metadata
     processing_time_ms: int | None = Field(default=None, ge=0)
@@ -138,7 +139,9 @@ class ComplianceEvent(BaseModel):
             resource_id=self.resource_id,
             request_method=self.request_method,
             request_path=self.request_path,
-            request_body=self.event_data,
+            request_body=self.event_data.model_dump() if self.event_data else {},
+            before_state=self.before_state.model_dump() if self.before_state else None,
+            after_state=self.after_state.model_dump() if self.after_state else None,
             response_status=self.response_status,
             risk_level=self.risk_level.value,
             risk_score=self.risk_score,
@@ -289,7 +292,7 @@ class AuditLogger:
         success: bool,
         ip_address: str | None = None,
         user_agent: str | None = None,
-        **metadata: Any,
+        metadata: EvidenceContent | None = None,
     ) -> Result[None, str]:
         """Log authentication-related event."""
         event = ComplianceEvent(
@@ -302,7 +305,9 @@ class AuditLogger:
             risk_score=0.8 if not success else 0.1,
             compliance_tags=["authentication", "security"],
             control_references=["SEC-001", "SEC-002"],
-            event_data={"success": success, **metadata},
+            event_data=metadata or EvidenceContent(
+                collection_metadata={"success": success, "event_type": "authentication"}
+            ),
         )
         return await self.log_event(event)
 
@@ -314,7 +319,7 @@ class AuditLogger:
         resource_id: str,
         action: str,
         ip_address: str | None = None,
-        **metadata: Any,
+        metadata: EvidenceContent | None = None,
     ) -> Result[None, str]:
         """Log data access event."""
         event = ComplianceEvent(
@@ -328,7 +333,9 @@ class AuditLogger:
             risk_score=0.3,
             compliance_tags=["data_access", "confidentiality"],
             control_references=["CONF-001"],
-            event_data=metadata,
+            event_data=metadata or EvidenceContent(
+                collection_metadata={"event_type": "data_access"}
+            ),
         )
         return await self.log_event(event)
 
@@ -345,18 +352,21 @@ class AuditLogger:
             compliance_tags=["control_execution", "compliance"],
             control_references=[execution.control_id],
             processing_time_ms=execution.execution_time_ms,
-            event_data={
-                "execution_id": str(execution.execution_id),
-                "status": execution.status.value,
-                "result": execution.result,
-                "findings": execution.findings,
-                "evidence_collected": execution.evidence_collected,
-            },
+            event_data=EvidenceContent(
+                control_execution={
+                    "execution_id": str(execution.execution_id),
+                    "status": execution.status.value,
+                    "result": execution.result,
+                    "findings": execution.findings,
+                    "evidence_collected": execution.evidence_collected,
+                },
+                collection_metadata={"event_type": "control_execution"}
+            ),
         )
         return await self.log_event(event)
 
     @beartype
-    async def log_control_event(self, action: str, control_id: str, **metadata: Any) -> Result[None, str]:
+    async def log_control_event(self, action: str, control_id: str, metadata: EvidenceContent | None = None) -> Result[None, str]:
         """Log general control-related event."""
         event = ComplianceEvent(
             event_type=AuditEventType.CONTROL_EXECUTION,
@@ -367,13 +377,15 @@ class AuditLogger:
             risk_score=0.1,
             compliance_tags=["control_management"],
             control_references=[control_id],
-            event_data=metadata,
+            event_data=metadata or EvidenceContent(
+                collection_metadata={"event_type": "control_management"}
+            ),
         )
         return await self.log_event(event)
 
     @beartype
     async def log_encryption_event(
-        self, action: str, data_type: str, encryption_algorithm: str, **metadata: Any
+        self, action: str, data_type: str, encryption_algorithm: str, metadata: EvidenceContent | None = None
     ) -> Result[None, str]:
         """Log encryption operation."""
         event = ComplianceEvent(
@@ -384,17 +396,19 @@ class AuditLogger:
             risk_score=0.2,
             compliance_tags=["encryption", "security"],
             control_references=["SEC-001"],
-            event_data={
-                "data_type": data_type,
-                "algorithm": encryption_algorithm,
-                **metadata,
-            },
+            event_data=metadata or EvidenceContent(
+                system_data={
+                    "data_type": data_type,
+                    "algorithm": encryption_algorithm,
+                },
+                collection_metadata={"event_type": "encryption"}
+            ),
         )
         return await self.log_event(event)
 
     @beartype
     async def log_privacy_event(
-        self, user_id: UUID | None, action: str, data_type: str, **metadata: Any
+        self, user_id: UUID | None, action: str, data_type: str, metadata: EvidenceContent | None = None
     ) -> Result[None, str]:
         """Log privacy-related event."""
         event = ComplianceEvent(
@@ -406,12 +420,15 @@ class AuditLogger:
             risk_score=0.6,
             compliance_tags=["privacy", "gdpr", "ccpa"],
             control_references=["PRIV-001"],
-            event_data={"data_type": data_type, **metadata},
+            event_data=metadata or EvidenceContent(
+                system_data={"data_type": data_type},
+                collection_metadata={"event_type": "privacy"}
+            ),
         )
         return await self.log_event(event)
 
     @beartype
-    async def log_error(self, message: str, **metadata: Any) -> Result[None, str]:
+    async def log_error(self, message: str, metadata: EvidenceContent | None = None) -> Result[None, str]:
         """Log system error for compliance monitoring."""
         event = ComplianceEvent(
             event_type=AuditEventType.SECURITY_INCIDENT,
@@ -420,7 +437,9 @@ class AuditLogger:
             risk_score=0.4,
             compliance_tags=["error", "incident"],
             error_details=message,
-            event_data=metadata,
+            event_data=metadata or EvidenceContent(
+                collection_metadata={"error_message": message, "event_type": "error"}
+            ),
         )
         return await self.log_event(event)
 
@@ -433,7 +452,7 @@ class AuditLogger:
         event_type: AuditEventType | None = None,
         control_id: str | None = None,
         limit: int = 1000,
-    ) -> list[dict[str, Any]]:
+    ) -> list[AuditLogEntry]:
         """Retrieve audit trail for compliance reporting."""
         try:
             conditions = []
@@ -485,16 +504,41 @@ class AuditLogger:
 
             rows = await self._database.fetch(query, *params)
 
-            # Convert rows to dictionaries
+            # Convert rows to structured audit log entries
             audit_records = []
             for row in rows:
                 record = dict(row)
                 # Parse JSON fields
+                request_body = {}
                 if record.get("request_body"):
-                    record["request_body"] = json.loads(record["request_body"])
+                    request_body = json.loads(record["request_body"])
+                
+                security_alerts = {}
                 if record.get("security_alerts"):
-                    record["security_alerts"] = json.loads(record["security_alerts"])
-                audit_records.append(record)
+                    security_alerts = json.loads(record["security_alerts"])
+                
+                # Create structured audit log entry
+                audit_entry = AuditLogEntry(
+                    log_id=record["id"],
+                    timestamp=record["created_at"],
+                    event_type=record.get("action", "unknown"),
+                    user_id=record.get("user_id"),
+                    ip_address=record.get("ip_address"),
+                    user_agent=record.get("user_agent"),
+                    action=record.get("action", "unknown"),
+                    resource_type=record.get("resource_type"),
+                    resource_id=record.get("resource_id"),
+                    request_method=record.get("request_method"),
+                    request_path=record.get("request_path"),
+                    request_body=request_body,
+                    response_status=record.get("response_status"),
+                    risk_score=record.get("risk_score", 0.0),
+                    control_references=security_alerts.get("control_references", []),
+                    compliance_tags=security_alerts.get("compliance_tags", []),
+                    evidence_references=security_alerts.get("evidence_references", []),
+                    security_alerts=security_alerts,
+                )
+                audit_records.append(audit_entry)
 
             return audit_records
 

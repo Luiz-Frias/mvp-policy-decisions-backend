@@ -11,7 +11,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ...models.admin import AdminUser, AdminUserCreate, AdminActivityLog, ActivityAction
+from ...models.admin import AdminUser, AdminUserCreate, AdminActivityLog, ActivityAction, AdminUserUpdate
 from ..cache_keys import CacheKeys
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")

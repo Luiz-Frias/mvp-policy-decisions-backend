@@ -18,6 +18,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.common import EvidenceContent
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -41,7 +42,7 @@ class DataValidationRule(BaseModel):
     rule_id: str = Field(...)
     field_name: str = Field(...)
     validation_type: str = Field(...)  # required, format, range, custom
-    parameters: dict[str, Any] = Field(default_factory=dict)
+    parameters: EvidenceContent = Field(default_factory=dict)
     error_message: str = Field(...)
     severity: str = Field(default="error")  # error, warning, info
 
@@ -96,11 +97,11 @@ class DataValidationResult(BaseModel):
     records_validated: int = Field(ge=0)
     records_passed: int = Field(ge=0)
     records_failed: int = Field(ge=0)
-    validation_errors: list[dict[str, Any]] = Field(default_factory=list)
+    validation_errors: list[EvidenceContent] = Field(default_factory=list)
     data_quality_score: float = Field(ge=0.0, le=100.0)
 
     @validator("data_quality_score", pre=True, always=True)
-    def calculate_quality_score(cls, v: Any, values: dict[str, Any]) -> float:
+    def calculate_quality_score(cls, v: Any, values: EvidenceContent) -> float:
         """Calculate data quality score based on validation results."""
         if "records_validated" in values and values["records_validated"] > 0:
             passed = values.get("records_passed", 0)
@@ -127,12 +128,12 @@ class ReconciliationResult(BaseModel):
     records_compared: int = Field(ge=0)
     matches: int = Field(ge=0)
     discrepancies: int = Field(ge=0)
-    discrepancy_details: list[dict[str, Any]] = Field(default_factory=list)
+    discrepancy_details: list[EvidenceContent] = Field(default_factory=list)
     reconciliation_percentage: float = Field(ge=0.0, le=100.0)
 
     @validator("reconciliation_percentage", pre=True, always=True)
     def calculate_reconciliation_percentage(
-        cls, v: Any, values: dict[str, Any]
+        cls, v: Any, values: EvidenceContent
     ) -> float:
         """Calculate reconciliation percentage."""
         if "records_compared" in values and values["records_compared"] > 0:
@@ -159,13 +160,13 @@ class ChangeRecord(BaseModel):
     table_name: str = Field(...)
     record_id: str = Field(...)
     operation: str = Field(...)  # INSERT, UPDATE, DELETE
-    before_values: dict[str, Any] | None = Field(default=None)
-    after_values: dict[str, Any] | None = Field(default=None)
+    before_values: EvidenceContent | None = Field(default=None)
+    after_values: EvidenceContent | None = Field(default=None)
     change_reason: str | None = Field(default=None)
     change_hash: str = Field(...)
 
     @validator("change_hash", pre=True, always=True)
-    def calculate_change_hash(cls, v: Any, values: dict[str, Any]) -> str:
+    def calculate_change_hash(cls, v: Any, values: EvidenceContent) -> str:
         """Calculate hash of the change for integrity verification."""
         change_data = {
             "table": values.get("table_name"),
@@ -249,7 +250,7 @@ class ProcessingIntegrityManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence: dict[str, Any] = {}
+            evidence: EvidenceContent = {}
 
             # Validate data in critical tables
             validation_results = []
@@ -383,7 +384,7 @@ class ProcessingIntegrityManager:
         )
 
     @beartype
-    async def _get_sample_data(self, table_name: str) -> list[dict[str, Any]]:
+    async def _get_sample_data(self, table_name: str) -> list[EvidenceContent]:
         """Get sample data for validation testing."""
         # Simulated sample data
         if table_name == "customers":
@@ -424,7 +425,7 @@ class ProcessingIntegrityManager:
             return []
 
     @beartype
-    async def _check_api_input_validation(self) -> dict[str, Any]:
+    async def _check_api_input_validation(self) -> EvidenceContent:
         """Check API input validation implementation."""
         # Simulated API validation check
         api_endpoints = [
@@ -463,7 +464,7 @@ class ProcessingIntegrityManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence: dict[str, Any] = {}
+            evidence: EvidenceContent = {}
 
             # Reconcile critical data between systems
             reconciliation_results = []
@@ -545,7 +546,7 @@ class ProcessingIntegrityManager:
     ) -> ReconciliationResult:
         """Reconcile data between two systems."""
         # Simulated reconciliation
-        discrepancy_details: list[dict[str, Any]] = []
+        discrepancy_details: list[EvidenceContent] = []
 
         if data_type == "policies":
             records_compared = 1000
@@ -619,7 +620,7 @@ class ProcessingIntegrityManager:
         )
 
     @beartype
-    async def _check_automated_reconciliation(self) -> dict[str, Any]:
+    async def _check_automated_reconciliation(self) -> EvidenceContent:
         """Check automated reconciliation processes."""
         processes = [
             {
@@ -728,7 +729,7 @@ class ProcessingIntegrityManager:
             return Err(f"Change control audit failed: {str(e)}")
 
     @beartype
-    async def _verify_audit_trail_completeness(self) -> dict[str, Any]:
+    async def _verify_audit_trail_completeness(self) -> EvidenceContent:
         """Verify completeness of audit trails."""
         critical_tables = ["policies", "customers", "claims", "payments", "users"]
 
@@ -764,7 +765,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def _verify_change_integrity(self) -> dict[str, Any]:
+    async def _verify_change_integrity(self) -> EvidenceContent:
         """Verify integrity of change records."""
         # Simulated change integrity verification
         sample_changes = [
@@ -807,7 +808,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def _check_change_approval_workflows(self) -> dict[str, Any]:
+    async def _check_change_approval_workflows(self) -> EvidenceContent:
         """Check change approval workflow compliance."""
         # Simulated approval workflow check
         recent_changes = [
@@ -833,7 +834,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def _check_segregation_of_duties(self) -> dict[str, Any]:
+    async def _check_segregation_of_duties(self) -> EvidenceContent:
         """Check segregation of duties violations."""
         # Simulated segregation check
         user_activities = [
@@ -935,7 +936,7 @@ class ProcessingIntegrityManager:
             return Err(f"Error detection control failed: {str(e)}")
 
     @beartype
-    async def _check_error_detection_systems(self) -> dict[str, Any]:
+    async def _check_error_detection_systems(self) -> EvidenceContent:
         """Check error detection system status."""
         detection_systems = [
             {"name": "input_validation", "active": True, "coverage": 95},
@@ -970,7 +971,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def _analyze_error_trends(self) -> dict[str, Any]:
+    async def _analyze_error_trends(self) -> EvidenceContent:
         """Analyze error trends over time."""
         # Simulated error trend analysis
         error_data = [
@@ -999,7 +1000,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def _check_error_correction_mechanisms(self) -> dict[str, Any]:
+    async def _check_error_correction_mechanisms(self) -> EvidenceContent:
         """Check error correction mechanisms."""
         errors_found = [
             {"error_id": "ERR-001", "corrected": True, "correction_time": 15},
@@ -1036,7 +1037,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def get_processing_integrity_dashboard(self) -> dict[str, Any]:
+    async def get_processing_integrity_dashboard(self) -> EvidenceContent:
         """Get comprehensive processing integrity dashboard data."""
         # Execute all processing integrity controls
         validation_result = await self.execute_data_validation_control()

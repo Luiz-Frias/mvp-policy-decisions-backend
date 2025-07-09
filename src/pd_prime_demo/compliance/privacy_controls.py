@@ -19,6 +19,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.common import EvidenceContent
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -136,8 +137,8 @@ class PrivacyRequest(BaseModel):
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: datetime | None = Field(default=None)
     status: str = Field(default="pending")  # pending, in_progress, completed, rejected
-    request_details: dict[str, Any] = Field(default_factory=dict)
-    response_data: dict[str, Any] | None = Field(default=None)
+    request_details: EvidenceContent = Field(default_factory=dict)
+    response_data: EvidenceContent | None = Field(default=None)
     rejection_reason: str | None = Field(default=None)
     verified: bool = Field(default=False)
 
@@ -192,8 +193,8 @@ class PrivacyImpactAssessment(BaseModel):
     description: str = Field(...)
     data_processing_activity_id: UUID = Field(...)
     risk_level: str = Field(...)  # low, medium, high
-    privacy_risks: list[dict[str, Any]] = Field(default_factory=list)
-    mitigation_measures: list[dict[str, Any]] = Field(default_factory=list)
+    privacy_risks: list[EvidenceContent] = Field(default_factory=list)
+    mitigation_measures: list[EvidenceContent] = Field(default_factory=list)
     residual_risk: str = Field(...)
     completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed_by: str = Field(...)
@@ -290,10 +291,10 @@ class PrivacyControlManager:
             return Err(f"GDPR compliance control failed: {str(e)}")
 
     @beartype
-    async def _check_lawful_basis_compliance(self) -> dict[str, Any]:
+    async def _check_lawful_basis_compliance(self) -> EvidenceContent:
         """Check lawful basis for all data processing activities."""
         # Simulated lawful basis check
-        processing_activities: list[dict[str, Any]] = [
+        processing_activities: list[EvidenceContent] = [
             {
                 "activity": "customer_onboarding",
                 "legal_basis": "contract",
@@ -332,7 +333,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _verify_processing_records(self) -> dict[str, Any]:
+    async def _verify_processing_records(self) -> EvidenceContent:
         """Verify Article 30 processing records."""
         required_fields = [
             "purposes_of_processing",
@@ -377,7 +378,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_dpia_compliance(self) -> dict[str, Any]:
+    async def _check_dpia_compliance(self) -> EvidenceContent:
         """Check Data Protection Impact Assessment compliance."""
         high_risk_activities = [
             {
@@ -424,9 +425,9 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_international_transfer_safeguards(self) -> dict[str, Any]:
+    async def _check_international_transfer_safeguards(self) -> EvidenceContent:
         """Check safeguards for international data transfers."""
-        data_transfers: list[dict[str, Any]] = [
+        data_transfers: list[EvidenceContent] = [
             {
                 "destination": "United States",
                 "mechanism": "standard_contractual_clauses",
@@ -463,7 +464,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_breach_notification_procedures(self) -> dict[str, Any]:
+    async def _check_breach_notification_procedures(self) -> EvidenceContent:
         """Check personal data breach notification procedures."""
         required_procedures = [
             "breach_detection",
@@ -570,7 +571,7 @@ class PrivacyControlManager:
             return Err(f"Consent management control failed: {str(e)}")
 
     @beartype
-    async def _check_consent_collection(self) -> dict[str, Any]:
+    async def _check_consent_collection(self) -> EvidenceContent:
         """Check consent collection mechanisms."""
         consent_mechanisms = [
             {"mechanism": "website_cookie_banner", "compliant": True, "issues": []},
@@ -601,7 +602,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _verify_consent_records(self) -> dict[str, Any]:
+    async def _verify_consent_records(self) -> EvidenceContent:
         """Verify consent records completeness."""
         # Simulated consent records analysis
         consent_records_sample = [
@@ -643,7 +644,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_withdrawal_mechanisms(self) -> dict[str, Any]:
+    async def _check_withdrawal_mechanisms(self) -> EvidenceContent:
         """Check consent withdrawal mechanisms."""
         withdrawal_channels = [
             {
@@ -680,7 +681,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_consent_expiration(self) -> dict[str, Any]:
+    async def _check_consent_expiration(self) -> EvidenceContent:
         """Check consent expiration handling."""
         # Simulated consent expiration analysis
         consent_analysis = {
@@ -764,7 +765,7 @@ class PrivacyControlManager:
             return Err(f"Data subject rights control failed: {str(e)}")
 
     @beartype
-    async def _check_rights_request_processing(self) -> dict[str, Any]:
+    async def _check_rights_request_processing(self) -> EvidenceContent:
         """Check data subject rights request processing."""
         # Simulated rights request analysis
         requests_last_30_days = [
@@ -820,7 +821,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_identity_verification(self) -> dict[str, Any]:
+    async def _check_identity_verification(self) -> EvidenceContent:
         """Check identity verification for rights requests."""
         verification_methods = [
             {"method": "email_verification", "implemented": True, "strength": "medium"},
@@ -866,7 +867,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_data_portability(self) -> dict[str, Any]:
+    async def _check_data_portability(self) -> EvidenceContent:
         """Check data portability implementation."""
         portability_requirements = [
             {"requirement": "machine_readable_format", "implemented": True},
@@ -898,7 +899,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_erasure_implementation(self) -> dict[str, Any]:
+    async def _check_erasure_implementation(self) -> EvidenceContent:
         """Check right to erasure implementation."""
         data_systems = [
             {
@@ -1018,7 +1019,7 @@ class PrivacyControlManager:
             return Err(f"CCPA compliance control failed: {str(e)}")
 
     @beartype
-    async def _check_ccpa_disclosures(self) -> dict[str, Any]:
+    async def _check_ccpa_disclosures(self) -> EvidenceContent:
         """Check CCPA disclosure requirements."""
         required_disclosures = [
             "categories_of_personal_information",
@@ -1055,7 +1056,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_do_not_sell_implementation(self) -> dict[str, Any]:
+    async def _check_do_not_sell_implementation(self) -> EvidenceContent:
         """Check 'Do Not Sell' implementation."""
         implementation_requirements = [
             {"requirement": "opt_out_link_prominent", "implemented": True},
@@ -1086,7 +1087,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_ccpa_consumer_rights(self) -> dict[str, Any]:
+    async def _check_ccpa_consumer_rights(self) -> EvidenceContent:
         """Check CCPA consumer rights implementation."""
         consumer_rights = [
             {"right": "right_to_know", "implemented": True},
@@ -1111,7 +1112,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def _check_service_provider_agreements(self) -> dict[str, Any]:
+    async def _check_service_provider_agreements(self) -> EvidenceContent:
         """Check service provider agreement compliance."""
         service_providers = [
             {"provider": "email_service", "agreement_compliant": True},
@@ -1139,7 +1140,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def get_privacy_dashboard(self) -> dict[str, Any]:
+    async def get_privacy_dashboard(self) -> EvidenceContent:
         """Get comprehensive privacy dashboard data."""
         # Execute all privacy controls
         gdpr_result = await self.execute_gdpr_compliance_control()

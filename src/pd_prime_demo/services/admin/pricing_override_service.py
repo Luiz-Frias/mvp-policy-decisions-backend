@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
+from pydantic import ConfigDict
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
@@ -16,6 +17,8 @@ from ...models.base import BaseModelConfig
 
 class PricingOverrideResponse(BaseModelConfig):
     """Pricing override response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
     
     id: UUID
     quote_id: UUID

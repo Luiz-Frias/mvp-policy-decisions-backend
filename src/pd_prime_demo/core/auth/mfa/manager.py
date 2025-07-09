@@ -16,6 +16,7 @@ from .biometric import BiometricProvider
 from .models import (
     DeviceTrust,
     MFAChallenge,
+    MFAChallengeMetadata,
     MFAConfig,
     MFAMethod,
     MFAStatus,
@@ -246,6 +247,9 @@ class MFAManager:
             if not method:
                 return Err("No MFA method available for user")
 
+            # Create challenge metadata
+            metadata = MFAChallengeMetadata()
+            
             # Create challenge
             challenge = MFAChallenge(
                 challenge_id=uuid4(),
@@ -256,7 +260,7 @@ class MFAManager:
                 expires_at=datetime.now(timezone.utc) + self._challenge_expiry,
                 attempts=0,
                 max_attempts=3,
-                metadata={},
+                metadata=metadata,
             )
 
             # Method-specific setup
@@ -272,7 +276,16 @@ class MFAManager:
                 if isinstance(sms_result, Err):
                     return sms_result
 
-                challenge.metadata["sms_verification"] = sms_result.value
+                # Update metadata with SMS phone number
+                challenge.metadata = MFAChallengeMetadata(
+                    ip_address=metadata.ip_address,
+                    user_agent=metadata.user_agent,
+                    device_fingerprint=metadata.device_fingerprint,
+                    risk_level=metadata.risk_level,
+                    sms_phone_number=config.sms_phone_encrypted,
+                    webauthn_challenge=metadata.webauthn_challenge,
+                    biometric_type=metadata.biometric_type,
+                )
 
             elif method == MFAMethod.WEBAUTHN:
                 # Get user's credentials
@@ -285,7 +298,16 @@ class MFAManager:
                 if isinstance(auth_options, Err):
                     return auth_options
 
-                challenge.metadata["webauthn_options"] = auth_options.value
+                # Update metadata with WebAuthn challenge
+                challenge.metadata = MFAChallengeMetadata(
+                    ip_address=metadata.ip_address,
+                    user_agent=metadata.user_agent,
+                    device_fingerprint=metadata.device_fingerprint,
+                    risk_level=metadata.risk_level,
+                    sms_phone_number=metadata.sms_phone_number,
+                    webauthn_challenge=str(auth_options.value),
+                    biometric_type=metadata.biometric_type,
+                )
 
             # Store challenge
             await self._cache.set(

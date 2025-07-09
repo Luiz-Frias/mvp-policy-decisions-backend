@@ -11,7 +11,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ....core.cache import Cache
 from ....core.config import Settings
 from ....core.database import Database
-from .models import MFAMethod, RiskAssessment, RiskLevel
+from .models import MFAMethod, RiskAssessment, RiskFactors, RiskLevel
 
 
 class RiskEngine:
@@ -79,40 +79,41 @@ class RiskEngine:
             Result containing risk assessment or error
         """
         try:
-            risk_factors = {}
+            # Initialize risk factors
+            risk_factors = RiskFactors()
 
             # 1. Check device trust
             device_risk = await self._assess_device_risk(
                 user_id, device_fingerprint, user_agent
             )
-            risk_factors.update(device_risk)
+            risk_factors = self._update_risk_factors(risk_factors, device_risk)
 
             # 2. Check location and travel patterns
             location_risk = await self._assess_location_risk(user_id, ip_address)
-            risk_factors.update(location_risk)
+            risk_factors = self._update_risk_factors(risk_factors, location_risk)
 
             # 3. Check network trust
             network_risk = self._assess_network_risk(ip_address)
-            risk_factors.update(network_risk)
+            risk_factors = self._update_risk_factors(risk_factors, network_risk)
 
             # 4. Check time-based patterns
             time_risk = await self._assess_time_risk(user_id)
-            risk_factors.update(time_risk)
+            risk_factors = self._update_risk_factors(risk_factors, time_risk)
 
             # 5. Check recent failed attempts
             attempt_risk = await self._assess_failed_attempts(user_id)
-            risk_factors.update(attempt_risk)
+            risk_factors = self._update_risk_factors(risk_factors, attempt_risk)
 
             # 6. Check account age and history
             account_risk = await self._assess_account_risk(user_id)
-            risk_factors.update(account_risk)
+            risk_factors = self._update_risk_factors(risk_factors, account_risk)
 
             # 7. Check for unusual behavior patterns
             if additional_context:
                 behavior_risk = await self._assess_behavior_risk(
                     user_id, additional_context
                 )
-                risk_factors.update(behavior_risk)
+                risk_factors = self._update_risk_factors(risk_factors, behavior_risk)
 
             # Calculate overall risk score
             risk_score = self._calculate_risk_score(risk_factors)
@@ -362,12 +363,23 @@ class RiskEngine:
         return risk_factors
 
     @beartype
-    def _calculate_risk_score(self, risk_factors: dict[str, float]) -> float:
+    def _calculate_risk_score(self, risk_factors: RiskFactors) -> float:
         """Calculate weighted risk score."""
+        # Convert RiskFactors to dict for calculation
+        factors_dict = {
+            "location_risk": risk_factors.location_risk,
+            "device_risk": risk_factors.device_risk,
+            "behavioral_risk": risk_factors.behavioral_risk,
+            "time_risk": risk_factors.time_risk,
+            "network_risk": risk_factors.network_risk,
+            "velocity_risk": risk_factors.velocity_risk,
+            "credential_risk": risk_factors.credential_risk,
+        }
+
         total_score = 0.0
         total_weight = 0.0
 
-        for factor, value in risk_factors.items():
+        for factor, value in factors_dict.items():
             # Get weight for this factor type
             weight = 1.0  # Default weight
             for factor_type, factor_weight in self._risk_weights.items():
@@ -400,35 +412,86 @@ class RiskEngine:
 
     @beartype
     def _build_risk_reason(
-        self, risk_factors: dict[str, float], risk_level: RiskLevel
+        self, risk_factors: RiskFactors, risk_level: RiskLevel
     ) -> str:
         """Build human-readable risk reason."""
         if risk_level == RiskLevel.LOW:
             return "Normal authentication pattern detected"
 
+        # Convert RiskFactors to dict for analysis
+        factors_dict = {
+            "location_risk": risk_factors.location_risk,
+            "device_risk": risk_factors.device_risk,
+            "behavioral_risk": risk_factors.behavioral_risk,
+            "time_risk": risk_factors.time_risk,
+            "network_risk": risk_factors.network_risk,
+            "velocity_risk": risk_factors.velocity_risk,
+            "credential_risk": risk_factors.credential_risk,
+        }
+
         # Find top risk factors
-        top_factors = sorted(risk_factors.items(), key=lambda x: x[1], reverse=True)[:3]
+        top_factors = sorted(factors_dict.items(), key=lambda x: x[1], reverse=True)[:3]
 
         reasons = []
         for factor, score in top_factors:
             if score > 0.5:
-                if "new_device" in factor:
-                    reasons.append("new device detected")
-                elif "impossible_travel" in factor:
-                    reasons.append("impossible travel detected")
-                elif "new_location" in factor:
+                if "location" in factor:
                     reasons.append("login from new location")
-                elif "failed_attempts" in factor:
-                    reasons.append("recent failed login attempts")
-                elif "tor" in factor:
-                    reasons.append("Tor network detected")
-                elif "vpn" in factor:
-                    reasons.append("VPN/proxy detected")
+                elif "device" in factor:
+                    reasons.append("new device detected")
+                elif "behavioral" in factor:
+                    reasons.append("unusual behavior pattern")
+                elif "time" in factor:
+                    reasons.append("atypical login time")
+                elif "network" in factor:
+                    reasons.append("untrusted network")
+                elif "velocity" in factor:
+                    reasons.append("rapid login attempts")
+                elif "credential" in factor:
+                    reasons.append("credential security concern")
 
         if reasons:
             return f"Additional verification required due to: {', '.join(reasons)}"
         else:
             return f"{risk_level.value.title()} risk detected"
+
+    @beartype
+    def _update_risk_factors(self, risk_factors: RiskFactors, updates: dict[str, float]) -> RiskFactors:
+        """Update risk factors with new values."""
+        location_risk = risk_factors.location_risk
+        device_risk = risk_factors.device_risk
+        behavioral_risk = risk_factors.behavioral_risk
+        time_risk = risk_factors.time_risk
+        network_risk = risk_factors.network_risk
+        velocity_risk = risk_factors.velocity_risk
+        credential_risk = risk_factors.credential_risk
+
+        # Map risk factor names to appropriate categories
+        for factor_name, value in updates.items():
+            if any(term in factor_name for term in ["location", "travel", "country", "city"]):
+                location_risk = max(location_risk, value)
+            elif any(term in factor_name for term in ["device", "fingerprint", "user_agent"]):
+                device_risk = max(device_risk, value)
+            elif any(term in factor_name for term in ["behavior", "action", "access", "sensitive"]):
+                behavioral_risk = max(behavioral_risk, value)
+            elif any(term in factor_name for term in ["time", "hour", "pattern"]):
+                time_risk = max(time_risk, value)
+            elif any(term in factor_name for term in ["network", "ip", "vpn", "proxy", "tor"]):
+                network_risk = max(network_risk, value)
+            elif any(term in factor_name for term in ["velocity", "failed", "attempts", "rapid"]):
+                velocity_risk = max(velocity_risk, value)
+            elif any(term in factor_name for term in ["credential", "password", "mfa", "account"]):
+                credential_risk = max(credential_risk, value)
+
+        return RiskFactors(
+            location_risk=location_risk,
+            device_risk=device_risk,
+            behavioral_risk=behavioral_risk,
+            time_risk=time_risk,
+            network_risk=network_risk,
+            velocity_risk=velocity_risk,
+            credential_risk=credential_risk,
+        )
 
     # Helper methods (mock implementations)
 
@@ -478,7 +541,7 @@ class RiskEngine:
         self,
         user_id: str,
         risk_score: float,
-        risk_factors: dict[str, float],
+        risk_factors: RiskFactors,
         risk_level: RiskLevel,
     ) -> None:
         """Log risk assessment for analysis and audit."""

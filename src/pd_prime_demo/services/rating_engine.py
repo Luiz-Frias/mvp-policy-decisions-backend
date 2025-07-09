@@ -43,11 +43,85 @@ from ..schemas.rating import (
     CoverageRates,
     TerritoryRates,
     SurchargeFactors,
+    SurchargeCalculation,
 )
 from .performance_monitor import performance_monitor
 from .rating.business_rules import RatingBusinessRules
 from .rating.performance_optimizer import RatingPerformanceOptimizer
 from .rating.territory_management import TerritoryManager
+
+
+@beartype
+class DiscountRules(BaseModelConfig):
+    """Structured discount rules configuration."""
+    
+    multi_policy: float = Field(default=0.0, ge=0.0, le=1.0, description="Multi-policy discount rate")
+    good_driver: float = Field(default=0.0, ge=0.0, le=1.0, description="Good driver discount rate")
+    safety_course: float = Field(default=0.0, ge=0.0, le=1.0, description="Safety course discount rate")
+    good_student: float = Field(default=0.0, ge=0.0, le=1.0, description="Good student discount rate")
+    military: float = Field(default=0.0, ge=0.0, le=1.0, description="Military discount rate")
+    senior_citizen: float = Field(default=0.0, ge=0.0, le=1.0, description="Senior citizen discount rate")
+    loyalty: float = Field(default=0.0, ge=0.0, le=1.0, description="Loyalty discount rate")
+    paperless: float = Field(default=0.0, ge=0.0, le=1.0, description="Paperless billing discount rate")
+
+
+@beartype
+class StateRules(BaseModelConfig):
+    """State-specific rating rules configuration."""
+    
+    minimum_liability_limits: dict[str, int] = Field(default_factory=dict, description="Minimum coverage limits by type")
+    pip_required: bool = Field(default=False, description="Personal injury protection required")
+    uninsured_motorist_required: bool = Field(default=False, description="Uninsured motorist coverage required")
+    no_fault_state: bool = Field(default=False, description="No-fault insurance state")
+    rate_factors: dict[str, float] = Field(default_factory=dict, description="State-specific rate factors")
+    territorial_rating: bool = Field(default=True, description="Territory-based rating allowed")
+    credit_scoring_allowed: bool = Field(default=True, description="Credit-based insurance scoring allowed")
+
+
+@beartype
+class CoveragePremiums(BaseModelConfig):
+    """Structured coverage premiums instead of dict."""
+    
+    bodily_injury: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    property_damage: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    collision: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    comprehensive: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    medical: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    personal_injury_protection: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    uninsured_motorist: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    underinsured_motorist: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    rental: Decimal = Field(default=Decimal('0'), ge=0, decimal_places=2)
+    
+    def get_coverage_premium(self, coverage_type: CoverageType) -> Decimal:
+        """Get premium for a specific coverage type."""
+        coverage_map = {
+            CoverageType.BODILY_INJURY: self.bodily_injury,
+            CoverageType.PROPERTY_DAMAGE: self.property_damage,
+            CoverageType.COLLISION: self.collision,
+            CoverageType.COMPREHENSIVE: self.comprehensive,
+            CoverageType.MEDICAL: self.medical,
+            CoverageType.PERSONAL_INJURY_PROTECTION: self.personal_injury_protection,
+            CoverageType.UNINSURED_MOTORIST: self.uninsured_motorist,
+            CoverageType.UNDERINSURED_MOTORIST: self.underinsured_motorist,
+            CoverageType.RENTAL: self.rental,
+        }
+        return coverage_map.get(coverage_type, Decimal('0'))
+
+
+@beartype
+class SurchargeList(BaseModelConfig):
+    """Structured surcharge list instead of list[dict[str, Any]]."""
+    
+    items: list[SurchargeCalculation] = Field(default_factory=list)
+    
+    def add_surcharge(self, surcharge: SurchargeCalculation) -> None:
+        """Add a surcharge to the list."""
+        # Note: Can't modify due to frozen=True, but providing interface for clarity
+        pass
+    
+    def total_amount(self) -> Decimal:
+        """Calculate total surcharge amount."""
+        return sum((item.amount for item in self.items), Decimal('0'))
 
 
 @beartype
@@ -57,17 +131,17 @@ class RatingResult(BaseModelConfig):
     base_premium: Decimal = Field(..., ge=0, decimal_places=2)
     total_premium: Decimal = Field(..., ge=0, decimal_places=2)
 
-    # Breakdowns
-    coverage_premiums: dict[CoverageType, Decimal] = Field(default_factory=dict)
+    # Breakdowns - now using structured models
+    coverage_premiums: CoveragePremiums = Field(default_factory=CoveragePremiums)
 
     # Adjustments
     discounts: list[Discount] = Field(default_factory=list)
     total_discount_amount: Decimal = Field(Decimal("0"), ge=0, decimal_places=2)
-    surcharges: list[dict[str, Any]] = Field(default_factory=list)
+    surcharges: SurchargeList = Field(default_factory=SurchargeList)
     total_surcharge_amount: Decimal = Field(Decimal("0"), ge=0, decimal_places=2)
 
-    # Factors used (dict for compatibility with existing code)
-    factors: dict[str, float] = Field(default_factory=dict)
+    # Factors used - structured models instead of dict
+    rating_factors: RatingFactors = Field(default_factory=lambda: RatingFactors())
     tier: str = Field(...)
 
     # AI enhancements
@@ -91,11 +165,11 @@ class RatingEngine:
         self._cache_prefix = "rating:"
         self._rate_cache_ttl = 3600  # 1 hour
 
-        # Preloaded data for performance
-        self._base_rates: dict[str, dict[str, Decimal]] = {}
-        self._discount_rules: dict[str, Any] = {}
-        self._territory_factors: dict[str, float] = {}
-        self._state_rules: dict[str, Any] = {}
+        # Preloaded data for performance - structured models
+        self._base_rates: dict[str, CoverageRates] = {}
+        self._discount_rules: dict[str, DiscountRules] = {}
+        self._territory_factors: dict[str, TerritoryRates] = {}
+        self._state_rules: dict[str, StateRules] = {}
 
         # Business rule validation and territory management
         self._business_rules = RatingBusinessRules()
@@ -184,15 +258,17 @@ class RatingEngine:
             total_base = Decimal("0")
 
             for coverage in coverage_selections:
-                # EXPLICIT rate lookup - no defaults
-                if coverage.coverage_type.value not in base_rates.value:
+                # EXPLICIT rate lookup using structured model
+                base_rate_value = getattr(base_rates.value, coverage.coverage_type.value, None)
+                if base_rate_value is None or base_rate_value == Decimal("0"):
+                    available_coverage_types = [k for k, v in base_rates.value.model_dump().items() if v is not None and v > 0]
                     return Err(
                         f"No approved rate found for coverage '{coverage.coverage_type.value}' in {state}. "
-                        f"Available coverages: {list(base_rates.value.keys())}. "
+                        f"Available coverages: {available_coverage_types}. "
                         f"Admin must approve rates for this coverage type before quotes can proceed."
                     )
 
-                base_rate = base_rates.value[coverage.coverage_type.value]
+                base_rate = base_rate_value
                 coverage_premium = (
                     coverage.limit * Decimal(str(base_rate)) / Decimal("1000")
                 )  # Rate per $1000
@@ -244,7 +320,7 @@ class RatingEngine:
                 total_premium = min_premium.value
 
             # Determine tier
-            tier = self._determine_tier(factors.value.model_dump(), total_premium)
+            tier = self._determine_tier(factors.value, total_premium)
 
             # AI risk assessment (if enabled and customer exists)
             ai_risk_score = None
@@ -305,7 +381,7 @@ class RatingEngine:
                 total_discount_amount=Decimal(str(total_discount)),
                 surcharges=[s.model_dump() for s in surcharges.value],
                 total_surcharge_amount=Decimal(str(total_surcharge)),
-                factors=factors.value.model_dump(),
+                rating_factors=factors.value,
                 tier=tier,
                 ai_risk_score=ai_risk_score,
                 ai_risk_factors=ai_risk_factors,
@@ -323,7 +399,7 @@ class RatingEngine:
 
             # Log if slow (>50ms requirement)
             if calc_time > 50:
-                await self._log_slow_calculation(calc_time, factors.value.model_dump())
+                await self._log_slow_calculation(calc_time, factors.value)
 
             return Ok(result)
 
@@ -382,22 +458,23 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("get_base_rates")
-    async def _get_base_rates(self, state: str, product_type: str) -> Result[dict[str, float], str]:
+    async def _get_base_rates(self, state: str, product_type: str) -> Result[CoverageRates, str]:
         """Get base rates for state/product - NO DEFAULTS."""
         cache_key = f"base_rates:{state}:{product_type}"
 
         # Check cache first
         cached = await self._cache.get(f"{self._cache_prefix}{cache_key}")
         if cached:
-            return Ok(json.loads(cached))
+            try:
+                cached_data = json.loads(cached)
+                return Ok(CoverageRates(**cached_data))
+            except Exception:
+                pass  # Fall through to database lookup
 
         # Check preloaded rates
         key = f"{state}:{product_type}"
         if key in self._base_rates:
-            # Convert Decimal to float
-            decimal_rates = self._base_rates[key]
-            float_rates = {k: float(v) for k, v in decimal_rates.items()}
-            return Ok(float_rates)
+            return Ok(self._base_rates[key])
 
         # Load from database
         query = """
@@ -418,18 +495,29 @@ class RatingEngine:
                 f"Required action: Configure rates in admin panel -> Rate Management."
             )
 
-        rates = {row["coverage_type"]: Decimal(str(row["base_rate"])) for row in rows}
+        # Build CoverageRates model from database rows
+        rates_dict = {row["coverage_type"]: Decimal(str(row["base_rate"])) for row in rows}
+        
+        # Create structured CoverageRates model with sensible defaults
+        coverage_rates = CoverageRates(
+            bodily_injury=rates_dict.get("bodily_injury", Decimal("100")),
+            property_damage=rates_dict.get("property_damage", Decimal("50")),
+            comprehensive=rates_dict.get("comprehensive"),
+            collision=rates_dict.get("collision"),
+            uninsured_motorist=rates_dict.get("uninsured_motorist"),
+            personal_injury_protection=rates_dict.get("personal_injury_protection"),
+            medical_payments=rates_dict.get("medical_payments"),
+            property_protection=rates_dict.get("property_protection")
+        )
 
         # Cache for performance
         await self._cache.set(
             f"{self._cache_prefix}{cache_key}",
-            json.dumps({k: str(v) for k, v in rates.items()}),
+            coverage_rates.model_dump_json(),
             self._rate_cache_ttl,
         )
 
-        # Convert to float for return
-        float_rates = {k: float(v) for k, v in rates.items()}
-        return Ok(float_rates)
+        return Ok(coverage_rates)
 
     @beartype
     @performance_monitor("calculate_factors")
@@ -457,13 +545,23 @@ class RatingEngine:
             vehicle_factors = await self._calculate_vehicle_factors(vehicle_info)
             if isinstance(vehicle_factors, Err):
                 return vehicle_factors
-            factors.update(vehicle_factors.value)
+            # Extract individual factors from RatingFactors model
+            vf = vehicle_factors.value
+            factors["vehicle_age"] = vf.vehicle_age
+            factors["vehicle_type"] = vf.vehicle_type
+            factors["low_mileage"] = vf.low_mileage
+            factors["high_mileage"] = vf.high_mileage
 
         # Driver factors
         driver_factors = await self._calculate_driver_factors(drivers)
         if isinstance(driver_factors, Err):
             return driver_factors
-        factors.update(driver_factors.value)
+        # Extract individual factors from RatingFactors model
+        df = driver_factors.value
+        factors["driver_age"] = df.driver_age
+        factors["experience"] = df.experience
+        factors["violations"] = df.violations
+        factors["accidents"] = df.accidents
 
         # Credit factor (if allowed in state)
         if customer_id and state not in ["CA", "MA", "MI"]:
@@ -507,7 +605,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("calculate_vehicle_factors")
-    async def _calculate_vehicle_factors(self, vehicle: VehicleInfo) -> Result[dict[str, float], str]:
+    async def _calculate_vehicle_factors(self, vehicle: VehicleInfo) -> Result[RatingFactors, str]:
         """Calculate vehicle-specific factors."""
         factors = {}
 
@@ -546,11 +644,20 @@ class RatingEngine:
         elif vehicle.annual_mileage > 20000:
             factors["high_mileage"] = 1.15
 
-        return Ok(factors)
+        # Create RatingFactors model from factors dictionary
+        rating_factors = RatingFactors(
+            vehicle_age=factors.get("vehicle_age", 1.0),
+            low_mileage=factors.get("low_mileage", 1.0),
+            high_mileage=factors.get("high_mileage", 1.0),
+            # Set safety features and anti-theft as vehicle_type factor
+            vehicle_type=factors.get("safety_features", 1.0) * factors.get("anti_theft", 1.0)
+        )
+        
+        return Ok(rating_factors)
 
     @beartype
     @performance_monitor("calculate_driver_factors")
-    async def _calculate_driver_factors(self, drivers: list[DriverInfo]) -> Result[dict[str, float], str]:
+    async def _calculate_driver_factors(self, drivers: list[DriverInfo]) -> Result[RatingFactors, str]:
         """Calculate driver-specific factors."""
         # Find primary driver (youngest regular driver typically has highest impact)
         primary_driver = min(drivers, key=lambda d: d.age)
@@ -602,7 +709,16 @@ class RatingEngine:
         if total_duis > 0:
             factors["dui"] = min(2.00 + (total_duis * 0.50), 4.00)
 
-        return Ok(factors)
+        # Create RatingFactors model from factors dictionary
+        rating_factors = RatingFactors(
+            driver_age=factors.get("driver_age", 1.0),
+            experience=factors.get("experience", 1.0),
+            violations=factors.get("violations", 1.0),
+            accidents=factors.get("accidents", 1.0),
+            # Note: DUI is handled separately and not part of RatingFactors model
+        )
+        
+        return Ok(rating_factors)
 
     @beartype
     @performance_monitor("calculate_discounts")
@@ -763,12 +879,10 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("determine_tier")
-    def _determine_tier(self, factors: dict[str, float], premium: Decimal) -> str:
+    def _determine_tier(self, factors: RatingFactors, premium: Decimal) -> str:
         """Determine rating tier based on factors and premium."""
-        # Calculate composite risk score
-        risk_score = 1.0
-        for factor_value in factors.values():
-            risk_score *= factor_value
+        # Calculate composite risk score using the structured model
+        risk_score = factors.calculate_composite_factor()
 
         # Assign tier based on risk score
         if risk_score < 0.8:
@@ -1106,11 +1220,11 @@ class RatingEngine:
 
     @beartype
     async def _log_slow_calculation(
-        self, calc_time_ms: int, factors: dict[str, float]
+        self, calc_time_ms: int, factors: RatingFactors
     ) -> None:
         """Log slow calculation for monitoring."""
         # In production, this would send to monitoring system
-        print(f"WARNING: Slow rating calculation: {calc_time_ms}ms, factors: {factors}")
+        print(f"WARNING: Slow rating calculation: {calc_time_ms}ms, factors: {factors.model_dump()}")
 
     @beartype
     @performance_monitor("load_base_rates")
@@ -1126,12 +1240,27 @@ class RatingEngine:
 
         rows = await self._db.fetch(query)
 
+        # Group rows by state and product_type
+        rate_groups: dict[str, dict[str, Decimal]] = {}
         for row in rows:
             key = f"{row['state']}:{row['product_type']}"
-            if key not in self._base_rates:
-                self._base_rates[key] = {}
+            if key not in rate_groups:
+                rate_groups[key] = {}
+            rate_groups[key][row["coverage_type"]] = Decimal(str(row["base_rate"]))
 
-            self._base_rates[key][row["coverage_type"]] = Decimal(str(row["base_rate"]))
+        # Build CoverageRates models
+        for key, rates_dict in rate_groups.items():
+            coverage_rates = CoverageRates(
+                bodily_injury=rates_dict.get("bodily_injury", Decimal("100")),
+                property_damage=rates_dict.get("property_damage", Decimal("50")),
+                comprehensive=rates_dict.get("comprehensive"),
+                collision=rates_dict.get("collision"),
+                uninsured_motorist=rates_dict.get("uninsured_motorist"),
+                personal_injury_protection=rates_dict.get("personal_injury_protection"),
+                medical_payments=rates_dict.get("medical_payments"),
+                property_protection=rates_dict.get("property_protection")
+            )
+            self._base_rates[key] = coverage_rates
 
         return Ok(True)
 

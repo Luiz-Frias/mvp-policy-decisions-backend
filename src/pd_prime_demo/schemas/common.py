@@ -323,7 +323,97 @@ class ApiOperation(BaseModel):
 # Common domain models for reuse across schemas
 
 
-# SOC 2 Compliance Models - Replace dict[str, Any] usage
+# SOC 2 Compliance Models - Structured Pydantic models (no dict usage)
+
+
+class ControlExecutionDetails(BaseModel):
+    """Structured control execution details."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    control_id: str = Field(..., min_length=1, description="Control identifier")
+    execution_timestamp: datetime = Field(..., description="Execution timestamp")
+    success: bool = Field(..., description="Execution success status")
+    automated: bool = Field(default=True, description="Automated execution flag")
+    criteria: str = Field(..., min_length=1, description="Trust service criteria")
+    findings: list[str] = Field(default_factory=list, description="Execution findings")
+    remediation_actions: list[str] = Field(default_factory=list, description="Remediation actions")
+
+
+class SystemDataEvidence(BaseModel):
+    """Structured system data evidence."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    cpu_usage_percent: float | None = Field(None, ge=0.0, le=100.0, description="CPU usage")
+    memory_usage_mb: float | None = Field(None, ge=0.0, description="Memory usage in MB")
+    disk_usage_percent: float | None = Field(None, ge=0.0, le=100.0, description="Disk usage")
+    active_connections: int | None = Field(None, ge=0, description="Active connections")
+    error_count: int | None = Field(None, ge=0, description="Error count")
+    response_time_ms: float | None = Field(None, ge=0.0, description="Response time in ms")
+    uptime_seconds: int | None = Field(None, ge=0, description="Uptime in seconds")
+    security_events: int | None = Field(None, ge=0, description="Security events count")
+    backup_status: str | None = Field(None, description="Backup status")
+    encryption_status: str | None = Field(None, description="Encryption status")
+    access_control_status: str | None = Field(None, description="Access control status")
+    audit_log_entries: int | None = Field(None, ge=0, description="Audit log entries count")
+
+
+class CollectionMetadata(BaseModel):
+    """Structured evidence collection metadata."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    collector_id: str = Field(..., min_length=1, description="Evidence collector identifier")
+    collection_timestamp: datetime = Field(..., description="Collection timestamp")
+    collection_method: str = Field(..., min_length=1, description="Collection method")
+    automated_collection: bool = Field(default=True, description="Automated collection flag")
+    data_source: str = Field(..., min_length=1, description="Data source identifier")
+    collection_duration_ms: int = Field(..., ge=0, description="Collection duration in ms")
+    data_completeness: bool = Field(default=True, description="Data completeness flag")
+    validation_passed: bool = Field(default=True, description="Validation status")
+    retention_period_days: int = Field(default=2555, ge=1, description="Retention period in days")
+
+
+class AdditionalEvidenceContext(BaseModel):
+    """Structured additional evidence context."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    context_type: str = Field(..., min_length=1, description="Context type")
+    business_process: str | None = Field(None, description="Related business process")
+    risk_assessment: str | None = Field(None, description="Risk assessment level")
+    compliance_framework: str | None = Field(None, description="Compliance framework")
+    testing_approach: str | None = Field(None, description="Testing approach used")
+    evidence_reliability: str = Field(default="high", description="Evidence reliability rating")
+    reviewer_notes: str | None = Field(None, description="Reviewer notes")
+    quality_score: float | None = Field(None, ge=0.0, le=100.0, description="Quality score")
+    remediation_priority: str | None = Field(None, description="Remediation priority")
+    stakeholder_impact: str | None = Field(None, description="Stakeholder impact")
 
 
 class EvidenceContent(BaseModel):
@@ -337,13 +427,13 @@ class EvidenceContent(BaseModel):
         validate_default=True,
     )
 
-    control_execution: dict[str, str | bool | list[str]] | None = Field(
+    control_execution: ControlExecutionDetails | None = Field(
         None, description="Control execution details"
     )
-    system_data: dict[str, Any] | None = Field(
+    system_data: SystemDataEvidence | None = Field(
         None, description="System data collected as evidence"
     )
-    collection_metadata: dict[str, str | bool | datetime] = Field(
+    collection_metadata: CollectionMetadata = Field(
         ..., description="Evidence collection metadata"
     )
     data_integrity_hash: str | None = Field(
@@ -352,8 +442,8 @@ class EvidenceContent(BaseModel):
     verification_status: str = Field(
         default="pending", description="Evidence verification status"
     )
-    additional_context: dict[str, Any] = Field(
-        default_factory=dict, description="Additional evidence context"
+    additional_context: AdditionalEvidenceContext | None = Field(
+        None, description="Additional evidence context"
     )
 
 

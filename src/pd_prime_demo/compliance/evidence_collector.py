@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 from pd_prime_demo.schemas.compliance import EvidenceItem, EvidenceCollection
-from pd_prime_demo.schemas.common import EvidenceContent
+from pd_prime_demo.schemas.common import EvidenceContent, ControlEvidence, ComplianceFinding, ComplianceRecommendation, ManagementResponse
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -98,7 +98,7 @@ class EvidenceArtifact(BaseModel):
     trust_service_criteria: str = Field(...)
 
     # Content and Metadata
-    content: dict[str, Any] = Field(default_factory=dict)
+    content: EvidenceContent = Field(default_factory=EvidenceContent)
     file_path: str | None = Field(default=None)
     file_hash: str | None = Field(default=None)
     file_size_bytes: int | None = Field(default=None)
@@ -203,7 +203,7 @@ class ComplianceReport(BaseModel):
     # Compliance Summary
     overall_compliance_score: float = Field(ge=0.0, le=100.0)
     trust_service_criteria_scores: dict[str, float] = Field(default_factory=dict)
-    control_effectiveness_summary: dict[str, Any] = Field(default_factory=dict)
+    control_effectiveness_summary: ControlEvidence = Field(default_factory=ControlEvidence)
 
     # Evidence Summary
     total_evidence_artifacts: int = Field(ge=0)
@@ -211,13 +211,13 @@ class ComplianceReport(BaseModel):
     evidence_quality_score: float = Field(ge=0.0, le=100.0)
 
     # Findings and Recommendations
-    findings: list[dict[str, Any]] = Field(default_factory=list)
-    recommendations: list[dict[str, Any]] = Field(default_factory=list)
-    management_responses: list[dict[str, Any]] = Field(default_factory=list)
+    findings: list[ComplianceFinding] = Field(default_factory=list)
+    recommendations: list[ComplianceRecommendation] = Field(default_factory=list)
+    management_responses: list[ManagementResponse] = Field(default_factory=list)
 
     # Supporting Data
     evidence_collection_ids: list[UUID] = Field(default_factory=list)
-    report_content: dict[str, Any] = Field(default_factory=dict)
+    report_content: EvidenceContent = Field(default_factory=EvidenceContent)
 
 
 class EvidenceCollector:
@@ -362,7 +362,7 @@ class EvidenceCollector:
         self,
         evidence_type: EvidenceType,
         title: str,
-        system_data: dict[str, Any],
+        system_data: EvidenceContent,
         period_start: datetime,
         period_end: datetime,
         control_id: str | None = None,
@@ -588,7 +588,7 @@ class EvidenceCollector:
         period_start: datetime,
         period_end: datetime,
         evidence_collection_ids: list[UUID],
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Collect and analyze compliance data for reporting."""
         # Simulated compliance data collection and analysis
         return {  # SYSTEM_BOUNDARY - Aggregated system data
@@ -679,7 +679,7 @@ class EvidenceCollector:
     @beartype
     async def get_evidence_summary(
         self, period_start: datetime, period_end: datetime
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[EvidenceContent, str]:
         """Get summary of evidence collected for a period."""
         try:
             # In a real implementation, this would query the database

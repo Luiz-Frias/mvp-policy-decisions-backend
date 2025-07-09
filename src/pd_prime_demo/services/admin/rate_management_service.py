@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
+from pydantic import ConfigDict
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
@@ -21,6 +22,8 @@ from ..rating.rate_tables import RateTableService
 
 class RateVersionResponse(BaseModelConfig):
     """Rate version response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
     
     version_id: UUID
     version_number: int

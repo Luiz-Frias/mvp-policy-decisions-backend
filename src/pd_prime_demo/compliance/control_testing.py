@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 from pd_prime_demo.schemas.compliance import ControlTestResult, ControlTestFinding
+from pd_prime_demo.schemas.common import EvidenceContent
 
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import (
@@ -106,7 +107,7 @@ class ControlTest(BaseModel):
     # Results
     test_result: TestResult | None = Field(default=None)
     deficiencies: list[ControlTestFinding] = Field(default_factory=list)
-    exceptions_noted: list[dict[str, Any]] = Field(default_factory=list)
+    exceptions_noted: list[EvidenceContent] = Field(default_factory=list)
     evidence_obtained: list[str] = Field(default_factory=list)
 
     # Assessment
@@ -437,7 +438,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_test_procedures(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute test procedures based on test type."""
         if test_definition.test_type == TestType.AUTOMATED_TESTING:
             return await self._execute_automated_test(
@@ -467,7 +468,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_automated_test(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute automated test procedures."""
         # Simulate automated testing execution
         await asyncio.sleep(0.1)  # Simulate processing time
@@ -484,7 +485,7 @@ class ControlTestingFramework:
             if execution.result:
                 test_result = TestResult.EFFECTIVE
                 deficiencies = []
-                exceptions: list[dict[str, Any]] = []
+                exceptions: list[EvidenceContent] = []
                 conclusion = "Control is operating effectively"
             else:
                 test_result = TestResult.INEFFECTIVE
@@ -543,7 +544,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_continuous_monitoring_test(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute continuous monitoring test."""
         # Simulate continuous monitoring analysis
         await asyncio.sleep(0.1)
@@ -593,7 +594,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_reperformance_test(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute reperformance test procedures."""
         # Simulate reperformance testing
         await asyncio.sleep(0.1)
@@ -662,7 +663,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_inspection_test(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute inspection test procedures."""
         # Simulate inspection testing
         await asyncio.sleep(0.1)
@@ -716,7 +717,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_inquiry_test(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute inquiry test procedures."""
         # Simulate inquiry testing
         await asyncio.sleep(0.1)
@@ -769,7 +770,7 @@ class ControlTestingFramework:
     @beartype
     async def _execute_manual_test(
         self, test_definition: ControlTest, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> EvidenceContent:
         """Execute manual test procedures."""
         # Simulate manual testing
         await asyncio.sleep(0.1)
@@ -849,7 +850,7 @@ class ControlTestingFramework:
             return Err(f"Failed to execute test plan: {str(e)}")
 
     @beartype
-    async def get_testing_dashboard(self) -> dict[str, Any]:
+    async def get_testing_dashboard(self) -> EvidenceContent:
         """Get comprehensive control testing dashboard."""
         # Simulate dashboard data
         total_controls = len(SOC2_CORE_CONTROLS)

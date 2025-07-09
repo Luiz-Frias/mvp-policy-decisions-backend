@@ -27,7 +27,7 @@ class TerritoryDefinition:
         state: str,
         zip_codes: list[str],
         base_factor: float,
-        risk_factors: dict[str, float] | TerritoryRiskFactors,
+        risk_factors: TerritoryRiskFactors,
         description: str,
     ):
         """Initialize territory definition.
@@ -44,7 +44,7 @@ class TerritoryDefinition:
         self.state = state
         self.zip_codes = zip_codes
         self.base_factor = base_factor
-        self.risk_factors = risk_factors  # TODO: Convert to TerritoryRiskFactors model
+        self.risk_factors = risk_factors
         self.description = description
 
     @beartype
@@ -52,16 +52,11 @@ class TerritoryDefinition:
         """Calculate composite territory factor from all risk components."""
         composite = self.base_factor
 
-        # Apply risk factor multipliers
-        for factor_name, factor_value in self.risk_factors.items():
-            if factor_name == "crime_rate":
-                composite *= 1.0 + factor_value * 0.10  # Max 10% impact
-            elif factor_name == "weather_risk":
-                composite *= 1.0 + factor_value * 0.15  # Max 15% impact
-            elif factor_name == "traffic_density":
-                composite *= 1.0 + factor_value * 0.08  # Max 8% impact
-            elif factor_name == "catastrophe_risk":
-                composite *= 1.0 + factor_value * 0.20  # Max 20% impact
+        # Apply risk factor multipliers using structured model
+        composite *= 1.0 + self.risk_factors.crime_rate * 0.10  # Max 10% impact
+        composite *= 1.0 + self.risk_factors.weather_risk * 0.15  # Max 15% impact
+        composite *= 1.0 + self.risk_factors.traffic_density * 0.08  # Max 8% impact
+        composite *= 1.0 + self.risk_factors.catastrophe_risk * 0.20  # Max 20% impact
 
         # Ensure factor stays within reasonable bounds
         return max(0.50, min(2.50, composite))
@@ -129,7 +124,7 @@ class TerritoryManager:
         state: str,
         zip_codes: list[str],
         base_factor: float,
-        risk_factors: dict[str, float],
+        risk_factors: TerritoryRiskFactors,
         description: str,
         admin_user_id: UUID,
     ) -> Result[bool, str]:
@@ -154,12 +149,8 @@ class TerritoryManager:
                     f"Base factor {base_factor} outside allowed range [0.5, 2.5]"
                 )
 
-            for factor_name, factor_value in risk_factors.items():
-                if not -1.0 <= factor_value <= 1.0:
-                    return Err(
-                        f"Risk factor {factor_name} value {factor_value} "
-                        f"outside allowed range [-1.0, 1.0]"
-                    )
+            # Validate risk factors using structured model validation
+            # The validation is already handled by the TerritoryRiskFactors model
 
             # Check for ZIP code conflicts
             conflict_check = await self._check_zip_conflicts(
@@ -192,7 +183,7 @@ class TerritoryManager:
         self,
         territory_id: str,
         state: str,
-        risk_factors: dict[str, float],
+        risk_factors: TerritoryRiskFactors,
         admin_user_id: UUID,
     ) -> Result[bool, str]:
         """Update risk factors for existing territory.
@@ -214,8 +205,8 @@ class TerritoryManager:
 
             territory = territory_result.value
 
-            # Update risk factors
-            territory.risk_factors.update(risk_factors)
+            # Update risk factors with new structured model
+            territory.risk_factors = risk_factors
 
             # Save updated territory
             save_result = await self._save_territory(territory, admin_user_id)
@@ -254,12 +245,21 @@ class TerritoryManager:
             territories = []
 
             for row in rows:
+                # Parse risk factors from JSON and create structured model
+                risk_factors_data = json.loads(row["risk_factors"])
+                risk_factors = TerritoryRiskFactors(
+                    crime_rate=risk_factors_data.get("crime_rate", 0.0),
+                    weather_risk=risk_factors_data.get("weather_risk", 0.0),
+                    traffic_density=risk_factors_data.get("traffic_density", 0.0),
+                    catastrophe_risk=risk_factors_data.get("catastrophe_risk", 0.0),
+                )
+                
                 territory = TerritoryDefinition(
                     territory_id=row["territory_id"],
                     state=row["state"],
                     zip_codes=json.loads(row["zip_codes"]),
                     base_factor=float(row["base_factor"]),
-                    risk_factors=json.loads(row["risk_factors"]),
+                    risk_factors=risk_factors,
                     description=row["description"],
                 )
                 territories.append(territory)
@@ -297,14 +297,13 @@ class TerritoryManager:
                 "risk_assessment": self._assess_overall_risk(territory),
             }
 
-            # Detail each risk component
-            for factor_name, factor_value in territory.risk_factors.items():
+            # Detail each risk component using structured model
+            for factor_name in ["crime_rate", "weather_risk", "traffic_density", "catastrophe_risk"]:
+                factor_value = getattr(territory.risk_factors, factor_name)
                 metrics["risk_components"][factor_name] = {
                     "raw_value": factor_value,
-                    "impact": self._calculate_risk_impact(factor_name, factor_value),
-                    "description": self._get_risk_description(
-                        factor_name, factor_value
-                    ),
+                    "impact": territory.risk_factors.get_risk_impact(factor_name),
+                    "description": territory.risk_factors.get_risk_description(factor_name),
                 }
 
             return Ok(metrics)
@@ -410,12 +409,21 @@ class TerritoryManager:
                     f"Admin must configure territory mapping before quotes can proceed."
                 )
 
+            # Parse risk factors from JSON and create structured model
+            risk_factors_data = json.loads(row["risk_factors"])
+            risk_factors = TerritoryRiskFactors(
+                crime_rate=risk_factors_data.get("crime_rate", 0.0),
+                weather_risk=risk_factors_data.get("weather_risk", 0.0),
+                traffic_density=risk_factors_data.get("traffic_density", 0.0),
+                catastrophe_risk=risk_factors_data.get("catastrophe_risk", 0.0),
+            )
+            
             territory = TerritoryDefinition(
                 territory_id=row["territory_id"],
                 state=row["state"],
                 zip_codes=json.loads(row["zip_codes"]),
                 base_factor=float(row["base_factor"]),
-                risk_factors=json.loads(row["risk_factors"]),
+                risk_factors=risk_factors,
                 description=row["description"],
             )
 
@@ -454,12 +462,21 @@ class TerritoryManager:
             if not row:
                 return Err(f"Territory {territory_id} not found in {state}")
 
+            # Parse risk factors from JSON and create structured model
+            risk_factors_data = json.loads(row["risk_factors"])
+            risk_factors = TerritoryRiskFactors(
+                crime_rate=risk_factors_data.get("crime_rate", 0.0),
+                weather_risk=risk_factors_data.get("weather_risk", 0.0),
+                traffic_density=risk_factors_data.get("traffic_density", 0.0),
+                catastrophe_risk=risk_factors_data.get("catastrophe_risk", 0.0),
+            )
+            
             territory = TerritoryDefinition(
                 territory_id=row["territory_id"],
                 state=row["state"],
                 zip_codes=json.loads(row["zip_codes"]),
                 base_factor=float(row["base_factor"]),
-                risk_factors=json.loads(row["risk_factors"]),
+                risk_factors=risk_factors,
                 description=row["description"],
             )
 
@@ -559,7 +576,7 @@ class TerritoryManager:
                 territory.state,
                 json.dumps(territory.zip_codes),
                 territory.base_factor,
-                json.dumps(territory.risk_factors),
+                territory.risk_factors.model_dump_json(),
                 territory.description,
                 admin_user_id,
             )

@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
+from pydantic import ConfigDict
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
@@ -15,8 +16,25 @@ from ...core.database import Database
 from ...models.base import BaseModelConfig
 
 
+class OAuth2ClientUpdate(BaseModelConfig):
+    """OAuth2 client update model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    client_name: str | None = None
+    description: str | None = None
+    allowed_scopes: list[str] | None = None
+    redirect_uris: list[str] | None = None
+    token_lifetime: int | None = None
+    refresh_token_lifetime: int | None = None
+    is_active: bool | None = None
+    allowed_grant_types: list[str] | None = None
+
+
 class OAuth2ClientResponse(BaseModelConfig):
     """OAuth2 client response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
     
     id: UUID
     client_id: str
@@ -31,6 +49,43 @@ class OAuth2ClientResponse(BaseModelConfig):
     is_active: bool
     created_at: datetime
     client_secret: str | None = None  # Only returned on creation
+
+
+class OAuth2Analytics(BaseModelConfig):
+    """OAuth2 client analytics model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    client_id: str
+    client_name: str
+    token_statistics: dict[str, int]
+    scope_usage: list[dict[str, Any]]
+    usage_timeline: list[dict[str, Any]]
+    active_tokens_timeline: list[dict[str, Any]]
+    period: dict[str, str]
+
+
+class OAuth2ClientDetails(BaseModelConfig):
+    """OAuth2 client details model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    
+    id: UUID
+    client_id: str
+    client_name: str
+    client_type: str
+    description: str | None
+    allowed_grant_types: list[str]
+    allowed_scopes: list[str]
+    redirect_uris: list[str]
+    token_lifetime: int
+    refresh_token_lifetime: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime | None
+    created_by: UUID | None
+    updated_by: UUID | None
+    token_statistics: dict[str, int]
 
 
 class OAuth2AdminService:
@@ -188,7 +243,7 @@ class OAuth2AdminService:
         self,
         client_id: str,
         admin_user_id: UUID,
-        updates: dict[str, Any],
+        updates: OAuth2ClientUpdate,
     ) -> Result[bool, str]:
         """Update OAuth2 client configuration.
 
@@ -224,7 +279,10 @@ class OAuth2AdminService:
             values = []
             param_count = 1
 
-            for field, value in updates.items():
+            # Convert update model to dict
+            update_dict = updates.model_dump(exclude_unset=True)
+            
+            for field, value in update_dict.items():
                 if field in allowed_fields:
                     param_count += 1
                     update_fields.append(f"{field} = ${param_count}")
@@ -234,22 +292,22 @@ class OAuth2AdminService:
                 return Err("No valid fields to update")
 
             # Validate updates
-            if "allowed_grant_types" in updates:
+            if updates.allowed_grant_types:
                 valid_grants = [
                     "authorization_code",
                     "client_credentials",
                     "refresh_token",
                     "password",
                 ]
-                invalid_grants = set(updates["allowed_grant_types"]) - set(valid_grants)
+                invalid_grants = set(updates.allowed_grant_types) - set(valid_grants)
                 if invalid_grants:
                     return Err(f"Invalid grant types: {invalid_grants}")
 
-            if "allowed_scopes" in updates:
+            if updates.allowed_scopes:
                 from ...core.auth.oauth2.scopes import SCOPES
 
                 invalid_scopes = [
-                    s for s in updates["allowed_scopes"] if s not in SCOPES
+                    s for s in updates.allowed_scopes if s not in SCOPES
                 ]
                 if invalid_scopes:
                     return Err(f"Invalid scopes: {invalid_scopes}")
@@ -279,7 +337,7 @@ class OAuth2AdminService:
                 admin_user_id,
                 "update_client",
                 client["id"],
-                {"updates": list(updates.keys())},
+                {"updates": list(update_dict.keys())},
             )
 
             return Ok(True)
@@ -355,7 +413,7 @@ class OAuth2AdminService:
         client_id: str,
         date_from: datetime,
         date_to: datetime,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[OAuth2Analytics, str]:
         """Get OAuth2 client usage analytics.
 
         Args:
@@ -449,22 +507,22 @@ class OAuth2AdminService:
                 date_to,
             )
 
-            return Ok(
-                {
-                    "client_id": client_id,
-                    "client_name": client["client_name"],
-                    "token_statistics": dict(token_stats) if token_stats else {},
-                    "scope_usage": [dict(row) for row in scope_usage],
-                    "usage_timeline": [dict(row) for row in usage_timeline],
-                    "active_tokens_timeline": [
-                        dict(row) for row in active_tokens_timeline
-                    ],
-                    "period": {
-                        "from": date_from.isoformat(),
-                        "to": date_to.isoformat(),
-                    },
+            analytics = OAuth2Analytics(
+                client_id=client_id,
+                client_name=client["client_name"],
+                token_statistics=dict(token_stats) if token_stats else {},
+                scope_usage=[dict(row) for row in scope_usage],
+                usage_timeline=[dict(row) for row in usage_timeline],
+                active_tokens_timeline=[
+                    dict(row) for row in active_tokens_timeline
+                ],
+                period={
+                    "from": date_from.isoformat(),
+                    "to": date_to.isoformat(),
                 }
             )
+            
+            return Ok(analytics)
 
         except Exception as e:
             return Err(f"Analytics failed: {str(e)}")
@@ -475,7 +533,7 @@ class OAuth2AdminService:
         client_id: str,
         admin_user_id: UUID,
         reason: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[int, str]:
         """Revoke all active tokens for a client.
 
         Args:
@@ -600,7 +658,7 @@ class OAuth2AdminService:
     async def get_client_details(
         self,
         client_id: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[OAuth2ClientDetails, str]:
         """Get detailed information about a client.
 
         Args:
@@ -626,10 +684,6 @@ class OAuth2AdminService:
             if not client:
                 return Err("Client not found")
 
-            client_data = dict(client)
-            # Don't expose the secret hash
-            client_data.pop("client_secret_hash", None)
-
             # Get token counts
             token_counts = await self._db.fetchrow(
                 """
@@ -643,9 +697,26 @@ class OAuth2AdminService:
                 client_id,
             )
 
-            client_data["token_statistics"] = dict(token_counts) if token_counts else {}
+            client_details = OAuth2ClientDetails(
+                id=client["id"],
+                client_id=client["client_id"],
+                client_name=client["client_name"],
+                client_type=client["client_type"],
+                description=client["description"],
+                allowed_grant_types=client["allowed_grant_types"],
+                allowed_scopes=client["allowed_scopes"],
+                redirect_uris=client["redirect_uris"],
+                token_lifetime=client["token_lifetime"],
+                refresh_token_lifetime=client["refresh_token_lifetime"],
+                is_active=client["is_active"],
+                created_at=client["created_at"],
+                updated_at=client["updated_at"],
+                created_by=client["created_by"],
+                updated_by=client["updated_by"],
+                token_statistics=dict(token_counts) if token_counts else {}
+            )
 
-            return Ok(client_data)
+            return Ok(client_details)
 
         except Exception as e:
             return Err(f"Failed to get client details: {str(e)}")

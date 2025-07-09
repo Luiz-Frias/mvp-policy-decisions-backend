@@ -18,6 +18,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.common import EvidenceContent
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -102,7 +103,7 @@ class AccessPermission(BaseModel):
     granted_by: UUID = Field(...)
     granted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime | None = Field(default=None)
-    conditions: dict[str, Any] = Field(default_factory=dict)
+    conditions: EvidenceContent = Field(default_factory=dict)
 
     @beartype
     def is_expired(self) -> bool:
@@ -418,7 +419,7 @@ class ConfidentialityControlManager:
             return Err(f"Data classification control failed: {str(e)}")
 
     @beartype
-    async def _check_classification_coverage(self) -> dict[str, Any]:
+    async def _check_classification_coverage(self) -> EvidenceContent:
         """Check data classification coverage."""
         # Simulated classification coverage check
         total_data_elements = 150
@@ -449,7 +450,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _verify_classification_accuracy(self) -> dict[str, Any]:
+    async def _verify_classification_accuracy(self) -> EvidenceContent:
         """Verify accuracy of data classification."""
         # Simulated classification accuracy check
         sample_size = 50
@@ -488,7 +489,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_automated_classification(self) -> dict[str, Any]:
+    async def _check_automated_classification(self) -> EvidenceContent:
         """Check automated data classification system."""
         return {
             "system_functional": True,
@@ -502,7 +503,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _verify_data_labeling(self) -> dict[str, Any]:
+    async def _verify_data_labeling(self) -> EvidenceContent:
         """Verify data labeling compliance."""
         unlabeled_data = [
             "Table: temp_processing - Missing classification labels",
@@ -590,7 +591,7 @@ class ConfidentialityControlManager:
             return Err(f"Access control matrix verification failed: {str(e)}")
 
     @beartype
-    async def _check_access_matrix_compliance(self) -> dict[str, Any]:
+    async def _check_access_matrix_compliance(self) -> EvidenceContent:
         """Check compliance with access control matrix."""
         # Simulated access matrix compliance check
         total_permissions = 250
@@ -636,7 +637,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _verify_least_privilege(self) -> dict[str, Any]:
+    async def _verify_least_privilege(self) -> EvidenceContent:
         """Verify least privilege principle implementation."""
         # Simulated least privilege analysis
         users_analyzed = 50
@@ -680,7 +681,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_role_assignments(self) -> dict[str, Any]:
+    async def _check_role_assignments(self) -> EvidenceContent:
         """Check role assignment validity."""
         invalid_assignments = [
             "User user456 has conflicting roles: finance and claims_adjuster"
@@ -697,7 +698,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_access_reviews(self) -> dict[str, Any]:
+    async def _check_access_reviews(self) -> EvidenceContent:
         """Check access review compliance."""
         return {
             "total_users": 50,
@@ -782,7 +783,7 @@ class ConfidentialityControlManager:
             return Err(f"Data loss prevention control failed: {str(e)}")
 
     @beartype
-    async def _check_dlp_system_status(self) -> dict[str, Any]:
+    async def _check_dlp_system_status(self) -> EvidenceContent:
         """Check DLP system operational status."""
         return {
             "system_active": True,
@@ -796,7 +797,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _analyze_dlp_events(self) -> dict[str, Any]:
+    async def _analyze_dlp_events(self) -> EvidenceContent:
         """Analyze recent DLP events."""
         # Simulated DLP event analysis
         events_last_24h = [
@@ -842,7 +843,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_dlp_policy_coverage(self) -> dict[str, Any]:
+    async def _check_dlp_policy_coverage(self) -> EvidenceContent:
         """Check DLP policy coverage."""
         data_types_protected = [
             "ssn",
@@ -870,7 +871,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_exfiltration_monitoring(self) -> dict[str, Any]:
+    async def _check_exfiltration_monitoring(self) -> EvidenceContent:
         """Check data exfiltration monitoring."""
         return {
             "monitoring_active": True,
@@ -957,7 +958,7 @@ class ConfidentialityControlManager:
             return Err(f"Confidential data handling control failed: {str(e)}")
 
     @beartype
-    async def _check_data_masking(self) -> dict[str, Any]:
+    async def _check_data_masking(self) -> EvidenceContent:
         """Check data masking implementation."""
         sensitive_fields = [
             {"field": "customers.ssn", "masked": True, "method": "format_preserving"},
@@ -1001,7 +1002,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_retention_compliance(self) -> dict[str, Any]:
+    async def _check_retention_compliance(self) -> EvidenceContent:
         """Check data retention policy compliance."""
         # Simulated retention compliance check
         data_categories = [
@@ -1023,7 +1024,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_secure_disposal(self) -> dict[str, Any]:
+    async def _check_secure_disposal(self) -> EvidenceContent:
         """Check secure data disposal procedures."""
         disposal_procedures = [
             {
@@ -1068,7 +1069,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def _check_data_anonymization(self) -> dict[str, Any]:
+    async def _check_data_anonymization(self) -> EvidenceContent:
         """Check data anonymization procedures."""
         anonymization_techniques = [
             {"technique": "k_anonymity", "implemented": True, "effectiveness": 85},
@@ -1100,7 +1101,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def get_confidentiality_dashboard(self) -> dict[str, Any]:
+    async def get_confidentiality_dashboard(self) -> EvidenceContent:
         """Get comprehensive confidentiality dashboard data."""
         # Execute all confidentiality controls
         classification_result = await self.execute_data_classification_control()
