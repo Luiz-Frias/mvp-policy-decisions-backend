@@ -2,11 +2,11 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ....core.cache import Cache
@@ -14,6 +14,7 @@ from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
 from ....services.admin.pricing_override_service import PricingOverrideService
 from ...dependencies import get_cache, get_current_admin_user, get_database
+from ...response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/admin/pricing", tags=["admin-pricing"])
 
@@ -99,15 +100,17 @@ async def get_pricing_service(
 async def create_pricing_override(
     quote_id: UUID,
     override_request: PricingOverrideRequest,
+    response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create pricing override for quote.
 
     Requires 'quote:override' permission.
     """
     if "quote:override" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await pricing_service.create_pricing_override(
         quote_id,
@@ -120,8 +123,9 @@ async def create_pricing_override(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
+    response.status_code = 201
     return {"override_id": result.ok_value, "status": "created"}
 
 
@@ -130,15 +134,17 @@ async def create_pricing_override(
 async def apply_manual_discount(
     quote_id: UUID,
     discount_request: ManualDiscountRequest,
+    response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, bool]:
+) -> Union[dict[str, bool], ErrorResponse]:
     """Apply manual discount to quote.
 
     Requires 'quote:discount' permission.
     """
     if "quote:discount" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await pricing_service.apply_manual_discount(
         quote_id,
@@ -149,7 +155,7 @@ async def apply_manual_discount(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"applied": result.ok_value or False}
 
@@ -158,15 +164,17 @@ async def apply_manual_discount(
 @beartype
 async def create_special_pricing_rule(
     rule_request: SpecialPricingRuleRequest,
+    response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create special pricing rule.
 
     Requires 'pricing:rule:create' permission.
     """
     if "pricing:rule:create" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await pricing_service.create_special_pricing_rule(
         admin_user.id,
@@ -178,34 +186,30 @@ async def create_special_pricing_rule(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
+    response.status_code = 201
     return {"rule_id": result.ok_value, "status": "active"}
 
 
 @router.get("/overrides/pending")
 @beartype
 async def get_pending_overrides(
+    response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """Get pending pricing overrides for approval.
 
     Requires 'pricing:override:approve' permission.
     """
     if "pricing:override:approve" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await pricing_service.get_pending_overrides(admin_user.id)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid list, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Pending overrides retrieval failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.post("/overrides/{override_id}/approve")
@@ -213,15 +217,17 @@ async def get_pending_overrides(
 async def approve_pricing_override(
     override_id: UUID,
     approval_request: ApprovalRequest,
+    response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, bool]:
+) -> Union[dict[str, bool], ErrorResponse]:
     """Approve a pending pricing override.
 
     Requires 'pricing:override:approve' permission.
     """
     if "pricing:override:approve" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await pricing_service.approve_pricing_override(
         override_id,
@@ -230,7 +236,7 @@ async def approve_pricing_override(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"approved": result.ok_value or False}
 
@@ -240,18 +246,19 @@ async def approve_pricing_override(
 async def reject_pricing_override(
     override_id: UUID,
     rejection_reason: str,
+    response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, bool]:
+) -> Union[dict[str, bool], ErrorResponse]:
     """Reject a pending pricing override.
 
     Requires 'pricing:override:approve' permission.
     """
     if "pricing:override:approve" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     # In production, implement rejection logic
     # For now, return not implemented
-    raise HTTPException(
-        status_code=501, detail="Rejection functionality not yet implemented"
-    )
+    response.status_code = 501
+    return ErrorResponse(error="Rejection functionality not yet implemented")

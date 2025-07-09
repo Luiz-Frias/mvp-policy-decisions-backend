@@ -1,11 +1,11 @@
 """Admin SSO configuration endpoints."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err
@@ -13,6 +13,7 @@ from pd_prime_demo.core.result_types import Err
 from ....models.admin import AdminUser, Permission
 from ....services.admin.sso_admin_service import SSOAdminService
 from ...dependencies import get_current_admin_user, get_sso_admin_service
+from ...response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/admin/sso", tags=["admin-sso"])
 
@@ -96,17 +97,17 @@ class ProvisioningRuleCreateRequest(BaseModel):
 @beartype
 async def create_sso_provider(
     provider_request: SSOProviderCreateRequest,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create new SSO provider configuration.
 
     Requires: admin:write permission
     """
     if Permission.ADMIN_WRITE not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:write"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:write")
 
     result = await sso_service.create_sso_provider_config(
         admin_user.id,
@@ -117,8 +118,9 @@ async def create_sso_provider(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
+    response.status_code = 201
     return {
         "provider_id": str(result.ok_value),
         "message": "SSO provider created successfully",
@@ -130,59 +132,42 @@ async def create_sso_provider(
 async def list_sso_providers(
     limit: int = Query(50, ge=1, le=100, description="Number of providers"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """List all SSO provider configurations.
 
     Requires: admin:read permission
     """
     if Permission.ADMIN_READ not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:read")
 
     result = await sso_service.list_sso_providers(limit, offset)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="SSO provider listing failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.get("/providers/{provider_id}")
 @beartype
 async def get_sso_provider(
     provider_id: UUID,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get SSO provider configuration details.
 
     Requires: admin:read permission
     """
     if Permission.ADMIN_READ not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:read")
 
     result = await sso_service.get_sso_provider(provider_id)
 
-    if result.is_err():
-        err_value = result.err_value
-        if err_value and "not found" in err_value.lower():
-            raise HTTPException(status_code=404, detail=err_value)
-        raise HTTPException(status_code=400, detail=err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="SSO provider retrieval failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.put("/providers/{provider_id}")
@@ -190,17 +175,17 @@ async def get_sso_provider(
 async def update_sso_provider(
     provider_id: UUID,
     update_request: SSOProviderUpdateRequest,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Update SSO provider configuration.
 
     Requires: admin:write permission
     """
     if Permission.ADMIN_WRITE not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:write"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:write")
 
     updates = update_request.model_dump(exclude_none=True)
 
@@ -209,7 +194,7 @@ async def update_sso_provider(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"message": "SSO provider updated successfully"}
 
@@ -218,28 +203,21 @@ async def update_sso_provider(
 @beartype
 async def test_sso_provider(
     provider_id: UUID,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Test SSO provider connection.
 
     Requires: admin:write permission
     """
     if Permission.ADMIN_WRITE not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:write"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:write")
 
     result = await sso_service.test_provider_connection(provider_id, admin_user.id)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="SSO provider test failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.post("/providers/{provider_id}/mappings")
@@ -247,17 +225,17 @@ async def test_sso_provider(
 async def create_group_mapping(
     provider_id: UUID,
     mapping_request: GroupMappingCreateRequest,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create SSO group to role mapping.
 
     Requires: admin:write permission
     """
     if Permission.ADMIN_WRITE not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:write"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:write")
 
     result = await sso_service.create_group_mapping(
         provider_id,
@@ -268,8 +246,9 @@ async def create_group_mapping(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
+    response.status_code = 201
     return {
         "mapping_id": str(result.ok_value),
         "message": "Group mapping created successfully",
@@ -280,27 +259,25 @@ async def create_group_mapping(
 @beartype
 async def list_group_mappings(
     provider_id: UUID,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """List group mappings for a provider.
 
     Requires: admin:read permission
     """
     if Permission.ADMIN_READ not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:read")
 
     result = await sso_service.list_group_mappings(provider_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     # Ensure we have valid mappings
-    mappings = result.ok_value
-    if mappings is None:
-        raise HTTPException(status_code=500, detail="Group mappings retrieval failed")
+    mappings = result.unwrap()
     
     return {"mappings": mappings, "total": len(mappings)}
 
@@ -309,27 +286,25 @@ async def list_group_mappings(
 @beartype
 async def list_provisioning_rules(
     provider_id: UUID,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """List user provisioning rules for a provider.
 
     Requires: admin:read permission
     """
     if Permission.ADMIN_READ not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:read")
 
     result = await sso_service.get_user_provisioning_rules(provider_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     # Ensure we have valid rules
-    rules = result.ok_value
-    if rules is None:
-        raise HTTPException(status_code=500, detail="Provisioning rules retrieval failed")
+    rules = result.unwrap()
     
     return {"rules": rules, "total": len(rules)}
 
@@ -339,53 +314,43 @@ async def list_provisioning_rules(
 async def get_sso_analytics(
     date_from: datetime = Query(..., description="Start date"),
     date_to: datetime = Query(..., description="End date"),
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get SSO usage analytics.
 
     Requires: analytics:read permission
     """
     if Permission.ANALYTICS_READ not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: analytics:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: analytics:read")
 
     result = await sso_service.get_sso_analytics(date_from, date_to)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="SSO analytics failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.delete("/providers/{provider_id}")
 @beartype
 async def delete_sso_provider(
     provider_id: UUID,
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Delete SSO provider configuration.
 
     Requires: admin:delete permission
     """
     if Permission.ADMIN_DELETE not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: admin:delete"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: admin:delete")
 
     result = await sso_service.delete_sso_provider(provider_id, admin_user.id)
 
     if result.is_err():
-        err_value = result.err_value
-        if err_value and "not found" in err_value.lower():
-            raise HTTPException(status_code=404, detail=err_value)
-        raise HTTPException(status_code=400, detail=err_value)
+        return handle_result(result, response)
 
     return {"message": "SSO provider deleted successfully"}
 
@@ -396,25 +361,18 @@ async def get_sso_activity_logs(
     limit: int = Query(50, ge=1, le=100, description="Number of records"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     provider_id: UUID | None = Query(None, description="Filter by provider"),
+    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get SSO administrative activity logs.
 
     Requires: audit:read permission
     """
     if Permission.AUDIT_READ not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: audit:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: audit:read")
 
     result = await sso_service.get_activity_logs(limit, offset, provider_id)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="SSO activity logs failed")
-    return value
+    return handle_result(result, response)

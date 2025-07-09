@@ -1,12 +1,12 @@
 """Admin OAuth2 client management endpoints."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from redis.asyncio import Redis
 
@@ -19,6 +19,7 @@ from ...dependencies import (
     get_oauth2_admin_service,
     get_redis,
 )
+from ...response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/oauth2", tags=["admin-oauth2"])
 
@@ -123,9 +124,10 @@ class TokenRevocationRequest(BaseModel):
 @beartype
 async def create_oauth2_client(
     client_request: OAuth2ClientCreateRequest,
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create new OAuth2 client application.
 
     Required permission: admin:clients
@@ -142,7 +144,8 @@ async def create_oauth2_client(
         HTTPException: If creation fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await oauth2_service.create_oauth2_client(
         admin_user.id,
@@ -156,14 +159,7 @@ async def create_oauth2_client(
         client_request.refresh_token_lifetime,
     )
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="OAuth2 client creation failed")
-    return value
+    return handle_result(result, response, success_status=201)
 
 
 @router.get("/clients", response_model=list[dict[str, Any]])
@@ -172,9 +168,10 @@ async def list_oauth2_clients(
     active_only: bool = Query(True, description="Show only active clients"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """List OAuth2 clients.
 
     Required permission: admin:clients
@@ -193,27 +190,22 @@ async def list_oauth2_clients(
         HTTPException: If listing fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await oauth2_service.list_clients(active_only, limit, offset)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid list, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="OAuth2 client listing failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.get("/clients/{client_id}", response_model=dict[str, Any])
 @beartype
 async def get_oauth2_client(
     client_id: str,
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get OAuth2 client details.
 
     Args:
@@ -229,14 +221,7 @@ async def get_oauth2_client(
     """
     result = await oauth2_service.get_client_details(client_id)
 
-    if result.is_err():
-        raise HTTPException(status_code=404, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="OAuth2 client retrieval failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.patch("/clients/{client_id}", response_model=dict[str, Any])
@@ -244,9 +229,10 @@ async def get_oauth2_client(
 async def update_oauth2_client(
     client_id: str,
     update_request: OAuth2ClientUpdateRequest,
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Update OAuth2 client configuration.
 
     Required permission: admin:clients
@@ -264,20 +250,22 @@ async def update_oauth2_client(
         HTTPException: If update fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     # Build updates dict excluding None values
     updates = update_request.model_dump(exclude_none=True)
 
     if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        response.status_code = 400
+        return ErrorResponse(error="No fields to update")
 
     result = await oauth2_service.update_client_config(
         client_id, admin_user.id, updates
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"success": True, "message": "Client updated successfully"}
 
@@ -286,9 +274,10 @@ async def update_oauth2_client(
 @beartype
 async def regenerate_client_secret(
     client_id: str,
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Regenerate client secret.
 
     Required permission: admin:clients
@@ -307,12 +296,13 @@ async def regenerate_client_secret(
         HTTPException: If regeneration fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await oauth2_service.regenerate_client_secret(client_id, admin_user.id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {
         "client_secret": result.ok_value,
@@ -326,9 +316,10 @@ async def get_client_analytics(
     client_id: str,
     date_from: datetime = Query(..., description="Start date for analytics"),
     date_to: datetime = Query(..., description="End date for analytics"),
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get OAuth2 client usage analytics.
 
     Args:
@@ -345,18 +336,12 @@ async def get_client_analytics(
         HTTPException: If analytics fails
     """
     if date_from >= date_to:
-        raise HTTPException(status_code=400, detail="date_from must be before date_to")
+        response.status_code = 400
+        return ErrorResponse(error="date_from must be before date_to")
 
     result = await oauth2_service.get_client_analytics(client_id, date_from, date_to)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="OAuth2 client analytics failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.post("/clients/{client_id}/revoke", response_model=dict[str, Any])
@@ -364,9 +349,10 @@ async def get_client_analytics(
 async def revoke_client_access(
     client_id: str,
     revocation_request: TokenRevocationRequest,
+    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Revoke all access tokens for a client.
 
     Required permission: admin:clients
@@ -386,14 +372,15 @@ async def revoke_client_access(
         HTTPException: If revocation fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await oauth2_service.revoke_client_access(
         client_id, admin_user.id, revocation_request.reason
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {
         "tokens_revoked": result.ok_value,
@@ -421,10 +408,11 @@ class CertificateUploadRequest(BaseModel):
 async def upload_client_certificate(
     client_id: str,
     cert_request: CertificateUploadRequest,
+    response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Upload a client certificate for mTLS authentication.
 
     Required permission: admin:clients
@@ -443,7 +431,8 @@ async def upload_client_certificate(
         HTTPException: If upload fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     from ....core.auth.oauth2.client_certificates import ClientCertificateManager
     from ....core.cache import Cache
@@ -460,14 +449,7 @@ async def upload_client_certificate(
         admin_user.id,
     )
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Certificate upload failed")
-    return value
+    return handle_result(result, response, success_status=201)
 
 
 @router.get("/clients/{client_id}/certificates", response_model=list[dict[str, Any]])
@@ -475,10 +457,11 @@ async def upload_client_certificate(
 async def list_client_certificates(
     client_id: str,
     include_revoked: bool = Query(False, description="Include revoked certificates"),
+    response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """List certificates for a client.
 
     Required permission: admin:clients
@@ -497,7 +480,8 @@ async def list_client_certificates(
         HTTPException: If listing fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     from ....core.auth.oauth2.client_certificates import ClientCertificateManager
     from ....core.cache import Cache
@@ -509,14 +493,7 @@ async def list_client_certificates(
 
     result = await cert_manager.list_client_certificates(client_id, include_revoked)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid list, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Certificate listing failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.delete("/certificates/{certificate_id}", response_model=dict[str, Any])
@@ -524,10 +501,11 @@ async def list_client_certificates(
 async def revoke_client_certificate(
     certificate_id: UUID,
     reason: str = Query(..., description="Reason for revocation"),
+    response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Revoke a client certificate.
 
     Required permission: admin:clients
@@ -546,7 +524,8 @@ async def revoke_client_certificate(
         HTTPException: If revocation fails or insufficient permissions
     """
     if "admin:clients" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     from ....core.auth.oauth2.client_certificates import ClientCertificateManager
     from ....core.cache import Cache
@@ -561,6 +540,6 @@ async def revoke_client_certificate(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"success": True, "message": "Certificate revoked successfully"}

@@ -8,7 +8,8 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query, Response
+from typing import Union
 
 from ....core.result_types import Result
 from ....models.admin import AdminUser
@@ -16,6 +17,7 @@ from ....models.quote import Quote, QuoteOverrideRequest
 from ....schemas.quote import QuoteResponse
 from ....services.quote_service import QuoteService
 from ...dependencies import get_current_admin_user, get_quote_service
+from ...response_patterns import handle_result, ErrorResponse
 
 router = APIRouter()
 
@@ -37,9 +39,10 @@ async def admin_search_quotes(
     # PII control
     include_pii: bool = Query(False),
     # Dependencies
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """Search quotes with admin privileges."""
     filters = {
         "status": status,
@@ -58,12 +61,10 @@ async def admin_search_quotes(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     # Ensure we return a valid list, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Quote search failed")
+    value = result.unwrap()
     # Convert Quote objects to dict format for JSON response
     return [quote.model_dump() if hasattr(quote, 'model_dump') else quote for quote in value]  # type: ignore[misc]
 
@@ -73,13 +74,15 @@ async def admin_search_quotes(
 async def override_quote(
     quote_id: UUID,
     override_request: QuoteOverrideRequest,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Override quote pricing or terms."""
     # Check permission
     if "quote:override" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     result = await quote_service.admin_override_quote(
         quote_id,
@@ -88,12 +91,10 @@ async def override_quote(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     # Ensure we return a valid quote, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Quote override failed")
+    value = result.unwrap()
     # Convert Quote object to dict format for JSON response
     return value.model_dump() if hasattr(value, 'model_dump') else dict(value)
 
@@ -104,22 +105,22 @@ async def bulk_quote_operation(
     operation: str,
     quote_ids: list[UUID],
     parameters: dict[str, Any] | None = None,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Perform bulk operations on quotes."""
     # Validate operation
     allowed_operations = ["expire", "extend", "recalculate", "export"]
     if operation not in allowed_operations:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid operation. Allowed: {', '.join(allowed_operations)}",
-        )
+        response.status_code = 400
+        return ErrorResponse(error=f"Invalid operation. Allowed: {', '.join(allowed_operations)}")
 
     # Check permissions
     required_permission = f"quote:bulk_{operation}"
     if required_permission not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     # Process in batches
     batch_size = 50
@@ -191,9 +192,10 @@ async def get_quote_analytics(
     date_from: datetime,
     date_to: datetime,
     group_by: str = Query("day", regex="^(hour|day|week|month)$"),
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get quote analytics for dashboards."""
     result = await quote_service.get_quote_analytics(
         date_from,
@@ -201,14 +203,7 @@ async def get_quote_analytics(
         group_by,
     )
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Quote analytics failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.get("/export")
@@ -219,13 +214,15 @@ async def export_quotes(
     state: str | None = None,
     created_after: datetime | None = None,
     created_before: datetime | None = None,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Export quotes in various formats."""
     # Check permission
     if "quote:export" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     # Build query
     query_parts = ["SELECT * FROM quotes WHERE 1=1"]
@@ -398,13 +395,15 @@ async def export_quotes(
 @router.get("/approvals/pending")
 @beartype
 async def get_pending_approvals(
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """Get quotes pending admin approval."""
     # Check permission
     if "quote:approve" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     query = """
         SELECT
@@ -430,18 +429,19 @@ async def process_approval(
     approval_id: UUID,
     action: str,
     notes: str | None = None,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Approve or reject a quote approval request."""
     if action not in ["approve", "reject"]:
-        raise HTTPException(
-            status_code=400, detail="Action must be 'approve' or 'reject'"
-        )
+        response.status_code = 400
+        return ErrorResponse(error="Action must be 'approve' or 'reject'")
 
     # Check permission
     if "quote:approve" not in admin_user.effective_permissions:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions")
 
     status = "approved" if action == "approve" else "rejected"
 

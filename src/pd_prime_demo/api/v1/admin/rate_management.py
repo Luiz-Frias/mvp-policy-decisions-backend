@@ -5,11 +5,11 @@ approval workflows, A/B testing, and analytics per Agent 06 requirements.
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ....core.cache import Cache
@@ -17,6 +17,7 @@ from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
 from ....services.admin.rate_management_service import RateManagementService
 from ...dependencies import get_cache, get_current_admin_user, get_database
+from ...response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/admin/rate-management", tags=["admin-rate-management"])
 
@@ -111,9 +112,10 @@ async def get_rate_management_service(
 async def create_rate_table_version(
     table_name: str,
     version_request: RateTableVersionCreate,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create new rate table version requiring approval.
 
     Requires 'rate:write' permission.
@@ -122,9 +124,8 @@ async def create_rate_table_version(
     being submitted for approval.
     """
     if "rate:write" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:write"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:write")
 
     # Create a new version request with the table name from the path parameter
     # (Cannot modify frozen model directly)
@@ -137,14 +138,7 @@ async def create_rate_table_version(
         version_request.notes,
     )
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Rate table creation failed")
-    return value
+    return handle_result(result, response, success_status=201)
 
 
 @router.post("/rate-versions/{version_id}/approve")
@@ -152,9 +146,10 @@ async def create_rate_table_version(
 async def approve_rate_version(
     version_id: UUID,
     approval_request: RateVersionApproval,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, bool]:
+) -> Union[dict[str, bool], ErrorResponse]:
     """Approve rate table version.
 
     Requires 'rate:approve' permission.
@@ -163,9 +158,8 @@ async def approve_rate_version(
     of duties - cannot approve own submissions.
     """
     if "rate:approve" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:approve"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:approve")
 
     result = await rate_service.approve_rate_version(
         version_id,
@@ -174,7 +168,7 @@ async def approve_rate_version(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"approved": result.ok_value or False}
 
@@ -184,9 +178,10 @@ async def approve_rate_version(
 async def reject_rate_version(
     version_id: UUID,
     rejection_request: RateVersionRejection,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, bool]:
+) -> Union[dict[str, bool], ErrorResponse]:
     """Reject rate table version.
 
     Requires 'rate:approve' permission.
@@ -194,9 +189,8 @@ async def reject_rate_version(
     Rejected versions can be revised and resubmitted.
     """
     if "rate:approve" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:approve"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:approve")
 
     result = await rate_service.reject_rate_version(
         version_id,
@@ -205,7 +199,7 @@ async def reject_rate_version(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"rejected": result.ok_value or False}
 
@@ -215,9 +209,10 @@ async def reject_rate_version(
 async def compare_rate_versions(
     version_id_1: UUID,
     version_id_2: UUID,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Compare two rate table versions with impact analysis.
 
     Requires 'rate:read' permission.
@@ -225,29 +220,22 @@ async def compare_rate_versions(
     business impact analysis, and recommendations.
     """
     if "rate:read" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:read")
 
     result = await rate_service.get_rate_comparison(version_id_1, version_id_2)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Rate comparison failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.post("/ab-tests")
 @beartype
 async def create_ab_test(
     ab_test_request: ABTestCreate,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Schedule A/B test between rate versions.
 
     Requires 'rate:ab_test' permission.
@@ -255,9 +243,8 @@ async def create_ab_test(
     automated performance tracking. Both versions must be approved.
     """
     if "rate:ab_test" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:ab_test"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:ab_test")
 
     result = await rate_service.schedule_ab_test(
         ab_test_request.control_version_id,
@@ -269,8 +256,9 @@ async def create_ab_test(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
+    response.status_code = 201
     return {"test_id": result.ok_value, "status": "scheduled"}
 
 
@@ -280,9 +268,10 @@ async def get_rate_analytics(
     table_name: str,
     date_from: date,
     date_to: date,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get comprehensive rate analytics for admin dashboards.
 
     Requires 'rate:analytics' permission.
@@ -290,28 +279,21 @@ async def get_rate_analytics(
     competitive analysis, and performance trends.
     """
     if "rate:analytics" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:analytics"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:analytics")
 
     result = await rate_service.get_rate_analytics(table_name, date_from, date_to)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid dict, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Rate analytics failed")
-    return value
+    return handle_result(result, response)
 
 
 @router.get("/pending-approvals")
 @beartype
 async def get_pending_approvals(
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """Get pending rate approvals for current admin user.
 
     Requires 'rate:approve' permission.
@@ -319,20 +301,12 @@ async def get_pending_approvals(
     submissions by the current user (segregation of duties).
     """
     if "rate:approve" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:approve"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:approve")
 
     result = await rate_service.get_pending_approvals(admin_user.id)
 
-    if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
-
-    # Ensure we return a valid list, not None
-    value = result.ok_value
-    if value is None:
-        raise HTTPException(status_code=500, detail="Pending approvals retrieval failed")
-    return value
+    return handle_result(result, response)
 
 
 # Additional endpoints for rate management
@@ -343,18 +317,18 @@ async def get_pending_approvals(
 async def list_rate_table_versions(
     table_name: str,
     include_inactive: bool = False,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> Union[list[dict[str, Any]], ErrorResponse]:
     """List all versions of a rate table.
 
     Requires 'rate:read' permission.
     Optionally includes inactive/rejected versions for audit purposes.
     """
     if "rate:read" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:read")
 
     # Use underlying rate table service for version listing
     from ....core.cache import Cache
@@ -368,12 +342,10 @@ async def list_rate_table_versions(
     result = await rate_table_service.list_rate_versions(table_name, include_inactive)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     # Ensure we have a valid list of versions
-    versions_list = result.ok_value
-    if versions_list is None:
-        raise HTTPException(status_code=500, detail="Rate table versions retrieval failed")
+    versions_list = result.unwrap()
 
     # Convert to dict format for API response
     versions = []
@@ -402,9 +374,10 @@ async def get_active_rates(
     table_name: str,
     state: str,
     product_type: str,
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get currently active rates for state and product.
 
     Requires 'rate:read' permission.
@@ -412,9 +385,8 @@ async def get_active_rates(
     state and product type combination.
     """
     if "rate:read" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:read")
 
     # Use underlying rate table service for active rates
     from ....core.cache import Cache
@@ -428,12 +400,10 @@ async def get_active_rates(
     result = await rate_table_service.get_active_rates(state, product_type)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     # Convert Decimal values to float for JSON serialization
-    rates_data = result.ok_value
-    if rates_data is None:
-        raise HTTPException(status_code=500, detail="Active rates retrieval failed")
+    rates_data = result.unwrap()
     
     rates = {}
     for coverage_type, rate_value in rates_data.items():
@@ -451,18 +421,18 @@ async def get_active_rates(
 @router.get("/health")
 @beartype
 async def rate_management_health(
+    response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Health check for rate management system.
 
     Requires 'rate:read' permission.
     Checks availability of rate management services and key metrics.
     """
     if "rate:read" not in admin_user.effective_permissions:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions. Required: rate:read"
-        )
+        response.status_code = 403
+        return ErrorResponse(error="Insufficient permissions. Required: rate:read")
 
     try:
         # Basic health checks
@@ -492,6 +462,5 @@ async def rate_management_health(
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=503, detail=f"Rate management system unhealthy: {str(e)}"
-        )
+        response.status_code = 503
+        return ErrorResponse(error=f"Rate management system unhealthy: {str(e)}")
