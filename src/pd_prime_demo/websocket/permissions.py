@@ -11,7 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field, validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
-
 logger = logging.getLogger(__name__)
 
 

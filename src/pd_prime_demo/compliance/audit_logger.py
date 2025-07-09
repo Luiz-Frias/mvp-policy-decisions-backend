@@ -129,18 +129,24 @@ class ComplianceEvent(BaseModel):
     def to_audit_log_entry(self) -> AuditLogEntry:
         """Convert to structured audit log entry."""
         # Import here to avoid circular imports
-        from pd_prime_demo.schemas.compliance import RequestBodyData, SecurityAlerts, StateData
-        
+        from pd_prime_demo.schemas.compliance import (
+            RequestBodyData,
+            SecurityAlerts,
+            StateData,
+        )
+
         # Convert event_data to RequestBodyData if present
         request_body = None
         if self.event_data:
             request_body = RequestBodyData(
                 endpoint=self.request_path,
                 method=self.request_method,
-                payload_size=len(str(self.event_data).encode('utf-8')) if self.event_data else 0,
-                content_type="application/json"
+                payload_size=(
+                    len(str(self.event_data).encode("utf-8")) if self.event_data else 0
+                ),
+                content_type="application/json",
             )
-        
+
         # Convert before_state to StateData if present
         before_state = None
         if self.before_state:
@@ -148,9 +154,9 @@ class ComplianceEvent(BaseModel):
                 resource_type=self.resource_type,
                 resource_id=self.resource_id,
                 properties=[],
-                metadata=[]
+                metadata=[],
             )
-        
+
         # Convert after_state to StateData if present
         after_state = None
         if self.after_state:
@@ -158,9 +164,9 @@ class ComplianceEvent(BaseModel):
                 resource_type=self.resource_type,
                 resource_id=self.resource_id,
                 properties=[],
-                metadata=[]
+                metadata=[],
             )
-        
+
         # Create security alerts
         security_alerts = SecurityAlerts(
             alerts=[],
@@ -168,9 +174,9 @@ class ComplianceEvent(BaseModel):
             critical_count=0,
             high_count=0,
             medium_count=0,
-            low_count=0
+            low_count=0,
         )
-        
+
         return AuditLogEntry(
             event_type=self.event_type.value,
             action=self.action,
@@ -581,18 +587,25 @@ class AuditLogger:
                     security_alerts = json.loads(record["security_alerts"])
 
                 # Import here to avoid circular imports
-                from pd_prime_demo.schemas.compliance import RequestBodyData, SecurityAlerts, StateData
-                
+                from pd_prime_demo.schemas.compliance import (
+                    RequestBodyData,
+                    SecurityAlerts,
+                )
+
                 # Convert request_body dict to RequestBodyData if present
                 request_body_data = None
                 if request_body:
                     request_body_data = RequestBodyData(
                         endpoint=record.get("request_path"),
                         method=record.get("request_method"),
-                        payload_size=len(str(request_body).encode('utf-8')) if request_body else 0,
-                        content_type="application/json"
+                        payload_size=(
+                            len(str(request_body).encode("utf-8"))
+                            if request_body
+                            else 0
+                        ),
+                        content_type="application/json",
                     )
-                
+
                 # Create security alerts from parsed data
                 security_alerts_data = SecurityAlerts(
                     alerts=[],
@@ -600,9 +613,9 @@ class AuditLogger:
                     critical_count=0,
                     high_count=0,
                     medium_count=0,
-                    low_count=0
+                    low_count=0,
                 )
-                
+
                 # Create structured audit log entry
                 audit_entry = AuditLogEntry(
                     log_id=record["id"],

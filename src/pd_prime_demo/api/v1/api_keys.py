@@ -1,7 +1,6 @@
 """API key management endpoints."""
 
 from datetime import datetime
-from typing import Union
 from uuid import UUID
 
 import asyncpg

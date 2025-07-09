@@ -18,7 +18,9 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.common import EvidenceContent, CollectionMetadata, ControlEvidence
+from pd_prime_demo.schemas.common import (
+    ControlEvidence,
+)
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -230,9 +232,7 @@ class ProcessingIntegrityManager:
                 rule_id="CUST-002",
                 field_name="phone",
                 validation_type="format",
-                parameters=ValidationParameters(
-                    pattern=r"^\+?[\d\s\-\(\)]{10,15}$"
-                ),
+                parameters=ValidationParameters(pattern=r"^\+?[\d\s\-\(\)]{10,15}$"),
                 error_message="Invalid phone number format",
             ),
             # Policy validation rules
@@ -335,10 +335,16 @@ class ProcessingIntegrityManager:
                 control_id=control_id,
                 execution_id=str(uuid4()),
                 timestamp=start_time,
-                status=ControlStatus.ACTIVE.value if len(findings) == 0 else ControlStatus.FAILED.value,
+                status=(
+                    ControlStatus.ACTIVE.value
+                    if len(findings) == 0
+                    else ControlStatus.FAILED.value
+                ),
                 result=len(findings) == 0,
                 findings=findings,
-                evidence_items=[f"Evidence collected: {key}" for key in evidence.keys()],
+                evidence_items=[
+                    f"Evidence collected: {key}" for key in evidence.keys()
+                ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
                 automated=True,
@@ -570,10 +576,16 @@ class ProcessingIntegrityManager:
                 control_id=control_id,
                 execution_id=str(uuid4()),
                 timestamp=start_time,
-                status=ControlStatus.ACTIVE.value if len(findings) == 0 else ControlStatus.FAILED.value,
+                status=(
+                    ControlStatus.ACTIVE.value
+                    if len(findings) == 0
+                    else ControlStatus.FAILED.value
+                ),
                 result=len(findings) == 0,
                 findings=findings,
-                evidence_items=[f"Evidence collected: {key}" for key in evidence.keys()],
+                evidence_items=[
+                    f"Evidence collected: {key}" for key in evidence.keys()
+                ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
                 automated=True,
@@ -789,10 +801,16 @@ class ProcessingIntegrityManager:
                 control_id=control_id,
                 execution_id=str(uuid4()),
                 timestamp=start_time,
-                status=ControlStatus.ACTIVE.value if len(findings) == 0 else ControlStatus.FAILED.value,
+                status=(
+                    ControlStatus.ACTIVE.value
+                    if len(findings) == 0
+                    else ControlStatus.FAILED.value
+                ),
                 result=len(findings) == 0,
                 findings=findings,
-                evidence_items=[f"Evidence collected: {key}" for key in evidence.keys()],
+                evidence_items=[
+                    f"Evidence collected: {key}" for key in evidence.keys()
+                ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
                 automated=True,
@@ -1023,10 +1041,16 @@ class ProcessingIntegrityManager:
                 control_id=control_id,
                 execution_id=str(uuid4()),
                 timestamp=start_time,
-                status=ControlStatus.ACTIVE.value if len(findings) == 0 else ControlStatus.FAILED.value,
+                status=(
+                    ControlStatus.ACTIVE.value
+                    if len(findings) == 0
+                    else ControlStatus.FAILED.value
+                ),
                 result=len(findings) == 0,
                 findings=findings,
-                evidence_items=[f"Evidence collected: {key}" for key in evidence.keys()],
+                evidence_items=[
+                    f"Evidence collected: {key}" for key in evidence.keys()
+                ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
                 automated=True,
@@ -1203,7 +1227,10 @@ class ProcessingIntegrityManager:
         overall_quality = 0
         if validation_result.is_ok():
             validation_unwrapped = validation_result.unwrap()
-            if validation_unwrapped is not None and validation_unwrapped.evidence_collected is not None:
+            if (
+                validation_unwrapped is not None
+                and validation_unwrapped.evidence_collected is not None
+            ):
                 # For now, set a default quality score since we don't have access to the raw evidence
                 overall_quality = 85 if validation_unwrapped.result else 65
 
@@ -1213,8 +1240,16 @@ class ProcessingIntegrityManager:
             "total_controls": total_controls,
             "passing_controls": passing_controls,
             "failing_controls": total_controls - passing_controls,
-            "validation_errors": len(validation_result.unwrap().findings) if validation_result.is_ok() else 0,
-            "reconciliation_discrepancies": len(reconciliation_result.unwrap().findings) if reconciliation_result.is_ok() else 0,
+            "validation_errors": (
+                len(validation_result.unwrap().findings)
+                if validation_result.is_ok()
+                else 0
+            ),
+            "reconciliation_discrepancies": (
+                len(reconciliation_result.unwrap().findings)
+                if reconciliation_result.is_ok()
+                else 0
+            ),
             "last_assessment": datetime.now(timezone.utc).isoformat(),
             "compliance_status": (
                 "compliant" if integrity_score >= 95 else "non_compliant"

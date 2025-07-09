@@ -164,10 +164,6 @@ class ApplicableDiscount(BaseModelConfig):
     name: str = Field(..., min_length=1, description="Discount name or identifier")
 
 
-
-
-
-
 @beartype
 class CustomerAIData(BaseModelConfig):
     """Customer data for AI risk scoring."""

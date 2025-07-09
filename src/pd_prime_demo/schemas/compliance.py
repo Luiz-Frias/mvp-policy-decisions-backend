@@ -58,7 +58,7 @@ class TrustServiceCriterion(str, Enum):
 @beartype
 class StateProperty(BaseModelConfig):
     """Individual state property, replacing dict[str, str] key-value pairs."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -66,7 +66,7 @@ class StateProperty(BaseModelConfig):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     key: str = Field(..., min_length=1, max_length=200, description="Property key")
     value: str = Field(..., min_length=1, max_length=2000, description="Property value")
 
@@ -74,7 +74,7 @@ class StateProperty(BaseModelConfig):
 @beartype
 class StateMetadata(BaseModelConfig):
     """Individual metadata entry, replacing dict[str, str] key-value pairs."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -82,7 +82,7 @@ class StateMetadata(BaseModelConfig):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     key: str = Field(..., min_length=1, max_length=200, description="Metadata key")
     value: str = Field(..., min_length=1, max_length=2000, description="Metadata value")
 
@@ -90,7 +90,7 @@ class StateMetadata(BaseModelConfig):
 @beartype
 class RequestParameter(BaseModelConfig):
     """Individual request parameter, replacing dict[str, str] parameters."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -98,15 +98,17 @@ class RequestParameter(BaseModelConfig):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     name: str = Field(..., min_length=1, max_length=200, description="Parameter name")
-    value: str = Field(..., min_length=1, max_length=2000, description="Parameter value")
+    value: str = Field(
+        ..., min_length=1, max_length=2000, description="Parameter value"
+    )
 
 
 @beartype
 class RequestHeader(BaseModelConfig):
     """Individual request header, replacing dict[str, str] headers."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -114,7 +116,7 @@ class RequestHeader(BaseModelConfig):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     name: str = Field(..., min_length=1, max_length=200, description="Header name")
     value: str = Field(..., min_length=1, max_length=2000, description="Header value")
 
@@ -134,8 +136,12 @@ class RequestBodyData(BaseModelConfig):
     # Common request fields
     endpoint: str | None = Field(default=None, max_length=200)
     method: str | None = Field(default=None, max_length=10)
-    parameters: list[RequestParameter] = Field(default_factory=list, description="Request parameters as structured list")
-    headers: list[RequestHeader] = Field(default_factory=list, description="Request headers as structured list")
+    parameters: list[RequestParameter] = Field(
+        default_factory=list, description="Request parameters as structured list"
+    )
+    headers: list[RequestHeader] = Field(
+        default_factory=list, description="Request headers as structured list"
+    )
     payload_size: int | None = Field(default=None, ge=0)
     content_type: str | None = Field(default=None, max_length=100)
 
@@ -187,8 +193,13 @@ class StateData(BaseModelConfig):
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # State content - structured models replacing dict[str, str]
-    properties: list[StateProperty] = Field(default_factory=list, description="State properties as structured key-value pairs")
-    metadata: list[StateMetadata] = Field(default_factory=list, description="State metadata as structured key-value pairs")
+    properties: list[StateProperty] = Field(
+        default_factory=list,
+        description="State properties as structured key-value pairs",
+    )
+    metadata: list[StateMetadata] = Field(
+        default_factory=list, description="State metadata as structured key-value pairs"
+    )
 
     # Validation
     checksum: str | None = Field(default=None, max_length=64)
@@ -563,9 +574,7 @@ class SecurityControlConfig(BaseModel):
     enforcement_mode: Literal["strict", "lenient", "monitoring"] = Field(
         default="strict"
     )
-    thresholds: SecurityThresholds = Field(
-        default_factory=lambda: SecurityThresholds()
-    )
+    thresholds: SecurityThresholds = Field(default_factory=lambda: SecurityThresholds())
 
     # Encryption Settings
     encryption_algorithm: str = Field(default="AES-256-GCM")
@@ -579,9 +588,7 @@ class SecurityControlConfig(BaseModel):
 
     # Monitoring Settings
     monitoring_enabled: bool = Field(default=True)
-    alert_thresholds: AlertThresholds = Field(
-        default_factory=lambda: AlertThresholds()
-    )
+    alert_thresholds: AlertThresholds = Field(default_factory=lambda: AlertThresholds())
     automated_response: bool = Field(default=False)
 
     # Compliance Metadata
@@ -677,9 +684,10 @@ class SecurityAssessment(BaseModel):
 # AVAILABILITY CONTROL MODELS
 # ============================================================================
 
+
 class AvailabilityMetrics(BaseModel):
     """Availability metrics replacing dict usage in availability controls."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -687,31 +695,31 @@ class AvailabilityMetrics(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Uptime Metrics
     uptime_percentage: Decimal = Field(ge=0.0, le=100.0, decimal_places=4)
     downtime_minutes: int = Field(ge=0)
     availability_sla: Decimal = Field(default=Decimal("99.9"), ge=0.0, le=100.0)
     sla_compliance: bool = Field(...)
-    
+
     # Incident Metrics
     incident_count: int = Field(ge=0)
     critical_incidents: int = Field(ge=0)
     mean_time_to_repair: float = Field(ge=0.0)
     mean_time_between_failures: float = Field(ge=0.0)
-    
+
     # Performance Metrics
     response_time_p50: float = Field(ge=0.0)
     response_time_p95: float = Field(ge=0.0)
     response_time_p99: float = Field(ge=0.0)
     throughput_rps: float = Field(ge=0.0)
     error_rate_percentage: float = Field(ge=0.0, le=100.0)
-    
+
     # Resource Utilization
     cpu_usage_percentage: float = Field(ge=0.0, le=100.0)
     memory_usage_percentage: float = Field(ge=0.0, le=100.0)
     disk_usage_percentage: float = Field(ge=0.0, le=100.0)
-    
+
     # Measurement Context
     measurement_period_start: datetime = Field(...)
     measurement_period_end: datetime = Field(...)
@@ -720,7 +728,7 @@ class AvailabilityMetrics(BaseModel):
 
 class PerformanceThresholds(BaseModel):
     """Structured replacement for threshold dictionaries."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -728,7 +736,7 @@ class PerformanceThresholds(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     response_time_ms: float = Field(default=100.0, ge=0.0)
     error_rate_percentage: float = Field(default=5.0, ge=0.0, le=100.0)
     throughput_rps: float = Field(default=100.0, ge=0.0)
@@ -739,7 +747,7 @@ class PerformanceThresholds(BaseModel):
 
 class DataRetentionPolicies(BaseModel):
     """Structured replacement for retention_periods dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -747,7 +755,7 @@ class DataRetentionPolicies(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     personal_data_days: int = Field(default=2555, ge=1)  # 7 years
     financial_data_days: int = Field(default=2555, ge=1)  # 7 years
     audit_logs_days: int = Field(default=2555, ge=1)  # 7 years
@@ -759,7 +767,7 @@ class DataRetentionPolicies(BaseModel):
 
 class DataSubjectResponseData(BaseModel):
     """Structured replacement for response_data dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -767,26 +775,26 @@ class DataSubjectResponseData(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Response Metadata
     response_type: str = Field(default="data_export", min_length=1, max_length=50)
     format: str = Field(default="json", min_length=1, max_length=20)
-    
+
     # Data Export Details
     records_count: int = Field(default=0, ge=0)
     data_categories: list[str] = Field(default_factory=list)
     export_format: str = Field(default="csv", min_length=1, max_length=20)
     file_size_bytes: int = Field(default=0, ge=0)
-    
+
     # Redaction Information
     redacted_fields: list[str] = Field(default_factory=list)
     redaction_reason: str | None = Field(default=None, max_length=200)
-    
+
     # Delivery Information
     delivery_method: str = Field(default="secure_download", min_length=1, max_length=50)
     download_url: str | None = Field(default=None, max_length=500)
     expires_at: datetime | None = Field(default=None)
-    
+
     # Verification
     data_hash: str | None = Field(default=None, max_length=128)
     verification_code: str | None = Field(default=None, max_length=50)
@@ -794,7 +802,7 @@ class DataSubjectResponseData(BaseModel):
 
 class CommunicationRecord(BaseModel):
     """Structured replacement for communications list elements."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -802,28 +810,28 @@ class CommunicationRecord(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Communication Identity
     communication_id: UUID = Field(default_factory=uuid4)
     communication_type: str = Field(..., min_length=1, max_length=50)
-    
+
     # Content
     subject: str = Field(..., min_length=1, max_length=200)
     message: str = Field(..., min_length=1, max_length=5000)
-    
+
     # Participants
     sender: str = Field(..., min_length=1, max_length=100)
     recipient: str = Field(..., min_length=1, max_length=100)
-    
+
     # Timing
     sent_at: datetime = Field(...)
     delivered_at: datetime | None = Field(default=None)
     read_at: datetime | None = Field(default=None)
-    
+
     # Channel
     channel: str = Field(..., min_length=1, max_length=50)  # email, sms, portal, etc.
     reference_number: str | None = Field(default=None, max_length=100)
-    
+
     # Status
     delivery_status: str = Field(default="sent", min_length=1, max_length=50)
     response_required: bool = Field(default=False)
@@ -832,7 +840,7 @@ class CommunicationRecord(BaseModel):
 
 class DataClassificationBreakdown(BaseModel):
     """Structured replacement for classification_distribution dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -840,7 +848,7 @@ class DataClassificationBreakdown(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     public: int = Field(default=0, ge=0)
     internal: int = Field(default=0, ge=0)
     confidential: int = Field(default=0, ge=0)
@@ -851,7 +859,7 @@ class DataClassificationBreakdown(BaseModel):
 
 class MisclassificationDetail(BaseModel):
     """Structured replacement for misclassification_details list elements."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -859,21 +867,21 @@ class MisclassificationDetail(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Data Element Information
     data_element_id: str = Field(..., min_length=1, max_length=100)
     data_element_name: str = Field(..., min_length=1, max_length=200)
     data_type: str = Field(..., min_length=1, max_length=100)
-    
+
     # Classification Details
     assigned_classification: str = Field(..., min_length=1, max_length=50)
     correct_classification: str = Field(..., min_length=1, max_length=50)
     confidence_score: float = Field(ge=0.0, le=100.0)
-    
+
     # Context
     misclassification_reason: str = Field(..., min_length=1, max_length=500)
     impact_assessment: str = Field(..., min_length=1, max_length=500)
-    
+
     # Remediation
     remediation_action: str = Field(..., min_length=1, max_length=200)
     corrected_at: datetime | None = Field(default=None)
@@ -882,7 +890,7 @@ class MisclassificationDetail(BaseModel):
 
 class AccessViolationDetail(BaseModel):
     """Structured replacement for violation_details list elements."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -890,32 +898,32 @@ class AccessViolationDetail(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Violation Identity
     violation_id: UUID = Field(default_factory=uuid4)
     violation_type: str = Field(..., min_length=1, max_length=100)
     severity: Literal["critical", "high", "medium", "low"] = Field(...)
-    
+
     # User and Resource Information
     user_id: UUID = Field(...)
     username: str = Field(..., min_length=1, max_length=100)
     resource_type: str = Field(..., min_length=1, max_length=100)
     resource_id: str = Field(..., min_length=1, max_length=100)
-    
+
     # Access Details
     requested_permission: str = Field(..., min_length=1, max_length=100)
     granted_permission: str = Field(..., min_length=1, max_length=100)
     expected_permission: str = Field(..., min_length=1, max_length=100)
-    
+
     # Violation Context
     violation_description: str = Field(..., min_length=1, max_length=500)
     business_justification: str | None = Field(default=None, max_length=500)
-    
+
     # Temporal Information
     discovered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     first_occurrence: datetime = Field(...)
     last_occurrence: datetime = Field(...)
-    
+
     # Remediation
     remediation_required: bool = Field(default=True)
     remediation_status: str = Field(default="pending", min_length=1, max_length=50)
@@ -925,7 +933,7 @@ class AccessViolationDetail(BaseModel):
 
 class AccessViolationBreakdown(BaseModel):
     """Structured replacement for violation_types dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -933,7 +941,7 @@ class AccessViolationBreakdown(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     excessive_permissions: int = Field(default=0, ge=0)
     unauthorized_access: int = Field(default=0, ge=0)
     privilege_escalation: int = Field(default=0, ge=0)
@@ -946,7 +954,7 @@ class AccessViolationBreakdown(BaseModel):
 
 class EvidenceData(BaseModel):
     """Structured replacement for evidence_data dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -954,32 +962,32 @@ class EvidenceData(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Evidence Content
     content_type: str = Field(default="system_output", min_length=1, max_length=100)
     content_format: str = Field(default="json", min_length=1, max_length=50)
     raw_data: str | None = Field(default=None)
-    
+
     # Metrics and Measurements
     numerical_values: list[float] = Field(default_factory=list)
     categorical_values: list[str] = Field(default_factory=list)
     boolean_indicators: list[bool] = Field(default_factory=list)
-    
+
     # System Information
     system_name: str | None = Field(default=None, max_length=100)
     system_version: str | None = Field(default=None, max_length=50)
     configuration_settings: list[str] = Field(default_factory=list)
-    
+
     # Test Results
     test_status: str | None = Field(default=None, max_length=50)
     test_output: str | None = Field(default=None)
     error_messages: list[str] = Field(default_factory=list)
-    
+
     # File and Document Information
     file_paths: list[str] = Field(default_factory=list)
     document_references: list[str] = Field(default_factory=list)
     screenshots: list[str] = Field(default_factory=list)
-    
+
     # Database and Query Results
     query_results: str | None = Field(default=None)
     record_counts: list[int] = Field(default_factory=list)
@@ -988,7 +996,7 @@ class EvidenceData(BaseModel):
 
 class CriteriaCoverageBreakdown(BaseModel):
     """Structured replacement for criteria_coverage dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -996,7 +1004,7 @@ class CriteriaCoverageBreakdown(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     security: int = Field(default=0, ge=0)
     availability: int = Field(default=0, ge=0)
     processing_integrity: int = Field(default=0, ge=0)
@@ -1006,7 +1014,7 @@ class CriteriaCoverageBreakdown(BaseModel):
 
 class FindingsSeverityBreakdown(BaseModel):
     """Structured replacement for findings_by_severity dict."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -1014,7 +1022,7 @@ class FindingsSeverityBreakdown(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     critical: int = Field(default=0, ge=0)
     high: int = Field(default=0, ge=0)
     medium: int = Field(default=0, ge=0)
@@ -1024,7 +1032,7 @@ class FindingsSeverityBreakdown(BaseModel):
 
 class BackupValidation(BaseModel):
     """Backup validation results replacing dict usage."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -1032,35 +1040,35 @@ class BackupValidation(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     # Backup Identity
     backup_id: str = Field(..., min_length=1, max_length=100)
     backup_type: str = Field(..., min_length=1, max_length=50)
     backup_time: datetime = Field(...)
-    
+
     # Backup Status
     backup_successful: bool = Field(...)
     backup_size_gb: Decimal = Field(ge=0, decimal_places=2)
     backup_duration_minutes: int = Field(ge=0)
-    
+
     # Validation Results
     integrity_verified: bool = Field(...)
     completeness_verified: bool = Field(...)
     restoration_tested: bool = Field(...)
     restoration_successful: bool | None = Field(default=None)
     restoration_time_minutes: int | None = Field(default=None, ge=0)
-    
+
     # Compliance Metrics
     recovery_time_objective: int = Field(ge=0)  # RTO in minutes
     recovery_point_objective: int = Field(ge=0)  # RPO in minutes
     rto_compliance: bool = Field(...)
     rpo_compliance: bool = Field(...)
-    
+
     # Security
     encryption_enabled: bool = Field(default=True)
     encryption_algorithm: str | None = Field(default=None)
     access_controls_verified: bool = Field(default=True)
-    
+
     # Location and Retention
     storage_location: str = Field(..., min_length=1, max_length=200)
     offsite_storage: bool = Field(default=True)

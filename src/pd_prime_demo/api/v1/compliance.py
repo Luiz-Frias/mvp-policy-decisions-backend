@@ -5,7 +5,7 @@ including control execution, evidence collection, and compliance reporting.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response

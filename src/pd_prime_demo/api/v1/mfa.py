@@ -1,6 +1,6 @@
 """MFA API endpoints."""
 
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype

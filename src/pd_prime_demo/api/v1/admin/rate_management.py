@@ -5,7 +5,7 @@ approval workflows, A/B testing, and analytics per Agent 06 requirements.
 """
 
 from datetime import date
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype

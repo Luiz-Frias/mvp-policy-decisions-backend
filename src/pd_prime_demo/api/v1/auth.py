@@ -1,6 +1,5 @@
 """Authentication endpoints including SSO support."""
 
-from typing import Union
 from uuid import uuid4
 
 import asyncpg

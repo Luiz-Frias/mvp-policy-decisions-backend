@@ -7,7 +7,6 @@ with proper validation, state transitions, and audit logging.
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Union
 from uuid import UUID, uuid4
 
 import asyncpg

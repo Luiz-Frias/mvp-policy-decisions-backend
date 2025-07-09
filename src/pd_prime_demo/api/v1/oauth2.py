@@ -1,13 +1,12 @@
 """OAuth2 authorization endpoints."""
 
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict
-
 
 from ...core.auth.oauth2 import OAuth2Server
 from ...core.cache import Cache

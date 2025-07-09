@@ -1,13 +1,12 @@
 """Admin SSO configuration endpoints."""
 
 from datetime import datetime
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
-
 
 from ....models.admin import AdminUser, Permission
 from ....services.admin.sso_admin_service import SSOAdminService

@@ -2,8 +2,8 @@
 
 import time
 from collections import deque
-from typing import Any
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from attrs import define, field, frozen
 from beartype import beartype

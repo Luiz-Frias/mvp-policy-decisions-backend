@@ -18,8 +18,6 @@ from ..core.database import Database
 from .message_models import (
     BackpressureMetrics,
     ConnectionCapabilities,
-)
-from .message_models import (
     WebSocketConnectionMetadata,
     create_connection_capabilities,
     create_connection_metadata,

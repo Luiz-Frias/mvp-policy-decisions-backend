@@ -5,7 +5,6 @@ with proper validation, caching, and error handling.
 """
 
 from collections.abc import AsyncGenerator
-from typing import Union
 from uuid import UUID, uuid4
 
 import asyncpg

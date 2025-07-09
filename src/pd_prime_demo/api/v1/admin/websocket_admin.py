@@ -1,7 +1,7 @@
 """Admin WebSocket API endpoints for real-time monitoring and control."""
 
 from datetime import datetime
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype

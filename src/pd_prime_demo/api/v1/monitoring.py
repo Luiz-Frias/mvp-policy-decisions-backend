@@ -1,7 +1,6 @@
 """Database and system monitoring endpoints with performance tracking."""
 
 import time
-from typing import Union
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
@@ -16,7 +15,6 @@ from ..dependencies import get_db
 from ..response_patterns import ErrorResponse, handle_result
 
 # TYPE_CHECKING imports not needed - using string annotations
-
 
 
 router = APIRouter(prefix="/monitoring", tags=["monitoring"])
