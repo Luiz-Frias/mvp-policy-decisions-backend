@@ -20,7 +20,7 @@ __all__ = [
 
 class FactorizedPremium(BaseModel):
     """Final premium after multiplicative factors are applied."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -37,7 +37,7 @@ class FactorizedPremium(BaseModel):
 
 class DriverRiskScore(BaseModel):
     """Driver risk scoring result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -52,11 +52,11 @@ class DriverRiskScore(BaseModel):
 
 class Discount(BaseModel):
     """Represents a single discount entry.
-    
+
     Structured model with explicit fields instead of dynamic keys
     for proper validation and type safety.
     """
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -74,7 +74,7 @@ class Discount(BaseModel):
 
 class StackedDiscounts(BaseModel):
     """Response payload for calculated discount stacking."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -89,7 +89,7 @@ class StackedDiscounts(BaseModel):
 
 class FactorImpact(BaseModel):
     """Individual factor impact on premium calculation."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -97,7 +97,7 @@ class FactorImpact(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     factor_name: str = Field(..., min_length=1, max_length=100)
     impact_amount: Decimal = Field(..., description="Impact on premium")
     impact_type: str = Field(..., pattern="^(multiplicative|additive|percentage)$")
@@ -106,7 +106,7 @@ class FactorImpact(BaseModel):
 
 class RiskFactor(BaseModel):
     """Individual risk factor for driver scoring."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -114,7 +114,7 @@ class RiskFactor(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     factor_type: str = Field(..., min_length=1, max_length=50)
     severity: str = Field(..., pattern="^(low|medium|high|critical)$")
     impact_score: float = Field(..., ge=0, le=1)

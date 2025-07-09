@@ -10,9 +10,10 @@ from typing import Any
 
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ...core.cache import Cache
 from ...core.database import Database
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 HAS_NUMPY = False  # NumPy not used in current implementation
 

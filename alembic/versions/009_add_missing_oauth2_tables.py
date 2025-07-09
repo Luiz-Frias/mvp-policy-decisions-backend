@@ -137,7 +137,9 @@ def upgrade() -> None:
             ondelete="SET NULL",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_oauth2_refresh_tokens")),
-        sa.UniqueConstraint("token_hash", name=op.f("uq_oauth2_refresh_tokens_token_hash")),
+        sa.UniqueConstraint(
+            "token_hash", name=op.f("uq_oauth2_refresh_tokens_token_hash")
+        ),
         sa.CheckConstraint(
             "token_type IN ('Bearer', 'JWT')",
             name=op.f("ck_oauth2_refresh_tokens_token_type"),
@@ -304,7 +306,7 @@ def upgrade() -> None:
         ["token_hash"],
         unique=False,
     )
-    
+
     # Composite index for common queries
     op.create_index(
         "ix_oauth2_token_logs_client_action_created",
@@ -389,7 +391,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_oauth2_authorization_codes")),
-        sa.UniqueConstraint("code_hash", name=op.f("uq_oauth2_authorization_codes_code_hash")),
+        sa.UniqueConstraint(
+            "code_hash", name=op.f("uq_oauth2_authorization_codes_code_hash")
+        ),
         sa.CheckConstraint(
             "code_challenge_method IS NULL OR code_challenge_method IN ('plain', 'S256')",
             name=op.f("ck_oauth2_authorization_codes_challenge_method"),
@@ -448,21 +452,21 @@ def upgrade() -> None:
             -- Delete expired authorization codes (older than 24 hours)
             DELETE FROM oauth2_authorization_codes
             WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '24 hours';
-            
+
             GET DIAGNOSTICS deleted_count = ROW_COUNT;
-            
+
             -- Delete expired refresh tokens (keeping recent ones for audit)
             DELETE FROM oauth2_refresh_tokens
             WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days';
-            
+
             GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
-            
+
             -- Archive old token logs (older than 90 days)
             DELETE FROM oauth2_token_logs
             WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days';
-            
+
             GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
-            
+
             RETURN deleted_count;
         END;
         $$ LANGUAGE plpgsql;
@@ -487,21 +491,21 @@ def upgrade() -> None:
                 updated_at = CURRENT_TIMESTAMP
             WHERE user_id = p_user_id
             AND revoked_at IS NULL;
-            
+
             GET DIAGNOSTICS revoked_count = ROW_COUNT;
-            
+
             -- Log the revocation
             INSERT INTO oauth2_token_logs (
                 client_id, user_id, token_type, token_hash, scope, action,
                 ip_address, user_agent, created_at
             )
-            SELECT 
+            SELECT
                 client_id, user_id, 'refresh_token', token_hash, scope, 'revoked',
                 ip_address, user_agent, CURRENT_TIMESTAMP
             FROM oauth2_refresh_tokens
             WHERE user_id = p_user_id
             AND revoked_at = CURRENT_TIMESTAMP;
-            
+
             RETURN revoked_count;
         END;
         $$ LANGUAGE plpgsql;
@@ -511,14 +515,16 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop OAuth2 tables and related objects."""
-    
+
     # Drop triggers
-    op.execute("DROP TRIGGER IF EXISTS update_oauth2_refresh_tokens_updated_at ON oauth2_refresh_tokens;")
-    
+    op.execute(
+        "DROP TRIGGER IF EXISTS update_oauth2_refresh_tokens_updated_at ON oauth2_refresh_tokens;"
+    )
+
     # Drop functions
     op.execute("DROP FUNCTION IF EXISTS cleanup_expired_oauth2_tokens();")
     op.execute("DROP FUNCTION IF EXISTS revoke_user_tokens(UUID, TEXT);")
-    
+
     # Drop tables in reverse order
     op.drop_table("oauth2_authorization_codes")
     op.drop_table("oauth2_token_logs")

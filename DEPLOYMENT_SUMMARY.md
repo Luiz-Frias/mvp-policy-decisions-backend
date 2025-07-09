@@ -10,7 +10,7 @@ The following tables were **missing from the database** but **referenced in the 
 - **Features**: Token hashing, expiration, revocation tracking, IP security
 - **Indexes**: client_id, user_id, expires_at, token_hash (unique)
 
-### 2. `oauth2_token_logs` ✅ CREATED  
+### 2. `oauth2_token_logs` ✅ CREATED
 - **References Found**: 1 location in OAuth2 server
 - **Purpose**: Comprehensive audit trail for OAuth2 token operations
 - **Features**: Action logging, risk scoring, security flags
@@ -39,7 +39,7 @@ The following tables were **missing from the database** but **referenced in the 
 ### Before Migration (BROKEN)
 ```
 ❌ oauth2_refresh_tokens - Referenced but missing
-❌ oauth2_token_logs - Referenced but missing  
+❌ oauth2_token_logs - Referenced but missing
 ❌ oauth2_authorization_codes - Referenced but missing
 ```
 
@@ -71,9 +71,9 @@ uv run alembic current
 ### Step 3: Verify Tables Created
 ```sql
 -- Check all OAuth2 tables exist
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' 
-AND table_name LIKE 'oauth2_%' 
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
+AND table_name LIKE 'oauth2_%'
 ORDER BY table_name;
 
 -- Expected output:

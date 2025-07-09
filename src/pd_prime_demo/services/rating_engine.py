@@ -22,6 +22,8 @@ except ImportError:
 from beartype import beartype
 from pydantic import Field
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.base import BaseModelConfig
@@ -37,7 +39,6 @@ from .performance_monitor import performance_monitor
 from .rating.business_rules import RatingBusinessRules
 from .rating.performance_optimizer import RatingPerformanceOptimizer
 from .rating.territory_management import TerritoryManager
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 @beartype

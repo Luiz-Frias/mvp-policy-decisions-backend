@@ -24,7 +24,7 @@ from src.pd_prime_demo.core.database import Database
 # Logging Setup (replaces legacy ``print`` with structured logging)
 # ---------------------------------------------------------------------------
 from src.pd_prime_demo.core.logging_utils import configure_logging, patch_print
-from src.pd_prime_demo.core.result_types import Err, Ok, Result
+from src.pd_prime_demo.core.result_types import Err, Ok
 
 configure_logging()
 patch_print()

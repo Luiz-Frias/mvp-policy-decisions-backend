@@ -8,6 +8,8 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.claim import (
@@ -19,7 +21,6 @@ from ..models.claim import (
 )
 from .cache_keys import CacheKeys
 from .performance_monitor import performance_monitor
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class ClaimService:

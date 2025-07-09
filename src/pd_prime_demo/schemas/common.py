@@ -1,10 +1,9 @@
 """Common schemas used across the API."""
 
 from datetime import datetime
-from typing import Generic, TypeVar
 from decimal import Decimal
+from typing import Any, Generic, TypeVar
 
-from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Type variable for generic models
@@ -25,7 +24,9 @@ class AdditionalInfo(BaseModel):
     )
 
     key: str = Field(..., min_length=1, max_length=100, description="Information key")
-    value: str = Field(..., min_length=1, max_length=1000, description="Information value")
+    value: str = Field(
+        ..., min_length=1, max_length=1000, description="Information value"
+    )
 
 
 class ResourceLink(BaseModel):
@@ -334,7 +335,9 @@ class Money(BaseModel):
     )
 
     amount: Decimal = Field(..., decimal_places=2, description="Monetary amount")
-    currency: str = Field(default="USD", min_length=3, max_length=3, description="Currency code")
+    currency: str = Field(
+        default="USD", min_length=3, max_length=3, description="Currency code"
+    )
 
 
 class Address(BaseModel):
@@ -348,11 +351,19 @@ class Address(BaseModel):
         validate_default=True,
     )
 
-    street_address: str = Field(..., min_length=1, max_length=200, description="Street address")
+    street_address: str = Field(
+        ..., min_length=1, max_length=200, description="Street address"
+    )
     city: str = Field(..., min_length=1, max_length=100, description="City")
-    state: str = Field(..., min_length=2, max_length=50, description="State or province")
-    postal_code: str = Field(..., min_length=1, max_length=20, description="Postal code")
-    country: str = Field(default="US", min_length=2, max_length=3, description="Country code")
+    state: str = Field(
+        ..., min_length=2, max_length=50, description="State or province"
+    )
+    postal_code: str = Field(
+        ..., min_length=1, max_length=20, description="Postal code"
+    )
+    country: str = Field(
+        default="US", min_length=2, max_length=3, description="Country code"
+    )
 
 
 class ContactInfo(BaseModel):
@@ -389,7 +400,11 @@ class DateRange(BaseModel):
     @classmethod
     def validate_end_date(cls, v: datetime, info: Any) -> datetime:
         """Ensure end_date is after start_date."""
-        if hasattr(info, "data") and "start_date" in info.data and v <= info.data["start_date"]:
+        if (
+            hasattr(info, "data")
+            and "start_date" in info.data
+            and v <= info.data["start_date"]
+        ):
             raise ValueError("end_date must be after start_date")
         return v
 
@@ -407,7 +422,9 @@ class Status(BaseModel):
 
     code: str = Field(..., min_length=1, max_length=50, description="Status code")
     name: str = Field(..., min_length=1, max_length=100, description="Status name")
-    description: str | None = Field(None, max_length=500, description="Status description")
+    description: str | None = Field(
+        None, max_length=500, description="Status description"
+    )
     is_active: bool = Field(default=True, description="Whether status is active")
 
 
@@ -422,7 +439,9 @@ class Audit(BaseModel):
         validate_default=True,
     )
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Creation timestamp"
+    )
     created_by: str | None = Field(None, description="User who created the record")
     updated_at: datetime | None = Field(None, description="Last update timestamp")
     updated_by: str | None = Field(None, description="User who last updated the record")
@@ -441,7 +460,9 @@ class ValidationResult(BaseModel):
     )
 
     is_valid: bool = Field(..., description="Whether validation passed")
-    errors: list[ErrorDetail] = Field(default_factory=list, description="Validation errors")
+    errors: list[ErrorDetail] = Field(
+        default_factory=list, description="Validation errors"
+    )
     warnings: list[str] = Field(default_factory=list, description="Validation warnings")
 
 
@@ -457,7 +478,9 @@ class SearchCriteria(BaseModel):
     )
 
     query: str | None = Field(None, max_length=500, description="Search query")
-    filters: list[MetadataItem] = Field(default_factory=list, description="Search filters")
+    filters: list[MetadataItem] = Field(
+        default_factory=list, description="Search filters"
+    )
     sort_by: str | None = Field(None, max_length=100, description="Sort field")
     sort_order: str = Field(default="asc", description="Sort order (asc/desc)")
     page: int = Field(default=1, ge=1, description="Page number")

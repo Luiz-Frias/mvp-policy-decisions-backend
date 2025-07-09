@@ -11,7 +11,7 @@ from src.pd_prime_demo.core.auth.providers.google import GoogleSSOProvider
 from src.pd_prime_demo.core.auth.providers.okta import OktaSSOProvider
 from src.pd_prime_demo.core.auth.sso_base import SSOUserInfo
 from src.pd_prime_demo.core.auth.sso_manager import SSOManager
-from src.pd_prime_demo.core.result_types import Err, Ok, Result
+from src.pd_prime_demo.core.result_types import Err
 
 
 class TestSSOComprehensiveIntegration:

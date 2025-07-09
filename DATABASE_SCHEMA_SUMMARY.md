@@ -177,17 +177,17 @@ uv run alembic history
 ### Post-Migration Verification
 ```sql
 -- Check all tables exist
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' 
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
 ORDER BY table_name;
 
 -- Verify partitions for audit_logs
-SELECT schemaname, tablename, partitiontype 
-FROM pg_partitions 
+SELECT schemaname, tablename, partitiontype
+FROM pg_partitions
 WHERE tablename LIKE 'audit_logs%';
 
 -- Check function creation
-SELECT proname FROM pg_proc 
+SELECT proname FROM pg_proc
 WHERE proname IN (
     'update_updated_at_column',
     'generate_quote_number',

@@ -114,6 +114,7 @@ repos:
     hooks:
       - id: prettier
         types_or: [yaml, markdown, json]
+        args: [--no-parallel]
         exclude: '^(\.pre-commit-config\.yaml)$'
 
   # Safety check using local hook since we use uv, not poetry

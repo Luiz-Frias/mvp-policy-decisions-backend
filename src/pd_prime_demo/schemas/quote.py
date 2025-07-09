@@ -486,22 +486,27 @@ class WizardStepData(BaseModel):
         validate_default=True,
     )
 
-    customer_info: "WizardCustomerInfo" = Field(
-        default_factory=lambda: WizardCustomerInfo(), description="Customer information collected"
+    customer_info: WizardCustomerInfo = Field(
+        default_factory=lambda: WizardCustomerInfo(),
+        description="Customer information collected",
     )
-    vehicle_info: "WizardVehicleInfo" = Field(
-        default_factory=lambda: WizardVehicleInfo(), description="Vehicle information collected"
+    vehicle_info: WizardVehicleInfo = Field(
+        default_factory=lambda: WizardVehicleInfo(),
+        description="Vehicle information collected",
     )
-    driver_info: "WizardDriverInfo" = Field(
-        default_factory=lambda: WizardDriverInfo(), description="Driver information collected"
+    driver_info: WizardDriverInfo = Field(
+        default_factory=lambda: WizardDriverInfo(),
+        description="Driver information collected",
     )
-    coverage_info: "WizardCoverageInfo" = Field(
-        default_factory=lambda: WizardCoverageInfo(), description="Coverage selection information"
+    coverage_info: WizardCoverageInfo = Field(
+        default_factory=lambda: WizardCoverageInfo(),
+        description="Coverage selection information",
     )
-    payment_info: "WizardPaymentInfo" = Field(
-        default_factory=lambda: WizardPaymentInfo(), description="Payment information collected"
+    payment_info: WizardPaymentInfo = Field(
+        default_factory=lambda: WizardPaymentInfo(),
+        description="Payment information collected",
     )
-    preferences: "WizardPreferences" = Field(
+    preferences: WizardPreferences = Field(
         default_factory=lambda: WizardPreferences(), description="Customer preferences"
     )
 
@@ -564,17 +569,21 @@ class ComparisonMatrix(BaseModel):
         validate_default=True,
     )
 
-    premium_comparison: "PremiumComparison" = Field(
-        default_factory=lambda: PremiumComparison(), description="Premium comparison data"
+    premium_comparison: PremiumComparison = Field(
+        default_factory=lambda: PremiumComparison(),
+        description="Premium comparison data",
     )
-    coverage_comparison: "CoverageComparison" = Field(
-        default_factory=lambda: CoverageComparison(), description="Coverage comparison data"
+    coverage_comparison: CoverageComparison = Field(
+        default_factory=lambda: CoverageComparison(),
+        description="Coverage comparison data",
     )
-    discount_comparison: "DiscountComparison" = Field(
-        default_factory=lambda: DiscountComparison(), description="Discount comparison data"
+    discount_comparison: DiscountComparison = Field(
+        default_factory=lambda: DiscountComparison(),
+        description="Discount comparison data",
     )
-    feature_comparison: "FeatureComparison" = Field(
-        default_factory=lambda: FeatureComparison(), description="Feature comparison data"
+    feature_comparison: FeatureComparison = Field(
+        default_factory=lambda: FeatureComparison(),
+        description="Feature comparison data",
     )
 
 
@@ -593,7 +602,7 @@ class BulkActionResult(BaseModel):
     quote_id: UUID = Field(..., description="Quote ID that was processed")
     action_performed: str = Field(..., description="Action that was performed")
     success: bool = Field(..., description="Whether action was successful")
-    result_data: "ActionResultData" = Field(
+    result_data: ActionResultData = Field(
         default_factory=lambda: ActionResultData(), description="Action result data"
     )
     error_message: str | None = Field(
@@ -608,7 +617,7 @@ class BulkActionResult(BaseModel):
 @beartype
 class WizardCustomerInfo(BaseModel):
     """Customer information collected during wizard."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -616,7 +625,7 @@ class WizardCustomerInfo(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     first_name: str | None = Field(None, min_length=1, max_length=100)
     last_name: str | None = Field(None, min_length=1, max_length=100)
     email: str | None = Field(None, pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$")
@@ -633,7 +642,7 @@ class WizardCustomerInfo(BaseModel):
 @beartype
 class WizardVehicleInfo(BaseModel):
     """Vehicle information collected during wizard."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -641,13 +650,15 @@ class WizardVehicleInfo(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     vin: str | None = Field(None, min_length=17, max_length=17)
     year: int | None = Field(None, ge=1900, le=2030)
     make: str | None = Field(None, min_length=1, max_length=50)
     model: str | None = Field(None, min_length=1, max_length=50)
     trim: str | None = Field(None, max_length=50)
-    vehicle_type: str | None = Field(None, pattern=r"^(sedan|suv|truck|coupe|wagon|convertible|hatchback)$")
+    vehicle_type: str | None = Field(
+        None, pattern=r"^(sedan|suv|truck|coupe|wagon|convertible|hatchback)$"
+    )
     usage_type: str | None = Field(None, pattern=r"^(personal|business|commercial)$")
     annual_mileage: int | None = Field(None, ge=0, le=100000)
     garage_type: str | None = Field(None, pattern=r"^(garage|carport|street|driveway)$")
@@ -658,7 +669,7 @@ class WizardVehicleInfo(BaseModel):
 @beartype
 class WizardDriverInfo(BaseModel):
     """Driver information collected during wizard."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -666,7 +677,7 @@ class WizardDriverInfo(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     license_number: str | None = Field(None, min_length=1, max_length=20)
     license_state: str | None = Field(None, pattern=r"^[A-Z]{2}$")
     years_licensed: int | None = Field(None, ge=0, le=80)
@@ -682,7 +693,7 @@ class WizardDriverInfo(BaseModel):
 @beartype
 class WizardCoverageInfo(BaseModel):
     """Coverage information collected during wizard."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -690,7 +701,7 @@ class WizardCoverageInfo(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     liability_limits: str | None = Field(None, pattern=r"^\d+/\d+/\d+$")
     comprehensive_deductible: int | None = Field(None, ge=0, le=5000)
     collision_deductible: int | None = Field(None, ge=0, le=5000)
@@ -705,7 +716,7 @@ class WizardCoverageInfo(BaseModel):
 @beartype
 class WizardPaymentInfo(BaseModel):
     """Payment information collected during wizard."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -713,9 +724,13 @@ class WizardPaymentInfo(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
-    payment_method: str | None = Field(None, pattern=r"^(credit_card|bank_transfer|check|paypal)$")
-    payment_schedule: str | None = Field(None, pattern=r"^(monthly|quarterly|semi_annual|annual)$")
+
+    payment_method: str | None = Field(
+        None, pattern=r"^(credit_card|bank_transfer|check|paypal)$"
+    )
+    payment_schedule: str | None = Field(
+        None, pattern=r"^(monthly|quarterly|semi_annual|annual)$"
+    )
     auto_pay: bool | None = None
     paperless_billing: bool | None = None
     down_payment_amount: Decimal | None = Field(None, ge=Decimal("0"))
@@ -725,7 +740,7 @@ class WizardPaymentInfo(BaseModel):
 @beartype
 class WizardPreferences(BaseModel):
     """Customer preferences collected during wizard."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -733,13 +748,19 @@ class WizardPreferences(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     communication_preferences: list[str] = Field(default_factory=list)
     marketing_opt_in: bool | None = None
-    language_preference: str | None = Field(None, pattern=r"^(en|es|fr|de|it|pt|zh|ja|ko)$")
+    language_preference: str | None = Field(
+        None, pattern=r"^(en|es|fr|de|it|pt|zh|ja|ko)$"
+    )
     accessibility_needs: list[str] = Field(default_factory=list)
-    agent_preference: str | None = Field(None, pattern=r"^(online|phone|in_person|no_preference)$")
-    policy_start_preference: str | None = Field(None, pattern=r"^(immediate|future_date|next_month)$")
+    agent_preference: str | None = Field(
+        None, pattern=r"^(online|phone|in_person|no_preference)$"
+    )
+    policy_start_preference: str | None = Field(
+        None, pattern=r"^(immediate|future_date|next_month)$"
+    )
 
 
 # Comparison models - consolidated and structured
@@ -748,7 +769,7 @@ class WizardPreferences(BaseModel):
 @beartype
 class PremiumComparison(BaseModel):
     """Premium comparison data."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -756,7 +777,7 @@ class PremiumComparison(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     current_premium: Decimal | None = Field(None, ge=Decimal("0"))
     competitive_premiums: list[Decimal] = Field(default_factory=list)
     market_average: Decimal | None = Field(None, ge=Decimal("0"))
@@ -768,7 +789,7 @@ class PremiumComparison(BaseModel):
 @beartype
 class CoverageComparison(BaseModel):
     """Coverage comparison data."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -776,18 +797,20 @@ class CoverageComparison(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     current_coverage: list[str] = Field(default_factory=list)
     recommended_coverage: list[str] = Field(default_factory=list)
     coverage_gaps: list[str] = Field(default_factory=list)
     coverage_score: float | None = Field(None, ge=0, le=10)
-    adequacy_rating: str | None = Field(None, pattern=r"^(excellent|good|adequate|insufficient)$")
+    adequacy_rating: str | None = Field(
+        None, pattern=r"^(excellent|good|adequate|insufficient)$"
+    )
 
 
 @beartype
 class DiscountComparison(BaseModel):
     """Discount comparison data."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -795,7 +818,7 @@ class DiscountComparison(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     available_discounts: list[str] = Field(default_factory=list)
     applied_discounts: list[str] = Field(default_factory=list)
     potential_discounts: list[str] = Field(default_factory=list)
@@ -806,7 +829,7 @@ class DiscountComparison(BaseModel):
 @beartype
 class FeatureComparison(BaseModel):
     """Feature comparison data."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -814,7 +837,7 @@ class FeatureComparison(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     available_features: list[str] = Field(default_factory=list)
     included_features: list[str] = Field(default_factory=list)
     optional_features: list[str] = Field(default_factory=list)
@@ -826,7 +849,7 @@ class FeatureComparison(BaseModel):
 @beartype
 class ActionResultData(BaseModel):
     """Action result data."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -834,7 +857,7 @@ class ActionResultData(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     affected_records: int | None = Field(None, ge=0)
     processing_time_ms: int | None = Field(None, ge=0)
     status_code: int | None = Field(None, ge=100, le=599)
@@ -879,7 +902,9 @@ class FieldError(BaseModel):
     )
 
     field_name: str = Field(..., description="Name of the field with error")
-    error_messages: list[str] = Field(..., description="List of error messages for this field")
+    error_messages: list[str] = Field(
+        ..., description="List of error messages for this field"
+    )
     error_code: str | None = Field(None, description="Error code identifier")
     suggested_fix: str | None = Field(None, description="Suggested fix for the error")
 
@@ -897,10 +922,14 @@ class FieldWarning(BaseModel):
     )
 
     field_name: str = Field(..., description="Name of the field with warning")
-    warning_messages: list[str] = Field(..., description="List of warning messages for this field")
+    warning_messages: list[str] = Field(
+        ..., description="List of warning messages for this field"
+    )
     warning_code: str | None = Field(None, description="Warning code identifier")
     severity: str = Field(
-        default="low", pattern=r"^(low|medium|high)$", description="Warning severity level"
+        default="low",
+        pattern=r"^(low|medium|high)$",
+        description="Warning severity level",
     )
 
 
@@ -923,8 +952,12 @@ class BulkActionError(BaseModel):
     error_type: str = Field(
         ..., pattern=r"^(validation|permission|system|business_rule|timeout)$"
     )
-    retry_possible: bool = Field(default=False, description="Whether this error can be retried")
-    timestamp: datetime = Field(default_factory=datetime.now, description="When the error occurred")
+    retry_possible: bool = Field(
+        default=False, description="Whether this error can be retried"
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.now, description="When the error occurred"
+    )
 
 
 # All quote API schemas are defined above.

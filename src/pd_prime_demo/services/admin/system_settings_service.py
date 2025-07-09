@@ -9,10 +9,11 @@ from uuid import UUID
 from beartype import beartype
 from cryptography.fernet import Fernet
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ...core.cache import Cache
 from ...core.database import Database
 from ..cache_keys import CacheKeys
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class SettingType(str, Enum):

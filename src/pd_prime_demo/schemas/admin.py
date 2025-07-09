@@ -1,7 +1,6 @@
 """Admin API schemas for request/response validation."""
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Any, Literal
 
 from beartype import beartype
@@ -14,7 +13,7 @@ from ..models.admin import ActivityAction, Permission, SystemSettingCategory
 @beartype
 class AdminNotificationPreferences(BaseModel):
     """Admin notification preferences model."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -22,21 +21,35 @@ class AdminNotificationPreferences(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
-    email_system_alerts: bool = Field(default=True, description="Email alerts for system issues")
-    email_security_alerts: bool = Field(default=True, description="Email alerts for security events")
-    email_user_actions: bool = Field(default=False, description="Email alerts for user actions")
+
+    email_system_alerts: bool = Field(
+        default=True, description="Email alerts for system issues"
+    )
+    email_security_alerts: bool = Field(
+        default=True, description="Email alerts for security events"
+    )
+    email_user_actions: bool = Field(
+        default=False, description="Email alerts for user actions"
+    )
     email_reports: bool = Field(default=True, description="Email for scheduled reports")
-    push_real_time: bool = Field(default=True, description="Push notifications for real-time events")
-    push_mentions: bool = Field(default=True, description="Push notifications for mentions")
-    sms_critical_only: bool = Field(default=False, description="SMS for critical alerts only")
-    desktop_notifications: bool = Field(default=True, description="Desktop browser notifications")
+    push_real_time: bool = Field(
+        default=True, description="Push notifications for real-time events"
+    )
+    push_mentions: bool = Field(
+        default=True, description="Push notifications for mentions"
+    )
+    sms_critical_only: bool = Field(
+        default=False, description="SMS for critical alerts only"
+    )
+    desktop_notifications: bool = Field(
+        default=True, description="Desktop browser notifications"
+    )
 
 
 @beartype
 class AdminDashboardConfig(BaseModel):
     """Admin dashboard configuration model."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -44,24 +57,34 @@ class AdminDashboardConfig(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
-    default_view: str = Field(default="overview", pattern=r"^(overview|analytics|reports|settings)$")
+
+    default_view: str = Field(
+        default="overview", pattern=r"^(overview|analytics|reports|settings)$"
+    )
     theme: str = Field(default="light", pattern=r"^(light|dark|auto)$")
     sidebar_collapsed: bool = Field(default=False, description="Sidebar collapse state")
     show_tooltips: bool = Field(default=True, description="Show help tooltips")
     auto_refresh: bool = Field(default=True, description="Auto-refresh dashboard data")
-    refresh_interval: int = Field(default=60, ge=10, le=3600, description="Refresh interval in seconds")
+    refresh_interval: int = Field(
+        default=60, ge=10, le=3600, description="Refresh interval in seconds"
+    )
     timezone_display: str = Field(default="local", pattern=r"^(local|utc|custom)$")
-    date_format: str = Field(default="MM/DD/YYYY", pattern=r"^(MM/DD/YYYY|DD/MM/YYYY|YYYY-MM-DD)$")
+    date_format: str = Field(
+        default="MM/DD/YYYY", pattern=r"^(MM/DD/YYYY|DD/MM/YYYY|YYYY-MM-DD)$"
+    )
     time_format: str = Field(default="12h", pattern=r"^(12h|24h)$")
-    items_per_page: int = Field(default=25, ge=10, le=100, description="Default items per page")
-    show_advanced_filters: bool = Field(default=False, description="Show advanced filtering options")
+    items_per_page: int = Field(
+        default=25, ge=10, le=100, description="Default items per page"
+    )
+    show_advanced_filters: bool = Field(
+        default=False, description="Show advanced filtering options"
+    )
 
 
 @beartype
 class AdminValidationRule(BaseModel):
     """System setting validation rule model."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -69,19 +92,23 @@ class AdminValidationRule(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     rule_type: Literal["min", "max", "pattern", "enum", "range", "custom"] = Field(
         ..., description="Type of validation rule"
     )
-    value: str | int | float | list[str] = Field(..., description="Validation rule value")
-    error_message: str | None = Field(None, max_length=200, description="Custom error message")
+    value: str | int | float | list[str] = Field(
+        ..., description="Validation rule value"
+    )
+    error_message: str | None = Field(
+        None, max_length=200, description="Custom error message"
+    )
     strict: bool = Field(default=True, description="Strict validation enforcement")
 
 
 @beartype
 class AdminValidationRules(BaseModel):
     """Collection of validation rules for system settings."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -89,16 +116,18 @@ class AdminValidationRules(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     rules: list[AdminValidationRule] = Field(default_factory=list, max_length=10)
     allow_null: bool = Field(default=False, description="Allow null/empty values")
-    transform_before_validation: bool = Field(default=False, description="Transform value before validation")
+    transform_before_validation: bool = Field(
+        default=False, description="Transform value before validation"
+    )
 
 
 @beartype
 class AdminWidgetPosition(BaseModel):
     """Dashboard widget position model."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -106,7 +135,7 @@ class AdminWidgetPosition(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     x: int = Field(ge=0, le=11, description="Grid column position (0-11)")
     y: int = Field(ge=0, description="Grid row position")
     width: int = Field(ge=1, le=12, description="Widget width in grid columns")
@@ -116,7 +145,7 @@ class AdminWidgetPosition(BaseModel):
 @beartype
 class AdminWidgetConfig(BaseModel):
     """Dashboard widget configuration model."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -124,14 +153,24 @@ class AdminWidgetConfig(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     show_title: bool = Field(default=True, description="Show widget title")
     show_border: bool = Field(default=True, description="Show widget border")
-    background_color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$", description="Widget background color")
-    text_color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$", description="Widget text color")
-    refresh_interval: int = Field(default=60, ge=10, le=3600, description="Widget refresh interval")
-    data_source: str = Field(..., min_length=1, max_length=100, description="Data source identifier")
-    filters: list[str] = Field(default_factory=list, max_length=10, description="Applied filters")
+    background_color: str | None = Field(
+        None, pattern=r"^#[0-9a-fA-F]{6}$", description="Widget background color"
+    )
+    text_color: str | None = Field(
+        None, pattern=r"^#[0-9a-fA-F]{6}$", description="Widget text color"
+    )
+    refresh_interval: int = Field(
+        default=60, ge=10, le=3600, description="Widget refresh interval"
+    )
+    data_source: str = Field(
+        ..., min_length=1, max_length=100, description="Data source identifier"
+    )
+    filters: list[str] = Field(
+        default_factory=list, max_length=10, description="Applied filters"
+    )
     sort_by: str | None = Field(None, max_length=50, description="Sort field")
     sort_order: Literal["asc", "desc"] = Field(default="asc", description="Sort order")
     limit: int = Field(default=10, ge=1, le=1000, description="Data limit")
@@ -140,7 +179,7 @@ class AdminWidgetConfig(BaseModel):
 @beartype
 class AdminDashboardWidget(BaseModel):
     """Dashboard widget model."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -148,18 +187,28 @@ class AdminDashboardWidget(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     id: str = Field(..., min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
-    title: str = Field(..., min_length=1, max_length=100, description="Widget display title")
+    title: str = Field(
+        ..., min_length=1, max_length=100, description="Widget display title"
+    )
     type: Literal["chart", "table", "metric", "text", "map", "calendar"] = Field(
         ..., description="Widget type"
     )
-    position: AdminWidgetPosition = Field(..., description="Widget position on dashboard")
+    position: AdminWidgetPosition = Field(
+        ..., description="Widget position on dashboard"
+    )
     config: AdminWidgetConfig = Field(..., description="Widget configuration")
     is_visible: bool = Field(default=True, description="Widget visibility")
-    required_permission: Permission | None = Field(None, description="Required permission to view")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Widget creation time")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Widget last update time")
+    required_permission: Permission | None = Field(
+        None, description="Required permission to view"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Widget creation time"
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Widget last update time"
+    )
 
 
 @beartype

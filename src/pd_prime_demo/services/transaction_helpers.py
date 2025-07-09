@@ -10,8 +10,9 @@ from typing import TypeVar
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.database import Database
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 T = TypeVar("T")
 E = TypeVar("E", bound=str)

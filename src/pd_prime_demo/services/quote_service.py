@@ -10,6 +10,8 @@ from uuid import UUID, uuid4
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.quote import (
@@ -26,7 +28,6 @@ from ..models.quote import (
     VehicleInfo,
 )
 from .performance_monitor import performance_monitor
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 # Optional imports for production features
 try:

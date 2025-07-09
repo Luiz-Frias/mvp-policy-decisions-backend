@@ -7,8 +7,9 @@ from typing import Any
 
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ...core.cache import Cache
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class RatingCacheStrategy:

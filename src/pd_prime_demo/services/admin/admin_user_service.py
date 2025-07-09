@@ -6,11 +6,12 @@ from uuid import UUID
 from beartype import beartype
 from passlib.context import CryptContext
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.admin import AdminUser, AdminUserCreate
 from ..cache_keys import CacheKeys
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 

@@ -8,12 +8,13 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok, Result
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.policy import Policy, PolicyCreate, PolicyStatus, PolicyType, PolicyUpdate
 from .cache_keys import CacheKeys
 from .performance_monitor import performance_monitor
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class PolicyService:
@@ -268,7 +269,9 @@ class PolicyService:
 
     @beartype
     @performance_monitor("validate_policy_data")
-    async def _validate_policy_data(self, policy_data: PolicyCreate) -> Result[bool, str]:
+    async def _validate_policy_data(
+        self, policy_data: PolicyCreate
+    ) -> Result[bool, str]:
         """Validate policy business rules."""
         # Check dates
         if policy_data.expiration_date <= policy_data.effective_date:

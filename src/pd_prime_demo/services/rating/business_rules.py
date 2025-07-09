@@ -10,8 +10,9 @@ from typing import Any
 
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok
+
 from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo
-from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 @beartype
