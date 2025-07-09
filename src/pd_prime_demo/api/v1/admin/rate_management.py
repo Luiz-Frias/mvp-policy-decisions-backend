@@ -316,8 +316,8 @@ async def get_pending_approvals(
 @beartype
 async def list_rate_table_versions(
     table_name: str,
-    include_inactive: bool = False,
     response: Response,
+    include_inactive: bool = False,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[list[dict[str, Any]], ErrorResponse]:

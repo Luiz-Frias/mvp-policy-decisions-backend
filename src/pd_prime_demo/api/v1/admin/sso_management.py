@@ -130,9 +130,9 @@ async def create_sso_provider(
 @router.get("/providers")
 @beartype
 async def list_sso_providers(
+    response: Response,
     limit: int = Query(50, ge=1, le=100, description="Number of providers"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
-    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -312,9 +312,9 @@ async def list_provisioning_rules(
 @router.get("/analytics")
 @beartype
 async def get_sso_analytics(
+    response: Response,
     date_from: datetime = Query(..., description="Start date"),
     date_to: datetime = Query(..., description="End date"),
-    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -358,10 +358,10 @@ async def delete_sso_provider(
 @router.get("/activity")
 @beartype
 async def get_sso_activity_logs(
+    response: Response,
     limit: int = Query(50, ge=1, le=100, description="Number of records"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     provider_id: UUID | None = Query(None, description="Filter by provider"),
-    response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:

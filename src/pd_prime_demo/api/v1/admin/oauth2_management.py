@@ -165,10 +165,10 @@ async def create_oauth2_client(
 @router.get("/clients", response_model=list[dict[str, Any]])
 @beartype
 async def list_oauth2_clients(
+    response: Response,
     active_only: bool = Query(True, description="Show only active clients"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[list[dict[str, Any]], ErrorResponse]:
@@ -314,9 +314,9 @@ async def regenerate_client_secret(
 @beartype
 async def get_client_analytics(
     client_id: str,
+    response: Response,
     date_from: datetime = Query(..., description="Start date for analytics"),
     date_to: datetime = Query(..., description="End date for analytics"),
-    response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -456,8 +456,8 @@ async def upload_client_certificate(
 @beartype
 async def list_client_certificates(
     client_id: str,
-    include_revoked: bool = Query(False, description="Include revoked certificates"),
     response: Response,
+    include_revoked: bool = Query(False, description="Include revoked certificates"),
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
@@ -500,8 +500,8 @@ async def list_client_certificates(
 @beartype
 async def revoke_client_certificate(
     certificate_id: UUID,
-    reason: str = Query(..., description="Reason for revocation"),
     response: Response,
+    reason: str = Query(..., description="Reason for revocation"),
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),

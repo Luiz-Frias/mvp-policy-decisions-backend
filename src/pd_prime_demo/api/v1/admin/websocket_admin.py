@@ -229,9 +229,9 @@ async def get_admin_dashboard_stats(
 async def broadcast_admin_alert(
     alert_type: str,
     message: str,
+    response: Response,
     severity: str = "medium",
     data: dict[str, Any] | None = None,
-    response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
 ) -> Union[dict[str, str], ErrorResponse]:

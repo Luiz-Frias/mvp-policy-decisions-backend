@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Any, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import asyncpg
 from beartype import beartype
@@ -132,7 +132,8 @@ async def create_api_key(
     request: APIKeyCreateRequest,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> APIKeyCreateResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[APIKeyCreateResponse, ErrorResponse]:
     """Create a new API key.
 
     The API key will be associated with the current user's OAuth2 client.
@@ -151,8 +152,11 @@ async def create_api_key(
     """
     # Check if user has permission to create API keys
     if "api:write" not in current_user.scopes:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions to create API keys"
+        response.status_code = 403
+        return ErrorResponse(
+            error="Insufficient permissions to create API keys",
+            status_code=403,
+            request_id=str(uuid4())
         )
 
     # Use client_id from current user's OAuth2 token
@@ -261,8 +265,11 @@ async def revoke_api_key(
         HTTPException: If revocation fails
     """
     if "api:write" not in current_user.scopes:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions to revoke API keys"
+        response.status_code = 403
+        return ErrorResponse(
+            error="Insufficient permissions to revoke API keys",
+            status_code=403,
+            request_id=str(uuid4())
         )
 
     # Verify key belongs to user's client
@@ -304,8 +311,11 @@ async def rotate_api_key(
         HTTPException: If rotation fails
     """
     if "api:write" not in current_user.scopes:
-        raise HTTPException(
-            status_code=403, detail="Insufficient permissions to rotate API keys"
+        response.status_code = 403
+        return ErrorResponse(
+            error="Insufficient permissions to rotate API keys",
+            status_code=403,
+            request_id=str(uuid4())
         )
 
     # Verify key belongs to user's client

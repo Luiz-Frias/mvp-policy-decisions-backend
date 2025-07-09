@@ -25,6 +25,7 @@ router = APIRouter()
 @router.get("/search", response_model=list[QuoteResponse])
 @beartype
 async def admin_search_quotes(
+    response: Response,
     # Search filters
     status: str | None = None,
     state: str | None = None,
@@ -39,7 +40,6 @@ async def admin_search_quotes(
     # PII control
     include_pii: bool = Query(False),
     # Dependencies
-    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[list[dict[str, Any]], ErrorResponse]:
@@ -104,8 +104,8 @@ async def override_quote(
 async def bulk_quote_operation(
     operation: str,
     quote_ids: list[UUID],
-    parameters: dict[str, Any] | None = None,
     response: Response,
+    parameters: dict[str, Any] | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -191,8 +191,8 @@ async def bulk_quote_operation(
 async def get_quote_analytics(
     date_from: datetime,
     date_to: datetime,
-    group_by: str = Query("day", regex="^(hour|day|week|month)$"),
     response: Response,
+    group_by: str = Query("day", regex="^(hour|day|week|month)$"),
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -209,12 +209,12 @@ async def get_quote_analytics(
 @router.get("/export")
 @beartype
 async def export_quotes(
+    response: Response,
     format: str = Query("csv", regex="^(csv|json|excel)$"),
     status: str | None = None,
     state: str | None = None,
     created_after: datetime | None = None,
     created_before: datetime | None = None,
-    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
@@ -428,8 +428,8 @@ async def get_pending_approvals(
 async def process_approval(
     approval_id: UUID,
     action: str,
-    notes: str | None = None,
     response: Response,
+    notes: str | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> Union[dict[str, Any], ErrorResponse]:
