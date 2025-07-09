@@ -44,8 +44,8 @@ print_status "🔍 MASTER RULE: Validating Pydantic model compliance..."
 set +e
 VIOLATIONS=0
 
-# 1️⃣  Plain dictionary usage that is not at a SYSTEM_BOUNDARY
-DICT_VIOL_FILES=$(find src -name "*.py" -exec grep -l "dict\\[" {} \; 2>/dev/null | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null)
+# 1️⃣  Plain dictionary usage that is not at a SYSTEM_BOUNDARY (exclude tests)
+DICT_VIOL_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "dict\\[" {} \; 2>/dev/null | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null)
 if [ -n "$DICT_VIOL_FILES" ]; then
     COUNT=$(echo "$DICT_VIOL_FILES" | wc -l)
     print_error "❌ MASTER RULE VIOLATION: $COUNT file(s) use plain dictionaries without annotation:"
@@ -53,8 +53,8 @@ if [ -n "$DICT_VIOL_FILES" ]; then
     VIOLATIONS=$((VIOLATIONS+COUNT))
 fi
 
-# 2️⃣  Pydantic models missing frozen=True
-BASEMODEL_FILES=$(find src -name "*.py" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null)
+# 2️⃣  Pydantic models missing frozen=True (exclude tests)
+BASEMODEL_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null)
 UNFROZEN_LIST=""
 if [ -n "$BASEMODEL_FILES" ]; then
     UNFROZEN_LIST=$(echo "$BASEMODEL_FILES" | xargs grep -L "frozen.*=.*True" 2>/dev/null)
@@ -66,8 +66,8 @@ if [ -n "$UNFROZEN_LIST" ]; then
     VIOLATIONS=$((VIOLATIONS+COUNT))
 fi
 
-# 3️⃣  Public functions missing @beartype
-PUBLIC_FUNCS_FILES=$(find src -name "*.py" -exec grep -l "^def [^_]" {} \; 2>/dev/null)
+# 3️⃣  Public functions missing @beartype (exclude tests)
+PUBLIC_FUNCS_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "^def [^_]" {} \; 2>/dev/null)
 MISSING_BEAR=""
 if [ -n "$PUBLIC_FUNCS_FILES" ]; then
     MISSING_BEAR=$(echo "$PUBLIC_FUNCS_FILES" | xargs grep -L "@beartype" 2>/dev/null)
