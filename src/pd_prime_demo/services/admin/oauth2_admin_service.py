@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -40,7 +40,7 @@ class OAuth2AdminService:
         description: str | None = None,
         token_lifetime: int = 3600,  # 1 hour default
         refresh_token_lifetime: int = 86400 * 7,  # 1 week default
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create new OAuth2 client application.
 
         Args:
@@ -338,7 +338,7 @@ class OAuth2AdminService:
         client_id: str,
         date_from: datetime,
         date_to: datetime,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get OAuth2 client usage analytics.
 
         Args:
@@ -538,7 +538,7 @@ class OAuth2AdminService:
         active_only: bool = True,
         limit: int = 50,
         offset: int = 0,
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """List OAuth2 clients.
 
         Args:
@@ -583,7 +583,7 @@ class OAuth2AdminService:
     async def get_client_details(
         self,
         client_id: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get detailed information about a client.
 
         Args:

@@ -10,7 +10,7 @@ from beartype import beartype
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
@@ -86,7 +86,7 @@ class OAuth2Server:
         allowed_grant_types: list[str],
         allowed_scopes: list[str],
         client_type: str = "confidential",  # or "public"
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create a new OAuth2 client.
 
         Args:
@@ -171,7 +171,7 @@ class OAuth2Server:
         user_id: UUID | None = None,
         code_challenge: str | None = None,
         code_challenge_method: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Handle authorization request.
 
         Args:
@@ -300,7 +300,7 @@ class OAuth2Server:
         username: str | None = None,
         password: str | None = None,
         code_verifier: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Handle token request.
 
         Args:
@@ -634,7 +634,7 @@ class OAuth2Server:
         redirect_uri: str | None,
         client_id: str | None,
         code_verifier: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Handle authorization code grant type with enhanced PKCE validation."""
         if not code:
             return Err(OAuth2Error("invalid_request", "Missing authorization code"))
@@ -746,7 +746,7 @@ class OAuth2Server:
         refresh_token: str | None,
         scope: str | None,
         client: dict[str, Any],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Handle refresh token grant type."""
         if not refresh_token:
             return Err(OAuth2Error("invalid_request", "Missing refresh token"))
@@ -828,7 +828,7 @@ class OAuth2Server:
         self,
         client: dict[str, Any],
         scope: str | None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Handle client credentials grant type."""
         # Validate grant type is allowed
         if "client_credentials" not in client["allowed_grant_types"]:
@@ -884,7 +884,7 @@ class OAuth2Server:
         password: str | None,
         scope: str | None,
         client: dict[str, Any],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Handle password grant type (only for trusted clients)."""
         # This grant type should only be used by highly trusted clients
         if "password" not in client["allowed_grant_types"]:

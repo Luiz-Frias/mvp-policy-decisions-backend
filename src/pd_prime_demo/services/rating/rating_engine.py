@@ -12,7 +12,7 @@ from uuid import UUID
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -76,7 +76,7 @@ class RatingEngine:
         coverage_selections: list[CoverageSelection],
         customer_data: dict[str, Any] | None = None,
         external_data: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate complete premium with all factors, discounts, and surcharges.
 
         This is the main entry point for premium calculation.
@@ -406,7 +406,7 @@ class RatingEngine:
         self,
         coverage_selections: list[CoverageSelection],
         base_rates: dict[str, Decimal],
-    ) -> dict:
+    ) -> Result[dict[str, Decimal], str]:
         """Calculate base premium for each coverage."""
         premiums = {}
 
@@ -439,7 +439,7 @@ class RatingEngine:
         customer_data: dict[str, Any] | None,
         base_premium: Decimal,
         state: str,
-    ) -> dict[str, Any]:
+    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate all applicable discounts."""
         applicable_discounts = []
 
@@ -637,7 +637,7 @@ class RatingEngine:
             return Err(f"Cache warming failed: {str(e)}")
 
     @beartype
-    async def validate_rating_accuracy(self, test_cases: list[dict[str, Any]]) -> dict:
+    async def validate_rating_accuracy(self, test_cases: list[dict[str, Any]]) -> Result[dict[str, Any], str]:
         """Validate rating accuracy with test cases.
 
         Args:

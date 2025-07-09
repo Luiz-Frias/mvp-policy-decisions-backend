@@ -8,7 +8,7 @@ from uuid import uuid4
 from beartype import beartype
 from pydantic import ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result, Result
 
 from ...models.base import BaseModelConfig
 
@@ -111,7 +111,7 @@ class SSOProvider(ABC):
         self,
         code: str,
         state: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
 
         Args:
@@ -144,7 +144,7 @@ class SSOProvider(ABC):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Refresh access token.
 
         Args:
@@ -224,7 +224,7 @@ class OIDCProvider(SSOProvider):
         self._discovery_document: dict[str, Any] | None = None
 
     @beartype
-    async def discover(self) -> dict:
+    async def discover(self) -> Result[dict[str, Any], str]:
         """Get OIDC discovery document.
 
         Returns:
@@ -252,7 +252,7 @@ class OIDCProvider(SSOProvider):
         self,
         id_token: str,
         nonce: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Validate and decode ID token.
 
         Args:
@@ -360,7 +360,7 @@ class SAMLProvider(SSOProvider):
         self,
         saml_response: str,
         relay_state: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Process SAML response and extract attributes.
 
         Args:

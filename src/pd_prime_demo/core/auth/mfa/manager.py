@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
@@ -468,7 +468,7 @@ class MFAManager:
             return False
 
     @beartype
-    async def generate_recovery_codes(self, user_id: UUID) -> dict:
+    async def generate_recovery_codes(self, user_id: UUID) -> Result[list[str], str]:
         """Generate new recovery codes for user.
 
         Args:

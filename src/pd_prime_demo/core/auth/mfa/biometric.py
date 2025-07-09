@@ -9,7 +9,7 @@ from beartype import beartype
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
@@ -38,7 +38,7 @@ class BiometricProvider:
         biometric_type: str,
         template_data: str,
         device_info: dict[str, Any],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Enroll new biometric template.
 
         Args:
@@ -101,7 +101,7 @@ class BiometricProvider:
     @beartype
     async def create_authentication_challenge(
         self, user_id: UUID, biometric_type: str
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create biometric authentication challenge.
 
         Args:

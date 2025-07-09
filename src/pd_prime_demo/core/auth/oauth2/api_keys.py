@@ -8,7 +8,7 @@ from uuid import UUID
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.database import Database
@@ -37,7 +37,7 @@ class APIKeyManager:
         expires_in_days: int | None = None,
         rate_limit_per_minute: int = 60,
         allowed_ips: list[str] | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create a new API key.
 
         Args:
@@ -137,7 +137,7 @@ class APIKeyManager:
         api_key: str,
         required_scope: str | None = None,
         request_ip: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Validate API key and check permissions.
 
         Args:
@@ -270,7 +270,7 @@ class APIKeyManager:
     async def rotate_api_key(
         self,
         key_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Rotate an API key (revoke old, create new).
 
         Args:
@@ -326,7 +326,7 @@ class APIKeyManager:
         self,
         client_id: str | None = None,
         active_only: bool = True,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """List API keys.
 
         Args:
@@ -424,7 +424,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         days: int = 7,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get usage statistics for an API key.
 
         Args:
@@ -518,7 +518,7 @@ class APIKeyManager:
         api_key: str,
         required_permissions: list[str],
         request_context: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Advanced API key validation with context-aware permissions.
 
         Args:
@@ -583,7 +583,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         limit: int = 100,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get security events for an API key.
 
         Args:
@@ -662,7 +662,7 @@ class APIKeyManager:
         name: str,
         scopes: list[str],
         expires_in_hours: int = 24,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create a temporary, scoped API key from a parent key.
 
         This allows creating short-lived keys with subset permissions.

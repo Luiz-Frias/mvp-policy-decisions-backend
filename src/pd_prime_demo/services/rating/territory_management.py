@@ -86,7 +86,7 @@ class TerritoryManager:
         self._territory_cache: dict[str, TerritoryDefinition] = {}
 
     @beartype
-    async def get_territory_factor(self, state: str, zip_code: str):
+    async def get_territory_factor(self, state: str, zip_code: str) -> Result[float, str]:
         """Get territory factor for a specific ZIP code.
 
         Args:
@@ -231,7 +231,7 @@ class TerritoryManager:
             return Err(f"Territory update failed: {str(e)}")
 
     @beartype
-    async def get_territories_for_state(self, state: str) -> dict:
+    async def get_territories_for_state(self, state: str) -> Result[list[TerritoryDefinition], str]:
         """Get all territories for a state.
 
         Args:
@@ -269,7 +269,7 @@ class TerritoryManager:
             return Err(f"Failed to get territories: {str(e)}")
 
     @beartype
-    async def calculate_risk_metrics(self, state: str, zip_code: str) -> dict:
+    async def calculate_risk_metrics(self, state: str, zip_code: str) -> Result[dict[str, Any], str]:
         """Calculate comprehensive risk metrics for a ZIP code.
 
         Args:
@@ -317,7 +317,7 @@ class TerritoryManager:
         state: str,
         updates: list[dict[str, Any]],
         admin_user_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Perform bulk updates to territories.
 
         Args:
@@ -371,7 +371,7 @@ class TerritoryManager:
     @beartype
     async def _get_territory_for_zip(
         self, state: str, zip_code: str
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[TerritoryDefinition, str]:
         """Get territory definition for a ZIP code.
 
         Args:
@@ -426,7 +426,7 @@ class TerritoryManager:
     @beartype
     async def _get_territory_definition(
         self, state: str, territory_id: str
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[TerritoryDefinition, str]:
         """Get territory definition by ID.
 
         Args:

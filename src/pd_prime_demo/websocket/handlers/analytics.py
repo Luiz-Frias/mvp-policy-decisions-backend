@@ -8,7 +8,7 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
 from ..manager import ConnectionManager, WebSocketMessage
@@ -324,7 +324,7 @@ class AnalyticsWebSocketHandler:
             await self._manager.send_personal_message(connection_id, error_msg)
 
     @beartype
-    async def _get_dashboard_data(self, config: DashboardConfig) -> dict:
+    async def _get_dashboard_data(self, config: DashboardConfig) -> Result[dict[str, Any], str]:
         """Get dashboard data based on configuration."""
         # Check cache first
         cache_key = f"{config.dashboard_type}:{config.time_range_hours}"

@@ -6,7 +6,7 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -150,7 +150,7 @@ class CustomerService:
         self,
         limit: int = 10,
         offset: int = 0,
-    ) -> dict:
+    ) -> Result[list[Customer], str]:
         """List customers with pagination."""
         query = """
             SELECT id, external_id, data, created_at, updated_at
@@ -242,7 +242,7 @@ class CustomerService:
 
     @beartype
     @performance_monitor("get_customer_policies")
-    async def get_policies(self, customer_id: UUID) -> dict:
+    async def get_policies(self, customer_id: UUID) -> Result[list[PolicySummary], str]:
         """Get all policies for a customer."""
         query = """
             SELECT id, policy_number, data->>'type' as policy_type,

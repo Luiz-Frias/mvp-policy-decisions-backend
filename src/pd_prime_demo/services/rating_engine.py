@@ -22,7 +22,7 @@ except ImportError:
 from beartype import beartype
 from pydantic import Field
 
-from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.core.result_types import Err, Ok, Result, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -375,7 +375,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("get_base_rates")
-    async def _get_base_rates(self, state: str, product_type: str) -> dict:
+    async def _get_base_rates(self, state: str, product_type: str) -> Result[dict[str, float], str]:
         """Get base rates for state/product - NO DEFAULTS."""
         cache_key = f"base_rates:{state}:{product_type}"
 
@@ -427,7 +427,7 @@ class RatingEngine:
         vehicle_info: VehicleInfo | None,
         drivers: list[DriverInfo],
         customer_id: UUID | None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate all rating factors."""
         factors = {}
 
@@ -474,7 +474,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("calculate_vehicle_factors")
-    async def _calculate_vehicle_factors(self, vehicle: VehicleInfo) -> dict:
+    async def _calculate_vehicle_factors(self, vehicle: VehicleInfo) -> Result[dict[str, float], str]:
         """Calculate vehicle-specific factors."""
         factors = {}
 
@@ -517,7 +517,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("calculate_driver_factors")
-    async def _calculate_driver_factors(self, drivers: list[DriverInfo]) -> dict:
+    async def _calculate_driver_factors(self, drivers: list[DriverInfo]) -> Result[dict[str, float], str]:
         """Calculate driver-specific factors."""
         # Find primary driver (youngest regular driver typically has highest impact)
         primary_driver = min(drivers, key=lambda d: d.age)
@@ -581,7 +581,7 @@ class RatingEngine:
         drivers: list[DriverInfo],
         customer_id: UUID | None,
         base_premium: Decimal,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate applicable discounts."""
         discounts = []
 
@@ -675,7 +675,7 @@ class RatingEngine:
     @performance_monitor("calculate_surcharges")
     async def _calculate_surcharges(
         self, state: str, drivers: list[DriverInfo], customer_id: UUID | None
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate applicable surcharges."""
         surcharges = []
 
@@ -881,7 +881,7 @@ class RatingEngine:
         customer_id: UUID,
         vehicle_info: VehicleInfo | None,
         drivers: list[DriverInfo],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get AI risk assessment if available."""
         # Import here to avoid circular imports
         from .rating.calculators import AIRiskScorer
@@ -955,7 +955,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("get_customer_data_for_ai")
-    async def _get_customer_data_for_ai(self, customer_id: UUID) -> dict:
+    async def _get_customer_data_for_ai(self, customer_id: UUID) -> Result[dict[str, Any], str]:
         """Get customer data formatted for AI scoring."""
         try:
             # Query customer data from database
@@ -1006,7 +1006,7 @@ class RatingEngine:
     @performance_monitor("get_external_data_for_ai")
     async def _get_external_data_for_ai(
         self, customer_id: UUID, vehicle_info: VehicleInfo | None
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get external data factors for AI scoring."""
         try:
             external_data = {}
@@ -1141,7 +1141,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("apply_state_factor_rules")
-    def _apply_state_factor_rules(self, state: str, factors: dict[str, float]) -> dict:
+    def _apply_state_factor_rules(self, state: str, factors: dict[str, float]) -> dict[str, float]:
         """Apply state-specific factor validation rules."""
         if state not in self._state_rules:
             return Err(f"No rules configured for state {state}")
@@ -1200,7 +1200,7 @@ class RatingEngine:
         return self._performance_optimizer.is_performance_target_met(target_ms)
 
     @beartype
-    async def optimize_performance(self) -> dict:
+    async def optimize_performance(self) -> Result[dict[str, Any], str]:
         """Get performance optimization recommendations."""
         return await self._performance_optimizer.optimize_slow_calculations()
 

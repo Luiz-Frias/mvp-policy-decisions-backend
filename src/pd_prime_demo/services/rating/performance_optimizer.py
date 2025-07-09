@@ -290,7 +290,7 @@ class RatingPerformanceOptimizer:
     @beartype
     async def batch_calculate_factors(
         self, factor_requests: list[tuple[str, tuple[Any, ...]]]
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate multiple factors in a single optimized batch."""
         results = {}
 
@@ -494,7 +494,7 @@ class RatingPerformanceOptimizer:
         return p95_time <= target_ms
 
     @beartype
-    async def optimize_slow_calculations(self) -> dict:
+    async def optimize_slow_calculations(self) -> Result[dict[str, Any], str]:
         """Identify and suggest optimizations for slow calculations."""
         try:
             optimizations = []

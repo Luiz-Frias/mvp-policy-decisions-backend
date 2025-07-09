@@ -6,7 +6,7 @@ from attrs import field, frozen
 from beartype import beartype
 
 from .database_enhanced import Database
-from .result_types import Err, Ok
+from .result_types import Err, Ok, Result
 
 
 @frozen
@@ -150,7 +150,7 @@ class QueryOptimizer:
         self,
         table_name: str,
         min_cardinality: int = 100,
-    ) -> dict:
+    ) -> Result[list[IndexSuggestion], str]:
         """Suggest missing indexes based on table statistics."""
         query = """
             WITH column_stats AS (
@@ -225,7 +225,7 @@ class QueryOptimizer:
         self,
         threshold_ms: float = 100.0,
         limit: int = 20,
-    ) -> dict:
+    ) -> Result[list[SlowQuery], str]:
         """Find slow queries from pg_stat_statements."""
         query = """
             SELECT
@@ -288,7 +288,7 @@ class QueryOptimizer:
     async def check_table_bloat(
         self,
         threshold_percent: float = 20.0,
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """Check for table bloat that affects performance."""
         query = """
             WITH constants AS (

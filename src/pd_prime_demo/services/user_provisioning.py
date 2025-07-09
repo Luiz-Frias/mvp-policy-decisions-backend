@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.auth.sso_base import SSOUserInfo
 from ..core.cache import Cache
@@ -347,7 +347,7 @@ class UserProvisioningService:
         self,
         rule_id: UUID,
         test_user_data: dict[str, Any],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Test a provisioning rule against sample user data.
 
         Args:
@@ -402,7 +402,7 @@ class UserProvisioningService:
     async def _get_provisioning_rules(
         self,
         provider_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get provisioning rules for a provider.
 
         Args:

@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 
@@ -376,7 +376,7 @@ class QuoteWizardService:
         return Ok(step)
 
     @beartype
-    async def get_all_steps(self) -> dict:
+    async def get_all_steps(self) -> Result[list[WizardStep], str]:
         """Get all wizard steps in order."""
         # Return steps in logical order
         ordered_steps = []
@@ -421,7 +421,7 @@ class QuoteWizardService:
         return Ok(validation)
 
     @beartype
-    async def complete_session(self, session_id: UUID) -> dict:
+    async def complete_session(self, session_id: UUID) -> Result[dict[str, Any], str]:
         """Complete wizard session and return collected data."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -714,7 +714,7 @@ class QuoteWizardService:
     @beartype
     async def get_business_intelligence_for_step(
         self, session_id: UUID, step_id: str
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get business intelligence data for current step to help user decisions."""
         # Get session
         session_result = await self.get_session(session_id)

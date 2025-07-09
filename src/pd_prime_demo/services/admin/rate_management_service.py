@@ -36,7 +36,7 @@ class RateManagementService:
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create new version of rate table requiring approval."""
         # Validate admin permissions
         has_permission = await self._check_permission(admin_user_id, "rate:write")
@@ -173,7 +173,7 @@ class RateManagementService:
         return Ok(True)
 
     @beartype
-    async def get_rate_comparison(self, version_id_1: UUID, version_id_2: UUID) -> dict:
+    async def get_rate_comparison(self, version_id_1: UUID, version_id_2: UUID) -> Result[dict[str, Any], str]:
         """Compare two rate table versions with impact analysis."""
         comparison_result = await self._rate_table_service.compare_rate_versions(
             version_id_1, version_id_2
@@ -264,7 +264,7 @@ class RateManagementService:
     @beartype
     async def get_rate_analytics(
         self, table_name: str, date_from: date, date_to: date
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get comprehensive rate analytics for admin dashboards."""
         try:
             # Get quote volume by rate version
@@ -306,7 +306,7 @@ class RateManagementService:
             return Err(f"Analytics generation failed: {str(e)}")
 
     @beartype
-    async def get_pending_approvals(self, admin_user_id: UUID) -> dict:
+    async def get_pending_approvals(self, admin_user_id: UUID) -> Result[list[dict[str, Any]], str]:
         """Get pending rate approvals for admin user."""
         query = """
             SELECT
@@ -372,7 +372,7 @@ class RateManagementService:
     @beartype
     async def _create_approval_workflow(
         self, version_id: UUID, created_by: UUID
-    ) -> None:
+    ) -> Result[UUID, str]:
         """Create approval workflow for rate version."""
         workflow_id = uuid4()
         query = """

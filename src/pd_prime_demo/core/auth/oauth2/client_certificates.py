@@ -38,7 +38,7 @@ class ClientCertificateManager:
         certificate_pem: str,
         certificate_name: str,
         admin_user_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Register a client certificate for mTLS authentication.
 
         Args:
@@ -125,7 +125,7 @@ class ClientCertificateManager:
         self,
         client_id: str,
         certificate_pem: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Validate a client certificate for authentication.
 
         Args:
@@ -259,7 +259,7 @@ class ClientCertificateManager:
         self,
         client_id: str,
         include_revoked: bool = False,
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """List certificates for a client.
 
         Args:
@@ -305,7 +305,7 @@ class ClientCertificateManager:
     async def _validate_certificate(
         self,
         certificate_pem: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Validate and parse X.509 certificate.
 
         Args:
@@ -362,7 +362,7 @@ class ClientCertificateManager:
         self,
         client_id: str,
         subject_info: dict[str, str],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Create a certificate signing request (CSR) for a client.
 
         This is useful for automated certificate provisioning.

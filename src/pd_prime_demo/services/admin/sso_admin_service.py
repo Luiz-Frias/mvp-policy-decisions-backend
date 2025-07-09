@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -34,7 +34,7 @@ class SSOAdminService:
         provider_type: str,  # 'oidc', 'saml', 'oauth2'
         configuration: dict[str, Any],
         is_enabled: bool = False,
-    ):
+    ) -> Result[UUID, str]:
         """Create new SSO provider configuration.
 
         Args:
@@ -220,7 +220,7 @@ class SSOAdminService:
         self,
         provider_id: UUID,
         admin_user_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Test SSO provider connection and configuration.
 
         Args:
@@ -272,7 +272,7 @@ class SSOAdminService:
     async def get_user_provisioning_rules(
         self,
         provider_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get user provisioning rules for a provider.
 
         Args:
@@ -375,7 +375,7 @@ class SSOAdminService:
         self,
         date_from: datetime,
         date_to: datetime,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get SSO usage analytics for admin dashboards.
 
         Args:
@@ -648,7 +648,7 @@ class SSOAdminService:
         self,
         limit: int = 50,
         offset: int = 0,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """List SSO provider configurations.
 
         Args:
@@ -692,7 +692,7 @@ class SSOAdminService:
     async def get_sso_provider(
         self,
         provider_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get SSO provider configuration details.
 
         Args:
@@ -795,7 +795,7 @@ class SSOAdminService:
     async def list_group_mappings(
         self,
         provider_id: UUID,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """List group mappings for a provider.
 
         Args:
@@ -828,7 +828,7 @@ class SSOAdminService:
         limit: int = 50,
         offset: int = 0,
         provider_id: UUID | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get SSO administrative activity logs.
 
         Args:

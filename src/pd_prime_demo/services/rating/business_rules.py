@@ -94,7 +94,7 @@ class RatingBusinessRules:
         total_premium: Decimal,
         discounts: list[Any],
         surcharges: list[dict[str, Any]],
-    ) -> dict:
+    ) -> Result[list[BusinessRuleViolation], str]:
         """Validate complete premium calculation against business rules.
 
         Args:

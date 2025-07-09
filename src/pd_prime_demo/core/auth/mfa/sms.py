@@ -9,7 +9,7 @@ from typing import Any
 from beartype import beartype
 from cryptography.fernet import Fernet
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
@@ -239,7 +239,7 @@ class SMSProvider:
             return Err(f"Failed to decrypt phone number: {str(e)}")
 
     @beartype
-    async def _check_sim_swap_risk(self, phone_number: str) -> dict:
+    async def _check_sim_swap_risk(self, phone_number: str) -> Result[dict[str, Any], str]:
         """Check for SIM swap risk indicators.
 
         In production, this would integrate with carrier APIs.

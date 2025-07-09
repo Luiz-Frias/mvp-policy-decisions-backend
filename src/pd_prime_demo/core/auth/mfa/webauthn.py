@@ -88,7 +88,7 @@ except ImportError:
         PUBLIC_KEY = "public-key"
 
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.config import Settings
 from .models import WebAuthnCredential
@@ -135,7 +135,7 @@ class WebAuthnProvider:
         user_email: str,
         user_display_name: str,
         exclude_credentials: list[WebAuthnCredential] | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Generate WebAuthn registration options.
 
         Args:
@@ -274,7 +274,7 @@ class WebAuthnProvider:
     @beartype
     def generate_authentication_options(
         self, user_id: UUID, allowed_credentials: list[WebAuthnCredential]
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Generate WebAuthn authentication options.
 
         Args:

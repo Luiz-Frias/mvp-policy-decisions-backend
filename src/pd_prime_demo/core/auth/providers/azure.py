@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import httpx
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..sso_base import OIDCProvider, SSOUserInfo
 
@@ -105,7 +105,7 @@ class AzureADSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
 
         Args:
@@ -226,7 +226,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Refresh Azure AD access token.
 
         Args:
@@ -296,7 +296,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def _get_user_groups(
         self,
         access_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get user's Azure AD groups.
 
         Args:
@@ -345,7 +345,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def get_tenant_info(
         self,
         access_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get Azure AD tenant information.
 
         Args:

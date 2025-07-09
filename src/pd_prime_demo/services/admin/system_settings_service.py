@@ -199,7 +199,7 @@ class SystemSettingsService:
         self,
         category: str,
         include_sensitive: bool = False,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get all settings in a category.
 
         Args:
@@ -258,7 +258,7 @@ class SystemSettingsService:
         return Ok(settings)
 
     @beartype
-    async def get_public_settings(self) -> dict:
+    async def get_public_settings(self) -> Result[dict[str, dict[str, Any]], str]:
         """Get all public settings (safe for client exposure).
 
         Returns:

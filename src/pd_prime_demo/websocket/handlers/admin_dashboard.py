@@ -8,7 +8,7 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -370,7 +370,7 @@ class AdminDashboardHandler:
             await self._send_stream_error(connection_id, "performance", str(e))
 
     @beartype
-    async def _collect_system_metrics(self) -> dict:
+    async def _collect_system_metrics(self) -> Result[dict[str, Any], str]:
         """Collect current system health metrics."""
         try:
             # Database connection stats
@@ -408,7 +408,7 @@ class AdminDashboardHandler:
             return Err(f"Failed to collect system metrics: {str(e)}")
 
     @beartype
-    async def _get_database_stats(self) -> dict:
+    async def _get_database_stats(self) -> Result[dict[str, Any], str]:
         """Get database connection pool statistics."""
         try:
             # Get connection pool stats
@@ -452,7 +452,7 @@ class AdminDashboardHandler:
             return Err(f"Database stats error: {str(e)}")
 
     @beartype
-    async def _get_cache_stats(self) -> dict:
+    async def _get_cache_stats(self) -> Result[dict[str, Any], str]:
         """Get Redis cache statistics."""
         try:
             # Get Redis info
@@ -479,7 +479,7 @@ class AdminDashboardHandler:
             return Err(f"Cache stats error: {str(e)}")
 
     @beartype
-    async def _get_error_statistics(self) -> dict:
+    async def _get_error_statistics(self) -> Result[dict[str, Any], str]:
         """Get recent error statistics."""
         try:
             # Get error counts by type (last hour)
@@ -523,7 +523,7 @@ class AdminDashboardHandler:
             return Err(f"Error stats error: {str(e)}")
 
     @beartype
-    async def _get_recent_user_activity(self, filters: dict[str, Any]) -> dict:
+    async def _get_recent_user_activity(self, filters: dict[str, Any]) -> Result[list[dict[str, Any]], str]:
         """Get recent user activity events."""
         try:
             # Build query with filters
@@ -570,7 +570,7 @@ class AdminDashboardHandler:
     @beartype
     async def _get_user_activity_since(
         self, since: datetime, filters: dict[str, Any]
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """Get user activity since a specific time."""
         try:
             where_clauses = ["aal.created_at > $1"]
@@ -614,7 +614,7 @@ class AdminDashboardHandler:
             return Err(f"Failed to get activity updates: {str(e)}")
 
     @beartype
-    async def _collect_performance_metrics(self, metrics: list[str]) -> dict:
+    async def _collect_performance_metrics(self, metrics: list[str]) -> Result[dict[str, Any], str]:
         """Collect requested performance metrics."""
         try:
             data = {}

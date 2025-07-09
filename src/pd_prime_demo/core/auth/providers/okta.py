@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import httpx
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..sso_base import OIDCProvider, SSOUserInfo
 
@@ -110,7 +110,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
 
         Args:
@@ -228,7 +228,7 @@ class OktaSSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Refresh Okta access token.
 
         Args:
@@ -313,7 +313,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Introspect Okta token to check its validity and metadata.
 
         Args:
@@ -362,7 +362,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         access_token: str,
         user_id: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get detailed group information for a user from Okta.
 
         Args:

@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import httpx
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..sso_base import OIDCProvider, SSOUserInfo
 
@@ -123,7 +123,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         code: str,
         state: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Exchange authorization code for tokens.
 
         Args:
@@ -254,7 +254,7 @@ class Auth0SSOProvider(OIDCProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Refresh Auth0 access token.
 
         Args:
@@ -351,7 +351,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         user_id: str,
         management_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Get user details from Auth0 Management API.
 
         Args:

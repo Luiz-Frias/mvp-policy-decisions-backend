@@ -8,7 +8,7 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -43,7 +43,7 @@ class ClaimService:
         self,
         claim_data: ClaimCreate,
         policy_id: UUID,
-    ):
+    ) -> Result[Claim, str]:
         """Create a new claim."""
         try:
             # Validate business rules
@@ -149,7 +149,7 @@ class ClaimService:
         status: str | None = None,
         limit: int = 10,
         offset: int = 0,
-    ) -> dict:
+    ) -> Result[list[Claim], str]:
         """List claims with optional filters."""
         query_parts = ["SELECT * FROM claims WHERE 1=1"]
         params: list[Any] = []

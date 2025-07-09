@@ -8,7 +8,7 @@ from beartype import beartype
 
 from .cache_stub import get_cache
 from .database_enhanced import Database
-from .result_types import Err, Ok
+from .result_types import Err, Ok, Result
 
 
 @frozen
@@ -174,7 +174,7 @@ class AdminQueryOptimizer:
         }
 
     @beartype
-    async def create_materialized_views(self) -> dict:
+    async def create_materialized_views(self) -> Result[list[str], str]:
         """Create all materialized views for admin dashboards."""
         created_views = []
 
@@ -211,7 +211,7 @@ class AdminQueryOptimizer:
     async def refresh_materialized_views(
         self,
         force_refresh: bool = False,
-    ) -> dict:
+    ) -> Result[dict[str, bool], str]:
         """Refresh materialized views based on their refresh intervals."""
         refresh_results = {}
 
@@ -393,7 +393,7 @@ class AdminQueryOptimizer:
         report_type: str,
         start_date: datetime,
         end_date: datetime,
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """Generate admin reports with optimized queries."""
         if report_type == "revenue_summary":
             query = """
@@ -490,7 +490,7 @@ class AdminQueryOptimizer:
             return Err(f"Failed to generate report: {str(e)}")
 
     @beartype
-    async def optimize_admin_queries(self) -> dict:
+    async def optimize_admin_queries(self) -> Result[dict[str, Any], str]:
         """Analyze and optimize all admin queries."""
         optimization_results = {
             "indexes_created": [],
@@ -559,7 +559,7 @@ class AdminQueryOptimizer:
             return Err(f"Failed to optimize admin queries: {str(e)}")
 
     @beartype
-    async def monitor_admin_query_performance(self) -> dict:
+    async def monitor_admin_query_performance(self) -> Result[dict[str, Any], str]:
         """Monitor admin-specific query performance metrics."""
         try:
             pool_stats = await self._db.get_pool_stats()

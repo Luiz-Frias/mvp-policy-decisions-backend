@@ -45,9 +45,9 @@ class TransactionConfig:
 @beartype
 async def with_transaction(
     db: Database,
-    operation: Callable[[], Awaitable[dict]],
+    operation: Callable[[], Awaitable[Result[T, str]]],
     config: TransactionConfig | None = None,
-):
+) -> Result[T, str]:
     """Execute operation within a transaction with automatic rollback.
 
     This helper ensures that database operations are properly wrapped
@@ -59,7 +59,7 @@ async def with_transaction(
         config: Optional transaction configuration
 
     Returns:
-        dict: Success with operation result or error message
+        Result: Success with operation result or error message
 
     Example:
         ```python
@@ -100,9 +100,9 @@ async def with_transaction(
 @beartype
 async def with_savepoint(
     db: Database,
-    operation: Callable[[], Awaitable[dict]],
+    operation: Callable[[], Awaitable[Result[T, str]]],
     savepoint_name: str,
-):
+) -> Result[T, str]:
     """Execute operation within a savepoint for nested transactions.
 
     Savepoints allow partial rollback within a larger transaction.
@@ -113,7 +113,7 @@ async def with_savepoint(
         savepoint_name: Name for the savepoint
 
     Returns:
-        dict: Success with operation result or error message
+        Result: Success with operation result or error message
     """
     # Create savepoint
     await db.execute(f"SAVEPOINT {savepoint_name}")
@@ -138,9 +138,9 @@ async def with_savepoint(
 async def batch_operation(
     db: Database,
     items: list[T],
-    operation: Callable[[T], Awaitable[dict]],
+    operation: Callable[[T], Awaitable[Result[T, str]]],
     batch_size: int = 100,
-) -> dict:
+) -> Result[list[T], str]:
     """Process items in batches within transactions.
 
     This helper processes large sets of items in batches to avoid
@@ -153,7 +153,7 @@ async def batch_operation(
         batch_size: Number of items per batch
 
     Returns:
-        dict: Successfully processed items or error
+        Result: Successfully processed items or error
     """
     processed: list[T] = []
 
@@ -186,9 +186,9 @@ async def batch_operation(
 async def with_advisory_lock(
     db: Database,
     lock_id: int,
-    operation: Callable[[], Awaitable[dict]],
+    operation: Callable[[], Awaitable[Result[T, str]]],
     wait: bool = True,
-) -> Result[dict, str]:
+) -> Result[T, str]:
     """Execute operation with PostgreSQL advisory lock.
 
     Advisory locks prevent concurrent execution of critical sections
@@ -201,7 +201,7 @@ async def with_advisory_lock(
         wait: Whether to wait for lock or fail immediately
 
     Returns:
-        dict: Operation result or error
+        Result: Operation result or error
     """
     # Try to acquire lock
     if wait:
@@ -239,7 +239,7 @@ async def upsert_with_conflict(
         returning_columns: Columns to return
 
     Returns:
-        dict: Database row or error
+        Result: Database row or error
     """
     if not update_data:
         update_data = insert_data
@@ -292,7 +292,7 @@ async def ensure_transaction_valid(db: Database) -> Result[bool, str]:
         db: Database instance
 
     Returns:
-        dict: True if valid, error if not
+        Result: True if valid, error if not
     """
     try:
         # Simple query to test transaction state

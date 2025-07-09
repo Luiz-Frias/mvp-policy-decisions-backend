@@ -371,7 +371,7 @@ class PricingOverrideService:
     async def get_pending_overrides(
         self,
         admin_user_id: UUID,
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """Get pending pricing overrides for approval.
 
         Args:
