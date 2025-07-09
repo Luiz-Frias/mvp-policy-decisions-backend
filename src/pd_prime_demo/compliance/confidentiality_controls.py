@@ -165,7 +165,7 @@ class DataLeakageEvent(BaseModel):
 class ConfidentialityControlManager:
     """Manager for SOC 2 confidentiality controls."""
 
-    def __init__(self, audit_logger: AuditLogger | None = None):
+    def __init__(self, audit_logger: AuditLogger | None = None) -> None:
         """Initialize confidentiality control manager."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._database = get_database()
@@ -343,7 +343,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_data_classification_control(self, control_id: str = "CONF-001"):
+    async def execute_data_classification_control(self, control_id: str = "CONF-001") -> ControlResult:
         """Execute data classification and labeling control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -515,7 +515,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_access_control_matrix(self, control_id: str = "CONF-002"):
+    async def execute_access_control_matrix(self, control_id: str = "CONF-002") -> ControlResult:
         """Execute access control matrix verification."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -709,7 +709,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_data_loss_prevention(self, control_id: str = "CONF-003"):
+    async def execute_data_loss_prevention(self, control_id: str = "CONF-003") -> ControlResult:
         """Execute data loss prevention (DLP) control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -886,7 +886,7 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_confidential_data_handling(self, control_id: str = "CONF-004"):
+    async def execute_confidential_data_handling(self, control_id: str = "CONF-004") -> ControlResult:
         """Execute confidential data handling procedures control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -1008,7 +1008,7 @@ class ConfidentialityControlManager:
             {"category": "audit_trails", "retention_days": 2555, "expired_records": 0},
         ]
 
-        total_expired = sum(cat["expired_records"] for cat in data_categories)
+        total_expired = sum(int(cat["expired_records"]) for cat in data_categories)
 
         return {
             "data_categories_checked": len(data_categories),
@@ -1078,11 +1078,11 @@ class ConfidentialityControlManager:
             {"technique": "pseudonymization", "implemented": True, "effectiveness": 78},
         ]
 
-        avg_effectiveness = sum(
-            tech["effectiveness"]
-            for tech in anonymization_techniques
-            if tech["implemented"]
-        ) / len([tech for tech in anonymization_techniques if tech["implemented"]])
+        implemented_techs = [tech for tech in anonymization_techniques if tech["implemented"]]
+        avg_effectiveness = (
+            sum(float(tech["effectiveness"]) for tech in implemented_techs) / len(implemented_techs)
+            if implemented_techs else 0.0
+        )
 
         return {
             "techniques_available": len(anonymization_techniques),

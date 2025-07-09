@@ -666,7 +666,7 @@ class ExternalDataIntegrator:
 class AIRiskScorer:
     """AI-enhanced risk scoring using machine learning models."""
 
-    def __init__(self, load_models: bool = False):
+    def __init__(self, load_models: bool = False) -> None:
         """Initialize AI models.
 
         Args:
@@ -1348,7 +1348,7 @@ class AdvancedPerformanceCalculator:
             return Err(f"Batch calculation failed: {str(e)}")
 
     @beartype
-    def lookup_factor(self, table_name: str, key: Any):
+    def lookup_factor(self, table_name: str, key: Any) -> float:
         """Fast lookup of precomputed factors.
 
         Args:

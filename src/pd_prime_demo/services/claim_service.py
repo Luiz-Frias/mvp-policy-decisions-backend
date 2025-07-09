@@ -109,7 +109,7 @@ class ClaimService:
 
     @beartype
     @performance_monitor("get_claim")
-    async def get(self, claim_id: UUID):
+    async def get(self, claim_id: UUID) -> Result[Claim | None, str]:
         """Get claim by ID."""
         # Check cache first
         cache_key = CacheKeys.claim_by_id(claim_id)
@@ -316,7 +316,7 @@ class ClaimService:
         return Ok(claim)
 
     @beartype
-    async def delete(self, claim_id: UUID):
+    async def delete(self, claim_id: UUID) -> Result[None, str]:
         """Delete a claim (only allowed for DRAFT status)."""
         # Get existing claim
         existing_result = await self.get(claim_id)

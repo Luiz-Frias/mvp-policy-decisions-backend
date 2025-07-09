@@ -133,7 +133,7 @@ class OAuth2AdminService:
             )
 
             # Clear client cache
-            await self._cache.delete_pattern(f"{self._client_cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._client_cache_prefix}*")
 
             # Log client creation
             await self._log_oauth2_activity(
@@ -255,7 +255,7 @@ class OAuth2AdminService:
             await self._db.execute(query, client_id, *values)
 
             # Clear cache
-            await self._cache.delete_pattern(f"{self._client_cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._client_cache_prefix}*")
 
             # Log update
             await self._log_oauth2_activity(
@@ -317,7 +317,7 @@ class OAuth2AdminService:
             await self._revoke_client_tokens(client_id)
 
             # Clear cache
-            await self._cache.delete_pattern(f"{self._client_cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._client_cache_prefix}*")
 
             # Log secret regeneration
             await self._log_oauth2_activity(
@@ -512,8 +512,8 @@ class OAuth2AdminService:
             )
 
             # Clear token cache
-            await self._cache.delete_pattern("oauth2_token:*")
-            await self._cache.delete_pattern("revoked_token:*")
+            await self._cache.clear_pattern("oauth2_token:*")
+            await self._cache.clear_pattern("revoked_token:*")
 
             # Log revocation
             await self._log_oauth2_activity(
@@ -664,8 +664,8 @@ class OAuth2AdminService:
             )
 
             # Clear caches
-            await self._cache.delete_pattern("oauth2_token:*")
-            await self._cache.delete_pattern("revoked_token:*")
+            await self._cache.clear_pattern("oauth2_token:*")
+            await self._cache.clear_pattern("revoked_token:*")
 
         except Exception:
             # Log error but don't fail the main operation

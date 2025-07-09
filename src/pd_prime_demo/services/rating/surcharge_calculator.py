@@ -148,7 +148,7 @@ class SurchargeCalculator:
         surcharges = []
         total_amount = Decimal("0")
 
-        for driver in drivers:
+        for driver_idx, driver in enumerate(drivers):
             if driver.dui_convictions > 0:
                 # DUI surcharge rates by number of convictions
                 if driver.dui_convictions == 1:
@@ -163,7 +163,7 @@ class SurchargeCalculator:
                 surcharges.append(
                     {
                         "type": "dui_conviction",
-                        "driver_id": driver.id,
+                        "driver_id": driver_idx,
                         "driver_name": f"{driver.first_name} {driver.last_name}",
                         "reason": f"DUI conviction(s): {driver.dui_convictions}",
                         "rate": float(surcharge_rate),
@@ -179,7 +179,7 @@ class SurchargeCalculator:
                 surcharges.append(
                     {
                         "type": "sr22_filing",
-                        "driver_id": driver.id,
+                        "driver_id": driver_idx,
                         "driver_name": f"{driver.first_name} {driver.last_name}",
                         "reason": "SR-22 filing required",
                         "rate": 0.0,  # Flat fee, not a rate
@@ -204,7 +204,7 @@ class SurchargeCalculator:
         surcharges = []
         total_amount = Decimal("0")
 
-        for driver in drivers:
+        for driver_idx, driver in enumerate(drivers):
             # Calculate risk score based on violations and accidents
             risk_score = (driver.violations_3_years * 2) + (
                 driver.accidents_3_years * 3
@@ -264,7 +264,7 @@ class SurchargeCalculator:
 
         age_limit = young_driver_age_limits.get(state, 25)
 
-        for driver in drivers:
+        for driver_idx, driver in enumerate(drivers):
             if driver.age < age_limit:
                 # Surcharge based on how young
                 if driver.age < 18:
@@ -281,7 +281,7 @@ class SurchargeCalculator:
                 surcharges.append(
                     {
                         "type": "young_driver",
-                        "driver_id": driver.id,
+                        "driver_id": driver_idx,
                         "driver_name": f"{driver.first_name} {driver.last_name}",
                         "reason": f"Driver age {driver.age} (under {age_limit})",
                         "rate": float(surcharge_rate),
@@ -305,7 +305,7 @@ class SurchargeCalculator:
         surcharges = []
         total_amount = Decimal("0")
 
-        for driver in drivers:
+        for driver_idx, driver in enumerate(drivers):
             if driver.years_licensed < 3:
                 # Surcharge based on experience level
                 if driver.years_licensed < 1:
@@ -320,7 +320,7 @@ class SurchargeCalculator:
                 surcharges.append(
                     {
                         "type": "inexperienced_driver",
-                        "driver_id": driver.id,
+                        "driver_id": driver_idx,
                         "driver_name": f"{driver.first_name} {driver.last_name}",
                         "reason": f"Licensed for only {driver.years_licensed} year(s)",
                         "rate": float(surcharge_rate),

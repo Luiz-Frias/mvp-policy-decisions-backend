@@ -130,11 +130,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         """
         try:
             # Process SAML response
-            response_result = await self.process_saml_response(code, state)
-            if isinstance(response_result, Err):
-                return response_result
-
-            assertion_data = response_result.value
+            assertion_data = await self.process_saml_response(code, state)
 
             # SAML doesn't use tokens, return assertion data
             return Ok(
@@ -368,7 +364,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @beartype
-    async def get_metadata(self):
+    async def get_metadata(self) -> Result[str, str]:
         """Generate service provider metadata.
 
         Returns:

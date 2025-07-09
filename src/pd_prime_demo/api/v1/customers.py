@@ -211,13 +211,13 @@ async def create_customer(
         # Create customer using service
         result = await service.create(customer_data)
 
-        if isinstance(result, Err):
+        if result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.error),
+                detail=str(result.err_value),
             )
 
-        customer = result.unwrap()
+        customer = result.ok_value
 
         # Invalidate relevant caches
         pattern = "customers:list:*"
@@ -275,13 +275,13 @@ async def get_customer(
     # Get customer using service
     result = await service.get(customer_id)
 
-    if isinstance(result, Err):
+    if result.is_err():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result.error),
+            detail=str(result.err_value),
         )
 
-    customer = result.unwrap()
+    customer = result.ok_value
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -332,13 +332,13 @@ async def update_customer(
         # Update customer using service
         result = await service.update(customer_id, customer_update)
 
-        if isinstance(result, Err):
+        if result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.error),
+                detail=str(result.err_value),
             )
 
-        customer = result.unwrap()
+        customer = result.ok_value
         if not customer:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -395,13 +395,13 @@ async def delete_customer(
         # Delete customer using service
         result = await service.delete(customer_id)
 
-        if isinstance(result, Err):
+        if result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.error),
+                detail=str(result.err_value),
             )
 
-        deleted = result.unwrap()
+        deleted = result.ok_value
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -471,13 +471,13 @@ async def get_customer_policies(
     # Get customer policies using service
     result = await service.get_policies(customer_id)
 
-    if isinstance(result, Err):
+    if result.is_err():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result.error),
+            detail=str(result.err_value),
         )
 
-    policies = result.unwrap()
+    policies = result.ok_value
 
     # Cache the result for 300 seconds (5 minutes)
     await redis.setex(

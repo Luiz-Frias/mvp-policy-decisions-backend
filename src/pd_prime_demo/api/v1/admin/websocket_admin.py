@@ -220,7 +220,7 @@ async def get_admin_dashboard_stats(
             detail="Failed to collect system statistics",
         )
 
-    metrics = stats.unwrap()
+    metrics = stats.ok_value
 
     return AdminDashboardStats(
         active_admin_connections=len(dashboard_handler._active_streams),

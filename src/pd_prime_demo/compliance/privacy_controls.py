@@ -204,13 +204,13 @@ class PrivacyImpactAssessment(BaseModel):
 class PrivacyControlManager:
     """Manager for SOC 2 privacy controls."""
 
-    def __init__(self, audit_logger: AuditLogger | None = None):
+    def __init__(self, audit_logger: AuditLogger | None = None) -> None:
         """Initialize privacy control manager."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._database = get_database()
 
     @beartype
-    async def execute_gdpr_compliance_control(self, control_id: str = "PRIV-001"):
+    async def execute_gdpr_compliance_control(self, control_id: str = "PRIV-001") -> ControlResult:
         """Execute GDPR compliance control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -289,7 +289,7 @@ class PrivacyControlManager:
     async def _check_lawful_basis_compliance(self) -> dict[str, Any]:
         """Check lawful basis for all data processing activities."""
         # Simulated lawful basis check
-        processing_activities = [
+        processing_activities: list[dict[str, Any]] = [
             {
                 "activity": "customer_onboarding",
                 "legal_basis": "contract",
@@ -422,7 +422,7 @@ class PrivacyControlManager:
     @beartype
     async def _check_international_transfer_safeguards(self) -> dict[str, Any]:
         """Check safeguards for international data transfers."""
-        data_transfers = [
+        data_transfers: list[dict[str, Any]] = [
             {
                 "destination": "United States",
                 "mechanism": "standard_contractual_clauses",
@@ -496,7 +496,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def execute_consent_management_control(self, control_id: str = "PRIV-002"):
+    async def execute_consent_management_control(self, control_id: str = "PRIV-002") -> ControlResult:
         """Execute consent management control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -692,7 +692,7 @@ class PrivacyControlManager:
         return consent_analysis
 
     @beartype
-    async def execute_data_subject_rights_control(self, control_id: str = "PRIV-003"):
+    async def execute_data_subject_rights_control(self, control_id: str = "PRIV-003") -> ControlResult:
         """Execute data subject rights management control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -942,7 +942,7 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def execute_ccpa_compliance_control(self, control_id: str = "PRIV-004"):
+    async def execute_ccpa_compliance_control(self, control_id: str = "PRIV-004") -> ControlResult:
         """Execute CCPA compliance control."""
         try:
             start_time = datetime.now(timezone.utc)

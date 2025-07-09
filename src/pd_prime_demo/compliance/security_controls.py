@@ -111,7 +111,7 @@ class VulnerabilityAssessment(BaseModel):
 class SecurityControlManager:
     """Manager for SOC 2 security controls."""
 
-    def __init__(self, audit_logger: AuditLogger | None = None):
+    def __init__(self, audit_logger: AuditLogger | None = None) -> None:
         """Initialize security control manager."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._settings = get_settings()
@@ -132,7 +132,7 @@ class SecurityControlManager:
         return kdf.derive(self._settings.secret_key.encode())
 
     @beartype
-    async def execute_encryption_control(self, control_id: str = "SEC-001"):
+    async def execute_encryption_control(self, control_id: str = "SEC-001") -> ControlResult:
         """Execute data encryption at rest control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -233,7 +233,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def execute_tls_control(self, control_id: str = "SEC-002"):
+    async def execute_tls_control(self, control_id: str = "SEC-002") -> ControlResult:
         """Execute TLS transport security control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -348,7 +348,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def execute_vulnerability_scan(self, control_id: str = "SEC-003"):
+    async def execute_vulnerability_scan(self, control_id: str = "SEC-003") -> ControlResult:
         """Execute vulnerability scanning control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -508,7 +508,7 @@ class SecurityControlManager:
         }
 
     @beartype
-    async def execute_access_control_check(self, control_id: str = "SEC-004"):
+    async def execute_access_control_check(self, control_id: str = "SEC-004") -> ControlResult:
         """Execute access control security check."""
         try:
             start_time = datetime.now(timezone.utc)

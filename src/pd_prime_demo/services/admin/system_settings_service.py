@@ -303,8 +303,8 @@ class SystemSettingsService:
             return value.lower() in ("true", "1", "yes", "on")
         elif value_type == SettingType.JSON:
             return json.loads(value)
-        else:
-            return value
+        # This should never happen as all enum values are covered
+        return value
 
     @beartype
     def _serialize_value(self, value: Any, value_type: SettingType) -> str:

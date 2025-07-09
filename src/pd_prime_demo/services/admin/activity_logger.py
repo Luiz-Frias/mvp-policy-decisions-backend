@@ -270,7 +270,7 @@ class AdminActivityLogger:
 
         rows = await self._db.fetch(query, *params)
 
-        summary = {
+        summary: dict[str, Any] = {
             "total_activities": 0,
             "by_action": {},
             "by_resource": {},

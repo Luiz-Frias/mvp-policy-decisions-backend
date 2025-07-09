@@ -110,9 +110,9 @@ async def create_api_key(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/", response_model=list[APIKeyResponse])
@@ -144,10 +144,10 @@ async def list_api_keys(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     keys = []
-    for key_data in result.value:
+    for key_data in result.ok_value:
         keys.append(
             APIKeyResponse(
                 id=UUID(key_data["id"]) if isinstance(key_data["id"], str) else key_data["id"],
@@ -196,12 +196,12 @@ async def revoke_api_key(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        raise HTTPException(status_code=404, detail=ownership_result.error)
+        raise HTTPException(status_code=404, detail=ownership_result.err_value)
 
     result = await api_key_manager.revoke_api_key(key_id, reason)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {"message": "API key revoked successfully"}
 
@@ -238,14 +238,14 @@ async def rotate_api_key(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        raise HTTPException(status_code=404, detail=ownership_result.error)
+        raise HTTPException(status_code=404, detail=ownership_result.err_value)
 
     result = await api_key_manager.rotate_api_key(key_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/{key_id}/usage", response_model=dict[str, Any])
@@ -275,11 +275,11 @@ async def get_api_key_usage(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        raise HTTPException(status_code=404, detail=ownership_result.error)
+        raise HTTPException(status_code=404, detail=ownership_result.err_value)
 
     result = await api_key_manager.get_usage_statistics(key_id, days)
 
     if result.is_err():
-        raise HTTPException(status_code=404, detail=result.error)
+        raise HTTPException(status_code=404, detail=result.err_value)
 
-    return result.value
+    return result.ok_value

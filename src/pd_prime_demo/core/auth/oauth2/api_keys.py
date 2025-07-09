@@ -326,7 +326,7 @@ class APIKeyManager:
         self,
         client_id: str | None = None,
         active_only: bool = True,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[dict[str, Any]], str]:
         """List API keys.
 
         Args:
@@ -505,7 +505,7 @@ class APIKeyManager:
             )
 
             # Clear cache for all affected keys
-            await self._cache.delete_pattern(f"{self._cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._cache_prefix}*")
 
             return Ok(count or 0)
 
@@ -535,7 +535,7 @@ class APIKeyManager:
             if validation_result.is_err():
                 return validation_result
 
-            key_info = validation_result.value
+            key_info = validation_result.ok_value
 
             # Check each required permission
             from .scopes import ScopeValidator

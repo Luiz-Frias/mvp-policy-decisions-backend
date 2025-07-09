@@ -30,7 +30,7 @@ websocket_app = FastAPI(
 
 # Defer CORS setup to startup
 @websocket_app.on_event("startup")
-async def setup_cors():
+async def setup_cors() -> None:
     """Setup CORS middleware on startup when settings are available."""
     try:
         settings = get_settings()
@@ -130,7 +130,7 @@ async def send_error_message(
 
 
 @beartype
-async def validate_websocket_token(token: str | None):
+async def validate_websocket_token(token: str | None) -> Result[UUID | None, str]:
     """Validate WebSocket authentication token."""
     if not token:
         # Allow anonymous connections for demo

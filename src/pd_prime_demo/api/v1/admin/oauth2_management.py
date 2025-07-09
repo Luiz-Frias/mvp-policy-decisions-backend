@@ -153,9 +153,9 @@ async def create_oauth2_client(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/clients", response_model=list[dict[str, Any]])
@@ -190,9 +190,9 @@ async def list_oauth2_clients(
     result = await oauth2_service.list_clients(active_only, limit, offset)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/clients/{client_id}", response_model=dict[str, Any])
@@ -218,9 +218,9 @@ async def get_oauth2_client(
     result = await oauth2_service.get_client_details(client_id)
 
     if result.is_err():
-        raise HTTPException(status_code=404, detail=result.error)
+        raise HTTPException(status_code=404, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.patch("/clients/{client_id}", response_model=dict[str, Any])
@@ -261,7 +261,7 @@ async def update_oauth2_client(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {"success": True, "message": "Client updated successfully"}
 
@@ -296,10 +296,10 @@ async def regenerate_client_secret(
     result = await oauth2_service.regenerate_client_secret(client_id, admin_user.id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {
-        "client_secret": result.value,
+        "client_secret": result.ok_value,
         "note": "Store this securely. It cannot be retrieved later.",
     }
 
@@ -334,9 +334,9 @@ async def get_client_analytics(
     result = await oauth2_service.get_client_analytics(client_id, date_from, date_to)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/clients/{client_id}/revoke", response_model=dict[str, Any])
@@ -373,11 +373,11 @@ async def revoke_client_access(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {
-        "tokens_revoked": result.value,
-        "message": f"Successfully revoked {result.value} tokens",
+        "tokens_revoked": result.ok_value,
+        "message": f"Successfully revoked {result.ok_value} tokens",
     }
 
 
@@ -441,9 +441,9 @@ async def upload_client_certificate(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/clients/{client_id}/certificates", response_model=list[dict[str, Any]])
@@ -486,9 +486,9 @@ async def list_client_certificates(
     result = await cert_manager.list_client_certificates(client_id, include_revoked)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.delete("/certificates/{certificate_id}", response_model=dict[str, Any])
@@ -533,6 +533,6 @@ async def revoke_client_certificate(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {"success": True, "message": "Certificate revoked successfully"}

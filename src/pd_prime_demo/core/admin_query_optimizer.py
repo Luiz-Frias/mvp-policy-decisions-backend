@@ -492,7 +492,7 @@ class AdminQueryOptimizer:
     @beartype
     async def optimize_admin_queries(self) -> Result[dict[str, Any], str]:
         """Analyze and optimize all admin queries."""
-        optimization_results = {
+        optimization_results: dict[str, Any] = {
             "indexes_created": [],
             "views_optimized": [],
             "settings_adjusted": [],

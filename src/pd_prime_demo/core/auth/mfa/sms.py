@@ -50,7 +50,7 @@ class SMSProvider:
         return base64.urlsafe_b64encode(key_material)
 
     @beartype
-    def encrypt_phone_number(self, phone_number: str):
+    def encrypt_phone_number(self, phone_number: str) -> Result[str, str]:
         """Encrypt phone number for storage.
 
         Args:
@@ -170,7 +170,7 @@ class SMSProvider:
             return Err(f"Failed to send SMS verification: {str(e)}")
 
     @beartype
-    async def verify_code(self, verification_id: str, code: str, user_id: str):
+    async def verify_code(self, verification_id: str, code: str, user_id: str) -> Result[bool, str]:
         """Verify SMS code with attempt tracking.
 
         Args:
@@ -230,7 +230,7 @@ class SMSProvider:
             return Err(f"Failed to verify SMS code: {str(e)}")
 
     @beartype
-    def _decrypt_phone_number(self, encrypted_phone: str):
+    def _decrypt_phone_number(self, encrypted_phone: str) -> Result[str, str]:
         """Decrypt phone number."""
         try:
             decrypted = self._fernet.decrypt(encrypted_phone.encode())
@@ -273,7 +273,7 @@ class SMSProvider:
             return Err(f"Unable to verify phone security: {str(e)}")
 
     @beartype
-    async def _check_rate_limit(self, user_id: str):
+    async def _check_rate_limit(self, user_id: str) -> Result[None, str]:
         """Check SMS rate limiting."""
         try:
             rate_key = f"sms_rate_limit:{user_id}"
@@ -320,7 +320,7 @@ class SMSProvider:
         return hashlib.sha256((code + self._settings.secret_key).encode()).hexdigest()
 
     @beartype
-    async def _send_sms(self, phone_number: str, code: str, purpose: str):
+    async def _send_sms(self, phone_number: str, code: str, purpose: str) -> Result[str, str]:
         """Send SMS via provider (Twilio/AWS SNS).
 
         This is a mock implementation. In production, integrate with real SMS provider.

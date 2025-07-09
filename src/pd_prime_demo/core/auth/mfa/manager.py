@@ -52,7 +52,7 @@ class MFAManager:
         self._device_trust_duration = timedelta(days=30)
 
     @beartype
-    async def get_user_mfa_config(self, user_id: UUID):
+    async def get_user_mfa_config(self, user_id: UUID) -> Result[MFAConfig, str]:
         """Get user's MFA configuration.
 
         Args:
@@ -108,7 +108,7 @@ class MFAManager:
             return Err(f"Failed to get MFA configuration: {str(e)}")
 
     @beartype
-    async def setup_totp(self, user_id: UUID, user_email: str):
+    async def setup_totp(self, user_id: UUID, user_email: str) -> Result[TOTPSetupData, str]:
         """Setup TOTP for user.
 
         Args:
@@ -149,7 +149,7 @@ class MFAManager:
             return Err(f"Failed to setup TOTP: {str(e)}")
 
     @beartype
-    async def verify_totp_setup(self, user_id: UUID, code: str):
+    async def verify_totp_setup(self, user_id: UUID, code: str) -> Result[None, str]:
         """Verify TOTP setup and activate.
 
         Args:
@@ -292,7 +292,7 @@ class MFAManager:
             return Err(f"Failed to create MFA challenge: {str(e)}")
 
     @beartype
-    async def verify_mfa_challenge(self, request: MFAVerificationRequest):
+    async def verify_mfa_challenge(self, request: MFAVerificationRequest) -> Result[MFAVerificationResult, str]:
         """Verify MFA challenge response.
 
         Args:
@@ -556,7 +556,7 @@ class MFAManager:
         return available_methods[0] if available_methods else None
 
     @beartype
-    async def _create_default_mfa_config(self, user_id: UUID):
+    async def _create_default_mfa_config(self, user_id: UUID) -> Result[MFAConfig, str]:
         """Create default MFA configuration for new user."""
         try:
             now = datetime.now(timezone.utc)
@@ -621,7 +621,7 @@ class MFAManager:
         return fernet.encrypt(code.encode()).decode()
 
     @beartype
-    async def _verify_recovery_code(self, user_id: UUID, code: str):
+    async def _verify_recovery_code(self, user_id: UUID, code: str) -> Result[bool, str]:
         """Verify and consume recovery code."""
         try:
             # Get user's recovery codes

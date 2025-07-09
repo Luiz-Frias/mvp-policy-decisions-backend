@@ -70,7 +70,7 @@ class TerritoryDefinition:
 class TerritoryManager:
     """Manager for territory definitions and geographic rating."""
 
-    def __init__(self, db: Database, cache: Cache):
+    def __init__(self, db: Database, cache: Cache) -> None:
         """Initialize territory manager.
 
         Args:
@@ -288,7 +288,7 @@ class TerritoryManager:
             territory = territory_result.value
 
             # Calculate detailed metrics
-            metrics = {
+            metrics: dict[str, Any] = {
                 "territory_id": territory.territory_id,
                 "base_factor": territory.base_factor,
                 "composite_factor": territory.calculate_composite_factor(),
@@ -347,7 +347,7 @@ class TerritoryManager:
                         failed_updates.append(
                             {
                                 "territory_id": territory_id,
-                                "error": result.error,
+                                "error": result.err_value,
                             }
                         )
 

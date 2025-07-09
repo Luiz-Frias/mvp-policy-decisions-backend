@@ -345,7 +345,7 @@ class AuditLogger:
         return await self.log_event(event)
 
     @beartype
-    async def log_control_event(self, action: str, control_id: str, **metadata: Any):
+    async def log_control_event(self, action: str, control_id: str, **metadata: Any) -> Result[None, str]:
         """Log general control-related event."""
         event = ComplianceEvent(
             event_type=AuditEventType.CONTROL_EXECUTION,
@@ -400,7 +400,7 @@ class AuditLogger:
         return await self.log_event(event)
 
     @beartype
-    async def log_error(self, message: str, **metadata: Any):
+    async def log_error(self, message: str, **metadata: Any) -> Result[None, str]:
         """Log system error for compliance monitoring."""
         event = ComplianceEvent(
             event_type=AuditEventType.SECURITY_INCIDENT,

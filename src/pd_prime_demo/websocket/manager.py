@@ -229,7 +229,7 @@ class ConnectionPool:
         }
 
         # Backpressure tracking
-        self.backpressure_metrics = {
+        self.backpressure_metrics: dict[str, dict[MessagePriority, int | float]] = {
             "queue_depths": {priority: 0 for priority in MessagePriority},
             "processing_rates": {priority: 0.0 for priority in MessagePriority},
             "drop_counts": {priority: 0 for priority in MessagePriority},
@@ -424,7 +424,7 @@ class ConnectionManager:
         connection_id: str,
         user_id: UUID | None = None,
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> Result[str, str]:
         """Accept and register a new WebSocket connection with explicit validation."""
         # Check connection limits
         if self._active_connection_count >= self._max_connections_allowed:
@@ -535,7 +535,7 @@ class ConnectionManager:
         connection_id: str,
         reason: str = "Unknown",
         skip_notification: bool = False,
-    ):
+    ) -> Result[None, str]:
         """Disconnect and cleanup a WebSocket connection with explicit tracking."""
         if connection_id not in self._connections:
             return Err(
@@ -610,7 +610,7 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def subscribe_to_room(self, connection_id: str, room_id: str):
+    async def subscribe_to_room(self, connection_id: str, room_id: str) -> Result[None, str]:
         """Subscribe a connection to a room with explicit permission validation."""
         if connection_id not in self._connections:
             return Err(
@@ -687,7 +687,7 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def unsubscribe_from_room(self, connection_id: str, room_id: str):
+    async def unsubscribe_from_room(self, connection_id: str, room_id: str) -> Result[None, str]:
         """Unsubscribe a connection from a room."""
         if connection_id not in self._connections:
             return Err(
@@ -712,7 +712,7 @@ class ConnectionManager:
     @beartype
     async def send_personal_message(
         self, connection_id: str, message: WebSocketMessage
-    ):
+    ) -> Result[None, str]:
         """Send a message to a specific connection with guaranteed delivery tracking."""
         if connection_id not in self._connections:
             return Err(
@@ -746,7 +746,7 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def _send_message_direct(self, connection_id: str, message: WebSocketMessage):
+    async def _send_message_direct(self, connection_id: str, message: WebSocketMessage) -> Result[None, str]:
         """Send message directly to WebSocket (internal use)."""
         if connection_id not in self._connections:
             return Err(f"Connection {connection_id} not found")
@@ -793,7 +793,7 @@ class ConnectionManager:
             )
 
     @beartype
-    async def send_to_user(self, user_id: UUID, message: WebSocketMessage):
+    async def send_to_user(self, user_id: UUID, message: WebSocketMessage) -> Result[int, str]:
         """Send a message to all connections of a user. Returns number of successful sends."""
         if user_id not in self._user_connections:
             return Ok(0)  # No connections for user
@@ -820,7 +820,7 @@ class ConnectionManager:
         room_id: str,
         message: WebSocketMessage,
         exclude: list[str] | None = None,
-    ):
+    ) -> Result[int, str]:
         """Send a message to all connections in a room. Returns number of successful sends."""
         if room_id not in self._room_subscriptions:
             return Ok(0)  # No subscribers in room
@@ -858,7 +858,7 @@ class ConnectionManager:
         return Ok(successful_sends)
 
     @beartype
-    async def handle_message(self, connection_id: str, raw_message: dict[str, Any]):
+    async def handle_message(self, connection_id: str, raw_message: dict[str, Any]) -> Result[None, str]:
         """Handle incoming WebSocket message with explicit validation."""
         # Validate connection exists
         if connection_id not in self._connections:
@@ -1064,14 +1064,14 @@ class ConnectionManager:
         await self.send_to_room(room_id, leave_msg)
 
     @beartype
-    async def _validate_user_permissions(self, user_id: UUID):
+    async def _validate_user_permissions(self, user_id: UUID) -> Result[None, str]:
         """Validate user has permission to connect via WebSocket."""
         # In production, check user status, subscription, etc.
         # For now, allow all authenticated users
         return Ok(None)
 
     @beartype
-    async def _validate_room_access(self, user_id: UUID, room_id: str):
+    async def _validate_room_access(self, user_id: UUID, room_id: str) -> Result[None, str]:
         """Validate user has permission to access a specific room."""
         # Room access patterns:
         # - quote:{quote_id} - user must own quote or be assigned agent
@@ -1108,7 +1108,7 @@ class ConnectionManager:
             return Err(f"Failed to update room cache: {str(e)}")
 
     @beartype
-    async def _store_connection(self, metadata: ConnectionMetadata):
+    async def _store_connection(self, metadata: ConnectionMetadata) -> Result[None, str]:
         """Store connection info in database."""
         try:
             await self._db.execute(
@@ -1129,7 +1129,7 @@ class ConnectionManager:
             return Err(f"Failed to store connection in database: {str(e)}")
 
     @beartype
-    async def _remove_connection(self, connection_id: str):
+    async def _remove_connection(self, connection_id: str) -> Result[None, str]:
         """Remove connection from database."""
         try:
             await self._db.execute(

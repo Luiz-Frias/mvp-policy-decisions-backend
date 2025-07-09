@@ -57,10 +57,10 @@ async def create_quote(
         quote_create, current_user.id if current_user else None
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    quote = result.value
+    quote = result.ok_value
 
     # Trigger async calculation if data is complete
     if quote.vehicle_info and quote.drivers and quote.coverage_selections:
@@ -79,10 +79,10 @@ async def get_quote(
     """Get quote by ID."""
     result = await quote_service.get_quote(quote_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=500, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=500, detail=result.err_value)
 
-    quote = result.value
+    quote = result.ok_value
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
 
@@ -114,10 +114,10 @@ async def update_quote(
         quote_id, quote_update, current_user.id if current_user else None
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/{quote_id}/calculate", response_model=QuoteResponse)
@@ -130,10 +130,10 @@ async def calculate_quote(
     """Calculate or recalculate quote pricing."""
     result = await quote_service.calculate_quote(quote_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/{quote_id}/convert", response_model=QuoteConversionResponse)
@@ -149,10 +149,10 @@ async def convert_to_policy(
         quote_id, conversion_request, current_user.id
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/", response_model=QuoteSearchResponse)
@@ -183,10 +183,10 @@ async def search_quotes(
         offset=offset,
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=500, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=500, detail=result.err_value)
 
-    quotes = result.value
+    quotes = result.ok_value
 
     return QuoteSearchResponse(
         quotes=quotes,
@@ -208,10 +208,10 @@ async def start_wizard_session(
     """Start a new quote wizard session."""
     result = await wizard_service.start_session(initial_data)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/wizard/{session_id}", response_model=WizardSessionResponse)
@@ -223,10 +223,10 @@ async def get_wizard_session(
     """Get wizard session state."""
     result = await wizard_service.get_session(session_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=500, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=500, detail=result.err_value)
 
-    state = result.value
+    state = result.ok_value
     if not state:
         raise HTTPException(status_code=404, detail="Session not found or expired")
 
@@ -243,10 +243,10 @@ async def update_wizard_step(
     """Update current wizard step with data."""
     result = await wizard_service.update_step(session_id, step_data)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/wizard/{session_id}/next", response_model=WizardSessionResponse)
@@ -258,10 +258,10 @@ async def next_wizard_step(
     """Move to next step in wizard."""
     result = await wizard_service.next_step(session_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/wizard/{session_id}/previous", response_model=WizardSessionResponse)
@@ -273,10 +273,10 @@ async def previous_wizard_step(
     """Move to previous step in wizard."""
     result = await wizard_service.previous_step(session_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post(
@@ -291,10 +291,10 @@ async def jump_to_wizard_step(
     """Jump to a specific wizard step."""
     result = await wizard_service.jump_to_step(session_id, step_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 class WizardCompletionResponse(BaseModel):
@@ -327,10 +327,12 @@ async def complete_wizard_session(
     # Complete wizard
     result = await wizard_service.complete_session(session_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    wizard_data = result.value
+    wizard_data = result.ok_value
+    if not wizard_data:
+        raise HTTPException(status_code=400, detail="Invalid wizard data")
 
     # Create quote from wizard data
     quote_create = QuoteCreate(**wizard_data["quote_data"])
@@ -339,9 +341,9 @@ async def complete_wizard_session(
     )
 
     if quote_result.is_err():
-        raise HTTPException(status_code=400, detail=quote_result.error)
+        raise HTTPException(status_code=400, detail=quote_result.err_value)
 
-    quote = quote_result.value
+    quote = quote_result.ok_value
 
     # Trigger calculation
     background_tasks.add_task(quote_service.calculate_quote, quote.id)
@@ -362,10 +364,10 @@ async def get_all_wizard_steps(
     """Get all wizard steps configuration."""
     result = await wizard_service.get_all_steps()
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=500, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=500, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 class WizardExtensionResponse(BaseModel):
@@ -394,10 +396,10 @@ async def extend_wizard_session(
     """Extend wizard session expiration."""
     result = await wizard_service.extend_session(session_id, additional_minutes)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    state = result.value
+    state = result.ok_value
 
     return WizardExtensionResponse(
         session_id=state.session_id,
@@ -438,13 +440,13 @@ async def get_step_business_intelligence(
         session_id, step_id
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return StepIntelligenceResponse(
         step_id=step_id,
         session_id=session_id,
-        intelligence=result.value,
+        intelligence=result.ok_value,
         generated_at=datetime.now(),
     )
 

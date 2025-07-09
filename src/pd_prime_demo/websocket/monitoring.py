@@ -685,7 +685,7 @@ class WebSocketMonitor:
         alerts = await self.get_performance_alerts()
 
         # Connection distribution by state
-        connection_states = defaultdict(int)
+        connection_states: dict[str, int] = defaultdict(int)
         for conn in self._connection_metrics.values():
             if (datetime.now() - conn.last_activity).total_seconds() < 60:
                 connection_states["active"] += 1
@@ -695,7 +695,7 @@ class WebSocketMonitor:
                 connection_states["stale"] += 1
 
         # Top users by activity
-        user_activity = defaultdict(int)
+        user_activity: dict[str, int] = defaultdict(int)
         for conn in self._connection_metrics.values():
             if conn.user_id:
                 user_activity[str(conn.user_id)] += (
@@ -705,7 +705,7 @@ class WebSocketMonitor:
         top_users = sorted(user_activity.items(), key=lambda x: x[1], reverse=True)[:10]
 
         # Room statistics
-        room_stats = defaultdict(lambda: {"connections": 0, "messages": 0})
+        room_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"connections": 0, "messages": 0})
         for conn in self._connection_metrics.values():
             room_stats["total"]["connections"] += 1
             room_stats["total"]["messages"] += (

@@ -65,6 +65,11 @@ class AdminUserService:
         # Hash password
         password_hash = pwd_context.hash(admin_data.password)
 
+        # Split full name into first and last name
+        name_parts = admin_data.full_name.strip().split(" ", 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         # Create admin user
         query = """
             INSERT INTO admin_users (
@@ -81,8 +86,8 @@ class AdminUserService:
                 query,
                 admin_data.email,
                 password_hash,
-                admin_data.first_name,
-                admin_data.last_name,
+                first_name,
+                last_name,
                 admin_data.role_id,
                 True,  # is_active
                 created_by,
@@ -272,7 +277,7 @@ class AdminUserService:
         return Ok(has_permission)
 
     @beartype
-    async def get_admin(self, admin_id: UUID):
+    async def get_admin(self, admin_id: UUID) -> Result[AdminUser | None, str]:
         """Get admin user by ID.
 
         Args:

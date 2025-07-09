@@ -4,7 +4,7 @@ import asyncio
 import time
 import tracemalloc
 from collections import defaultdict, deque
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from functools import wraps
 
@@ -53,7 +53,7 @@ class RequestMetrics:
 class PerformanceCollector:
     """Thread-safe performance metrics collector with bounded memory usage."""
 
-    def __init__(self, max_samples: int = 10000):
+    def __init__(self, max_samples: int = 10000) -> None:
         """Initialize collector with maximum sample size."""
         self.max_samples = max_samples
         self._metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=max_samples))
@@ -84,7 +84,7 @@ class PerformanceCollector:
                 self._error_counts[endpoint_key] += 1
 
     @beartype
-    async def get_metrics(self, operation: str):
+    async def get_metrics(self, operation: str) -> Result[dict[str, Any], str]:
         """Get aggregated metrics for an operation."""
         async with self._lock:
             if operation not in self._metrics:
@@ -213,7 +213,7 @@ def get_performance_collector() -> PerformanceCollector:
 class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
     """Comprehensive performance monitoring middleware for all API endpoints."""
 
-    def __init__(self, app, track_memory: bool = True):
+    def __init__(self, app, track_memory: bool = True) -> None:
         """Initialize performance monitoring middleware."""
         super().__init__(app)
         self.track_memory = track_memory
@@ -329,7 +329,7 @@ def performance_monitor(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args, **kwargs) -> Any:
             start_time = time.perf_counter()
             memory_start = 0.0
 
@@ -399,7 +399,7 @@ def performance_monitor(
                 raise
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args, **kwargs) -> Any:
             start_time = time.perf_counter()
             memory_start = 0.0
 
@@ -472,7 +472,7 @@ def performance_monitor(
 
 @asynccontextmanager
 @beartype
-async def performance_context(operation_name: str):
+async def performance_context(operation_name: str) -> AsyncIterator[dict[str, Any]]:
     """Context manager for measuring operation performance."""
     start_time = time.perf_counter()
     tracemalloc.start()

@@ -116,11 +116,11 @@ async def create_sso_provider(
         provider_request.is_enabled,
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {
-        "provider_id": str(result.value),
+        "provider_id": str(result.ok_value),
         "message": "SSO provider created successfully",
     }
 
@@ -144,10 +144,10 @@ async def list_sso_providers(
 
     result = await sso_service.list_sso_providers(limit, offset)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/providers/{provider_id}")
@@ -168,12 +168,12 @@ async def get_sso_provider(
 
     result = await sso_service.get_sso_provider(provider_id)
 
-    if isinstance(result, Err):
-        if "not found" in result.error.lower():
-            raise HTTPException(status_code=404, detail=result.error)
+    if result.is_err():
+        if "not found" in result.err_value.lower():
+            raise HTTPException(status_code=404, detail=result.err_value)
         raise HTTPException(status_code=400, detail=result.error)
 
-    return result.value
+    return result.ok_value
 
 
 @router.put("/providers/{provider_id}")
@@ -199,8 +199,8 @@ async def update_sso_provider(
         provider_id, admin_user.id, updates
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {"message": "SSO provider updated successfully"}
 
@@ -223,10 +223,10 @@ async def test_sso_provider(
 
     result = await sso_service.test_provider_connection(provider_id, admin_user.id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/providers/{provider_id}/mappings")
@@ -254,11 +254,11 @@ async def create_group_mapping(
         mapping_request.auto_assign,
     )
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
     return {
-        "mapping_id": str(result.value),
+        "mapping_id": str(result.ok_value),
         "message": "Group mapping created successfully",
     }
 
@@ -281,10 +281,10 @@ async def list_group_mappings(
 
     result = await sso_service.list_group_mappings(provider_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"mappings": result.value, "total": len(result.value)}
+    return {"mappings": result.ok_value, "total": len(result.ok_value)}
 
 
 @router.get("/providers/{provider_id}/rules")
@@ -305,10 +305,10 @@ async def list_provisioning_rules(
 
     result = await sso_service.get_user_provisioning_rules(provider_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"rules": result.value, "total": len(result.value)}
+    return {"rules": result.ok_value, "total": len(result.ok_value)}
 
 
 @router.get("/analytics")
@@ -330,10 +330,10 @@ async def get_sso_analytics(
 
     result = await sso_service.get_sso_analytics(date_from, date_to)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.delete("/providers/{provider_id}")
@@ -354,9 +354,9 @@ async def delete_sso_provider(
 
     result = await sso_service.delete_sso_provider(provider_id, admin_user.id)
 
-    if isinstance(result, Err):
-        if "not found" in result.error.lower():
-            raise HTTPException(status_code=404, detail=result.error)
+    if result.is_err():
+        if "not found" in result.err_value.lower():
+            raise HTTPException(status_code=404, detail=result.err_value)
         raise HTTPException(status_code=400, detail=result.error)
 
     return {"message": "SSO provider deleted successfully"}
@@ -382,7 +382,7 @@ async def get_sso_activity_logs(
 
     result = await sso_service.get_activity_logs(limit, offset, provider_id)
 
-    if isinstance(result, Err):
-        raise HTTPException(status_code=400, detail=result.error)
+    if result.is_err():
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value

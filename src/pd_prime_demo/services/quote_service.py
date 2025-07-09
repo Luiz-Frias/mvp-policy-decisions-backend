@@ -168,7 +168,7 @@ class QuoteService:
 
     @beartype
     @performance_monitor("quote_calculation", max_duration_ms=1000)
-    async def calculate_quote(self, quote_id: UUID):
+    async def calculate_quote(self, quote_id: UUID) -> Result[Quote, str]:
         """Calculate or recalculate quote pricing."""
         try:
             # Get quote
@@ -419,7 +419,7 @@ class QuoteService:
 
     @beartype
     @performance_monitor("get_quote")
-    async def get_quote(self, quote_id: UUID):
+    async def get_quote(self, quote_id: UUID) -> Result[Quote | None, str]:
         """Get quote by ID with caching."""
         # Check cache first
         cache_key = f"{self._cache_prefix}{quote_id}"
@@ -593,15 +593,15 @@ class QuoteService:
                     quote_id,
                     admin_user_id,
                     override_request.override_type,
-                    override_request.override_data.get("original"),
-                    override_request.override_data.get("new"),
+                    override_request.override_data.original_value,
+                    override_request.override_data.new_value,
                     override_request.reason,
                     datetime.now(),
                 )
 
                 # Apply override based on type
                 if override_request.override_type == "premium":
-                    new_premium = Decimal(str(override_request.override_data["new"]))
+                    new_premium = Decimal(str(override_request.override_data.new_value))
                     await self._db.execute(
                         """
                         UPDATE quotes SET
@@ -711,7 +711,7 @@ class QuoteService:
 
     @beartype
     @performance_monitor("validate_quote_data")
-    async def _validate_quote_data(self, quote_data: QuoteCreate):
+    async def _validate_quote_data(self, quote_data: QuoteCreate) -> Result[None, str]:
         """Validate quote business rules."""
         # Check state support
         supported_states = ["CA", "TX", "NY"]  # Demo states
@@ -884,7 +884,7 @@ class QuoteService:
 
     @beartype
     @performance_monitor("validate_quote_conversion")
-    def _validate_quote_conversion(self, quote: Quote):
+    def _validate_quote_conversion(self, quote: Quote) -> Result[None, str]:
         """Validate quote can be converted to policy."""
         if quote.status != QuoteStatus.QUOTED:
             return Err(f"Quote must be in QUOTED status, current: {quote.status}")

@@ -117,9 +117,9 @@ async def create_pricing_override(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.unwrap_err())
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"override_id": result.unwrap(), "status": "created"}
+    return {"override_id": result.ok_value, "status": "created"}
 
 
 @router.post("/quotes/{quote_id}/manual-discount")
@@ -146,9 +146,9 @@ async def apply_manual_discount(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.unwrap_err())
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"applied": result.unwrap() or False}
+    return {"applied": result.ok_value or False}
 
 
 @router.post("/special-rules")
@@ -175,9 +175,9 @@ async def create_special_pricing_rule(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.unwrap_err())
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"rule_id": result.unwrap(), "status": "active"}
+    return {"rule_id": result.ok_value, "status": "active"}
 
 
 @router.get("/overrides/pending")
@@ -196,9 +196,9 @@ async def get_pending_overrides(
     result = await pricing_service.get_pending_overrides(admin_user.id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.unwrap_err())
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.unwrap()
+    return result.ok_value
 
 
 @router.post("/overrides/{override_id}/approve")
@@ -223,9 +223,9 @@ async def approve_pricing_override(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.unwrap_err())
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"approved": result.unwrap() or False}
+    return {"approved": result.ok_value or False}
 
 
 @router.post("/overrides/{override_id}/reject")

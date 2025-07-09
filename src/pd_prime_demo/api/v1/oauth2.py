@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from pd_prime_demo.core.result_types import Err
 
 from ...core.auth.oauth2 import OAuth2Server
+from ...core.auth.oauth2.server import OAuth2Error
 from ...core.cache import Cache
 from ...core.config import Settings
 from ...core.database import Database
@@ -123,8 +124,8 @@ async def authorize(
         code_challenge_method=code_challenge_method,
     )
 
-    if isinstance(result, Err):
-        error = result.error
+    if result.is_err():
+        error: OAuth2Error = result.err_value
         # Build error redirect
         error_params = f"error={error.error}"
         if error.error_description:
@@ -136,7 +137,13 @@ async def authorize(
         return RedirectResponse(url=f"{redirect_uri}{separator}{error_params}")
 
     # Build success redirect
-    response_data = result.value
+    response_data = result.ok_value
+    if not response_data:
+        error_params = f"error=server_error&error_description=Invalid response data"
+        if state:
+            error_params += f"&state={state}"
+        separator = "&" if "?" in redirect_uri else "?"
+        return RedirectResponse(url=f"{redirect_uri}{separator}{error_params}")
 
     if response_type == "code":
         params = f"code={response_data['code']}"
@@ -206,12 +213,12 @@ async def token(
         rate_limit_result = await oauth2_server.validate_client_rate_limit(
             client_id, "token_request"
         )
-        if isinstance(rate_limit_result, Err):
+        if rate_limit_result.is_err():
             raise HTTPException(
                 status_code=429,
                 detail={
                     "error": "rate_limit_exceeded",
-                    "error_description": rate_limit_result.error,
+                    "error_description": rate_limit_result.err_value,
                 },
             )
 
@@ -228,14 +235,14 @@ async def token(
         code_verifier=code_verifier,
     )
 
-    if isinstance(result, Err):
-        error = result.error
+    if result.is_err():
+        error: OAuth2Error = result.err_value
         raise HTTPException(
             status_code=error.status_code,
             detail=error.to_dict(),
         )
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/introspect")
@@ -422,7 +429,7 @@ async def _get_authenticated_user_id(
         )
 
         if user_row:
-            return user_row["id"]
+            return UUID(str(user_row["id"]))
 
         # Create demo user if not exists
         import uuid

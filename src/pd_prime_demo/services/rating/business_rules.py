@@ -58,7 +58,7 @@ class BusinessRuleViolation:
 class RatingBusinessRules:
     """Comprehensive business rule validation for rating calculations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize business rules validator."""
         # Define maximum factor limits to prevent extreme ratings
         self._max_factor_limits = {

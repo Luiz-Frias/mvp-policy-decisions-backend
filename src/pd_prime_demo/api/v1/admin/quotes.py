@@ -57,9 +57,9 @@ async def admin_search_quotes(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/{quote_id}/override")
@@ -82,9 +82,9 @@ async def override_quote(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.post("/bulk/{operation}")
@@ -191,9 +191,9 @@ async def get_quote_analytics(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.value
+    return result.ok_value
 
 
 @router.get("/export")

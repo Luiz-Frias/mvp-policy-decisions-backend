@@ -45,7 +45,7 @@ class TOTPProvider:
         return base64.urlsafe_b64encode(key_material)
 
     @beartype
-    def generate_setup(self, user_email: str, user_id: str):
+    def generate_setup(self, user_email: str, user_id: str) -> Result[TOTPSetupData, str]:
         """Generate TOTP setup data for user enrollment.
 
         Args:
@@ -105,7 +105,7 @@ class TOTPProvider:
         return " ".join(secret[i : i + 4] for i in range(0, len(secret), 4))
 
     @beartype
-    def encrypt_secret(self, secret: str):
+    def encrypt_secret(self, secret: str) -> Result[str, str]:
         """Encrypt TOTP secret for storage.
 
         Args:
@@ -121,7 +121,7 @@ class TOTPProvider:
             return Err(f"Failed to encrypt TOTP secret: {str(e)}")
 
     @beartype
-    def decrypt_secret(self, encrypted_secret: str):
+    def decrypt_secret(self, encrypted_secret: str) -> Result[str, str]:
         """Decrypt TOTP secret from storage.
 
         Args:
@@ -137,7 +137,7 @@ class TOTPProvider:
             return Err(f"Failed to decrypt TOTP secret: {str(e)}")
 
     @beartype
-    def verify_code(self, encrypted_secret: str, code: str):
+    def verify_code(self, encrypted_secret: str, code: str) -> Result[bool, str]:
         """Verify TOTP code.
 
         Args:
@@ -169,7 +169,7 @@ class TOTPProvider:
             return Err(f"Failed to verify TOTP code: {str(e)}")
 
     @beartype
-    def generate_current_code(self, encrypted_secret: str):
+    def generate_current_code(self, encrypted_secret: str) -> Result[str, str]:
         """Generate current TOTP code (for testing/debugging only).
 
         Args:

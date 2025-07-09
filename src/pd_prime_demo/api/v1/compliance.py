@@ -141,10 +141,10 @@ async def get_compliance_overview(
         if metrics_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to generate compliance metrics: {metrics_result.unwrap_err()}",
+                detail=f"Failed to generate compliance metrics: {metrics_result.err_value}",
             )
 
-        metrics = metrics_result.unwrap()
+        metrics = metrics_result.ok_value
 
         # Get detailed scores by criteria
         criteria_scores = {
@@ -246,10 +246,10 @@ async def execute_control(
         if execution_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Control execution failed: {execution_result.unwrap_err()}",
+                detail=f"Control execution failed: {execution_result.err_value}",
             )
 
-        execution = execution_result.unwrap()
+        execution = execution_result.ok_value
 
         return ControlExecutionResponse(
             execution_id=str(execution.execution_id),
@@ -282,10 +282,10 @@ async def get_control_status(
         if status_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Control not found: {status_result.unwrap_err()}",
+                detail=f"Control not found: {status_result.err_value}",
             )
 
-        control_status = status_result.unwrap()
+        control_status = status_result.ok_value
 
         return {
             "control_id": control_id,
@@ -415,10 +415,10 @@ async def get_evidence_summary(
         if summary_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get evidence summary: {summary_result.unwrap_err()}",
+                detail=f"Failed to get evidence summary: {summary_result.err_value}",
             )
 
-        return summary_result.unwrap()
+        return summary_result.ok_value
 
     except HTTPException:
         raise
@@ -449,10 +449,10 @@ async def generate_compliance_report(
         if report_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to generate report: {report_result.unwrap_err()}",
+                detail=f"Failed to generate report: {report_result.err_value}",
             )
 
-        report = report_result.unwrap()
+        report = report_result.ok_value
 
         return {
             "report_id": str(report.report_id),
@@ -526,10 +526,10 @@ async def create_test_plan(
         if plan_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create test plan: {plan_result.unwrap_err()}",
+                detail=f"Failed to create test plan: {plan_result.err_value}",
             )
 
-        plan = plan_result.unwrap()
+        plan = plan_result.ok_value
 
         return {
             "plan_id": str(plan.plan_id),
@@ -579,10 +579,10 @@ async def execute_all_controls(
         if execution_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to execute controls: {execution_result.unwrap_err()}",
+                detail=f"Failed to execute controls: {execution_result.err_value}",
             )
 
-        executions = execution_result.unwrap()
+        executions = execution_result.ok_value
 
         # Summarize results
         total_executions = len(executions) if executions else 0
@@ -646,10 +646,10 @@ async def get_audit_trail(
         if trail_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get audit trail: {trail_result.unwrap_err()}",
+                detail=f"Failed to get audit trail: {trail_result.err_value}",
             )
 
-        audit_records = trail_result.unwrap()
+        audit_records = trail_result.ok_value
 
         return {
             "total_records": len(audit_records),

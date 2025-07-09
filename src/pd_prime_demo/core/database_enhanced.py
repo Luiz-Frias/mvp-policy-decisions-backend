@@ -101,7 +101,7 @@ class Database:
         self._recovery_config = RecoveryConfig()
 
         # Performance metrics
-        self._metrics = {
+        self._metrics: dict[str, Any] = {
             "connections_active": 0,
             "connections_idle": 0,
             "queries_total": 0,
@@ -302,6 +302,7 @@ class Database:
 
         try:
             # Based on Agent 03 audit: warm more connections to reduce initial timeout rates
+            assert self._pool is not None  # Help MyPy understand the control flow
             self._pool.get_min_size()
             # Target 80% of max_size for aggressive pre-warming
             target_warmup = int(self._pool.get_max_size() * 0.8)
@@ -423,7 +424,7 @@ class Database:
         self._admin_pool = None
 
     @beartype
-    async def check_pool_health(self):
+    async def check_pool_health(self) -> Result[str, str]:
         """Check pool health before operations."""
         if self._pool is None:
             return Err("Database pool not initialized")
@@ -705,7 +706,7 @@ class Database:
         return warnings
 
     @beartype
-    async def health_check(self):
+    async def health_check(self) -> Result[str, str]:
         """Perform comprehensive health check."""
         try:
             # Check main pool

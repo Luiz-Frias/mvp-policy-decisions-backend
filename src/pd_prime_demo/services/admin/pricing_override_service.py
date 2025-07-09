@@ -274,7 +274,7 @@ class PricingOverrideService:
             )
 
             # Clear pricing cache to force rule evaluation
-            await self._cache.delete_pattern("rating:*")
+            await self._cache.clear_pattern("rating:*")
 
             # Log activity
             await self._log_pricing_activity(

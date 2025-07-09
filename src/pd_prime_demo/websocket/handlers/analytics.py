@@ -169,7 +169,7 @@ class AnalyticsWebSocketHandler:
         self._cache_ttl = 5  # seconds
 
     @beartype
-    async def start_analytics_stream(self, connection_id: str, config: DashboardConfig):
+    async def start_analytics_stream(self, connection_id: str, config: DashboardConfig) -> Result[None, str]:
         """Start streaming analytics data to connection with explicit validation."""
         # Validate connection
         if connection_id not in self._manager._connections:
@@ -244,7 +244,7 @@ class AnalyticsWebSocketHandler:
         return Ok(None)
 
     @beartype
-    async def stop_analytics_stream(self, connection_id: str, dashboard_type: str):
+    async def stop_analytics_stream(self, connection_id: str, dashboard_type: str) -> Result[None, str]:
         """Stop streaming analytics data."""
         task_key = f"{connection_id}:{dashboard_type}"
 
@@ -623,7 +623,7 @@ class AnalyticsWebSocketHandler:
         }
 
     @beartype
-    async def broadcast_event(self, event_type: str, data: dict[str, Any]):
+    async def broadcast_event(self, event_type: str, data: dict[str, Any]) -> Result[int, str]:
         """Broadcast analytics event to relevant dashboard subscribers."""
         # Determine which dashboards care about this event
         affected_dashboards = []
@@ -711,7 +711,7 @@ class AnalyticsWebSocketHandler:
             del self._dashboard_configs[connection_id]
 
     @beartype
-    async def _validate_admin_access(self, user_id: UUID):
+    async def _validate_admin_access(self, user_id: UUID) -> Result[None, str]:
         """Validate user has admin access for analytics."""
         # In production, check user roles and permissions
         # For now, simplified check

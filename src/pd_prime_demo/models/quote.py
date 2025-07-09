@@ -1448,17 +1448,10 @@ class QuoteOverrideRequest(BaseModelConfig):
 
     @field_validator("override_data")
     @classmethod
-    def validate_override_data(cls, v: dict[str, Any]) -> dict[str, Any]:
+    def validate_override_data(cls, v: OverrideData) -> OverrideData:
         """Validate override data contains required fields."""
-        if "original" not in v:
-            raise ValueError("Override data must include 'original' value")
-        if "new" not in v:
-            raise ValueError("Override data must include 'new' value")
-
-        # Ensure values are different
-        if v["original"] == v["new"]:
-            raise ValueError("Override new value must be different from original value")
-
+        # The OverrideData model already has its own validation
+        # for ensuring new_value != original_value
         return v
 
 

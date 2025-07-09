@@ -133,11 +133,11 @@ class RatingEngine:
             if results.is_err():
                 return Err(f"Parallel calculation failed: {results.unwrap_err()}")
 
-            factors = results.unwrap()
+            factors: dict[str, Any] = results.unwrap()
 
             # Calculate base premium for each coverage
             base_premium_result = await self._calculate_base_premiums(
-                coverage_selections, factors["base_rates"]
+                coverage_selections, factors.get("base_rates", {})
             )
             if base_premium_result.is_err():
                 return base_premium_result
@@ -598,7 +598,7 @@ class RatingEngine:
         }
 
     @beartype
-    async def warm_caches(self, states: list[str] | None = None):
+    async def warm_caches(self, states: list[str] | None = None) -> Result[dict[str, Any], str]:
         """Warm caches for optimal performance.
 
         Args:
@@ -671,8 +671,8 @@ class RatingEngine:
                     )
                     continue
 
-                actual_result = calc_result.unwrap()
-                actual_premium = actual_result["final_premium"]
+                actual_result: dict[str, Any] = calc_result.unwrap()
+                actual_premium = actual_result.get("final_premium", 0)
 
                 # Check accuracy
                 if expected_premium:

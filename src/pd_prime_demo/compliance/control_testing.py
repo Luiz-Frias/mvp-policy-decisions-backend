@@ -773,7 +773,7 @@ class ControlTestingFramework:
         }
 
     @beartype
-    async def execute_test_plan(self, test_plan: TestPlan, executed_by: str):
+    async def execute_test_plan(self, test_plan: TestPlan, executed_by: str) -> Result[TestRunReport, str]:
         """Execute all tests in a test plan."""
         try:
             executed_tests = []

@@ -123,7 +123,7 @@ class ConnectionMetrics(BaseModel):
 class ReconnectionManager:
     """Manages WebSocket reconnection strategies and connection health."""
 
-    def __init__(self, config: ReconnectionConfig = None):
+    def __init__(self, config: ReconnectionConfig = None) -> None:
         """Initialize reconnection manager."""
         self.config = config or ReconnectionConfig()
 

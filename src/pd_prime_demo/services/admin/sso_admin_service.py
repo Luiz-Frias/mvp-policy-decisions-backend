@@ -88,7 +88,7 @@ class SSOAdminService:
             )
 
             # Clear configuration cache
-            await self._cache.delete_pattern(f"{self._config_cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._config_cache_prefix}*")
             await self._cache.delete("sso:provider_configs")
 
             # Log configuration creation
@@ -199,7 +199,7 @@ class SSOAdminService:
             await self._db.execute(query, provider_id, *update_values)
 
             # Clear cache
-            await self._cache.delete_pattern(f"{self._config_cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._config_cache_prefix}*")
             await self._cache.delete("sso:provider_configs")
 
             # Log update
@@ -775,7 +775,7 @@ class SSOAdminService:
             )
 
             # Clear cache
-            await self._cache.delete_pattern(f"{self._config_cache_prefix}*")
+            await self._cache.clear_pattern(f"{self._config_cache_prefix}*")
             await self._cache.delete("sso:provider_configs")
 
             # Log deletion

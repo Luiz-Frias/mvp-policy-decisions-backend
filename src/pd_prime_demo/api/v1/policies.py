@@ -127,7 +127,7 @@ async def list_policies(
                 detail=str(result.error),
             )
 
-        policies = result.unwrap()
+        policies = result.ok_value
 
         # Get total count (using same filters)
         count_result = await service.list(
@@ -137,7 +137,7 @@ async def list_policies(
             offset=0,
         )
 
-        total = len(count_result.unwrap()) if count_result.is_ok() else 0
+        total = len(count_result.ok_value) if count_result.is_ok() else 0
 
         response = PolicyListResponse(
             items=policies,
@@ -201,7 +201,7 @@ async def create_policy(
                     detail=str(result.error),
                 )
 
-            policy = result.unwrap()
+            policy = result.ok_value
 
             # Invalidate relevant caches
             pattern = "policies:list:*"
@@ -269,7 +269,7 @@ async def get_policy(
                 detail=str(result.error),
             )
 
-        policy = result.unwrap()
+        policy = result.ok_value
         if not policy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -327,7 +327,7 @@ async def update_policy(
                 detail=str(result.error),
             )
 
-        policy = result.unwrap()
+        policy = result.ok_value
         if not policy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -383,7 +383,7 @@ async def delete_policy(
                 detail=str(result.error),
             )
 
-        deleted = result.unwrap()
+        deleted = result.ok_value
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

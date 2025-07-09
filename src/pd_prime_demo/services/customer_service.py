@@ -33,7 +33,7 @@ class CustomerService:
 
     @beartype
     @performance_monitor("create_customer")
-    async def create(self, customer_data: CustomerCreate):
+    async def create(self, customer_data: CustomerCreate) -> Result[Customer, str]:
         """Create a new customer."""
         try:
             # Validate business rules
@@ -95,7 +95,7 @@ class CustomerService:
 
     @beartype
     @performance_monitor("get_customer")
-    async def get(self, customer_id: UUID):
+    async def get(self, customer_id: UUID) -> Result[Customer | None, str]:
         """Get customer by ID."""
         # Check cache first
         cache_key = CacheKeys.customer_by_id(customer_id)
@@ -225,7 +225,7 @@ class CustomerService:
         return Ok(customer)
 
     @beartype
-    async def delete(self, customer_id: UUID):
+    async def delete(self, customer_id: UUID) -> Result[None, str]:
         """Delete a customer and all related data."""
         # Note: This is a hard delete with CASCADE
         # In production, consider soft delete instead

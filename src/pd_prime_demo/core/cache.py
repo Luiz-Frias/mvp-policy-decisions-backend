@@ -80,7 +80,7 @@ class Cache:
             self._config.url,
             max_connections=self._config.max_connections,
             decode_responses=self._config.decode_responses,
-        )
+        )  # type: ignore[assignment]
 
     @beartype
     async def disconnect(self) -> None:

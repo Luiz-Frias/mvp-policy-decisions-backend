@@ -150,13 +150,13 @@ class IncidentRecord(BaseModel):
 class AvailabilityControlManager:
     """Manager for SOC 2 availability controls."""
 
-    def __init__(self, audit_logger: AuditLogger | None = None):
+    def __init__(self, audit_logger: AuditLogger | None = None) -> None:
         """Initialize availability control manager."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._database = get_database()
 
     @beartype
-    async def execute_uptime_monitoring_control(self, control_id: str = "AVL-001"):
+    async def execute_uptime_monitoring_control(self, control_id: str = "AVL-001") -> ControlResult:
         """Execute uptime monitoring and SLA compliance control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -337,7 +337,7 @@ class AvailabilityControlManager:
         }
 
     @beartype
-    async def execute_performance_monitoring_control(self, control_id: str = "AVL-002"):
+    async def execute_performance_monitoring_control(self, control_id: str = "AVL-002") -> ControlResult:
         """Execute performance monitoring control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -490,7 +490,7 @@ class AvailabilityControlManager:
         }
 
     @beartype
-    async def execute_backup_recovery_control(self, control_id: str = "AVL-003"):
+    async def execute_backup_recovery_control(self, control_id: str = "AVL-003") -> ControlResult:
         """Execute backup and disaster recovery control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -629,7 +629,7 @@ class AvailabilityControlManager:
         }
 
     @beartype
-    async def execute_failover_control(self, control_id: str = "AVL-004"):
+    async def execute_failover_control(self, control_id: str = "AVL-004") -> ControlResult:
         """Execute automated failover control."""
         try:
             start_time = datetime.now(timezone.utc)

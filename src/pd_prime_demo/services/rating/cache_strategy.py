@@ -15,7 +15,7 @@ from ...core.cache import Cache
 class RatingCacheStrategy:
     """Advanced caching strategy for rating calculations."""
 
-    def __init__(self, cache: Cache):
+    def __init__(self, cache: Cache) -> None:
         """Initialize cache strategy.
 
         Args:
@@ -366,7 +366,7 @@ class RatingCacheStrategy:
 class RatingCacheManager:
     """Manager for coordinating multiple cache strategies."""
 
-    def __init__(self, cache: Cache):
+    def __init__(self, cache: Cache) -> None:
         """Initialize cache manager.
 
         Args:
@@ -404,8 +404,8 @@ class RatingCacheManager:
                     return Ok(cached_result.unwrap())
         elif cache_type == "quote_calculation":
             cached_result = await self._strategy.get_quote_calculation(cache_key)
-            if cached_result.is_ok() and cached_result.unwrap() is not None:
-                return Ok(cached_result.unwrap())
+            if cached_result is not None:
+                return Ok(cached_result)
 
         # Calculate if not cached
         calc_result = await calculation_func()

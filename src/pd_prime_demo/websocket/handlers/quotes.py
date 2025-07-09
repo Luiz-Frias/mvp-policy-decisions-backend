@@ -72,7 +72,7 @@ class QuoteWebSocketHandler:
         self._recent_updates: dict[str, datetime] = {}
 
     @beartype
-    async def handle_quote_subscribe(self, connection_id: str, quote_id: UUID):
+    async def handle_quote_subscribe(self, connection_id: str, quote_id: UUID) -> Result[None, str]:
         """Subscribe to real-time quote updates with explicit validation."""
         # Validate quote exists and user has access
         quote_result = await self._quote_service.get_quote(quote_id)
@@ -135,7 +135,7 @@ class QuoteWebSocketHandler:
         return Ok(None)
 
     @beartype
-    async def handle_quote_unsubscribe(self, connection_id: str, quote_id: UUID):
+    async def handle_quote_unsubscribe(self, connection_id: str, quote_id: UUID) -> Result[None, str]:
         """Unsubscribe from quote updates."""
         room_id = f"quote:{quote_id}"
 

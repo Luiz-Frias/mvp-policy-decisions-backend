@@ -2,7 +2,7 @@
 
 import time
 from collections import deque
-from typing import Any
+from typing import Any, Callable
 
 from attrs import define, field, frozen
 from beartype import beartype
@@ -133,7 +133,7 @@ class ClientRateTracker:
 class RateLimiter:
     """In-memory rate limiter with Redis backup for distributed scenarios."""
 
-    def __init__(self, config: RateLimitConfig):
+    def __init__(self, config: RateLimitConfig) -> None:
         """Initialize rate limiter."""
         self.config = config
         self.clients: dict[str, ClientRateTracker] = {}
@@ -392,14 +392,14 @@ def rate_limit(
 ):
     """Decorator for function-level rate limiting."""
 
-    def decorator(func):
+    def decorator(func) -> Callable:
         RateLimitRule(
             requests_per_minute=requests_per_minute,
             requests_per_hour=requests_per_hour,
             burst_requests=burst_requests,
         )
 
-        async def wrapper(request: Request, *args, **kwargs):
+        async def wrapper(request: Request, *args, **kwargs) -> Any:
             # This would require request context - simplified for now
             return await func(request, *args, **kwargs)
 

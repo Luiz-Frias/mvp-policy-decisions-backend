@@ -181,7 +181,7 @@ class ChangeRecord(BaseModel):
 class ProcessingIntegrityManager:
     """Manager for SOC 2 processing integrity controls."""
 
-    def __init__(self, audit_logger: AuditLogger | None = None):
+    def __init__(self, audit_logger: AuditLogger | None = None) -> None:
         """Initialize processing integrity control manager."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._database = get_database()
@@ -241,7 +241,7 @@ class ProcessingIntegrityManager:
         ]
 
     @beartype
-    async def execute_data_validation_control(self, control_id: str = "PI-001"):
+    async def execute_data_validation_control(self, control_id: str = "PI-001") -> ControlResult:
         """Execute comprehensive data validation control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -454,7 +454,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def execute_data_reconciliation_control(self, control_id: str = "PI-002"):
+    async def execute_data_reconciliation_control(self, control_id: str = "PI-002") -> ControlResult:
         """Execute data reconciliation control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -648,7 +648,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def execute_change_control_audit(self, control_id: str = "PI-003"):
+    async def execute_change_control_audit(self, control_id: str = "PI-003") -> ControlResult:
         """Execute change control and audit trail verification."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -866,7 +866,7 @@ class ProcessingIntegrityManager:
         }
 
     @beartype
-    async def execute_error_detection_control(self, control_id: str = "PI-004"):
+    async def execute_error_detection_control(self, control_id: str = "PI-004") -> ControlResult:
         """Execute error detection and correction control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -946,9 +946,11 @@ class ProcessingIntegrityManager:
             if not system["active"]
         ]
 
-        average_coverage = sum(
-            system["coverage"] for system in detection_systems if system["active"]
-        ) / len([s for s in detection_systems if s["active"]])
+        active_systems = [s for s in detection_systems if s["active"]]
+        average_coverage = (
+            sum(float(system["coverage"]) for system in active_systems) / len(active_systems)
+            if active_systems else 0.0
+        )
 
         return {
             "total_systems": len(detection_systems),
@@ -1007,7 +1009,7 @@ class ProcessingIntegrityManager:
 
         average_correction_time = (
             sum(
-                error["correction_time"]
+                float(error["correction_time"])
                 for error in errors_found
                 if error["corrected"] and error["correction_time"]
             )

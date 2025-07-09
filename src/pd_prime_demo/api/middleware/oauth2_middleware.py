@@ -18,7 +18,7 @@ from ...core.database import get_db_session
 class OAuth2Middleware(BaseHTTPMiddleware):
     """Middleware for OAuth2 token validation and API key authentication."""
 
-    def __init__(self, app, exempt_paths: set[str] | None = None):
+    def __init__(self, app, exempt_paths: set[str] | None = None) -> None:
         """Initialize OAuth2 middleware.
 
         Args:
@@ -196,17 +196,23 @@ class OAuth2Middleware(BaseHTTPMiddleware):
             if result.is_err():
                 raise HTTPException(
                     status_code=HTTP_401_UNAUTHORIZED,
-                    detail=result.error,
+                    detail=result.err_value,
                 )
 
             # Store API key info in request state
-            key_info = result.value
-            request.state.auth = {
-                "type": "api_key",
-                "key_id": key_info["id"],
-                "client_id": key_info["client_id"],
-                "scopes": key_info["scopes"],
-            }
+            key_info = result.ok_value
+            if key_info:
+                request.state.auth = {
+                    "type": "api_key",
+                    "key_id": key_info["id"],
+                    "client_id": key_info["client_id"],
+                    "scopes": key_info["scopes"],
+                }
+            else:
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail="Invalid API key validation result",
+                )
 
     @beartype
     def _get_required_scope(self, request: Request) -> str | None:
@@ -294,16 +300,22 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                 if result.is_err():
                     raise HTTPException(
                         status_code=HTTP_401_UNAUTHORIZED,
-                        detail=f"Invalid client certificate: {result.error}",
+                        detail=f"Invalid client certificate: {result.err_value}",
                     )
 
                 # Store certificate info in request state
-                cert_info = result.value
-                request.state.client_certificate = {
-                    "certificate_id": cert_info["id"],
-                    "subject_dn": cert_info["subject_dn"],
-                    "validated": True,
-                }
+                cert_info = result.ok_value
+                if cert_info:
+                    request.state.client_certificate = {
+                        "certificate_id": cert_info["id"],
+                        "subject_dn": cert_info["subject_dn"],
+                        "validated": True,
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=HTTP_401_UNAUTHORIZED,
+                        detail="Invalid certificate validation result",
+                    )
 
         except HTTPException:
             raise

@@ -1018,7 +1018,7 @@ class OAuth2Server:
         }
 
     @beartype
-    async def _revoke_refresh_token(self, token: str):
+    async def _revoke_refresh_token(self, token: str) -> Result[None, str]:
         """Revoke a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 

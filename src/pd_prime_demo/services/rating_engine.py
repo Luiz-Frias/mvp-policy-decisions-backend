@@ -33,6 +33,7 @@ from ..models.quote import (
     Discount,
     DiscountType,
     DriverInfo,
+    Surcharge,
     VehicleInfo,
 )
 from .performance_monitor import performance_monitor
@@ -223,7 +224,7 @@ class RatingEngine:
             if isinstance(surcharges, Err):
                 return surcharges
 
-            total_surcharge = sum(Decimal(str(s["amount"])) for s in surcharges.value)
+            total_surcharge = sum(s.amount for s in surcharges.value)
 
             # Final premium calculation
             total_premium = factored_premium - total_discount + total_surcharge
@@ -661,7 +662,7 @@ class RatingEngine:
                 )
 
         # Validate discount stacking limits
-        total_discount_pct = sum(d.percentage for d in discounts)
+        total_discount_pct = sum(d.percentage for d in discounts if d.percentage is not None)
         if total_discount_pct > Decimal("50"):
             # Cap total discounts at 50%
             scale_factor = Decimal("50") / total_discount_pct
@@ -675,18 +676,20 @@ class RatingEngine:
     @performance_monitor("calculate_surcharges")
     async def _calculate_surcharges(
         self, state: str, drivers: list[DriverInfo], customer_id: UUID | None
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[Surcharge], str]:
         """Calculate applicable surcharges."""
         surcharges = []
 
         # SR-22 surcharge (if any driver has DUI)
         if any(d.dui_convictions > 0 for d in drivers):
             surcharges.append(
-                {
-                    "type": "sr22_filing",
-                    "description": "SR-22 filing required",
-                    "amount": Decimal("250.00"),
-                }
+                Surcharge(
+                    surcharge_type="sr22_filing",
+                    description="SR-22 filing required",
+                    amount=Decimal("250.00"),
+                    percentage=None,
+                    eligible=True,
+                )
             )
 
         # Lapse in coverage surcharge
@@ -694,11 +697,13 @@ class RatingEngine:
             lapse = await self._check_coverage_lapse(customer_id)
             if isinstance(lapse, Ok) and lapse.value:
                 surcharges.append(
-                    {
-                        "type": "coverage_lapse",
-                        "description": "Prior coverage lapse",
-                        "amount": Decimal("100.00"),
-                    }
+                    Surcharge(
+                        surcharge_type="coverage_lapse",
+                        description="Prior coverage lapse",
+                        amount=Decimal("100.00"),
+                        percentage=None,
+                        eligible=True,
+                    )
                 )
 
         # High-risk driver surcharge
@@ -707,11 +712,13 @@ class RatingEngine:
         ]
         if high_risk_drivers:
             surcharges.append(
-                {
-                    "type": "high_risk",
-                    "description": f"High-risk driver surcharge ({len(high_risk_drivers)} drivers)",
-                    "amount": Decimal("150.00") * len(high_risk_drivers),
-                }
+                Surcharge(
+                    surcharge_type="high_risk",
+                    description=f"High-risk driver surcharge ({len(high_risk_drivers)} drivers)",
+                    amount=Decimal("150.00") * len(high_risk_drivers),
+                    percentage=None,
+                    eligible=True,
+                )
             )
 
         return Ok(surcharges)
@@ -774,12 +781,12 @@ class RatingEngine:
         return hashlib.sha256(key_string.encode()).hexdigest()[:16]
 
     @beartype
-    async def _get_territory_factor(self, state: str, zip_code: str):
+    async def _get_territory_factor(self, state: str, zip_code: str) -> Result[float, str]:
         """Get territory factor for ZIP code using territory manager."""
         return await self._territory_manager.get_territory_factor(state, zip_code)
 
     @beartype
-    async def _get_credit_factor(self, customer_id: UUID):
+    async def _get_credit_factor(self, customer_id: UUID) -> Result[float, str]:
         """Get credit-based insurance score factor."""
         # Mock implementation for now
         # In production, this would call a credit bureau API
@@ -787,7 +794,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("get_claims_factor")
-    async def _get_claims_factor(self, customer_id: UUID):
+    async def _get_claims_factor(self, customer_id: UUID) -> Result[float, str]:
         """Get claims history factor."""
         query = """
             SELECT COUNT(*) as claim_count
@@ -811,7 +818,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("get_minimum_premium")
-    async def _get_minimum_premium(self, state: str, product_type: str):
+    async def _get_minimum_premium(self, state: str, product_type: str) -> Result[Decimal, str]:
         """Get minimum premium for state/product."""
         query = """
             SELECT minimum_premium
@@ -830,7 +837,7 @@ class RatingEngine:
         return Ok(Decimal(str(row["minimum_premium"])))
 
     @beartype
-    async def _get_customer_policy_count(self, customer_id: UUID):
+    async def _get_customer_policy_count(self, customer_id: UUID) -> Result[int, str]:
         """Get count of active policies for customer."""
         query = """
             SELECT COUNT(*) as policy_count
@@ -843,7 +850,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("get_customer_tenure_years")
-    async def _get_customer_tenure_years(self, customer_id: UUID):
+    async def _get_customer_tenure_years(self, customer_id: UUID) -> Result[int, str]:
         """Get customer tenure in years."""
         query = """
             SELECT MIN(created_at) as first_policy_date
@@ -860,7 +867,7 @@ class RatingEngine:
         return Ok(tenure_days // 365)
 
     @beartype
-    async def _check_coverage_lapse(self, customer_id: UUID):
+    async def _check_coverage_lapse(self, customer_id: UUID) -> Result[bool, str]:
         """Check if customer had coverage lapse."""
         # Simplified check - in production would be more sophisticated
         query = """
@@ -1141,7 +1148,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("apply_state_factor_rules")
-    def _apply_state_factor_rules(self, state: str, factors: dict[str, float]) -> dict[str, float]:
+    def _apply_state_factor_rules(self, state: str, factors: dict[str, float]) -> Result[dict[str, float], str]:
         """Apply state-specific factor validation rules."""
         if state not in self._state_rules:
             return Err(f"No rules configured for state {state}")

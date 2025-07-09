@@ -236,7 +236,7 @@ class BiometricProvider:
             return Err(f"Failed to verify biometric: {str(e)}")
 
     @beartype
-    async def remove_biometric(self, user_id: UUID, template_id: str):
+    async def remove_biometric(self, user_id: UUID, template_id: str) -> Result[None, str]:
         """Remove biometric template.
 
         Args:
@@ -366,7 +366,7 @@ class BiometricProvider:
         return settings.get(biometric_type, {})
 
     @beartype
-    async def _check_liveness(self, biometric_type: str, liveness_data: dict[str, Any]):
+    async def _check_liveness(self, biometric_type: str, liveness_data: dict[str, Any]) -> Result[bool, str]:
         """Check liveness to prevent spoofing attacks."""
         try:
             # Mock liveness detection

@@ -48,7 +48,7 @@ class SSOManager:
         self._provider_configs: dict[str, dict[str, Any]] = {}
 
     @beartype
-    async def initialize(self):
+    async def initialize(self) -> Result[None, str]:
         """Load SSO provider configurations from database.
 
         Returns:
@@ -399,6 +399,9 @@ class SSOManager:
 
         # Get full user record
         row = await self._db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        
+        if not row:
+            raise ValueError(f"User {user_id} not found after creation")
 
         return User(
             id=user_id,
@@ -443,6 +446,9 @@ class SSOManager:
 
         # Get updated user
         row = await self._db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        
+        if not row:
+            raise ValueError(f"User {user_id} not found after update")
 
         return User(
             id=user_id,

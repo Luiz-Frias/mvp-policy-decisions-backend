@@ -221,7 +221,7 @@ class ComplianceReport(BaseModel):
 class EvidenceCollector:
     """Automated evidence collector for SOC 2 compliance."""
 
-    def __init__(self, audit_logger: AuditLogger | None = None):
+    def __init__(self, audit_logger: AuditLogger | None = None) -> None:
         """Initialize evidence collector."""
         self._audit_logger = audit_logger or get_audit_logger()
         self._database = get_database()
@@ -465,7 +465,7 @@ class EvidenceCollector:
         pass
 
     @beartype
-    async def add_artifact_to_collection(self, collection_id: UUID, artifact_id: UUID):
+    async def add_artifact_to_collection(self, collection_id: UUID, artifact_id: UUID) -> Result[None, str]:
         """Add an evidence artifact to a collection."""
         try:
             # In a real implementation, this would update the database
@@ -485,7 +485,7 @@ class EvidenceCollector:
             return Err(f"Failed to add artifact to collection: {str(e)}")
 
     @beartype
-    async def verify_evidence_integrity(self, artifact_id: UUID):
+    async def verify_evidence_integrity(self, artifact_id: UUID) -> Result[bool, str]:
         """Verify the integrity of an evidence artifact."""
         try:
             # In a real implementation, this would:

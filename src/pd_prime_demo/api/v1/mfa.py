@@ -191,10 +191,22 @@ async def get_mfa_status(
             detail="Failed to retrieve MFA configuration",
         )
 
-    config = config_result.value
+    config = config_result.ok_value
 
     # Check device trust (mock for now)
     device_trusted = False
+
+    # If no config exists, return default disabled status
+    if not config:
+        return MFAStatusResponse(
+            totp_enabled=False,
+            webauthn_enabled=False,
+            sms_enabled=False,
+            biometric_enabled=False,
+            recovery_codes_count=0,
+            preferred_method=None,
+            device_trusted=device_trusted,
+        )
 
     return MFAStatusResponse(
         totp_enabled=config.totp_enabled,
@@ -218,7 +230,7 @@ async def setup_totp(
 
     # Check if TOTP already enabled
     config_result = await mfa_manager.get_user_mfa_config(user_id)
-    if config_result.is_ok() and config_result.value.totp_enabled:
+    if config_result.is_ok() and config_result.ok_value.totp_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="TOTP already enabled for this account",
@@ -228,10 +240,10 @@ async def setup_totp(
     setup_result = await mfa_manager.setup_totp(user_id, user_email)
     if setup_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=setup_result.error
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=setup_result.err_value
         )
 
-    setup_data = setup_result.value
+    setup_data = setup_result.ok_value
 
     return TOTPSetupResponse(
         qr_code=setup_data.qr_code,
@@ -253,7 +265,7 @@ async def verify_totp_setup(
     verify_result = await mfa_manager.verify_totp_setup(user_id, request.code)
     if verify_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=verify_result.error
+            status_code=status.HTTP_400_BAD_REQUEST, detail=verify_result.err_value
         )
 
     return {"message": "TOTP successfully enabled"}
@@ -275,8 +287,8 @@ async def disable_totp(
             detail="Failed to retrieve MFA configuration",
         )
 
-    config = config_result.value
-    if not config.totp_enabled:
+    config = config_result.ok_value
+    if not config or not config.totp_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="TOTP not enabled"
         )
@@ -316,9 +328,9 @@ async def begin_webauthn_registration(
 
     # Get existing credentials
     config_result = await mfa_manager.get_user_mfa_config(user_id)
-    existing_creds = []
-    if config_result.is_ok():
-        existing_creds = config_result.value.webauthn_credentials
+    existing_creds: list[Any] = []
+    if config_result.is_ok() and config_result.ok_value:
+        existing_creds = config_result.ok_value.webauthn_credentials
 
     # Generate registration options
     options_result = await mfa_manager._webauthn_provider.generate_registration_options(
@@ -328,10 +340,10 @@ async def begin_webauthn_registration(
     if options_result.is_err():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=options_result.error,
+            detail=options_result.err_value,
         )
 
-    options = options_result.value
+    options = options_result.ok_value
     return WebAuthnRegistrationResponse(**options)
 
 
@@ -350,10 +362,10 @@ async def setup_sms(
     )
     if encrypt_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=encrypt_result.error
+            status_code=status.HTTP_400_BAD_REQUEST, detail=encrypt_result.err_value
         )
 
-    encrypted_phone = encrypt_result.value
+    encrypted_phone = encrypt_result.ok_value
 
     # Send verification code
     send_result = await mfa_manager._sms_provider.send_verification_code(
@@ -361,7 +373,7 @@ async def setup_sms(
     )
     if send_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=send_result.error
+            status_code=status.HTTP_400_BAD_REQUEST, detail=send_result.err_value
         )
 
     return {"message": "Verification code sent", "expires_in": 600}  # 10 minutes
@@ -383,10 +395,10 @@ async def create_mfa_challenge(
 
     if challenge_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=challenge_result.error
+            status_code=status.HTTP_400_BAD_REQUEST, detail=challenge_result.err_value
         )
 
-    challenge = challenge_result.value
+    challenge = challenge_result.ok_value
 
     return MFAChallengeResponse(
         challenge_id=challenge.challenge_id,
@@ -415,10 +427,10 @@ async def verify_mfa_challenge(
     if verify_result.is_err():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=verify_result.error,
+            detail=verify_result.err_value,
         )
 
-    result = verify_result.value
+    result = verify_result.ok_value
 
     if not result.success:
         raise HTTPException(
@@ -447,10 +459,10 @@ async def generate_recovery_codes(
     codes_result = await mfa_manager.generate_recovery_codes(user_id)
     if codes_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=codes_result.error
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=codes_result.err_value
         )
 
-    codes = codes_result.value
+    codes = codes_result.ok_value
 
     return {
         "recovery_codes": codes,
@@ -478,10 +490,10 @@ async def trust_device(
 
     if trust_result.is_err():
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=trust_result.error
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=trust_result.err_value
         )
 
-    device_trust = trust_result.value
+    device_trust = trust_result.ok_value
 
     return {
         "device_id": str(device_trust.device_id),

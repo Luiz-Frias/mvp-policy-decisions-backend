@@ -51,10 +51,10 @@ class CacheMetrics:
 class PerformanceCache:
     """High-performance caching layer for expensive operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize performance cache."""
         self._cache = get_cache()
-        self._metrics = {
+        self._metrics: dict[str, Any] = {
             "hits": 0,
             "misses": 0,
             "lookup_times": [],
@@ -275,7 +275,7 @@ def cached_operation(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args, **kwargs) -> Any:
             perf_cache = get_performance_cache()
 
             # Create cache key from function arguments
@@ -313,7 +313,7 @@ def cached_operation(
                     raise
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args, **kwargs) -> Any:
             # For sync functions, we'd need to run in an async context
             # This is a simplified version
             return func(*args, **kwargs)

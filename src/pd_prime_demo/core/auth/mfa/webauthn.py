@@ -20,7 +20,7 @@ try:
     )
 except ImportError:
     # Mock implementation for testing
-    def generate_registration_options(*args, **kwargs):
+    def generate_registration_options(*args, **kwargs) -> Any:
         return type(
             "MockOptions",
             (),
@@ -40,7 +40,7 @@ except ImportError:
             },
         )()
 
-    def generate_authentication_options(*args, **kwargs):
+    def generate_authentication_options(*args, **kwargs) -> Any:
         return type(
             "MockOptions",
             (),
@@ -53,7 +53,7 @@ except ImportError:
             },
         )()
 
-    def verify_registration_response(*args, **kwargs):
+    def verify_registration_response(*args, **kwargs) -> Any:
         return type(
             "MockVerification",
             (),
@@ -66,21 +66,21 @@ except ImportError:
             },
         )()
 
-    def verify_authentication_response(*args, **kwargs):
+    def verify_authentication_response(*args, **kwargs) -> bool:
         return type("MockVerification", (), {"verified": True, "new_sign_count": 1})()
 
-    def base64url_to_bytes(data):
+    def base64url_to_bytes(data) -> bytes:
         import base64
 
         return base64.urlsafe_b64decode(data + "==")
 
-    def bytes_to_base64url(data):
+    def bytes_to_base64url(data) -> str:
         import base64
 
         return base64.urlsafe_b64encode(data).decode().rstrip("=")
 
     class PublicKeyCredentialDescriptor:
-        def __init__(self, id, type):
+        def __init__(self, id, type) -> None:
             self.id = id
             self.type = type
 
@@ -217,7 +217,7 @@ class WebAuthnProvider:
             return Err(f"Failed to generate registration options: {str(e)}")
 
     @beartype
-    def verify_registration(self, user_id: UUID, credential_response: dict[str, Any]):
+    def verify_registration(self, user_id: UUID, credential_response: dict[str, Any]) -> Result[WebAuthnCredential, str]:
         """Verify WebAuthn registration response.
 
         Args:

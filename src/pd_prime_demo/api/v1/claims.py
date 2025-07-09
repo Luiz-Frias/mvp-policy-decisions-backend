@@ -320,7 +320,7 @@ async def list_claims(
             detail=str(result.error),
         )
 
-    claim_models = result.unwrap()
+    claim_models = result.ok_value
 
     # Convert ClaimModel to API Claim
     claims = []
@@ -360,7 +360,7 @@ async def list_claims(
         offset=0,
     )
 
-    total = len(count_result.unwrap()) if count_result.is_ok() else 0
+    total = len(count_result.ok_value) if count_result.is_ok() else 0
 
     response = ClaimListResponse(
         items=claims, total=total, skip=pagination.skip, limit=pagination.limit
@@ -428,7 +428,7 @@ async def create_claim(
                 detail=str(result.error),
             )
 
-        claim_model = result.unwrap()
+        claim_model = result.ok_value
 
         # Invalidate relevant caches
         pattern = "claims:list:*"
@@ -518,7 +518,7 @@ async def get_claim(
             detail=str(result.error),
         )
 
-    claim_model = result.unwrap()
+    claim_model = result.ok_value
     if not claim_model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
@@ -604,7 +604,7 @@ async def update_claim(
             detail=str(result.error),
         )
 
-    claim_model = result.unwrap()
+    claim_model = result.ok_value
     if not claim_model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
@@ -627,7 +627,7 @@ async def update_claim(
                 detail=str(status_result.error),
             )
 
-        claim_model = status_result.unwrap()
+        claim_model = status_result.ok_value
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -714,7 +714,7 @@ async def update_claim_status(
             detail=str(result.error),
         )
 
-    claim_model = result.unwrap()
+    claim_model = result.ok_value
     if not claim_model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
@@ -793,7 +793,7 @@ async def delete_claim(
             detail=str(result.error),
         )
 
-    deleted = result.unwrap()
+    deleted = result.ok_value
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
