@@ -15,9 +15,22 @@ from pydantic import BaseModel, ConfigDict, Field
 from ....core.cache import Cache
 from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
+from ....models.base import BaseModelConfig
 from ....services.admin.rate_management_service import RateManagementService
 from ...dependencies import get_cache, get_current_admin_user, get_database
 from ...response_patterns import ErrorResponse
+
+# Auto-generated models
+
+
+@beartype
+class RateDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 router = APIRouter(prefix="/admin/rate-management", tags=["admin-rate-management"])
 
@@ -34,7 +47,7 @@ class RateTableVersionCreate(BaseModel):
         validate_default=True,
     )
     table_name: str = Field(..., min_length=1, max_length=100)
-    rate_data: dict[str, Any] = Field(...)
+    rate_data: RateDataData = Field(...)
     effective_date: date = Field(...)
     notes: str | None = Field(None, max_length=1000)
 

@@ -48,12 +48,14 @@ class CustomerUpdateData(BaseModelConfig):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_not_empty(self) -> "CustomerUpdateData":
         """Ensure at least one field is provided for update."""
         if not any(getattr(self, field) is not None for field in self.model_fields):
             raise ValueError("At least one field must be provided for update")
         return self
 
+    @beartype
     def to_jsonb_update(self) -> "CustomerUpdateData":
         """Return a new instance with only non-None values for JSONB update.
 

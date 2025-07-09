@@ -10,10 +10,33 @@ from typing import Any, TypeVar
 import asyncpg
 import asyncpg.exceptions  # type: ignore[import-untyped]
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.database import Database
+from ..models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class UpdateDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class InsertDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 T = TypeVar("T")
 E = TypeVar("E", bound=str)
@@ -220,9 +243,9 @@ async def with_advisory_lock(
 async def upsert_with_conflict(
     db: Database,
     table: str,
-    insert_data: dict[str, Any],
+    insert_data: InsertDataData,
     conflict_columns: list[str],
-    update_data: dict[str, Any] | None = None,
+    update_data: UpdateDataData | None = None,
     returning_columns: list[str] | None = None,
 ) -> Result[dict[str, Any] | None, str]:
     """Perform UPSERT operation with conflict handling.

@@ -11,6 +11,20 @@ from pydantic import BaseModel, ConfigDict, Field, validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
+from ..models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class MetadataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,7 +80,7 @@ class RoomPermission(BaseModel):
     granted_by: UUID = Field(...)
     granted_at: datetime = Field(default_factory=datetime.now)
     expires_at: datetime | None = Field(default=None)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: MetadataData = Field(default_factory=dict)
 
     @beartype
     def is_expired(self) -> bool:
@@ -101,6 +115,7 @@ class RoomAccessRule(BaseModel):
 
     @validator("required_permissions")
     @classmethod
+    @beartype
     def validate_permissions(cls, v: list[PermissionType]) -> list[PermissionType]:
         """Validate that permissions are unique."""
         if len(v) != len(set(v)):

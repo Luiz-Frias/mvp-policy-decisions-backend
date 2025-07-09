@@ -12,9 +12,31 @@ from pydantic import BaseModel, ConfigDict, Field
 from ....core.cache import Cache
 from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
+from ....models.base import BaseModelConfig
 from ....services.admin.pricing_override_service import PricingOverrideService
 from ...dependencies import get_cache, get_current_admin_user, get_database
 from ...response_patterns import ErrorResponse
+
+# Auto-generated models
+
+
+@beartype
+class ConditionsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class AdjustmentsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 router = APIRouter(prefix="/admin/pricing", tags=["admin-pricing"])
 
@@ -66,8 +88,8 @@ class SpecialPricingRuleRequest(BaseModel):
         validate_default=True,
     )
     rule_name: str = Field(..., min_length=3, max_length=100)
-    conditions: dict[str, Any] = Field(..., description="Rule conditions")
-    adjustments: dict[str, Any] = Field(..., description="Pricing adjustments")
+    conditions: ConditionsData = Field(..., description="Rule conditions")
+    adjustments: AdjustmentsData = Field(..., description="Pricing adjustments")
     effective_date: datetime = Field(...)
     expiration_date: datetime | None = Field(default=None)
 

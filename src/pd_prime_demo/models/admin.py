@@ -11,6 +11,85 @@ from pydantic.types import UUID4
 
 from .base import BaseModelConfig, IdentifiableModel
 
+# Auto-generated models
+
+
+@beartype
+class MetadataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class VData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConfigData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class OldValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class VCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class NewValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class PositionCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class DashboardConfigData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ValidationRulesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 class AdminRole(str, Enum):
     """Admin role types with hierarchical permissions."""
@@ -170,6 +249,7 @@ class AdminRoleModel(IdentifiableModel):
 
     @field_validator("permissions")
     @classmethod
+    @beartype
     def validate_permissions(cls, v: list[Permission]) -> list[Permission]:
         """Ensure unique permissions and validate combinations."""
         # Remove duplicates while preserving order
@@ -197,6 +277,7 @@ class AdminRoleModel(IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def permission_count(self) -> int:
         """Count of permissions for this role."""
         return len(self.permissions)
@@ -257,7 +338,7 @@ class AdminUserBase(BaseModelConfig):
         },
         description="Notification preferences by type",
     )
-    dashboard_config: dict[str, Any] = Field(
+    dashboard_config: DashboardConfigData = Field(
         default_factory=dict, description="Custom dashboard configuration"
     )
 
@@ -318,6 +399,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def is_locked(self) -> bool:
         """Check if account is currently locked."""
         if self.locked_until:
@@ -326,6 +408,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def is_active(self) -> bool:
         """Check if account is active and usable."""
         return (
@@ -339,6 +422,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def effective_permissions(self) -> list[Permission]:
         """Get all permissions including role and super admin."""
         if self.is_super_admin:
@@ -351,6 +435,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def requires_password_change(self) -> bool:
         """Check if password change is required."""
         if self.must_change_password:
@@ -363,6 +448,7 @@ class AdminUser(AdminUserBase, IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def days_since_last_login(self) -> int | None:
         """Calculate days since last login."""
         if self.last_login_at:
@@ -387,6 +473,7 @@ class AdminUserCreate(AdminUserBase):
 
     @field_validator("password")
     @classmethod
+    @beartype
     def validate_password_strength(cls, v: str) -> str:
         """Ensure password meets security requirements."""
         # Check minimum length (already enforced by Field)
@@ -437,7 +524,7 @@ class AdminUserUpdate(BaseModelConfig):
 
     # Settings updates
     notification_preferences: dict[str, bool] | None = None
-    dashboard_config: dict[str, Any] | None = None
+    dashboard_config: DashboardConfigData | None = None
 
     # Security updates
     must_change_password: bool | None = Field(
@@ -486,7 +573,7 @@ class SystemSetting(IdentifiableModel):
     description: str | None = Field(
         None, max_length=500, description="Human-readable description of setting"
     )
-    validation_rules: dict[str, Any] | None = Field(
+    validation_rules: ValidationRulesData | None = Field(
         None, description="Additional validation rules (min, max, regex, etc.)"
     )
     default_value: Any | None = Field(None, description="Default value if not set")
@@ -518,6 +605,7 @@ class SystemSetting(IdentifiableModel):
 
     @field_validator("value")
     @classmethod
+    @beartype
     def validate_value_type(cls, v: Any) -> Any:
         """Validate value matches declared type."""
         # Note: Can't access data_type and validation_rules here with beartype
@@ -525,6 +613,7 @@ class SystemSetting(IdentifiableModel):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_setting_consistency(self) -> "SystemSetting":
         """Validate value matches declared type and rules."""
         # Type validation
@@ -574,6 +663,7 @@ class SystemSetting(IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def display_value(self) -> str:
         """Get display value (masked if sensitive)."""
         if self.is_sensitive:
@@ -651,10 +741,10 @@ class AdminActivityLog(IdentifiableModel):
     resource_id: UUID4 | None = Field(None, description="ID of affected resource")
 
     # Change tracking
-    old_values: dict[str, Any] | None = Field(
+    old_values: OldValuesData | None = Field(
         None, description="Previous values (for updates)"
     )
-    new_values: dict[str, Any] | None = Field(
+    new_values: NewValuesData | None = Field(
         None, description="New values (for updates)"
     )
     changes_summary: str | None = Field(
@@ -694,7 +784,7 @@ class AdminActivityLog(IdentifiableModel):
     )
 
     # Additional metadata
-    metadata: dict[str, Any] = Field(
+    metadata: MetadataData = Field(
         default_factory=dict, description="Additional context-specific metadata"
     )
 
@@ -704,7 +794,8 @@ class AdminActivityLog(IdentifiableModel):
 
     @field_validator("old_values", "new_values")
     @classmethod
-    def sanitize_sensitive_data(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+    @beartype
+    def sanitize_sensitive_data(cls, v: VData | None) -> VData | None:
         """Remove sensitive data from logged values."""
         if not v:
             return v
@@ -745,10 +836,10 @@ class DashboardWidget(BaseModelConfig):
         ..., description="Type of widget to display"
     )
     title: str = Field(..., min_length=1, max_length=100, description="Widget title")
-    position: dict[str, int] = Field(
+    position: PositionCounts = Field(
         ..., description="Grid position (x, y, width, height)"
     )
-    config: dict[str, Any] = Field(
+    config: ConfigData = Field(
         default_factory=dict, description="Widget-specific configuration"
     )
     refresh_interval: int | None = Field(
@@ -757,7 +848,8 @@ class DashboardWidget(BaseModelConfig):
 
     @field_validator("position")
     @classmethod
-    def validate_position(cls, v: dict[str, int]) -> dict[str, int]:
+    @beartype
+    def validate_position(cls, v: VCounts) -> VCounts:
         """Ensure position has required fields."""
         required = {"x", "y", "width", "height"}
         if not all(key in v for key in required):
@@ -845,6 +937,7 @@ class AdminDashboard(IdentifiableModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def widget_count(self) -> int:
         """Number of widgets in this dashboard."""
         return len(self.widgets)

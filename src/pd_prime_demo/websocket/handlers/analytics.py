@@ -12,7 +12,62 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
-from ..message_models import (
+from ..message_models import (  # Auto-generated models
+    BaseModelConfig,
+    ByStateCounts,
+    """Structured,
+    ...models.base,
+    :,
+    @beartype,
+    class,
+    dict[str,
+    from,
+    import,
+    int],
+    model,
+    replacing,
+    usage.""",
+)
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ByProductTypeCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class ByAgentCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class ByStatusCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class ByValueRangeCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
     create_websocket_message_data,
 )
 
@@ -90,11 +145,11 @@ class AnalyticsDistribution(BaseModel):
         validate_default=True,
     )
 
-    by_state: dict[str, int] = Field(default_factory=dict)
-    by_product_type: dict[str, int] = Field(default_factory=dict)
-    by_agent: dict[str, int] = Field(default_factory=dict)
-    by_status: dict[str, int] = Field(default_factory=dict)
-    by_value_range: dict[str, int] = Field(default_factory=dict)
+    by_state: ByStateCounts = Field(default_factory=dict)
+    by_product_type: ByProductTypeCounts = Field(default_factory=dict)
+    by_agent: ByAgentCounts = Field(default_factory=dict)
+    by_status: ByStatusCounts = Field(default_factory=dict)
+    by_value_range: ByValueRangeCounts = Field(default_factory=dict)
 
 
 class AnalyticsPeriod(BaseModel):
@@ -641,7 +696,7 @@ class AnalyticsWebSocketHandler:
 
     @beartype
     async def broadcast_event(
-        self, event_type: str, data: dict[str, Any]
+        self, event_type: str, data: DataData
     ) -> Result[int, str]:
         """Broadcast analytics event to relevant dashboard subscribers."""
         # Determine which dashboards care about this event
@@ -689,7 +744,7 @@ class AnalyticsWebSocketHandler:
         alert_type: str,
         message: str,
         severity: str,
-        data: dict[str, Any] | None = None,
+        data: DataData | None = None,
     ) -> Result[int, str]:
         """Send alert to admin dashboard subscribers."""
         if severity not in ["low", "medium", "high", "critical"]:

@@ -101,6 +101,7 @@ class HealthResponse(BaseModel):
 APP_START_TIME = datetime.utcnow()
 
 
+@beartype
 def log_request_details(request: Request, endpoint_name: str) -> str:
     """Log detailed request information for debugging."""
     request_id = f"{int(time.time())}-{id(request)}"

@@ -4,9 +4,31 @@ from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype
+from pydantic import Field
 
+from ..models.base import BaseModelConfig
 from .database_enhanced import Database
 from .result_types import Err, Ok, Result
+
+# Auto-generated models
+
+
+@beartype
+class PlanDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class PlanDetailsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @frozen
@@ -18,7 +40,7 @@ class QueryPlan:
     planning_time_ms: float = field()
     total_cost: float = field()
     rows_returned: int = field()
-    plan_details: dict[str, Any] = field()
+    plan_details: PlanDetailsData = field()
     suggestions: list[str] = field(factory=list)
 
 
@@ -106,7 +128,7 @@ class QueryOptimizer:
             return Err(f"Failed to analyze query: {str(e)}")
 
     @beartype
-    def _analyze_plan_for_suggestions(self, plan_data: dict[str, Any]) -> list[str]:
+    def _analyze_plan_for_suggestions(self, plan_data: PlanDataData) -> list[str]:
         """Analyze query plan and generate optimization suggestions."""
         suggestions = []
         plan = plan_data.get("Plan", {})

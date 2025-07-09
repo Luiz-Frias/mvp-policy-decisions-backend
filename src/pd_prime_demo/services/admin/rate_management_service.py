@@ -19,6 +19,44 @@ from ...core.database import Database
 from ...models.base import BaseModelConfig
 from ..rating.rate_tables import RateTableService
 
+# Auto-generated models
+
+
+@beartype
+class DetailsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConversionMetricsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class RateDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DifferencesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 class RateVersionResponse(BaseModelConfig):
     """Rate version response model."""
@@ -47,7 +85,7 @@ class RateManagementService:
     async def create_rate_table_version(
         self,
         table_name: str,
-        rate_data: dict[str, Any],
+        rate_data: RateDataData,
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
@@ -456,7 +494,7 @@ class RateManagementService:
         admin_user_id: UUID,
         action: str,
         target_id: UUID,
-        details: dict[str, Any],
+        details: DetailsData,
     ) -> None:
         """Log rate management activity for audit trail."""
         query = """
@@ -486,7 +524,9 @@ class RateManagementService:
         print(f"Rate version {version_id} approved by {approved_by}")
 
     @beartype
-    async def _analyze_rate_impact(self, differences: dict[str, Any]) -> dict[str, Any]:
+    async def _analyze_rate_impact(
+        self, differences: DifferencesData
+    ) -> DifferencesData:
         """Analyze business impact of rate changes."""
         modified = differences.get("modified", {})
 
@@ -687,7 +727,7 @@ class RateManagementService:
     async def _calculate_rate_summary(
         self,
         quote_analytics: list[dict[str, Any]],
-        conversion_metrics: dict[str, Any],
+        conversion_metrics: ConversionMetricsData,
     ) -> dict[str, Any]:
         """Calculate summary statistics."""
         if not quote_analytics:

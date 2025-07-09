@@ -226,6 +226,7 @@ class OverrideData(BaseModelConfig):
 
     @field_validator("new_value")
     @classmethod
+    @beartype
     def validate_new_value_different(cls, v: Any, info: "ValidationInfo") -> Any:
         """Ensure new value is different from original."""
         if info.data.get("original_value") == v:
@@ -443,6 +444,7 @@ class VehicleInfo(BaseModelConfig):
 
     @field_validator("vin")
     @classmethod
+    @beartype
     def validate_vin(cls, v: str) -> str:
         """Validate VIN format and checksum per ISO 3779."""
         # Normalize to uppercase
@@ -460,6 +462,7 @@ class VehicleInfo(BaseModelConfig):
 
     @field_validator("year")
     @classmethod
+    @beartype
     def validate_year(cls, v: int) -> int:
         """Ensure vehicle year is within insurable range."""
         current_year = datetime.now().year
@@ -475,6 +478,7 @@ class VehicleInfo(BaseModelConfig):
 
     @field_validator("safety_features")
     @classmethod
+    @beartype
     def validate_safety_features(cls, v: list[str]) -> list[str]:
         """Ensure safety features are valid and unique."""
         # Remove duplicates while preserving order
@@ -488,6 +492,7 @@ class VehicleInfo(BaseModelConfig):
         return unique_features
 
     @model_validator(mode="after")
+    @beartype
     def validate_lease_consistency(self) -> "VehicleInfo":
         """Ensure lease information is consistent."""
         if not self.owned and not self.lease_company:
@@ -673,6 +678,7 @@ class DriverInfo(BaseModelConfig):
 
     @field_validator("date_of_birth")
     @classmethod
+    @beartype
     def validate_driver_age(cls, v: date) -> date:
         """Validate driver meets minimum age requirements per state laws."""
         today = datetime.now().date()
@@ -694,6 +700,7 @@ class DriverInfo(BaseModelConfig):
 
     @field_validator("license_state")
     @classmethod
+    @beartype
     def validate_license_state(cls, v: str) -> str:
         """Validate state code against known US states."""
         if v not in VALID_US_STATE_CODES:
@@ -702,6 +709,7 @@ class DriverInfo(BaseModelConfig):
 
     @field_validator("first_licensed_date")
     @classmethod
+    @beartype
     def validate_first_licensed_date(cls, v: date) -> date:
         """Ensure first licensed date is reasonable."""
         today = datetime.now().date()
@@ -718,6 +726,7 @@ class DriverInfo(BaseModelConfig):
 
     @field_validator("good_student")
     @classmethod
+    @beartype
     def validate_good_student(cls, v: bool) -> bool:
         """Validate good student eligibility."""
         if v:
@@ -728,6 +737,7 @@ class DriverInfo(BaseModelConfig):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def years_licensed(self) -> int:
         """Calculate years of driving experience."""
         if hasattr(self, "first_licensed_date"):
@@ -737,6 +747,7 @@ class DriverInfo(BaseModelConfig):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def age(self) -> int:
         """Calculate current age in years."""
         if hasattr(self, "date_of_birth"):
@@ -745,6 +756,7 @@ class DriverInfo(BaseModelConfig):
         return 0
 
     @model_validator(mode="after")
+    @beartype
     def validate_driver_consistency(self) -> "DriverInfo":
         """Ensure driver information is internally consistent."""
         # First licensed date must be after birth date + 16 years
@@ -802,6 +814,7 @@ class CoverageSelection(BaseModelConfig):
 
     @field_validator("limit")
     @classmethod
+    @beartype
     def validate_coverage_limit(cls, v: Decimal) -> Decimal:
         """Validate coverage limits based on coverage type."""
         # Note: Can't access coverage_type here with beartype
@@ -809,6 +822,7 @@ class CoverageSelection(BaseModelConfig):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_deductible_requirement(self) -> "CoverageSelection":
         """Ensure deductible is provided where required and validate limits."""
         # Validate coverage limits based on coverage type
@@ -870,6 +884,7 @@ class Discount(BaseModelConfig):
 
     @field_validator("amount")
     @classmethod
+    @beartype
     def validate_discount_amount(cls, v: Decimal) -> Decimal:
         """Ensure discount amounts are negative values."""
         if v > 0:
@@ -939,6 +954,7 @@ class QuoteBase(BaseModelConfig):
 
     @field_validator("state")
     @classmethod
+    @beartype
     def validate_state(cls, v: str) -> str:
         """Validate state code."""
         if v not in VALID_US_STATE_CODES:
@@ -947,6 +963,7 @@ class QuoteBase(BaseModelConfig):
 
     @field_validator("effective_date")
     @classmethod
+    @beartype
     def validate_effective_date(cls, v: date) -> date:
         """Ensure effective date follows business rules."""
         today = datetime.now().date()
@@ -971,6 +988,7 @@ class QuoteBase(BaseModelConfig):
 
     @field_validator("drivers")
     @classmethod
+    @beartype
     def validate_drivers(cls, v: list[DriverInfo]) -> list[DriverInfo]:
         """Ensure driver list follows business rules."""
         if not v:
@@ -991,6 +1009,7 @@ class QuoteBase(BaseModelConfig):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_product_consistency(self) -> "QuoteBase":
         """Ensure product-specific data is consistent."""
         if self.product_type == "auto":
@@ -1159,6 +1178,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
     @field_validator("quote_number")
     @classmethod
+    @beartype
     def validate_quote_number(cls, v: str) -> str:
         """Ensure quote number follows business format."""
         parts = v.split("-")
@@ -1174,6 +1194,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
     @field_validator("expires_at")
     @classmethod
+    @beartype
     def validate_expiration(cls, v: datetime) -> datetime:
         """Ensure expiration follows business rules."""
         # Note: Can't access requested_date here with beartype
@@ -1193,12 +1214,14 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def is_expired(self) -> bool:
         """Check if quote has expired."""
         return datetime.now() > self.expires_at
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def days_until_expiration(self) -> int:
         """Calculate days until quote expires."""
         if self.is_expired:
@@ -1208,6 +1231,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def total_savings(self) -> Decimal:
         """Calculate total savings from discounts."""
         if self.total_discount_amount:
@@ -1216,6 +1240,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    @beartype
     def is_convertible(self) -> bool:
         """Check if quote can be converted to policy."""
         return (
@@ -1227,6 +1252,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
         )
 
     @model_validator(mode="after")
+    @beartype
     def validate_status_consistency(self) -> "Quote":
         """Ensure status is consistent with other fields."""
         # If converted, status should be BOUND
@@ -1279,6 +1305,7 @@ class QuoteCreate(QuoteBase):
 
     @field_validator("drivers")
     @classmethod
+    @beartype
     def validate_drivers(cls, v: list[DriverInfo]) -> list[DriverInfo]:
         """Override parent validation - allow empty driver list for wizard workflow."""
         # For QuoteCreate, we allow empty drivers list initially
@@ -1286,6 +1313,7 @@ class QuoteCreate(QuoteBase):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_product_consistency(self) -> "QuoteCreate":
         """Override parent validation to support wizard workflow."""
         # For QuoteCreate, we allow creation without complete data
@@ -1356,6 +1384,7 @@ class QuoteComparison(BaseModelConfig):
 
     @field_validator("quotes")
     @classmethod
+    @beartype
     def validate_quotes_for_comparison(cls, v: list[Quote]) -> list[Quote]:
         """Ensure quotes are comparable."""
         if len(v) < 2:
@@ -1403,6 +1432,7 @@ class QuoteConversionRequest(BaseModelConfig):
 
     @field_validator("effective_date")
     @classmethod
+    @beartype
     def validate_conversion_effective_date(cls, v: date | None) -> date | None:
         """Validate conversion effective date."""
         if v is None:
@@ -1451,6 +1481,7 @@ class QuoteOverrideRequest(BaseModelConfig):
 
     @field_validator("override_data")
     @classmethod
+    @beartype
     def validate_override_data(cls, v: OverrideData) -> OverrideData:
         """Validate override data contains required fields."""
         # The OverrideData model already has its own validation

@@ -47,6 +47,29 @@ from .rating.business_rules import RatingBusinessRules
 from .rating.performance_optimizer import RatingPerformanceOptimizer
 from .rating.territory_management import TerritoryManager
 
+# Auto-generated models
+
+
+@beartype
+class FactorsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class RateFactorsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class MinimumLiabilityLimitsCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
 
 @beartype
 class DiscountRules(BaseModelConfig):
@@ -82,7 +105,7 @@ class DiscountRules(BaseModelConfig):
 class StateRules(BaseModelConfig):
     """State-specific rating rules configuration."""
 
-    minimum_liability_limits: dict[str, int] = Field(
+    minimum_liability_limits: MinimumLiabilityLimitsCounts = Field(
         default_factory=dict, description="Minimum coverage limits by type"
     )
     pip_required: bool = Field(
@@ -92,7 +115,7 @@ class StateRules(BaseModelConfig):
         default=False, description="Uninsured motorist coverage required"
     )
     no_fault_state: bool = Field(default=False, description="No-fault insurance state")
-    rate_factors: dict[str, float] = Field(
+    rate_factors: RateFactorsMetrics = Field(
         default_factory=dict, description="State-specific rate factors"
     )
     territorial_rating: bool = Field(
@@ -119,6 +142,7 @@ class CoveragePremiums(BaseModelConfig):
     underinsured_motorist: Decimal = Field(default=Decimal("0"), ge=0, decimal_places=2)
     rental: Decimal = Field(default=Decimal("0"), ge=0, decimal_places=2)
 
+    @beartype
     def get_coverage_premium(self, coverage_type: CoverageType) -> Decimal:
         """Get premium for a specific coverage type."""
         coverage_map = {
@@ -141,11 +165,13 @@ class SurchargeList(BaseModelConfig):
 
     items: list[SurchargeCalculation] = Field(default_factory=list)
 
+    @beartype
     def add_surcharge(self, surcharge: SurchargeCalculation) -> None:
         """Add a surcharge to the list."""
         # Note: Can't modify due to frozen=True, but providing interface for clarity
         pass
 
+    @beartype
     def total_amount(self) -> Decimal:
         """Calculate total surcharge amount."""
         return sum((item.amount for item in self.items), Decimal("0"))
@@ -1380,7 +1406,7 @@ class RatingEngine:
     @beartype
     @performance_monitor("apply_state_factor_rules")
     def _apply_state_factor_rules(
-        self, state: str, factors: dict[str, float]
+        self, state: str, factors: FactorsMetrics
     ) -> Result[dict[str, float], str]:
         """Apply state-specific factor validation rules."""
         if state not in self._state_rules:

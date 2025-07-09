@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -13,6 +12,35 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class ConditionsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class AdjustmentsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ActionDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class PricingOverrideResponse(BaseModelConfig):
@@ -240,8 +268,8 @@ class PricingOverrideService:
         self,
         admin_user_id: UUID,
         rule_name: str,
-        conditions: dict[str, Any],
-        adjustments: dict[str, Any],
+        conditions: ConditionsData,
+        adjustments: AdjustmentsData,
         effective_date: datetime,
         expiration_date: datetime | None = None,
     ) -> Result[UUID, str]:
@@ -506,7 +534,7 @@ class PricingOverrideService:
         admin_user_id: UUID,
         action_type: str,
         quote_id: UUID | None,
-        action_data: dict[str, Any],
+        action_data: ActionDataData,
     ) -> None:
         """Log pricing activity for audit trail.
 

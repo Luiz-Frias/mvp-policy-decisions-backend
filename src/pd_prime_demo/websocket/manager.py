@@ -17,13 +17,69 @@ from ..core.cache import Cache
 from ..core.database import Database
 from .message_models import (
     BackpressureMetrics,
+    BaseModelConfig,
     ConnectionCapabilities,
     WebSocketConnectionMetadata,
+    ..models.base,
     create_connection_capabilities,
     create_connection_metadata,
     create_websocket_message_data,
+    from,
+    import,
 )
 from .monitoring import WebSocketMonitor
+
+# Auto-generated models
+
+@beartype
+class MetadataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class VData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class MissedHeartbeatsCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class MessageSequencesCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class RawMessageData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 
 class RateLimiterState(TypedDict):
@@ -112,7 +168,7 @@ class WebSocketMessage(BaseModel):
     )
 
     type: MessageType = Field(..., description="Message type from enum")
-    data: dict[str, Any] = Field(default_factory=dict, description="Message payload")
+    data: DataData = Field(default_factory=dict, description="Message payload")
     timestamp: datetime = Field(
         default_factory=datetime.now, description="Message timestamp"
     )
@@ -131,7 +187,8 @@ class WebSocketMessage(BaseModel):
 
     @validator("data")
     @classmethod
-    def validate_data_size(cls, v: dict[str, Any]) -> dict[str, Any]:
+    @beartype
+    def validate_data_size(cls, v: VData) -> VData:
         """Validate message data size to prevent oversized messages."""
         import json
 
@@ -142,18 +199,21 @@ class WebSocketMessage(BaseModel):
 
     @validator("binary_data")
     @classmethod
+    @beartype
     def validate_binary_size(cls, v: bytes | None) -> bytes | None:
         """Validate binary data size."""
         if v is not None and len(v) > 10 * 1024 * 1024:  # 10MB limit
             raise ValueError(f"Binary data too large: {len(v)} bytes (max 10MB)")
         return v
 
+    @beartype
     def is_expired(self) -> bool:
         """Check if message has expired based on TTL."""
         if self.ttl_seconds is None:
             return False
         return (datetime.now() - self.timestamp).total_seconds() > self.ttl_seconds
 
+    @beartype
     def get_size_bytes(self) -> int:
         """Get total message size in bytes."""
         import json
@@ -204,6 +264,7 @@ class ConnectionMetadata(BaseModel):
     rate_limit_remaining: int = Field(default=1000)
     backpressure_level: float = Field(default=0.0, ge=0.0, le=1.0)
 
+    @beartype
     def is_healthy(self) -> bool:
         """Check if connection is in healthy state."""
         return self.state in {
@@ -212,6 +273,7 @@ class ConnectionMetadata(BaseModel):
             ConnectionState.ACTIVE,
         }
 
+    @beartype
     def needs_attention(self) -> bool:
         """Check if connection needs attention."""
         return self.state in {
@@ -220,10 +282,12 @@ class ConnectionMetadata(BaseModel):
             ConnectionState.ERROR,
         }
 
+    @beartype
     def is_rate_limited(self) -> bool:
         """Check if connection is rate limited."""
         return self.rate_limit_remaining <= 0
 
+    @beartype
     def has_backpressure(self) -> bool:
         """Check if connection has backpressure."""
         return self.backpressure_level > 0.7
@@ -260,6 +324,7 @@ class ConnectionPool:
             MessagePriority.LOW: 10,
         }
 
+    @beartype
     def should_scale_up(self, current_load: float) -> bool:
         """Determine if pool should scale up."""
         return (
@@ -268,6 +333,7 @@ class ConnectionPool:
             and any(len(q) > 100 for q in self.priority_queues.values())
         )
 
+    @beartype
     def should_scale_down(self, current_load: float) -> bool:
         """Determine if pool should scale down."""
         return (
@@ -276,6 +342,7 @@ class ConnectionPool:
             and all(len(q) < 10 for q in self.priority_queues.values())
         )
 
+    @beartype
     def scale_up(self) -> None:
         """Scale up the connection pool."""
         new_capacity = min(
@@ -283,6 +350,7 @@ class ConnectionPool:
         )
         self.current_capacity = new_capacity
 
+    @beartype
     def scale_down(self) -> None:
         """Scale down the connection pool."""
         new_capacity = max(
@@ -290,6 +358,7 @@ class ConnectionPool:
         )
         self.current_capacity = new_capacity
 
+    @beartype
     def add_message(self, message: WebSocketMessage, connection_id: str) -> bool:
         """Add message to appropriate priority queue."""
         queue = self.priority_queues[message.priority]
@@ -310,6 +379,7 @@ class ConnectionPool:
         queue.append(message)
         return True
 
+    @beartype
     def get_next_message(self) -> WebSocketMessage | None:
         """Get next message based on priority."""
         # Process in priority order
@@ -325,6 +395,7 @@ class ConnectionPool:
                 return message
         return None
 
+    @beartype
     def get_backpressure_level(self) -> float:
         """Calculate overall backpressure level (0.0 to 1.0)."""
         total_messages = sum(len(q) for q in self.priority_queues.values())
@@ -353,7 +424,7 @@ class ConnectionManager:
         self._connection_metadata: dict[str, WebSocketConnectionMetadata] = {}
 
         # Message sequence tracking per connection
-        self._message_sequences: dict[str, int] = {}
+        self._message_sequences: MessageSequencesCounts = {}
 
         # Enhanced heartbeat tracking
         self._heartbeat_config = {
@@ -362,7 +433,7 @@ class ConnectionManager:
             "max_missed": 3,  # missed heartbeats before disconnect
         }
         self._last_ping: dict[str, datetime] = {}
-        self._missed_heartbeats: dict[str, int] = {}
+        self._missed_heartbeats: MissedHeartbeatsCounts = {}
 
         # Connection pool
         self._pool = ConnectionPool()
@@ -438,7 +509,7 @@ class ConnectionManager:
         websocket: WebSocket,
         connection_id: str,
         user_id: UUID | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: MetadataData | None = None,
     ) -> Result[str, str]:
         """Accept and register a new WebSocket connection with explicit validation."""
         # Check connection limits
@@ -881,7 +952,7 @@ class ConnectionManager:
 
     @beartype
     async def handle_message(
-        self, connection_id: str, raw_message: dict[str, Any]
+        self, connection_id: str, raw_message: RawMessageData
     ) -> Result[None, str]:
         """Handle incoming WebSocket message with explicit validation."""
         # Validate connection exists

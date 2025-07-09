@@ -76,14 +76,17 @@ class QueuedMessage(BaseModel):
     processing_started_at: datetime | None = Field(default=None)
     last_error: str | None = Field(default=None)
 
+    @beartype
     def is_expired(self, ttl_seconds: int) -> bool:
         """Check if message has expired."""
         return (datetime.now() - self.enqueued_at).total_seconds() > ttl_seconds
 
+    @beartype
     def should_retry(self, max_retries: int) -> bool:
         """Check if message should be retried."""
         return self.retry_count < max_retries
 
+    @beartype
     def get_retry_delay(self, base_delay: int) -> int:
         """Get exponential backoff delay for retry."""
         return int(min(base_delay * (2**self.retry_count), 60))  # Max 60 seconds

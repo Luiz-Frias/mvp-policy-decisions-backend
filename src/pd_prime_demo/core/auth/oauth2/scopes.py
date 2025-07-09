@@ -198,6 +198,7 @@ class ScopeValidator:
         """
         expanded = set()
 
+        @beartype
         def add_scope_with_includes(scope_name: str) -> None:
             if scope_name in expanded:
                 return

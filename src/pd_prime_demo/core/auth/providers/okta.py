@@ -48,6 +48,7 @@ class OktaSSOProvider(OIDCProvider):
         self.authorization_server_id = authorization_server_id
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "okta"

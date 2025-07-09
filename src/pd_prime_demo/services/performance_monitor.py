@@ -35,6 +35,7 @@ def performance_monitor(
         log_slow_operations: Whether to log slow operations
     """
 
+    @beartype
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -115,6 +116,7 @@ def performance_monitor(
                         pass
 
         @wraps(func)
+        @beartype
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # For synchronous functions, use simplified monitoring
             start_time = time.perf_counter()

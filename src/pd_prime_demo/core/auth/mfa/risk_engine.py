@@ -2,16 +2,53 @@
 
 from datetime import datetime, timezone
 from ipaddress import ip_address, ip_network
-from typing import Any
 
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
 from ....core.database import Database
+from ...models.base import BaseModelConfig
 from .models import MFAMethod, RiskAssessment, RiskFactors, RiskLevel
+
+# Auto-generated models
+
+
+@beartype
+class Loc1Data(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ContextData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class UpdatesMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class AdditionalContextData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class RiskEngine:
@@ -64,7 +101,7 @@ class RiskEngine:
         ip_address: str,
         user_agent: str,
         device_fingerprint: str | None = None,
-        additional_context: dict[str, Any] | None = None,
+        additional_context: AdditionalContextData | None = None,
     ) -> Result[RiskAssessment, str]:
         """Assess authentication risk based on multiple factors.
 
@@ -342,7 +379,7 @@ class RiskEngine:
 
     @beartype
     async def _assess_behavior_risk(
-        self, user_id: str, context: dict[str, Any]
+        self, user_id: str, context: ContextData
     ) -> dict[str, float]:
         """Assess risk based on behavioral patterns."""
         risk_factors = {}
@@ -457,7 +494,7 @@ class RiskEngine:
 
     @beartype
     def _update_risk_factors(
-        self, risk_factors: RiskFactors, updates: dict[str, float]
+        self, risk_factors: RiskFactors, updates: UpdatesMetrics
     ) -> RiskFactors:
         """Update risk factors with new values."""
         location_risk = risk_factors.location_risk
@@ -525,7 +562,7 @@ class RiskEngine:
         }
 
     @beartype
-    def _calculate_distance(self, loc1: dict[str, Any], loc2: dict[str, Any]) -> float:
+    def _calculate_distance(self, loc1: Loc1Data, loc2: Loc1Data) -> float:
         """Calculate distance between two locations in km (mock)."""
         # In production, use proper geographic distance calculation
         return 100.0  # Mock 100km

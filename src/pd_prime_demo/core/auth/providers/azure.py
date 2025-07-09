@@ -42,6 +42,7 @@ class AzureADSSOProvider(OIDCProvider):
         self.tenant_id = tenant_id
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "azure"

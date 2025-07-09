@@ -24,6 +24,32 @@ from pd_prime_demo.schemas.rating import (
 from ...core.result_types import Err, Ok, Result
 from ..performance_monitor import performance_monitor
 
+# Auto-generated models
+
+
+@beartype
+class FeaturesMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class ParametersData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class CoefficientsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
 # Set decimal precision for financial calculations
 getcontext().prec = 10
 
@@ -41,6 +67,7 @@ class RatingFactors(BaseModelConfig):
     violations: float = Field(ge=0.1, le=5.0, description="Violations factor")
     accidents: float = Field(ge=0.1, le=5.0, description="Accidents factor")
 
+    @beartype
     def to_dict(self) -> dict[str, float]:
         """Convert to legacy dict format for backward compatibility."""
         return {
@@ -82,6 +109,7 @@ class FactorImpacts(BaseModelConfig):
         default=Decimal("0"), description="Accidents impact amount"
     )
 
+    @beartype
     def to_dict(self) -> dict[str, Decimal]:
         """Convert to legacy dict format for backward compatibility."""
         return {
@@ -95,6 +123,7 @@ class FactorImpacts(BaseModelConfig):
             "accidents": self.accidents,
         }
 
+    @beartype
     def set_impact(self, factor_name: str, amount: Decimal) -> None:
         """Set impact amount for a specific factor."""
         if hasattr(self, factor_name):
@@ -122,6 +151,7 @@ class TerritoryData(BaseModelConfig):
         default_factory=dict, description="ZIP code specific territory data"
     )
 
+    @beartype
     def get_zip_data(self, zip_code: str) -> ZipTerritoryData:
         """Get territory data for specific ZIP code."""
         return self.zip_territories.get(zip_code, ZipTerritoryData())
@@ -140,6 +170,7 @@ class DriverData(BaseModelConfig):
         default=0, ge=0, description="Accidents in last 3 years"
     )
 
+    @beartype
     def validate_experience(self) -> bool:
         """Validate that years licensed doesn't exceed reasonable maximum."""
         return self.years_licensed <= (self.age - 16)
@@ -375,7 +406,7 @@ class TableDefinition(BaseModelConfig):
     """Definition for lookup table configuration."""
 
     table_type: str = Field(..., description="Type of lookup table")
-    parameters: dict[str, Any] = Field(
+    parameters: ParametersData = Field(
         default_factory=dict, description="Table parameters"
     )
 
@@ -1432,8 +1463,8 @@ class StatisticalRatingModels:
     @beartype
     @staticmethod
     def calculate_generalized_linear_model_factor(
-        features: dict[str, float],
-        coefficients: dict[str, float],
+        features: FeaturesMetrics,
+        coefficients: CoefficientsMetrics,
         link_function: str = "log",
     ) -> Result[float, str]:
         """Calculate GLM-based rating factor.

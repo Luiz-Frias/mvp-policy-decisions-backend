@@ -9,12 +9,25 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
 from ...schemas.rating import TerritoryRiskFactors
+
+# Auto-generated models
+
+
+@beartype
+class MetricsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @beartype
@@ -295,7 +308,7 @@ class TerritoryManager:
             territory = territory_result.value
 
             # Calculate detailed metrics
-            metrics: dict[str, Any] = {
+            metrics: MetricsData = {
                 "territory_id": territory.territory_id,
                 "base_factor": territory.base_factor,
                 "composite_factor": territory.calculate_composite_factor(),

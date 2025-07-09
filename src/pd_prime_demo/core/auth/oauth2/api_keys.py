@@ -7,11 +7,24 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.database import Database
+from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class RequestContextData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class APIKeyManager:
@@ -517,7 +530,7 @@ class APIKeyManager:
         self,
         api_key: str,
         required_permissions: list[str],
-        request_context: dict[str, Any] | None = None,
+        request_context: RequestContextData | None = None,
     ) -> Result[dict[str, Any], str]:
         """Advanced API key validation with context-aware permissions.
 

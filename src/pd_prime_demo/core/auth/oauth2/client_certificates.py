@@ -10,11 +10,23 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.database import Database
+from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class SubjectInfoMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
 
 
 class ClientCertificateManager:
@@ -365,7 +377,7 @@ class ClientCertificateManager:
     async def create_certificate_signing_request(
         self,
         client_id: str,
-        subject_info: dict[str, str],
+        subject_info: SubjectInfoMapping,
     ) -> Result[dict[str, Any], str]:
         """Create a certificate signing request (CSR) for a client.
 

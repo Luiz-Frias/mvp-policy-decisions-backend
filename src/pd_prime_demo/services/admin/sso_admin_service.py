@@ -13,6 +13,52 @@ from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
 
+# Auto-generated models
+
+
+@beartype
+class DetailsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConfigData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class SyncStatisticsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConfigurationData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class PeriodMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
 
 class SSOProviderUpdate(BaseModelConfig):
     """Model for updating SSO provider configuration."""
@@ -20,7 +66,7 @@ class SSOProviderUpdate(BaseModelConfig):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     provider_name: str | None = None
-    configuration: dict[str, Any] | None = None
+    configuration: ConfigurationData | None = None
     is_enabled: bool | None = None
 
 
@@ -31,7 +77,7 @@ class SSOConnectionTestResult(BaseModelConfig):
 
     success: bool
     error: str | None = None
-    details: dict[str, Any]
+    details: DetailsData
     note: str | None = None
 
 
@@ -42,9 +88,9 @@ class SSOAnalytics(BaseModelConfig):
 
     login_statistics: list[dict[str, Any]]
     provisioning_statistics: list[dict[str, Any]]
-    sync_statistics: dict[str, Any]
+    sync_statistics: SyncStatisticsData
     provider_statistics: list[dict[str, Any]]
-    period: dict[str, str]
+    period: PeriodMapping
 
 
 class SSOProviderList(BaseModelConfig):
@@ -66,7 +112,7 @@ class SSOProviderDetails(BaseModelConfig):
     id: UUID
     provider_name: str
     provider_type: str
-    configuration: dict[str, Any]
+    configuration: ConfigurationData
     is_enabled: bool
     created_by: UUID | None
     updated_by: UUID | None
@@ -105,7 +151,7 @@ class SSOAdminService:
         admin_user_id: UUID,
         provider_name: str,
         provider_type: str,  # 'oidc', 'saml', 'oauth2'
-        configuration: dict[str, Any],
+        configuration: ConfigurationData,
         is_enabled: bool = False,
     ) -> Result[UUID, str]:
         """Create new SSO provider configuration.
@@ -542,7 +588,7 @@ class SSOAdminService:
     async def _validate_provider_config(
         self,
         provider_type: str,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> Result[bool, str]:
         """Validate provider configuration.
 
@@ -593,7 +639,7 @@ class SSOAdminService:
     @beartype
     async def _test_oidc_connection(
         self,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> dict[str, Any]:
         """Test OIDC provider connection.
 
@@ -646,7 +692,7 @@ class SSOAdminService:
     @beartype
     async def _test_saml_connection(
         self,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> dict[str, Any]:
         """Test SAML provider connection.
 
@@ -670,7 +716,7 @@ class SSOAdminService:
     @beartype
     async def _encrypt_sensitive_config(
         self,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> dict[str, Any]:
         """Encrypt sensitive configuration fields.
 
@@ -698,7 +744,7 @@ class SSOAdminService:
     @beartype
     async def _decrypt_config(
         self,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> dict[str, Any]:
         """Decrypt configuration.
 
@@ -974,7 +1020,7 @@ class SSOAdminService:
     @beartype
     def _mask_sensitive_config(
         self,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> dict[str, Any]:
         """Mask sensitive configuration fields for display.
 
@@ -1003,7 +1049,7 @@ class SSOAdminService:
         admin_user_id: UUID,
         action: str,
         provider_id: UUID | None,
-        details: dict[str, Any],
+        details: DetailsData,
     ) -> None:
         """Log SSO administrative activity.
 

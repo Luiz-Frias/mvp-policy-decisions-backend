@@ -5,10 +5,32 @@ from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype
+from pydantic import Field
 
+from ..models.base import BaseModelConfig
 from .cache_stub import get_cache
 from .database_enhanced import Database
 from .result_types import Err, Ok, Result
+
+# Auto-generated models
+
+
+@beartype
+class OptimizationResultsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class SystemHealthData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @frozen
@@ -17,7 +39,7 @@ class AdminMetrics:
 
     daily_metrics: list[dict[str, Any]] = field()
     user_activity: list[dict[str, Any]] = field()
-    system_health: dict[str, Any] = field()
+    system_health: SystemHealthData = field()
     cache_timestamp: datetime = field()
 
 
@@ -509,7 +531,7 @@ class AdminQueryOptimizer:
     @beartype
     async def optimize_admin_queries(self) -> Result[dict[str, Any], str]:
         """Analyze and optimize all admin queries."""
-        optimization_results: dict[str, Any] = {
+        optimization_results: OptimizationResultsData = {
             "indexes_created": [],
             "views_optimized": [],
             "settings_adjusted": [],

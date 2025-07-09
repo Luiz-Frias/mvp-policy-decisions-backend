@@ -82,6 +82,7 @@ class BiometricChallengeData(BaseModel):
     """Biometric authentication challenge data."""
 
     model_config = ConfigDict(
+        frozen=True,
         frozen=False,  # Allow mutation for status updates
         extra="forbid",
         validate_assignment=True,

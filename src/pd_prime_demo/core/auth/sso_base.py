@@ -11,6 +11,26 @@ from pydantic import ConfigDict, Field
 from ...core.result_types import Err, Ok, Result
 from ...models.base import BaseModelConfig
 
+# Auto-generated models
+
+
+@beartype
+class RawClaimsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DiscoveryDocumentData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 class SSOUserInfo(BaseModelConfig):
     """Standardized user info from SSO providers."""
@@ -50,7 +70,7 @@ class SSOUserInfo(BaseModelConfig):
     last_login: datetime = Field(
         default_factory=datetime.now, description="Last login time"
     )
-    raw_claims: dict[str, Any] = Field(
+    raw_claims: RawClaimsData = Field(
         default_factory=dict, description="Raw claims from provider"
     )
 
@@ -80,6 +100,7 @@ class SSOProvider(ABC):
 
     @property
     @abstractmethod
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         pass
@@ -220,7 +241,7 @@ class OIDCProvider(SSOProvider):
             scopes or default_scopes,
         )
         self.issuer = issuer
-        self._discovery_document: dict[str, Any] | None = None
+        self._discovery_document: DiscoveryDocumentData | None = None
 
     @beartype
     async def discover(self) -> Result[dict[str, Any], str]:

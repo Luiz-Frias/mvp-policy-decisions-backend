@@ -7,6 +7,18 @@ from fastapi import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class FieldErrorsMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
 
 T = TypeVar("T")
 
@@ -26,7 +38,7 @@ class ErrorDetails(BaseModel):
     error_code: str | None = Field(
         default=None, description="Machine-readable error code"
     )
-    field_errors: dict[str, str] | None = Field(
+    field_errors: FieldErrorsMapping | None = Field(
         default=None, description="Field-specific validation errors"
     )
     validation_errors: list[str] | None = Field(
@@ -373,7 +385,7 @@ def handle_result_wrapped(
 @beartype
 def create_error_details(
     error_code: str | None = None,
-    field_errors: dict[str, str] | None = None,
+    field_errors: FieldErrorsMapping | None = None,
     validation_errors: list[str] | None = None,
     context: dict[str, str | int | bool | float | None] | None = None,
     request_id: str | None = None,

@@ -190,6 +190,7 @@ class Cache:
         return int(result)
 
     @property
+    @beartype
     def is_connected(self) -> bool:
         """Check if cache is connected."""
         return self._redis is not None

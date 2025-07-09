@@ -65,6 +65,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         }
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "saml"
@@ -480,6 +481,7 @@ class OktaSAMLProvider(EnhancedSAMLProvider):
         self.app_id = app_id
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "okta_saml"
@@ -538,6 +540,7 @@ class AzureADSAMLProvider(EnhancedSAMLProvider):
         self.app_id = app_id
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "azure_saml"

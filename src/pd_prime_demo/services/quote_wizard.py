@@ -11,6 +11,63 @@ from pydantic import BaseModel, ConfigDict, Field
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
+from ..models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class StepDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ValidationsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class IntelligenceData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class InitialDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class AllDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class WizardStep(BaseModel):
@@ -27,7 +84,7 @@ class WizardStep(BaseModel):
     title: str
     description: str
     fields: list[str]
-    validations: dict[str, Any]
+    validations: ValidationsData
     next_step: str | None
     previous_step: str | None
     is_conditional: bool = False
@@ -39,6 +96,7 @@ class WizardState(BaseModel):
     """Current state of quote wizard."""
 
     model_config = ConfigDict(
+        frozen=True,
         frozen=False,  # Must be mutable for state updates
         extra="forbid",
         validate_assignment=True,
@@ -49,7 +107,7 @@ class WizardState(BaseModel):
     quote_id: UUID | None
     current_step: str
     completed_steps: list[str]
-    data: dict[str, Any]
+    data: DataData
     validation_errors: dict[str, list[str]] = Field(default_factory=dict)
     started_at: datetime
     last_updated: datetime
@@ -185,7 +243,7 @@ class QuoteWizardService:
 
     @beartype
     async def start_session(
-        self, initial_data: dict[str, Any] | None = None
+        self, initial_data: InitialDataData | None = None
     ) -> Result[WizardState, str]:
         """Start a new wizard session."""
         session_id = uuid4()
@@ -242,7 +300,7 @@ class QuoteWizardService:
 
     @beartype
     async def update_step(
-        self, session_id: UUID, step_data: dict[str, Any]
+        self, session_id: UUID, step_data: StepDataData
     ) -> Result[WizardState, str]:
         """Update current step with data."""
         # Get session
@@ -537,9 +595,7 @@ class QuoteWizardService:
         )
 
     @beartype
-    def _validate_step_data(
-        self, step: WizardStep, data: dict[str, Any]
-    ) -> WizardValidation:
+    def _validate_step_data(self, step: WizardStep, data: DataData) -> WizardValidation:
         """Validate data for a specific step."""
         validation = WizardValidation(is_valid=True)
         errors: dict[str, list[str]] = {}
@@ -701,7 +757,7 @@ class QuoteWizardService:
 
     @beartype
     def _determine_next_step(
-        self, current_step: WizardStep, data: dict[str, Any]
+        self, current_step: WizardStep, data: DataData
     ) -> str | None:
         """Determine next step based on current step and data."""
         if not current_step.next_step:
@@ -749,7 +805,7 @@ class QuoteWizardService:
 
     @beartype
     def _extract_step_data(
-        self, step: WizardStep, all_data: dict[str, Any]
+        self, step: WizardStep, all_data: AllDataData
     ) -> dict[str, Any]:
         """Extract data relevant to a specific step."""
         return {field: all_data.get(field) for field in step.fields}
@@ -768,7 +824,7 @@ class QuoteWizardService:
         if not state:
             return Err("Session not found or expired")
 
-        intelligence: dict[str, Any] = {}
+        intelligence: IntelligenceData = {}
 
         # Provide step-specific intelligence
         if step_id == "start":

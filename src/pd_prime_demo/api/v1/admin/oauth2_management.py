@@ -48,6 +48,7 @@ class OAuth2ClientCreateRequest(BaseModel):
 
     @field_validator("allowed_grant_types")
     @classmethod
+    @beartype
     def validate_grant_types(cls, v: list[str]) -> list[str]:
         """Validate grant types."""
         valid_grants = {
@@ -63,6 +64,7 @@ class OAuth2ClientCreateRequest(BaseModel):
 
     @field_validator("allowed_scopes")
     @classmethod
+    @beartype
     def validate_scopes(cls, v: list[str]) -> list[str]:
         """Validate scopes."""
         invalid = [s for s in v if s not in SCOPES]
@@ -72,6 +74,7 @@ class OAuth2ClientCreateRequest(BaseModel):
 
     @field_validator("redirect_uris")
     @classmethod
+    @beartype
     def validate_redirect_uris(cls, v: list[str]) -> list[str]:
         """Validate redirect URIs format."""
         # Validate URL format for each URI

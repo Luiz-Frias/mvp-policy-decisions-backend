@@ -14,8 +14,34 @@ from ...core.database import Database
 from ...models.admin import (
     AdminUser,
     AdminUserCreate,
+    BaseModelConfig,
+    Field,
+    ...models.base,
+    from,
+    import,
+    pydantic,
 )
 from ..cache_keys import CacheKeys
+
+# Auto-generated models
+
+@beartype
+class OldValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class NewValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
@@ -340,8 +366,8 @@ class AdminUserService:
         action: str,
         resource_type: str,
         resource_id: UUID | None = None,
-        old_values: dict[str, Any] | None = None,
-        new_values: dict[str, Any] | None = None,
+        old_values: OldValuesData | None = None,
+        new_values: NewValuesData | None = None,
     ) -> None:
         """Log admin activity (fire and forget)."""
         try:

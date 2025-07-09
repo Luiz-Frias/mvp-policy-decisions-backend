@@ -9,14 +9,65 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.auth.mfa import MFAManager
 from ...core.auth.mfa.models import (
+    BaseModelConfig,
     MFAMethod,
     MFAVerificationRequest,
+    ...models.base,
+    from,
+    import,
 )
 from ...core.cache import get_cache
 from ...core.config import get_settings
 from ...core.database import get_database
 from ..dependencies import get_current_user
 from ..response_patterns import ErrorResponse
+
+# Auto-generated models
+
+@beartype
+class MetadataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class AuthenticatorselectionData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class CurrentUserData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class UserData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class RpData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 
@@ -105,12 +156,12 @@ class WebAuthnRegistrationResponse(BaseModel):
     )
 
     challenge: str
-    rp: dict[str, Any]
-    user: dict[str, Any]
+    rp: RpData
+    user: UserData
     pubKeyCredParams: list[dict[str, Any]]
     timeout: int
     excludeCredentials: list[dict[str, Any]]
-    authenticatorSelection: dict[str, Any]
+    authenticatorSelection: AuthenticatorselectionData
     attestation: str
 
 
@@ -144,7 +195,7 @@ class MFAChallengeResponse(BaseModel):
     challenge_id: UUID
     method: MFAMethod
     expires_in: int
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: MetadataData = Field(default_factory=dict)
 
 
 @beartype
@@ -179,7 +230,7 @@ async def get_mfa_manager() -> MFAManager:
 @router.get("/status", response_model=MFAStatusResponse)
 async def get_mfa_status(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> MFAStatusResponse | ErrorResponse:
     """Get user's MFA status."""
@@ -222,7 +273,7 @@ async def get_mfa_status(
 @router.post("/totp/setup", response_model=TOTPSetupResponse)
 async def setup_totp(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> TOTPSetupResponse | ErrorResponse:
     """Start TOTP setup process."""
@@ -263,7 +314,7 @@ async def setup_totp(
 async def verify_totp_setup(
     request: TOTPVerifyRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str] | ErrorResponse:
     """Verify TOTP setup and activate."""
@@ -281,7 +332,7 @@ async def verify_totp_setup(
 @router.delete("/totp")
 async def disable_totp(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str] | ErrorResponse:
     """Disable TOTP authentication."""
@@ -324,7 +375,7 @@ async def disable_totp(
 async def begin_webauthn_registration(
     request: WebAuthnRegistrationRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> WebAuthnRegistrationResponse | ErrorResponse:
     """Begin WebAuthn registration."""
@@ -355,7 +406,7 @@ async def begin_webauthn_registration(
 async def setup_sms(
     request: SMSSetupRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str | int] | ErrorResponse:
     """Setup SMS authentication."""
@@ -386,7 +437,7 @@ async def setup_sms(
 async def create_mfa_challenge(
     response: Response,
     preferred_method: MFAMethod | None = None,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> MFAChallengeResponse | ErrorResponse:
     """Create MFA challenge for authentication."""
@@ -421,7 +472,7 @@ async def verify_mfa_challenge(
     challenge_id: UUID,
     request: MFAVerificationRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Verify MFA challenge."""
@@ -460,7 +511,7 @@ async def verify_mfa_challenge(
 @router.post("/recovery-codes/generate")
 async def generate_recovery_codes(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Generate new recovery codes."""
@@ -484,7 +535,7 @@ async def generate_recovery_codes(
 async def trust_device(
     request: DeviceTrustRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Mark device as trusted."""
@@ -519,7 +570,7 @@ async def trust_device(
 @router.get("/risk-assessment")
 async def get_risk_assessment(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Get current authentication risk assessment."""

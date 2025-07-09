@@ -9,9 +9,20 @@ from decimal import Decimal
 from typing import Any
 
 from beartype import beartype
+from pydantic import Field
 
 from ...core.result_types import Err, Ok, Result
+from ...models.base import BaseModelConfig
 from ..performance_monitor import performance_monitor
+
+# Auto-generated models
+
+
+@beartype
+class FactorsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
 
 
 @beartype
@@ -19,26 +30,31 @@ class StateRatingRules(ABC):
     """Base class for state-specific rating rules."""
 
     @abstractmethod
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    @beartype
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Validate and adjust factors per state regulations."""
         pass
 
     @abstractmethod
+    @beartype
     def get_required_coverages(self) -> list[str]:
         """Get state-mandated coverages."""
         pass
 
     @abstractmethod
+    @beartype
     def get_minimum_limits(self) -> dict[str, Decimal]:
         """Get state minimum coverage limits."""
         pass
 
     @abstractmethod
+    @beartype
     def is_factor_allowed(self, factor_name: str) -> bool:
         """Check if a rating factor is allowed in this state."""
         pass
 
     @abstractmethod
+    @beartype
     def get_state_code(self) -> str:
         """Get the state code."""
         pass
@@ -55,7 +71,7 @@ class CaliforniaRules(StateRatingRules):
 
     @beartype
     @performance_monitor("california_validate_factors")
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Apply California-specific factor limits per Prop 103."""
         # Prop 103: Driving record, miles driven, years of experience
         # are primary factors (must account for 80%+ of rating variation)
@@ -148,7 +164,7 @@ class TexasRules(StateRatingRules):
         return "TX"
 
     @beartype
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Texas allows most rating factors with few restrictions."""
         # Texas has fewer restrictions than California
         # Credit scoring is allowed, occupation is allowed, etc.
@@ -193,7 +209,7 @@ class NewYorkRules(StateRatingRules):
         return "NY"
 
     @beartype
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Apply New York-specific factor limits."""
         adjusted = factors.copy()
 
@@ -254,7 +270,7 @@ class FloridaRules(StateRatingRules):
 
     @beartype
     @performance_monitor("florida_validate_factors")
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Apply Florida-specific factor limits."""
         adjusted = factors.copy()
 
@@ -317,7 +333,7 @@ class MichiganRules(StateRatingRules):
         return "MI"
 
     @beartype
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Apply Michigan-specific factor limits."""
         adjusted = factors.copy()
 
@@ -376,7 +392,7 @@ class PennsylvaniaRules(StateRatingRules):
 
     @beartype
     @performance_monitor("pennsylvania_validate_factors")
-    def validate_factors(self, factors: dict[str, float]) -> dict[str, float]:
+    def validate_factors(self, factors: FactorsMetrics) -> FactorsMetrics:
         """Apply Pennsylvania-specific factor limits."""
         adjusted = factors.copy()
 

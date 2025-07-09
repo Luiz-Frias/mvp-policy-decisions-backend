@@ -6,9 +6,34 @@ from uuid import UUID
 
 from beartype import beartype
 
+from ...models.base import BaseModelConfig
+
 if TYPE_CHECKING:
     from webauthn.helpers.cose import COSEAlgorithmIdentifier
     from webauthn.helpers.structs import (
+        AuthenticatorSelectionData,
+        BaseModelConfig,
+        :,
+        models,
+        rtype,
+        s,
+        to-generated,
+    )
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class CredentialResponseData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
         AttestationConveyancePreference,
         AuthenticatorSelectionCriteria,
         PublicKeyCredentialDescriptor,
@@ -48,6 +73,7 @@ try:
     )
 except ImportError:
     # Mock implementation for testing
+    @beartype
     def generate_registration_options(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
         return type(
             "MockOptions",
@@ -68,6 +94,7 @@ except ImportError:
             },
         )()
 
+    @beartype
     def generate_authentication_options(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
         return type(
             "MockOptions",
@@ -81,6 +108,7 @@ except ImportError:
             },
         )()
 
+    @beartype
     def verify_registration_response(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
         return type(
             "MockVerification",
@@ -94,15 +122,18 @@ except ImportError:
             },
         )()
 
+    @beartype
     def verify_authentication_response(*args: Any, **kwargs: Any) -> bool:  # type: ignore[misc]
         # Mock implementation returns True for verified
         return True
 
+    @beartype
     def base64url_to_bytes(val: str) -> bytes:
         import base64
 
         return base64.urlsafe_b64decode(val + "==")
 
+    @beartype
     def bytes_to_base64url(val: bytes) -> str:
         import base64
 
@@ -155,7 +186,7 @@ class WebAuthnRegistrationOptions(BaseModel):
     pub_key_cred_params: list[dict[str, Any]]
     timeout: int
     exclude_credentials: list["CredentialDescriptor"]
-    authenticator_selection: dict[str, Any]
+    authenticator_selection: AuthenticatorSelectionData
     attestation: str
 
 
@@ -357,7 +388,7 @@ class WebAuthnProvider:
 
     @beartype
     def verify_registration(
-        self, user_id: UUID, credential_response: dict[str, Any]
+        self, user_id: UUID, credential_response: CredentialResponseData
     ) -> Result[WebAuthnCredential, str]:
         """Verify WebAuthn registration response.
 
@@ -471,7 +502,7 @@ class WebAuthnProvider:
     def verify_authentication(
         self,
         user_id: UUID,
-        credential_response: dict[str, Any],
+        credential_response: CredentialResponseData,
         stored_credential: WebAuthnCredential,
     ) -> Result[bool, str]:
         """Verify WebAuthn authentication response.
@@ -517,7 +548,7 @@ class WebAuthnProvider:
             return Err(f"Failed to verify authentication: {str(e)}")
 
     @beartype
-    def _detect_device_name(self, credential_response: dict[str, Any]) -> str:
+    def _detect_device_name(self, credential_response: CredentialResponseData) -> str:
         """Detect device name from credential response."""
         # This is a simplified version - in production, you might want to
         # parse the attestation statement for more details

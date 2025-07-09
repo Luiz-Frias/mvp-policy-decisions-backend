@@ -201,7 +201,6 @@ class Settings(BaseSettings):
 
     @field_validator("api_cors_origins")
     @classmethod
-    @beartype
     def validate_cors_origins(cls: type["Settings"], v: list[str]) -> list[str]:
         """Validate CORS origins are proper URLs."""
         for origin in v:

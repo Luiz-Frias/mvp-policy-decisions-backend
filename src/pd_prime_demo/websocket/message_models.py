@@ -8,6 +8,54 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
+from ..models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class PayloadData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class VData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConnectionLimitsCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
 # WebSocket-specific models to replace dict usage
 
 
@@ -57,7 +105,7 @@ class WebSocketMessageData(BaseModel):
 
     # Message content
     action: str | None = Field(default=None, description="Action type")
-    payload: dict[str, Any] = Field(default_factory=dict, description="Message payload")
+    payload: PayloadData = Field(default_factory=dict, description="Message payload")
 
     # System fields
     server_time: datetime | None = Field(default=None, description="Server timestamp")
@@ -91,7 +139,7 @@ class WebSocketMessageData(BaseModel):
     member_count: int | None = Field(
         default=None, ge=0, description="Room member count"
     )
-    connection_limits: dict[str, int] | None = Field(
+    connection_limits: ConnectionLimitsCounts | None = Field(
         default=None, description="Connection limits"
     )
     capabilities: dict[str, bool] | None = Field(
@@ -106,7 +154,8 @@ class WebSocketMessageData(BaseModel):
 
     @validator("payload")
     @classmethod
-    def validate_payload_size(cls, v: dict[str, Any]) -> dict[str, Any]:
+    @beartype
+    def validate_payload_size(cls, v: VData) -> VData:
         """Validate payload size to prevent oversized messages."""
         import json
 
@@ -157,6 +206,7 @@ class ConnectionCapabilities(BaseModel):
     )
     protocol_version: str = Field(default="1.0", description="Protocol version")
 
+    @beartype
     def supports_feature(self, feature: str) -> bool:
         """Check if a specific feature is supported."""
         return getattr(self, feature, False)
@@ -223,6 +273,7 @@ class BackpressureMetrics(BaseModel):
         default=0.0, ge=0.0, le=1.0, description="Backpressure level (0-1)"
     )
 
+    @beartype
     def get_queue_depth_by_priority(self, priority: MessagePriorityLevel) -> int:
         """Get queue depth for a specific priority level."""
         mapping = {
@@ -233,6 +284,7 @@ class BackpressureMetrics(BaseModel):
         }
         return mapping.get(priority, 0)
 
+    @beartype
     def get_processing_rate_by_priority(self, priority: MessagePriorityLevel) -> float:
         """Get processing rate for a specific priority level."""
         mapping = {
@@ -243,6 +295,7 @@ class BackpressureMetrics(BaseModel):
         }
         return mapping.get(priority, 0.0)
 
+    @beartype
     def is_under_pressure(self) -> bool:
         """Check if system is under backpressure."""
         return self.backpressure_level > 0.7
@@ -323,6 +376,7 @@ class WebSocketConnectionMetadata(BaseModel):
     bytes_sent: int = Field(default=0, ge=0, description="Bytes sent")
     bytes_received: int = Field(default=0, ge=0, description="Bytes received")
 
+    @beartype
     def is_healthy(self) -> bool:
         """Check if connection is in healthy state."""
         return self.state in {
@@ -331,6 +385,7 @@ class WebSocketConnectionMetadata(BaseModel):
             ConnectionState.ACTIVE,
         }
 
+    @beartype
     def needs_attention(self) -> bool:
         """Check if connection needs attention."""
         return self.state in {
@@ -339,14 +394,17 @@ class WebSocketConnectionMetadata(BaseModel):
             ConnectionState.ERROR,
         }
 
+    @beartype
     def is_rate_limited(self) -> bool:
         """Check if connection is rate limited."""
         return self.rate_limit_remaining <= 0
 
+    @beartype
     def has_backpressure(self) -> bool:
         """Check if connection has backpressure."""
         return self.backpressure_level > 0.7
 
+    @beartype
     def is_subscribed_to_room(self, room_id: str) -> bool:
         """Check if connection is subscribed to a room."""
         return room_id in self.subscribed_rooms
@@ -357,6 +415,7 @@ class MessageValidationMixin:
 
     @validator("*", pre=True)
     @classmethod
+    @beartype
     def strip_whitespace(cls, v: Any) -> Any:
         """Strip whitespace from string values."""
         if isinstance(v, str):
@@ -386,7 +445,7 @@ class QuoteMessage(BaseModel, MessageValidationMixin):
     @validator("data")
     @classmethod
     def validate_data_by_action(
-        cls, v: WebSocketMessageData, values: dict[str, Any]
+        cls, v: WebSocketMessageData, values: ValuesData
     ) -> WebSocketMessageData:
         """Validate data based on action type."""
         action = values.get("action")
@@ -428,6 +487,7 @@ class RoomMessage(BaseModel, MessageValidationMixin):
 
     @validator("room_id")
     @classmethod
+    @beartype
     def validate_room_id_format(cls, v: str) -> str:
         """Validate room ID format and extract type."""
         parts = v.split(":")
@@ -466,7 +526,7 @@ class AnalyticsMessage(BaseModel, MessageValidationMixin):
     @validator("config")
     @classmethod
     def validate_config_by_dashboard_type(
-        cls, v: WebSocketMessageData, values: dict[str, Any]
+        cls, v: WebSocketMessageData, values: ValuesData
     ) -> WebSocketMessageData:
         """Validate config based on dashboard type."""
         dashboard_type = values.get("dashboard_type")
@@ -522,6 +582,7 @@ class AdminMessage(BaseModel, MessageValidationMixin):
 
     @validator("permissions")
     @classmethod
+    @beartype
     def validate_admin_permissions(cls, v: list[str]) -> list[str]:
         """Validate admin permissions."""
         allowed_permissions = [
@@ -561,7 +622,8 @@ class BinaryMessage(BaseModel, MessageValidationMixin):
 
     @validator("total_chunks")
     @classmethod
-    def validate_chunk_consistency(cls, v: int, values: dict[str, Any]) -> int:
+    @beartype
+    def validate_chunk_consistency(cls, v: int, values: ValuesData) -> int:
         """Validate chunk consistency."""
         chunk_index = values.get("chunk_index", 0)
         if chunk_index >= v:
@@ -600,7 +662,7 @@ MESSAGE_TYPE_REGISTRY = {
 
 
 @beartype
-def validate_message_data(message_type: str, data: dict[str, Any]) -> MessageType:
+def validate_message_data(message_type: str, data: DataData) -> MessageType:
     """Validate message data based on type."""
     if message_type not in MESSAGE_TYPE_REGISTRY:
         raise ValueError(f"Unknown message type: {message_type}")
@@ -625,7 +687,7 @@ def create_websocket_message_data(
     user_id: UUID | None = None,
     room_id: str | None = None,
     action: str | None = None,
-    payload: dict[str, Any] | None = None,
+    payload: PayloadData | None = None,
     **kwargs: Any,
 ) -> WebSocketMessageData:
     """Helper function to create WebSocketMessageData instances."""

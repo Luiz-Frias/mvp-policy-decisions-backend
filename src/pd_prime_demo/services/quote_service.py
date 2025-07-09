@@ -15,9 +15,11 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.quote import (
+    BaseModelConfig,
     CoverageSelection,
     Discount,
     DriverInfo,
+    Field,
     ProductType,
     Quote,
     QuoteConversionRequest,
@@ -26,6 +28,10 @@ from ..models.quote import (
     QuoteStatus,
     QuoteUpdate,
     VehicleInfo,
+    ..models.base,
+    from,
+    import,
+    pydantic,
 )
 from .performance_monitor import performance_monitor
 
@@ -40,6 +46,18 @@ except ImportError:
 
 try:
     from ..websocket.manager import ConnectionManager
+
+
+# Auto-generated models
+
+@beartype
+class FiltersData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
     HAS_WEBSOCKET = True
 except ImportError:
@@ -510,7 +528,7 @@ class QuoteService:
     async def admin_search_quotes(
         self,
         admin_user_id: UUID,
-        filters: dict[str, Any],
+        filters: FiltersData,
         include_pii: bool = False,
     ) -> Result[list[Quote], str]:
         """Admin search with advanced filters and PII control."""
@@ -958,6 +976,7 @@ class QuoteService:
         """Convert database row to Quote model."""
 
         # Handle both asyncpg.Record and dict (for testing)
+        @beartype
         def get_field(name: str) -> Any:
             if hasattr(row, "__getitem__"):
                 return row[name]

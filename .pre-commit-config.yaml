@@ -162,3 +162,15 @@ repos:
         language: system
         pass_filenames: false
         stages: [push]
+      - id: master-ruleset-validation
+        name: Validate master ruleset compliance
+        entry: bash -c './scripts/validate-master-ruleset-v2.sh || true'
+        language: system
+        pass_filenames: false
+        files: '^src/.*\.py$'
+      - id: pydantic-compliance-check
+        name: Check Pydantic compliance (dict usage)
+        entry: python scripts/validate-dict-usage.py
+        language: system
+        pass_filenames: false
+        files: '^src/.*\.py$'

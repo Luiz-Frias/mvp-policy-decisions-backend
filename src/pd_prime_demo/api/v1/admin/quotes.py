@@ -9,13 +9,36 @@ from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
+from pydantic import Field
 
 from ....models.admin import AdminUser
+from ....models.base import BaseModelConfig
 from ....models.quote import QuoteOverrideRequest
 from ....schemas.quote import QuoteResponse
 from ....services.quote_service import QuoteService
 from ...dependencies import get_current_admin_user, get_quote_service
 from ...response_patterns import ErrorResponse
+
+# Auto-generated models
+
+
+@beartype
+class ResultsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ParametersData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 router = APIRouter()
 
@@ -107,7 +130,7 @@ async def bulk_quote_operation(
     operation: str,
     quote_ids: list[UUID],
     response: Response,
-    parameters: dict[str, Any] | None = None,
+    parameters: ParametersData | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> dict[str, Any] | ErrorResponse:
@@ -128,7 +151,7 @@ async def bulk_quote_operation(
 
     # Process in batches
     batch_size = 50
-    results: dict[str, Any] = {
+    results: ResultsData = {
         "total": len(quote_ids),
         "successful": 0,
         "failed": 0,

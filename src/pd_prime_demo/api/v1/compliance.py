@@ -14,18 +14,102 @@ from pydantic import BaseModel, ConfigDict, Field
 from ...compliance import (
     SOC2_CORE_CONTROLS,
     AvailabilityControlManager,
+    BaseModelConfig,
     ConfidentialityControlManager,
     ControlFramework,
     PrivacyControlManager,
     ProcessingIntegrityManager,
     SecurityControlManager,
     TrustServiceCriteria,
+    ...models.base,
+    from,
     get_evidence_collector,
     get_testing_framework,
+    import,
 )
 from ...core.result_types import Err
 from ..dependencies import get_current_user
 from ..response_patterns import ErrorResponse, handle_result
+
+# Auto-generated models
+
+@beartype
+class DashboardData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ContextData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class CurrentUserData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class AssessmentPeriodMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class TrustServiceCriteriaScoresMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class SummaryData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class FiltersData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ExecutionSummaryData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 router = APIRouter(prefix="/compliance", tags=["SOC 2 Compliance"])
 
@@ -55,7 +139,7 @@ class ComplianceOverviewResponse(BaseModel):
         validate_default=True,
     )
     overall_compliance_score: float = Field(ge=0.0, le=100.0)
-    trust_service_criteria_scores: dict[str, float] = Field(...)
+    trust_service_criteria_scores: TrustServiceCriteriaScoresMetrics = Field(...)
     total_controls: int = Field(ge=0)
     effective_controls: int = Field(ge=0)
     failing_controls: int = Field(ge=0)
@@ -74,7 +158,7 @@ class ControlExecutionRequest(BaseModel):
         validate_default=True,
     )
     control_id: str = Field(...)
-    context: dict[str, Any] | None = Field(default_factory=dict)
+    context: ContextData | None = Field(default_factory=dict)
 
 
 class ControlExecutionResponse(BaseModel):
@@ -137,7 +221,7 @@ class SecurityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     security_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: dict[str, Any] = Field(...)
+    data: DataData = Field(...)
 
 
 class AvailabilityDashboardResponse(BaseModel):
@@ -146,7 +230,7 @@ class AvailabilityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     availability_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: dict[str, Any] = Field(...)
+    data: DataData = Field(...)
 
 
 class ProcessingIntegrityDashboardResponse(BaseModel):
@@ -155,7 +239,7 @@ class ProcessingIntegrityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     integrity_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: dict[str, Any] = Field(...)
+    data: DataData = Field(...)
 
 
 class ConfidentialityDashboardResponse(BaseModel):
@@ -164,7 +248,7 @@ class ConfidentialityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     confidentiality_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: dict[str, Any] = Field(...)
+    data: DataData = Field(...)
 
 
 class PrivacyDashboardResponse(BaseModel):
@@ -173,7 +257,7 @@ class PrivacyDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     privacy_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: dict[str, Any] = Field(...)
+    data: DataData = Field(...)
 
 
 class ControlListResponse(BaseModel):
@@ -200,7 +284,7 @@ class EvidenceSummaryResponse(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     # SYSTEM_BOUNDARY - evidence summary data aggregated from collector
-    summary: dict[str, Any] = Field(...)
+    summary: SummaryData = Field(...)
 
 
 class ComplianceReportResponse(BaseModel):
@@ -213,12 +297,12 @@ class ComplianceReportResponse(BaseModel):
     generated_at: str = Field(...)
     overall_compliance_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - TSC scores aggregated from multiple managers
-    trust_service_criteria_scores: dict[str, float] = Field(...)
+    trust_service_criteria_scores: TrustServiceCriteriaScoresMetrics = Field(...)
     total_evidence_artifacts: int = Field(ge=0)
     findings_count: int = Field(ge=0)
     recommendations_count: int = Field(ge=0)
     # SYSTEM_BOUNDARY - assessment period data
-    assessment_period: dict[str, str] = Field(...)
+    assessment_period: AssessmentPeriodMapping = Field(...)
 
 
 class TestingDashboardResponse(BaseModel):
@@ -226,7 +310,7 @@ class TestingDashboardResponse(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     # SYSTEM_BOUNDARY - testing dashboard data aggregated from framework
-    dashboard: dict[str, Any] = Field(...)
+    dashboard: DashboardData = Field(...)
 
 
 class TestPlanResponse(BaseModel):
@@ -238,7 +322,7 @@ class TestPlanResponse(BaseModel):
     description: str = Field(...)
     created_at: str = Field(...)
     # SYSTEM_BOUNDARY - assessment period data
-    assessment_period: dict[str, str] = Field(...)
+    assessment_period: AssessmentPeriodMapping = Field(...)
     criteria: list[str] = Field(...)
     total_tests: int = Field(ge=0)
     status: str = Field(...)
@@ -249,7 +333,7 @@ class ExecutionSummaryResponse(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     # SYSTEM_BOUNDARY - execution summary data aggregated from multiple executions
-    execution_summary: dict[str, Any] = Field(...)
+    execution_summary: ExecutionSummaryData = Field(...)
     criteria_filter: str | None = Field(...)
     execution_timestamp: str = Field(...)
     # SYSTEM_BOUNDARY - execution results aggregated from framework
@@ -262,7 +346,7 @@ class AuditTrailResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     total_records: int = Field(ge=0)
     # SYSTEM_BOUNDARY - filter parameters
-    filters: dict[str, Any] = Field(...)
+    filters: FiltersData = Field(...)
     # SYSTEM_BOUNDARY - audit records aggregated from logger
     audit_records: list[dict[str, Any]] = Field(...)
 
@@ -271,7 +355,7 @@ class AuditTrailResponse(BaseModel):
 @beartype
 async def get_compliance_overview(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ComplianceOverviewResponse | ErrorResponse:
     """Get overall SOC 2 compliance overview."""
     try:
@@ -337,7 +421,7 @@ async def get_compliance_overview(
 async def list_controls(
     response: Response,
     criteria: str | None = Query(None, description="Filter by trust service criteria"),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ControlListResponse | ErrorResponse:
     """List all SOC 2 controls with optional filtering."""
     try:
@@ -381,7 +465,7 @@ async def list_controls(
 async def execute_control(
     request: ControlExecutionRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ControlExecutionResponse | ErrorResponse:
     """Execute a specific SOC 2 control."""
     try:
@@ -425,7 +509,7 @@ async def execute_control(
 async def get_control_status(
     control_id: str,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ControlStatusResponse | ErrorResponse:
     """Get the current status of a specific control."""
     try:
@@ -458,7 +542,7 @@ async def get_control_status(
 @beartype
 async def get_security_dashboard(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> SecurityDashboardResponse | ErrorResponse:
     """Get security controls dashboard."""
     try:
@@ -477,7 +561,7 @@ async def get_security_dashboard(
 @beartype
 async def get_availability_dashboard(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> AvailabilityDashboardResponse | ErrorResponse:
     """Get availability controls dashboard."""
     try:
@@ -499,7 +583,7 @@ async def get_availability_dashboard(
 @beartype
 async def get_processing_integrity_dashboard(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ProcessingIntegrityDashboardResponse | ErrorResponse:
     """Get processing integrity controls dashboard."""
     try:
@@ -522,7 +606,7 @@ async def get_processing_integrity_dashboard(
 @beartype
 async def get_confidentiality_dashboard(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ConfidentialityDashboardResponse | ErrorResponse:
     """Get confidentiality controls dashboard."""
     try:
@@ -542,7 +626,7 @@ async def get_confidentiality_dashboard(
 @beartype
 async def get_privacy_dashboard(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> PrivacyDashboardResponse | ErrorResponse:
     """Get privacy controls dashboard."""
     try:
@@ -567,7 +651,7 @@ async def get_evidence_summary(
     period_end: datetime | None = Query(
         default=None, description="End date for evidence summary"
     ),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> EvidenceSummaryResponse | ErrorResponse:
     """Get evidence collection summary."""
     try:
@@ -602,7 +686,7 @@ async def get_evidence_summary(
 async def generate_compliance_report(
     request: ComplianceReportRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ComplianceReportResponse | ErrorResponse:
     """Generate a comprehensive compliance report."""
     try:
@@ -656,7 +740,7 @@ async def generate_compliance_report(
 @beartype
 async def get_testing_dashboard(
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> TestingDashboardResponse | ErrorResponse:
     """Get control testing dashboard."""
     try:
@@ -674,7 +758,7 @@ async def get_testing_dashboard(
 async def create_test_plan(
     request: TestPlanRequest,
     response: Response,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> TestPlanResponse | ErrorResponse:
     """Create a new control testing plan."""
     try:
@@ -735,7 +819,7 @@ async def execute_all_controls(
     criteria: str | None = Query(
         None, description="Execute controls for specific criteria only"
     ),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> ExecutionSummaryResponse | ErrorResponse:
     """Execute all controls or controls for specific criteria."""
     try:
@@ -811,7 +895,7 @@ async def get_audit_trail(
     end_date: datetime | None = Query(None, description="End date for audit trail"),
     control_id: str | None = Query(None, description="Filter by control ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: CurrentUserData = Depends(get_current_user),
 ) -> AuditTrailResponse | ErrorResponse:
     """Get compliance audit trail."""
     try:

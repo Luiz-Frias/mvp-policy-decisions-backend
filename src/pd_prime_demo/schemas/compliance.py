@@ -15,6 +15,23 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..models.base import BaseModelConfig
 
+# Auto-generated models
+
+
+@beartype
+class EventsByTypeCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class EventsByRiskLevelCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
 # ============================================================================
 # ENUMS - MUST BE DEFINED BEFORE STRUCTURED MODELS
 # ============================================================================
@@ -425,8 +442,8 @@ class AuditTrailSummary(BaseModelConfig):
     period_start: datetime = Field(...)
     period_end: datetime = Field(...)
     total_events: int = Field(ge=0)
-    events_by_type: dict[str, int] = Field(default_factory=dict)
-    events_by_risk_level: dict[str, int] = Field(default_factory=dict)
+    events_by_type: EventsByTypeCounts = Field(default_factory=dict)
+    events_by_risk_level: EventsByRiskLevelCounts = Field(default_factory=dict)
     unique_users: int = Field(ge=0)
     unique_resources: int = Field(ge=0)
     integrity_verified: bool = Field(default=True)
@@ -1516,6 +1533,7 @@ class EvidenceItem(BaseModel):
 
     @field_validator("evidence_period_end")
     @classmethod
+    @beartype
     def validate_period_end(cls, v: datetime, info: Any) -> datetime:
         """Validate that evidence period end is after start."""
         if hasattr(info, "data") and "evidence_period_start" in info.data:

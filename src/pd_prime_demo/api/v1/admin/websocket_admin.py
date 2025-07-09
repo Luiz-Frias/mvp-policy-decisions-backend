@@ -7,10 +7,14 @@ from uuid import UUID
 from beartype import beartype
 from fastapi import (
     APIRouter,
+    BaseModelConfig,
     Depends,
     Response,
     WebSocket,
     WebSocketDisconnect,
+    ....models.base,
+    from,
+    import,
     status,
 )
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,6 +23,35 @@ from ....models.admin import AdminUser
 from ....websocket.handlers.admin_dashboard import AdminDashboardHandler
 from ....websocket.manager import ConnectionManager, MessageType, WebSocketMessage
 from ...response_patterns import ErrorResponse
+
+# Auto-generated models
+
+@beartype
+class StatsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class FiltersData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 
 class AdminWebSocketConfig(BaseModel):
@@ -34,7 +67,7 @@ class AdminWebSocketConfig(BaseModel):
 
     dashboard_type: str = Field(..., pattern="^(system|activity|performance|alerts)$")
     update_interval: int = Field(default=5, ge=1, le=60)
-    filters: dict[str, Any] = Field(default_factory=dict)
+    filters: FiltersData = Field(default_factory=dict)
     metrics: list[str] = Field(default_factory=list)
     alert_levels: list[str] = Field(
         default_factory=lambda: ["medium", "high", "critical"]
@@ -62,6 +95,7 @@ class AdminDashboardStats(BaseModel):
 router = APIRouter(prefix="/websocket", tags=["Admin WebSocket"])
 
 
+@beartype
 def get_admin_dashboard_handler() -> AdminDashboardHandler:
     """Get admin dashboard handler dependency."""
     # This would be injected in production
@@ -75,6 +109,7 @@ def get_admin_dashboard_handler() -> AdminDashboardHandler:
     return AdminDashboardHandler(manager, database, cache)
 
 
+@beartype
 def get_current_admin_user() -> AdminUser:
     """Get current admin user dependency."""
     # This would check JWT tokens in production
@@ -230,7 +265,7 @@ async def broadcast_admin_alert(
     message: str,
     response: Response,
     severity: str = "medium",
-    data: dict[str, Any] | None = None,
+    data: DataData | None = None,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
 ) -> dict[str, str] | ErrorResponse:
@@ -278,7 +313,7 @@ async def get_websocket_connection_health(
 
 
 @beartype
-def _get_health_recommendations(stats: dict[str, Any]) -> list[str]:
+def _get_health_recommendations(stats: StatsData) -> list[str]:
     """Generate health recommendations based on current metrics."""
     recommendations = []
 

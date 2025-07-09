@@ -91,6 +91,7 @@ class ClaimBase(BaseModel):
 
     @field_validator("incident_date")
     @classmethod
+    @beartype
     def validate_incident_date(cls, v: date) -> date:
         """Ensure incident date is not in the future."""
         if v > date.today():
@@ -98,6 +99,7 @@ class ClaimBase(BaseModel):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_dates(self) -> "ClaimBase":
         """Ensure reported date is after or equal to incident date."""
         if self.reported_date < self.incident_date:
@@ -169,6 +171,7 @@ class ClaimUpdate(BaseModel):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_status_transitions(self) -> "ClaimUpdate":
         """Validate status transitions follow business rules."""
         # Status transition validation would be done against current status

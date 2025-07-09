@@ -48,6 +48,7 @@ class Auth0SSOProvider(OIDCProvider):
         self.audience = audience
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "auth0"

@@ -15,6 +15,32 @@ from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
 
+# Auto-generated models
+
+
+@beartype
+class TokenStatisticsCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class DetailsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class PeriodMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
 
 class OAuth2ClientUpdate(BaseModelConfig):
     """OAuth2 client update model."""
@@ -58,11 +84,11 @@ class OAuth2Analytics(BaseModelConfig):
 
     client_id: str
     client_name: str
-    token_statistics: dict[str, int]
+    token_statistics: TokenStatisticsCounts
     scope_usage: list[dict[str, Any]]
     usage_timeline: list[dict[str, Any]]
     active_tokens_timeline: list[dict[str, Any]]
-    period: dict[str, str]
+    period: PeriodMapping
 
 
 class OAuth2ClientDetails(BaseModelConfig):
@@ -85,7 +111,7 @@ class OAuth2ClientDetails(BaseModelConfig):
     updated_at: datetime | None
     created_by: UUID | None
     updated_by: UUID | None
-    token_statistics: dict[str, int]
+    token_statistics: TokenStatisticsCounts
 
 
 class OAuth2AdminService:
@@ -761,7 +787,7 @@ class OAuth2AdminService:
         admin_user_id: UUID,
         action: str,
         target_id: UUID | None,
-        details: dict[str, Any],
+        details: DetailsData,
     ) -> None:
         """Log OAuth2 administrative activity.
 

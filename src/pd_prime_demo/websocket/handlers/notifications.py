@@ -12,7 +12,27 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
-from ..message_models import (
+from ..message_models import (  # Auto-generated models
+    Any],
+    BaseModelConfig,
+    DataData,
+    """Structured,
+    ...models.base,
+    :,
+    @beartype,
+    class,
+    dict[str,
+    from,
+    import,
+    model,
+    replacing,
+    usage.""",
+)
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
     create_websocket_message_data,
 )
 
@@ -51,7 +71,7 @@ class NotificationData(BaseModel):
 
     title: str = Field(..., min_length=1, max_length=200)
     message: str = Field(..., min_length=1)
-    data: dict[str, Any] = Field(default_factory=dict)
+    data: DataData = Field(default_factory=dict)
     icon: str | None = Field(default=None)
     sound: str | None = Field(default=None)
 

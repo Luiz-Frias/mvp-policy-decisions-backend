@@ -85,6 +85,7 @@ class CustomerBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfi
 
     @field_validator("date_of_birth")
     @classmethod
+    @beartype
     def validate_age(cls, v: date) -> date:
         """Ensure customer is at least 18 years old."""
         from datetime import datetime
@@ -101,6 +102,7 @@ class CustomerBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfi
 
     @field_validator("email")
     @classmethod
+    @beartype
     def validate_email_format(cls, v: EmailStr) -> EmailStr:
         """Additional email validation rules."""
         email_str = str(v).lower()
@@ -138,6 +140,7 @@ class CustomerCreate(CustomerBase):
 
     @field_validator("tax_id")
     @classmethod
+    @beartype
     def validate_tax_id(cls, v: str) -> str:
         """Validate basic tax ID format."""
         # Remove any formatting characters
@@ -193,6 +196,7 @@ class CustomerUpdate(BaseModelConfig):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_at_least_one_field(self) -> "CustomerUpdate":
         """Ensure at least one field is provided for update."""
         if not any(getattr(self, field) is not None for field in self.model_fields):
@@ -230,6 +234,7 @@ class Customer(CustomerBase, IdentifiableModel):
 
     @field_validator("customer_number")
     @classmethod
+    @beartype
     def validate_customer_number(cls, v: str) -> str:
         """Ensure customer number follows business format."""
         if not v.startswith("CUST-"):

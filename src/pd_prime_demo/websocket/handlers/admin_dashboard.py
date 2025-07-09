@@ -13,9 +13,184 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ...core.cache import Cache
 from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
-from ..message_models import (
-    create_websocket_message_data,
-)
+from pd_prime_demo.models.base import BaseModelConfig
+from ..message_models import create_websocket_message_data
+
+
+@beartype
+class CacheData(BaseModelConfig):
+    """Cache data model."""
+
+    hit_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+    total_hits: int = Field(default=0, ge=0)
+    total_misses: int = Field(default=0, ge=0)
+    memory_usage_mb: float = Field(default=0.0, ge=0.0)
+    evictions: int = Field(default=0, ge=0)
+
+
+@beartype
+class CacheStatsData(BaseModelConfig):
+    """Cache statistics data."""
+
+    hit_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+    total_requests: int = Field(default=0, ge=0)
+    memory_usage_mb: float = Field(default=0.0, ge=0.0)
+    avg_response_time_ms: float = Field(default=0.0, ge=0.0)
+
+
+@beartype
+class ErrorRatesMetrics(BaseModelConfig):
+    """Error rates metrics by endpoint."""
+
+    login: float = Field(default=0.0, ge=0.0, le=1.0)
+    quote_generation: float = Field(default=0.0, ge=0.0, le=1.0)
+    policy_creation: float = Field(default=0.0, ge=0.0, le=1.0)
+    claim_submission: float = Field(default=0.0, ge=0.0, le=1.0)
+    overall: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+@beartype
+class ErrorCountsMap(BaseModelConfig):
+    """Error counts by circuit breaker."""
+
+    system_monitoring: int = Field(default=0, ge=0)
+    user_activity: int = Field(default=0, ge=0)
+    performance: int = Field(default=0, ge=0)
+    last_reset: datetime = Field(default_factory=datetime.now)
+
+
+@beartype
+class FiltersData(BaseModelConfig):
+    """Activity filter configuration."""
+
+    user_ids: list[UUID] | None = Field(default=None)
+    action_types: list[str] | None = Field(default=None)
+    resource_types: list[str] | None = Field(default=None)
+    start_date: datetime | None = Field(default=None)
+    end_date: datetime | None = Field(default=None)
+    status_filter: list[str] | None = Field(default=None)
+
+
+@beartype
+class ConfigData(BaseModelConfig):
+    """Configuration data."""
+
+    update_interval: int = Field(default=5, ge=1, le=60)
+    metrics_enabled: list[str] = Field(default_factory=list)
+    alert_thresholds: dict[str, float] = Field(default_factory=dict)  # metric_name -> threshold_value
+    retention_days: int = Field(default=30, ge=1)
+
+
+@beartype
+class DataPayload(BaseModelConfig):
+    """Generic data payload."""
+
+    content: str | None = Field(default=None)
+    timestamp: datetime = Field(default_factory=datetime.now)
+    source: str | None = Field(default=None)
+
+
+@beartype
+class WsStatsData(BaseModelConfig):
+    """WebSocket statistics data."""
+
+    active_connections: int = Field(default=0, ge=0)
+    total_messages_sent: int = Field(default=0, ge=0)
+    total_messages_received: int = Field(default=0, ge=0)
+    avg_latency_ms: float = Field(default=0.0, ge=0.0)
+    connection_errors: int = Field(default=0, ge=0)
+
+
+@beartype
+class DatabaseData(BaseModelConfig):
+    """Database metrics data."""
+
+    active_connections: int = Field(default=0, ge=0)
+    idle_connections: int = Field(default=0, ge=0)
+    total_connections: int = Field(default=0, ge=0)
+    avg_query_time_ms: float = Field(default=0.0, ge=0.0)
+    slow_queries: int = Field(default=0, ge=0)
+
+
+@beartype
+class ApiResponseTimesMetrics(BaseModelConfig):
+    """API response time metrics by endpoint."""
+
+    quotes: float = Field(default=0.0, ge=0.0)
+    policies: float = Field(default=0.0, ge=0.0)
+    claims: float = Field(default=0.0, ge=0.0)
+    customers: float = Field(default=0.0, ge=0.0)
+    overall_p50: float = Field(default=0.0, ge=0.0)
+    overall_p95: float = Field(default=0.0, ge=0.0)
+    overall_p99: float = Field(default=0.0, ge=0.0)
+
+
+@beartype
+class RecentError(BaseModelConfig):
+    """Recent error detail."""
+    
+    type: str
+    count: int = Field(ge=0)
+    last_occurrence: str | None = None
+
+
+@beartype
+class ErrorsData(BaseModelConfig):
+    """Error statistics data."""
+
+    total_errors: int = Field(default=0, ge=0)
+    error_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+    errors_by_type: dict[str, int] = Field(default_factory=dict)
+    recent_errors: list[RecentError] = Field(default_factory=list)
+
+
+@beartype
+class DbStatsData(BaseModelConfig):
+    """Database statistics data."""
+
+    connection_pool_size: int = Field(default=0, ge=0)
+    active_queries: int = Field(default=0, ge=0)
+    transaction_rate: float = Field(default=0.0, ge=0.0)
+    replication_lag_seconds: float = Field(default=0.0, ge=0.0)
+
+
+@beartype
+class WebsocketsData(BaseModelConfig):
+    """WebSocket connection data."""
+
+    total_connections: int = Field(default=0, ge=0)
+    active_connections: int = Field(default=0, ge=0)
+    rooms: dict[str, int] = Field(default_factory=dict)  # room_name -> connection_count
+    message_queue_size: int = Field(default=0, ge=0)
+
+
+@beartype
+class DashboardConfigData(BaseModelConfig):
+    """Dashboard configuration data."""
+
+    update_interval: int = Field(default=5, ge=1, le=60)
+    theme: str = Field(default="light", pattern="^(light|dark)$")
+    widgets: list[str] = Field(default_factory=list)
+    refresh_on_focus: bool = Field(default=True)
+
+
+@beartype
+class QuoteCalculationTimesMetrics(BaseModelConfig):
+    """Quote calculation time metrics."""
+
+    average_ms: float = Field(default=0.0, ge=0.0)
+    min_ms: float = Field(default=0.0, ge=0.0)
+    max_ms: float = Field(default=0.0, ge=0.0)
+    p50_ms: float = Field(default=0.0, ge=0.0)
+    p95_ms: float = Field(default=0.0, ge=0.0)
+    p99_ms: float = Field(default=0.0, ge=0.0)
+
+
+@beartype
+class ActiveStreamsMap(BaseModelConfig):
+    """Active streams tracking map."""
+
+    streams: dict[str, str] = Field(default_factory=dict)  # stream_key -> task_id
 
 
 class SystemMetrics(BaseModel):
@@ -29,49 +204,17 @@ class SystemMetrics(BaseModel):
         validate_default=True,
     )
 
-    database: dict[str, Any] = Field(default_factory=dict)
-    websockets: dict[str, Any] = Field(default_factory=dict)
-    cache: dict[str, Any] = Field(default_factory=dict)
-    errors: dict[str, Any] = Field(default_factory=dict)
+    database: DatabaseData
+    websockets: WebsocketsData
+    cache: CacheData
+    errors: ErrorsData
     timestamp: datetime = Field(default_factory=datetime.now)
 
 
-class UserActivity(BaseModel):
-    """User activity event."""
-
-    model_config = ConfigDict(
-        frozen=True,
-        extra="forbid",
-        validate_assignment=True,
-        str_strip_whitespace=True,
-        validate_default=True,
-    )
-
-    admin_user_id: UUID = Field(...)
-    action: str = Field(..., min_length=1, max_length=100)
-    resource_type: str = Field(..., min_length=1, max_length=50)
-    resource_id: str | None = Field(default=None)
-    status: str = Field(..., pattern="^(success|failure|error)$")
-    ip_address: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.now)
+# UserActivity is imported from admin_models
 
 
-class PerformanceMetrics(BaseModel):
-    """Performance monitoring data."""
-
-    model_config = ConfigDict(
-        frozen=True,
-        extra="forbid",
-        validate_assignment=True,
-        str_strip_whitespace=True,
-        validate_default=True,
-    )
-
-    api_response_times: dict[str, float] = Field(default_factory=dict)
-    quote_calculation_times: dict[str, float] = Field(default_factory=dict)
-    active_sessions: int = Field(default=0, ge=0)
-    error_rates: dict[str, float] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.now)
+# PerformanceMetrics is imported from admin_models
 
 
 class AdminDashboardHandler:
@@ -85,7 +228,7 @@ class AdminDashboardHandler:
         self._active_streams: dict[str, asyncio.Task[None]] = {}
 
         # Circuit breakers for system protection
-        self._error_counts: dict[str, int] = {}
+        self._error_counts: ErrorCountsMap = ErrorCountsMap()
         self._circuit_breaker_threshold = 5
         self._circuit_breaker_reset_time = 300  # 5 minutes
 
@@ -94,7 +237,7 @@ class AdminDashboardHandler:
         self,
         connection_id: str,
         admin_user_id: UUID,
-        dashboard_config: dict[str, Any],
+        dashboard_config: DashboardConfigData,
     ) -> Result[None, str]:
         """Start real-time system monitoring for admin with explicit permission check."""
         # Verify admin permissions
@@ -106,7 +249,7 @@ class AdminDashboardHandler:
             return permission_result
 
         # Validate monitoring config
-        update_interval = dashboard_config.get("update_interval", 5)
+        update_interval = dashboard_config.update_interval
         if not 1 <= update_interval <= 60:
             return Err(
                 f"Invalid update interval: {update_interval}. "
@@ -152,7 +295,7 @@ class AdminDashboardHandler:
         self,
         connection_id: str,
         admin_user_id: UUID,
-        filters: dict[str, Any],
+        filters: FiltersData,
     ) -> Result[None, str]:
         """Start real-time user activity monitoring with audit permissions."""
         # Verify audit permissions
@@ -233,10 +376,10 @@ class AdminDashboardHandler:
     async def _system_monitoring_stream(
         self,
         connection_id: str,
-        config: dict[str, Any],
+        config: ConfigData,
     ) -> None:
         """Stream system health metrics with circuit breaker protection."""
-        update_interval = config.get("update_interval", 5)
+        update_interval = config.update_interval
         error_count = 0
 
         try:
@@ -299,7 +442,7 @@ class AdminDashboardHandler:
     async def _user_activity_stream(
         self,
         connection_id: str,
-        filters: dict[str, Any],
+        filters: FiltersData,
     ) -> None:
         """Stream user activity events with filtering."""
         try:
@@ -384,7 +527,7 @@ class AdminDashboardHandler:
             await self._send_stream_error(connection_id, "performance", str(e))
 
     @beartype
-    async def _collect_system_metrics(self) -> Result[dict[str, Any], str]:
+    async def _collect_system_metrics(self) -> Result[SystemMetrics, str]:
         """Collect current system health metrics."""
         try:
             # Database connection stats
@@ -406,23 +549,47 @@ class AdminDashboardHandler:
                 error_stats_result.unwrap() if error_stats_result.is_ok() else {}
             )
 
+            # Convert stats to appropriate models
+            # Handle database stats
+            if isinstance(db_stats, DatabaseData):
+                db_model = db_stats
+            else:
+                db_model = DatabaseData()
+            
+            # Handle websocket stats - convert dict to model
+            if isinstance(ws_stats, dict):
+                ws_model = WebsocketsData(**ws_stats)
+            elif isinstance(ws_stats, WebsocketsData):
+                ws_model = ws_stats
+            else:
+                ws_model = WebsocketsData()
+            
+            # Handle cache stats
+            if isinstance(cache_stats, CacheData):
+                cache_model = cache_stats
+            else:
+                cache_model = CacheData()
+            
+            # Handle error stats
+            if isinstance(error_stats, ErrorsData):
+                errors_model = error_stats
+            else:
+                errors_model = ErrorsData()
+            
             return Ok(
-                {
-                    "database": db_stats,
-                    "websockets": ws_stats,
-                    "cache": cache_stats,
-                    "errors": error_stats,
-                    "timestamp": datetime.now().isoformat(),
-                    "health_status": self._calculate_health_status(
-                        db_stats, ws_stats, cache_stats, error_stats
-                    ),
-                }
+                SystemMetrics(
+                    database=db_model,
+                    websockets=ws_model,
+                    cache=cache_model,
+                    errors=errors_model,
+                    timestamp=datetime.now(),
+                )
             )
         except Exception as e:
             return Err(f"Failed to collect system metrics: {str(e)}")
 
     @beartype
-    async def _get_database_stats(self) -> Result[dict[str, Any], str]:
+    async def _get_database_stats(self) -> Result[DatabaseData, str]:
         """Get database connection pool statistics."""
         try:
             # Get connection pool stats
@@ -451,22 +618,32 @@ class AdminDashboardHandler:
                 """
             )
 
+            # Extract data from query results
+            active_conn = pool_stats["active_connections"] if pool_stats else 0
+            idle_conn = pool_stats["idle_connections"] if pool_stats else 0
+            total_conn = pool_stats["total_connections"] if pool_stats else 0
+            avg_query_time = query_stats["avg_query_time_ms"] if query_stats else 0.0
+            
+            # Count slow queries based on threshold (e.g., > 100ms)
+            slow_queries = 0
+            if query_stats and query_stats["max_query_time_ms"]:
+                if query_stats["max_query_time_ms"] > 100:
+                    slow_queries = 1  # At least one slow query
+            
             return Ok(
-                {
-                    "pool": dict(pool_stats) if pool_stats else {},
-                    "performance": dict(query_stats) if query_stats else {},
-                    "status": (
-                        "healthy"
-                        if pool_stats and pool_stats["active_connections"] < 100
-                        else "warning"
-                    ),
-                }
+                DatabaseData(
+                    active_connections=active_conn,
+                    idle_connections=idle_conn,
+                    total_connections=total_conn,
+                    avg_query_time_ms=avg_query_time,
+                    slow_queries=slow_queries,
+                )
             )
         except Exception as e:
             return Err(f"Database stats error: {str(e)}")
 
     @beartype
-    async def _get_cache_stats(self) -> Result[dict[str, Any], str]:
+    async def _get_cache_stats(self) -> Result[CacheData, str]:
         """Get Redis cache statistics."""
         try:
             # Get Redis info
@@ -477,30 +654,31 @@ class AdminDashboardHandler:
             info = await redis_client.info()
             memory_info = await redis_client.info("memory")
 
+            hits = float(info.get("keyspace_hits", 0))
+            misses = float(info.get("keyspace_misses", 0))
+            total_requests = hits + misses
+            hit_rate = hits / max(total_requests, 1)
+            
+            memory_usage_mb = float(memory_info.get("used_memory", 0)) / (1024 * 1024)
+            
+            # Note: evictions not directly available in standard Redis info
+            # Would need to track separately or use specific Redis commands
+            evictions = 0
+            
             return Ok(
-                {
-                    "connected_clients": info.get("connected_clients", 0),
-                    "used_memory_mb": float(memory_info.get("used_memory", 0))
-                    / (1024 * 1024),
-                    "hit_rate": float(info.get("keyspace_hits", 0))
-                    / max(
-                        float(info.get("keyspace_hits", 0))
-                        + float(info.get("keyspace_misses", 0)),
-                        1,
-                    ),
-                    "total_keys": (
-                        await redis_client.dbsize()
-                        if hasattr(redis_client, "dbsize")
-                        else 0
-                    ),
-                    "status": "healthy",
-                }
+                CacheData(
+                    hit_rate=hit_rate,
+                    total_hits=int(hits),
+                    total_misses=int(misses),
+                    memory_usage_mb=memory_usage_mb,
+                    evictions=evictions,
+                )
             )
         except Exception as e:
             return Err(f"Cache stats error: {str(e)}")
 
     @beartype
-    async def _get_error_statistics(self) -> Result[dict[str, Any], str]:
+    async def _get_error_statistics(self) -> Result[ErrorsData, str]:
         """Get recent error statistics."""
         try:
             # Get error counts by type (last hour)
@@ -529,37 +707,56 @@ class AdminDashboardHandler:
                 """
             )
 
+            # Calculate total errors and error rate
+            total_errors = 0
+            errors_by_type = {}
+            recent_errors = []
+            
+            for row in error_counts:
+                error_type = row["error_type"]
+                count = row["count"]
+                total_errors += count
+                errors_by_type[error_type] = count
+                recent_errors.append(RecentError(
+                    type=error_type,
+                    count=count,
+                    last_occurrence=row["last_occurrence"].isoformat() if row["last_occurrence"] else None
+                ))
+            
+            # Assume we have a way to get total requests for error rate calculation
+            # For now, use a simple calculation based on errors in last hour
+            error_rate = min(total_errors / 1000.0, 1.0)  # Assuming ~1000 requests/hour baseline
+            
             return Ok(
-                {
-                    "by_type": [dict(row) for row in error_counts],
-                    "trend": dict(error_trend) if error_trend else {},
-                    "circuit_breakers": {
-                        name: "open"
-                        for name, count in self._error_counts.items()
-                        if count >= self._circuit_breaker_threshold
-                    },
-                }
+                ErrorsData(
+                    total_errors=total_errors,
+                    error_rate=error_rate,
+                    errors_by_type=errors_by_type,
+                    recent_errors=recent_errors[:10],  # Limit to 10 most recent
+                )
             )
         except Exception as e:
             return Err(f"Error stats error: {str(e)}")
 
     @beartype
     async def _get_recent_user_activity(
-        self, filters: dict[str, Any]
-    ) -> Result[list[dict[str, Any]], str]:
+        self, filters: FiltersData
+    ) -> Result[list[UserActivity], str]:
         """Get recent user activity events."""
         try:
             # Build query with filters
             where_clauses = ["aal.created_at > NOW() - INTERVAL '30 minutes'"]
             params = []
 
-            if "action" in filters:
-                params.append(filters["action"])
-                where_clauses.append(f"aal.action = ${len(params)}")
+            if filters.action_types:
+                for action in filters.action_types:
+                    params.append(action)
+                    where_clauses.append(f"aal.action = ${len(params)}")
 
-            if "resource_type" in filters:
-                params.append(filters["resource_type"])
-                where_clauses.append(f"aal.resource_type = ${len(params)}")
+            if filters.resource_types:
+                for resource_type in filters.resource_types:
+                    params.append(resource_type)
+                    where_clauses.append(f"aal.resource_type = ${len(params)}")
 
             # Safe query construction - where_clauses are built from parameterized conditions
             where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
@@ -586,26 +783,28 @@ class AdminDashboardHandler:
             )
 
             rows = await self._db.fetch(query, *params)
-            return Ok([dict(row) for row in rows])
+            return Ok([UserActivity(**dict(row)) for row in rows])
         except Exception as e:
             return Err(f"Failed to get user activity: {str(e)}")
 
     @beartype
     async def _get_user_activity_since(
-        self, since: datetime, filters: dict[str, Any]
-    ) -> Result[list[dict[str, Any]], str]:
+        self, since: datetime, filters: FiltersData
+    ) -> Result[list[UserActivity], str]:
         """Get user activity since a specific time."""
         try:
             where_clauses = ["aal.created_at > $1"]
             params = [since]
 
-            if "action" in filters:
-                params.append(filters["action"])
-                where_clauses.append(f"aal.action = ${len(params)}")
+            if filters.action_types:
+                for action in filters.action_types:
+                    params.append(action)
+                    where_clauses.append(f"aal.action = ${len(params)}")
 
-            if "resource_type" in filters:
-                params.append(filters["resource_type"])
-                where_clauses.append(f"aal.resource_type = ${len(params)}")
+            if filters.resource_types:
+                for resource_type in filters.resource_types:
+                    params.append(resource_type)
+                    where_clauses.append(f"aal.resource_type = ${len(params)}")
 
             # Safe query construction - where_clauses are built from parameterized conditions
             where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
@@ -632,17 +831,21 @@ class AdminDashboardHandler:
             )
 
             rows = await self._db.fetch(query, *params)
-            return Ok([dict(row) for row in rows])
+            return Ok([UserActivity(**dict(row)) for row in rows])
         except Exception as e:
             return Err(f"Failed to get activity updates: {str(e)}")
 
     @beartype
     async def _collect_performance_metrics(
         self, metrics: list[str]
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[PerformanceMetrics, str]:
         """Collect requested performance metrics."""
         try:
-            data: dict[str, Any] = {}
+            # Initialize with default values
+            api_response_times = None
+            quote_calculation_times = None
+            active_sessions = None
+            error_rates = None
 
             if "api_response_times" in metrics:
                 # Get from recent request logs
@@ -657,7 +860,8 @@ class AdminDashboardHandler:
                     WHERE created_at > NOW() - INTERVAL '5 minutes'
                     """
                 )
-                data["api_response_times"] = dict(api_times) if api_times else {}
+                if api_times:
+                    api_response_times = ApiResponseTimes(**dict(api_times))
 
             if "quote_calculation_times" in metrics:
                 # Get quote calculation performance
@@ -672,7 +876,8 @@ class AdminDashboardHandler:
                     WHERE created_at > NOW() - INTERVAL '5 minutes'
                     """
                 )
-                data["quote_calculation_times"] = dict(calc_times) if calc_times else {}
+                if calc_times:
+                    quote_calculation_times = QuoteCalculationTimes(**dict(calc_times))
 
             if "active_sessions" in metrics:
                 # Get active user sessions
@@ -683,11 +888,11 @@ class AdminDashboardHandler:
                     WHERE last_activity > NOW() - INTERVAL '15 minutes'
                     """
                 )
-                data["active_sessions"] = int(sessions) if sessions is not None else 0
+                active_sessions = int(sessions) if sessions is not None else 0
 
             if "error_rates" in metrics:
                 # Calculate error rates
-                error_rates = await self._db.fetchrow(
+                error_rates_data = await self._db.fetchrow(
                     """
                     SELECT
                         COUNT(*) FILTER (WHERE status >= 400) as errors,
@@ -701,10 +906,18 @@ class AdminDashboardHandler:
                     WHERE created_at > NOW() - INTERVAL '5 minutes'
                     """
                 )
-                data["error_rates"] = dict(error_rates) if error_rates else {}
+                if error_rates_data:
+                    error_rates = ErrorRates(**dict(error_rates_data))
 
-            data["timestamp"] = datetime.now().isoformat()
-            return Ok(data)
+            return Ok(
+                PerformanceMetrics(
+                    api_response_times=api_response_times,
+                    quote_calculation_times=quote_calculation_times,
+                    active_sessions=active_sessions,
+                    error_rates=error_rates,
+                    timestamp=datetime.now()
+                )
+            )
         except Exception as e:
             return Err(f"Failed to collect performance metrics: {str(e)}")
 
@@ -714,7 +927,7 @@ class AdminDashboardHandler:
         alert_type: str,
         message: str,
         severity: str,
-        data: dict[str, Any] | None = None,
+        data: DataData | None = None,
     ) -> Result[None, str]:
         """Broadcast alert to all admin users with proper severity validation."""
         if severity not in ["low", "medium", "high", "critical"]:
@@ -805,25 +1018,27 @@ class AdminDashboardHandler:
     @beartype
     def _calculate_health_status(
         self,
-        db_stats: dict[str, Any],
-        ws_stats: dict[str, Any],
-        cache_stats: dict[str, Any],
-        error_stats: dict[str, Any],
+        db_stats: DatabaseData,
+        ws_stats: WebsocketsData,
+        cache_stats: CacheData,
+        error_stats: ErrorsData,
     ) -> str:
         """Calculate overall system health status."""
         # Simple health calculation
         issues = 0
 
-        # Check database
-        if db_stats.get("status") != "healthy":
+        # Check database - high connection count or slow queries
+        if db_stats.active_connections > 100 or db_stats.slow_queries > 10:
             issues += 2
 
-        # Check WebSocket utilization
-        if ws_stats.get("utilization", 0) > 0.8:
-            issues += 1
+        # Check WebSocket utilization (based on active vs total connections)
+        if ws_stats.total_connections > 0:
+            utilization = ws_stats.active_connections / ws_stats.total_connections
+            if utilization > 0.8:
+                issues += 1
 
         # Check error rates
-        if error_stats.get("trend", {}).get("last_5min", 0) > 100:
+        if error_stats.error_rate > 0.05:  # More than 5% error rate
             issues += 2
 
         # Determine health status

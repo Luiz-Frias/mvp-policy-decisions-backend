@@ -12,7 +12,35 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...services.quote_service import QuoteService
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
-from ..message_models import (
+from ..message_models import (  # Auto-generated models
+    Any],
+    BaseModelConfig,
+    DetailsData,
+    """Structured,
+    ...models.base,
+    :,
+    @beartype,
+    class,
+    dict[str,
+    from,
+    import,
+    model,
+    replacing,
+    usage.""",
+)
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class FieldLocksMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
     create_websocket_message_data,
 )
 
@@ -69,7 +97,7 @@ class QuoteWebSocketHandler:
         self._active_quote_sessions: dict[UUID, set[str]] = {}
 
         # Collaborative editing locks
-        self._field_locks: dict[str, str] = {}  # field_key -> connection_id
+        self._field_locks: FieldLocksMapping = {}  # field_key -> connection_id
 
         # Message deduplication
         self._recent_updates: dict[str, datetime] = {}
@@ -298,7 +326,7 @@ class QuoteWebSocketHandler:
         quote_id: UUID,
         progress: float,
         stage: str,
-        details: dict[str, Any] | None = None,
+        details: DetailsData | None = None,
     ) -> Result[int, str]:
         """Stream calculation progress to subscribers."""
         if not 0 <= progress <= 100:

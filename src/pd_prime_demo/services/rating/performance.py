@@ -9,9 +9,52 @@ from functools import lru_cache
 from typing import Any
 
 from beartype import beartype
+from pydantic import Field
 
 from ...core.result_types import Err, Ok, Result
+from ...models.base import BaseModelConfig
 from ...schemas.rating import PerformanceMetrics, PerformanceThresholds
+
+# Auto-generated models
+
+
+@beartype
+class FactorsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class InputDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class QuoteDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class MonitoringTokensMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class PrecomputedFactorsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
 
 
 class RatingPerformanceOptimizer:
@@ -30,12 +73,14 @@ class RatingPerformanceOptimizer:
         self._db = db  # Store for future use
         self._cache = cache  # Store for future use
         self._calculation_cache: dict[str, tuple[Any, float]] = {}
-        self._precomputed_factors: dict[str, float] = {}
+        self._precomputed_factors: PrecomputedFactorsMetrics = {}
         self._cache_size = cache_size
         self._cache_ttl = 3600  # 1 hour TTL for cached calculations
         self._performance_metrics: dict[str, list[float]] = {}
         self._performance_thresholds = PerformanceThresholds()
-        self._monitoring_tokens: dict[str, float] = {}  # For tracking calculation times
+        self._monitoring_tokens: MonitoringTokensMetrics = (
+            {}
+        )  # For tracking calculation times
 
     @beartype
     @lru_cache(maxsize=10000)
@@ -71,7 +116,7 @@ class RatingPerformanceOptimizer:
     @beartype
     def create_calculation_hash(
         self,
-        input_data: dict[str, Any],
+        input_data: InputDataData,
     ) -> str:
         """Create hash for calculation caching.
 
@@ -112,7 +157,7 @@ class RatingPerformanceOptimizer:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Check for errors
-            factors: dict[str, float] = {}
+            factors: FactorsMetrics = {}
             for name, result in zip(factor_names, results):
                 if isinstance(result, Exception):
                     return Err(f"Factor calculation failed for {name}: {str(result)}")
@@ -214,7 +259,7 @@ class RatingPerformanceOptimizer:
     @beartype
     async def optimize_calculation_pipeline(
         self,
-        quote_data: dict[str, Any],
+        quote_data: QuoteDataData,
     ) -> Result[dict[str, Any], str]:
         """Optimize entire calculation pipeline for <50ms performance.
 

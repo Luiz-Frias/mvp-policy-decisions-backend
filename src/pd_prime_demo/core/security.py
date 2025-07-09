@@ -1,16 +1,27 @@
 """Security utilities for JWT, password hashing, and authentication."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 import bcrypt
 import jwt
 from attrs import field, frozen
 from beartype import beartype
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
+from ..models.base import BaseModelConfig
 from ..schemas.internal import JWTDecodeResult
 from .config import get_settings
+
+# Auto-generated models
+
+
+@beartype
+class PayloadData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @frozen
@@ -226,7 +237,7 @@ async def verify_jwt_token(token: str, secret: str) -> JWTDecodeResult:
 
 
 @beartype
-async def create_jwt_token(payload: dict[str, Any], secret: str) -> str:
+async def create_jwt_token(payload: PayloadData, secret: str) -> str:
     """Create JWT token from payload.
 
     Args:

@@ -84,6 +84,7 @@ class UserBase(BaseModelConfig):
 
     @field_validator("email")
     @classmethod
+    @beartype
     def validate_email_domain(cls, v: str) -> str:
         """Validate email domain if needed."""
         # Basic email validation - Pydantic EmailStr already handles most validation
@@ -95,6 +96,7 @@ class UserBase(BaseModelConfig):
 
     @field_validator("phone_number")
     @classmethod
+    @beartype
     def validate_phone_format(cls, v: str | None) -> str | None:
         """Validate and normalize phone number format."""
         if v is None:
@@ -128,6 +130,7 @@ class UserCreate(UserBase):
 
     @field_validator("password")
     @classmethod
+    @beartype
     def validate_password_strength(cls, v: str) -> str:
         """Validate password meets security requirements."""
         if len(v) < 8:
@@ -147,6 +150,7 @@ class UserCreate(UserBase):
 
         return v
 
+    @beartype
     def model_post_init(self, __context: Any) -> None:
         """Validate password confirmation after model creation."""
         if self.password != self.confirm_password:
@@ -177,6 +181,7 @@ class UserPasswordUpdate(BaseModelConfig):
         ..., min_length=8, max_length=128, description="New password confirmation"
     )
 
+    @beartype
     def model_post_init(self, __context: Any) -> None:
         """Validate new password confirmation."""
         if self.new_password != self.confirm_new_password:
@@ -261,6 +266,7 @@ class PasswordResetConfirm(BaseModelConfig):
         ..., min_length=8, max_length=128, description="Password confirmation"
     )
 
+    @beartype
     def model_post_init(self, __context: Any) -> None:
         """Validate password confirmation."""
         if self.new_password != self.confirm_password:

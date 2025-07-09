@@ -41,6 +41,7 @@ class GoogleSSOProvider(OIDCProvider):
         self.hosted_domain = hosted_domain  # For Google Workspace domains
 
     @property
+    @beartype
     def provider_name(self) -> str:
         """Get provider name."""
         return "google"

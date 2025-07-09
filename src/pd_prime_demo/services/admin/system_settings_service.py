@@ -8,12 +8,25 @@ from uuid import UUID
 
 from beartype import beartype
 from cryptography.fernet import Fernet
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
 from ..cache_keys import CacheKeys
+
+# Auto-generated models
+
+
+@beartype
+class RulesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class SettingType(str, Enum):
@@ -322,7 +335,7 @@ class SystemSettingsService:
         self,
         value: Any,
         value_type: SettingType,
-        rules: dict[str, Any],
+        rules: RulesData,
     ) -> Result[bool, str]:
         """Validate value against type and rules."""
         # Type validation

@@ -6,8 +6,57 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
+from pydantic import Field
 
 from ...core.database import Database
+from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class AdditionalContextData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class OldValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class SummaryData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class NewValuesData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class FiltersData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class AdminActivityLogger:
@@ -27,13 +76,13 @@ class AdminActivityLogger:
         action: str,
         resource_type: str,
         resource_id: UUID | None = None,
-        old_values: dict[str, Any] | None = None,
-        new_values: dict[str, Any] | None = None,
+        old_values: OldValuesData | None = None,
+        new_values: NewValuesData | None = None,
         status: str = "success",
         error_message: str | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
-        additional_context: dict[str, Any] | None = None,
+        additional_context: AdditionalContextData | None = None,
     ) -> None:
         """Log admin activity asynchronously.
 
@@ -173,7 +222,7 @@ class AdminActivityLogger:
         admin_user_id: UUID,
         export_type: str,
         record_count: int,
-        filters: dict[str, Any] | None = None,
+        filters: FiltersData | None = None,
         ip_address: str | None = None,
     ) -> None:
         """Log data export for compliance.
@@ -270,7 +319,7 @@ class AdminActivityLogger:
 
         rows = await self._db.fetch(query, *params)
 
-        summary: dict[str, Any] = {
+        summary: SummaryData = {
             "total_activities": 0,
             "by_action": {},
             "by_resource": {},

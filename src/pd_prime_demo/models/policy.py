@@ -83,6 +83,7 @@ class PolicyBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfig
 
     @field_validator("policy_number")
     @classmethod
+    @beartype
     def validate_policy_number(cls, v: str) -> str:
         """Ensure policy number follows business format."""
         parts = v.split("-")
@@ -97,6 +98,7 @@ class PolicyBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfig
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_dates(self) -> "PolicyBase":
         """Ensure expiration date is after effective date."""
         if self.expiration_date <= self.effective_date:
@@ -155,6 +157,7 @@ class PolicyUpdate(BaseModelConfig):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_at_least_one_field(self) -> "PolicyUpdate":
         """Ensure at least one field is provided for update."""
         if not any(getattr(self, field) is not None for field in self.model_fields):
@@ -177,6 +180,7 @@ class Policy(PolicyBase, IdentifiableModel):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_cancellation(self) -> "Policy":
         """Ensure cancelled_at is set only when status is CANCELLED."""
         if self.status == PolicyStatus.CANCELLED and not self.cancelled_at:

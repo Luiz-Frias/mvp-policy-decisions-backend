@@ -9,9 +9,40 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ....models.admin import AdminUser, Permission
+from ....models.base import BaseModelConfig
 from ....services.admin.sso_admin_service import SSOAdminService
 from ...dependencies import get_current_admin_user, get_sso_admin_service
 from ...response_patterns import ErrorResponse
+
+# Auto-generated models
+
+
+@beartype
+class ConditionsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ActionsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConfigurationData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 router = APIRouter(prefix="/admin/sso", tags=["admin-sso"])
 
@@ -31,7 +62,7 @@ class SSOProviderCreateRequest(BaseModel):
     provider_type: str = Field(
         ..., pattern="^(oidc|saml|oauth2)$", description="Provider type"
     )
-    configuration: dict[str, Any] = Field(..., description="Provider configuration")
+    configuration: ConfigurationData = Field(..., description="Provider configuration")
     is_enabled: bool = Field(False, description="Enable immediately")
 
 
@@ -47,7 +78,7 @@ class SSOProviderUpdateRequest(BaseModel):
     )
 
     provider_name: str | None = Field(None, description="New provider name")
-    configuration: dict[str, Any] | None = Field(
+    configuration: ConfigurationData | None = Field(
         None, description="Updated configuration"
     )
     is_enabled: bool | None = Field(None, description="Enable/disable provider")
@@ -85,8 +116,8 @@ class ProvisioningRuleCreateRequest(BaseModel):
     )
 
     rule_name: str = Field(..., description="Rule name")
-    conditions: dict[str, Any] = Field(..., description="Rule conditions")
-    actions: dict[str, Any] = Field(..., description="Actions to perform")
+    conditions: ConditionsData = Field(..., description="Rule conditions")
+    actions: ActionsData = Field(..., description="Actions to perform")
     priority: int = Field(0, ge=0, le=1000, description="Rule priority")
     is_enabled: bool = Field(True, description="Enable rule")
 

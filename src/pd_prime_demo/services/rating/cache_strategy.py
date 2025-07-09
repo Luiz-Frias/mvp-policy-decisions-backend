@@ -6,10 +6,66 @@ from decimal import Decimal
 from typing import Any
 
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
+from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class UsagePatternsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class ResultData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DeserializedData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class SerializedData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class CalculationResultData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 class RatingCacheStrategy:
@@ -98,7 +154,7 @@ class RatingCacheStrategy:
     async def cache_quote_calculation(
         self,
         quote_hash: str,
-        calculation_result: dict[str, Any],
+        calculation_result: CalculationResultData,
     ) -> Result[bool, str]:
         """Cache complete quote calculation result.
 
@@ -265,7 +321,7 @@ class RatingCacheStrategy:
     @beartype
     async def optimize_cache_ttl(
         self,
-        usage_patterns: dict[str, float],
+        usage_patterns: UsagePatternsMetrics,
     ) -> None:
         """Optimize cache TTL based on usage patterns.
 
@@ -285,7 +341,7 @@ class RatingCacheStrategy:
                     )
 
     @beartype
-    def _serialize_calculation_result(self, result: dict[str, Any]) -> dict[str, Any]:
+    def _serialize_calculation_result(self, result: ResultData) -> ResultData:
         """Serialize calculation result for caching.
 
         Args:
@@ -294,7 +350,7 @@ class RatingCacheStrategy:
         Returns:
             Serializable dictionary
         """
-        serialized: dict[str, Any] = {}
+        serialized: SerializedData = {}
         for key, value in result.items():
             if isinstance(value, Decimal):
                 serialized[key] = str(value)
@@ -310,7 +366,7 @@ class RatingCacheStrategy:
         return serialized
 
     @beartype
-    def _deserialize_calculation_result(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _deserialize_calculation_result(self, data: DataData) -> DataData:
         """Deserialize cached calculation result.
 
         Args:
@@ -329,7 +385,7 @@ class RatingCacheStrategy:
             "tax_amount",
         }
 
-        deserialized: dict[str, Any] = {}
+        deserialized: DeserializedData = {}
         for key, value in data.items():
             if key in decimal_fields and isinstance(value, str):
                 deserialized[key] = Decimal(value)

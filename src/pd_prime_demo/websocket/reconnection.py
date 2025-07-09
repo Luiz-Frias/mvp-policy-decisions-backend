@@ -105,6 +105,7 @@ class ConnectionMetrics(BaseModel):
     last_error: str | None = Field(default=None)
 
     @property
+    @beartype
     def success_rate(self) -> float:
         """Calculate connection success rate."""
         if self.total_connections == 0:
@@ -112,6 +113,7 @@ class ConnectionMetrics(BaseModel):
         return self.successful_connections / self.total_connections
 
     @property
+    @beartype
     def is_healthy(self) -> bool:
         """Check if connection is healthy based on metrics."""
         return (
@@ -444,6 +446,7 @@ class ReconnectionManager:
                 if self.state == ConnectionState.CONNECTED:
                     await self.handle_connection_lost(f"Health check error: {e}")
 
+    @beartype
     def get_metrics(self) -> ConnectionMetrics:
         """Get connection metrics."""
         # Update current uptime if connected
@@ -455,6 +458,7 @@ class ReconnectionManager:
 
         return self.metrics
 
+    @beartype
     def get_recent_attempts(self, limit: int = 10) -> list[ReconnectionAttempt]:
         """Get recent reconnection attempts."""
         return self.attempts[-limit:] if self.attempts else []

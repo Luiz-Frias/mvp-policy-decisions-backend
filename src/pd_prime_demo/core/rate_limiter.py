@@ -74,12 +74,14 @@ class ClientRateTracker:
     burst_tokens: int = field(default=10)
     last_request_time: float = field(default=0.0)
 
+    @beartype
     def add_request(self, timestamp: float) -> None:
         """Add a new request timestamp."""
         self.requests_this_minute.append(timestamp)
         self.requests_this_hour.append(timestamp)
         self.last_request_time = timestamp
 
+    @beartype
     def cleanup_old_requests(self, current_time: float) -> None:
         """Remove requests older than tracking windows."""
         minute_cutoff = current_time - 60
@@ -95,6 +97,7 @@ class ClientRateTracker:
         while self.requests_this_hour and self.requests_this_hour[0] < hour_cutoff:
             self.requests_this_hour.popleft()
 
+    @beartype
     def get_current_rates(self, current_time: float) -> tuple[int, int]:
         """Get current request counts for minute and hour windows."""
         self.cleanup_old_requests(current_time)
@@ -399,6 +402,7 @@ def rate_limit(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for function-level rate limiting."""
 
+    @beartype
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         RateLimitRule(
             requests_per_minute=requests_per_minute,

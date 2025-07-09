@@ -9,12 +9,26 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from jose import JWTError, jwt  # type: ignore[import-untyped]
 from passlib.context import CryptContext
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
 from ....core.database import Database
+from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class ClientData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 # Password hashing
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -729,7 +743,7 @@ class OAuth2Server:
         self,
         refresh_token: str | None,
         scope: str | None,
-        client: dict[str, Any],
+        client: ClientData,
     ) -> Result[dict[str, Any], str]:
         """Handle refresh token grant type."""
         if not refresh_token:
@@ -804,7 +818,7 @@ class OAuth2Server:
     @beartype
     async def _handle_client_credentials_grant(
         self,
-        client: dict[str, Any],
+        client: ClientData,
         scope: str | None,
     ) -> Result[dict[str, Any], str]:
         """Handle client credentials grant type."""
@@ -851,7 +865,7 @@ class OAuth2Server:
         username: str | None,
         password: str | None,
         scope: str | None,
-        client: dict[str, Any],
+        client: ClientData,
     ) -> Result[dict[str, Any], str]:
         """Handle password grant type (only for trusted clients)."""
         # This grant type should only be used by highly trusted clients

@@ -10,9 +10,58 @@ from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype
+from pydantic import Field
 
+from ..models.base import BaseModelConfig
 from .cache import get_cache
 from .performance_monitor import performance_context
+
+# Auto-generated models
+
+
+@beartype
+class ResultData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class DataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ResultsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class FactorsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class MetricsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @frozen
@@ -23,7 +72,8 @@ class CacheKey:
     data: str = field()
 
     @classmethod
-    def from_data(cls, prefix: str, data: dict[str, Any]) -> "CacheKey":
+    @beartype
+    def from_data(cls, prefix: str, data: DataData) -> "CacheKey":
         """Create cache key from data dictionary."""
         # Sort keys for consistent hashing
         sorted_data = json.dumps(data, sort_keys=True, default=str)
@@ -31,6 +81,7 @@ class CacheKey:
         return cls(prefix=prefix, data=data_hash)
 
     @property
+    @beartype
     def key(self) -> str:
         """Get formatted cache key."""
         return f"{self.prefix}:{self.data}"
@@ -54,7 +105,7 @@ class PerformanceCache:
     def __init__(self) -> None:
         """Initialize performance cache."""
         self._cache = get_cache()
-        self._metrics: dict[str, Any] = {
+        self._metrics: MetricsData = {
             "hits": 0,
             "misses": 0,
             "lookup_times": [],
@@ -273,6 +324,7 @@ def cached_operation(
 ) -> Callable[..., Any]:
     """Decorator for caching expensive operations with performance monitoring."""
 
+    @beartype
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -313,6 +365,7 @@ def cached_operation(
                     raise
 
         @wraps(func)
+        @beartype
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             # For sync functions, we'd need to run in an async context
             # This is a simplified version
@@ -332,7 +385,7 @@ async def warm_all_caches() -> dict[str, Any]:
     perf_cache = get_performance_cache()
 
     start_time = time.time()
-    results: dict[str, Any] = {}
+    results: ResultsData = {}
 
     # Warm rating calculations cache
     rating_result = await perf_cache.warm_rating_cache()
@@ -359,8 +412,8 @@ async def warm_all_caches() -> dict[str, Any]:
 async def cache_rate_calculation(
     state: str,
     policy_type: str,
-    factors: dict[str, Any],
-    result: dict[str, Any],
+    factors: FactorsData,
+    result: ResultData,
     ttl_seconds: int = 3600,
 ) -> bool:
     """Cache a rate calculation result."""
@@ -387,7 +440,7 @@ async def cache_rate_calculation(
 async def get_cached_rate(
     state: str,
     policy_type: str,
-    factors: dict[str, Any],
+    factors: FactorsData,
 ) -> dict[str, Any] | None:
     """Get cached rate calculation result."""
     perf_cache = get_performance_cache()

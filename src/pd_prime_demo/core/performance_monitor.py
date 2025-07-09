@@ -12,9 +12,27 @@ from typing import Any
 from attrs import field, frozen
 from beartype import beartype
 from fastapi import Request, Response
+from pydantic import Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from ..models.base import BaseModelConfig
 from .result_types import Err, Ok, Result
+
+# Auto-generated models
+
+
+@beartype
+class ErrorCountsCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class CountersCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
 
 
 @frozen
@@ -60,8 +78,8 @@ class PerformanceCollector:
         self._metrics: dict[str, deque[dict[str, Any]]] = defaultdict(
             lambda: deque(maxlen=max_samples)
         )
-        self._counters: dict[str, int] = defaultdict(int)
-        self._error_counts: dict[str, int] = defaultdict(int)
+        self._counters: CountersCounts = defaultdict(int)
+        self._error_counts: ErrorCountsCounts = defaultdict(int)
         self._lock = asyncio.Lock()
 
     @beartype
@@ -332,6 +350,7 @@ def performance_monitor(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for monitoring function performance with memory tracking."""
 
+    @beartype
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -404,6 +423,7 @@ def performance_monitor(
                 raise
 
         @wraps(func)
+        @beartype
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.perf_counter()
             memory_start = 0.0

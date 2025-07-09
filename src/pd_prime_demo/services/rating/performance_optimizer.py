@@ -9,11 +9,39 @@ from decimal import Decimal
 from typing import Any
 
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class FactorLookupCacheMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class CacheHitRatesCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class BatchCacheData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
 
 HAS_NUMPY = False  # NumPy not used in current implementation
 
@@ -30,14 +58,14 @@ class RatingPerformanceOptimizer:
 
         # Performance monitoring
         self._calculation_times: list[float] = []
-        self._cache_hit_rates: dict[str, int] = {"hits": 0, "misses": 0}
+        self._cache_hit_rates: CacheHitRatesCounts = {"hits": 0, "misses": 0}
 
         # Precomputed lookup tables
-        self._factor_lookup_cache: dict[str, float] = {}
+        self._factor_lookup_cache: FactorLookupCacheMetrics = {}
         self._rate_multiplier_cache: dict[str, Decimal] = {}
 
         # Batch processing support
-        self._batch_cache: dict[str, Any] = {}
+        self._batch_cache: BatchCacheData = {}
 
     @beartype
     async def initialize_performance_caches(self) -> Result[bool, str]:

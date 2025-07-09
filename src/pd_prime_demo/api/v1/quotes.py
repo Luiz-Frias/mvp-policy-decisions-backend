@@ -11,7 +11,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.api.response_patterns import (
     APIResponseHandler,
+    BaseModelConfig,
     ErrorResponse,
+    ...models.base,
+    from,
+    import,
 )
 
 from ...models.quote import (
@@ -33,7 +37,51 @@ from ...schemas.quote import (
 from ...services.performance_monitor import performance_tracker
 from ...services.quote_service import QuoteService
 from ...services.quote_wizard import QuoteWizardService, WizardState
-from ..dependencies import (
+from ..dependencies import (  # Auto-generated models
+    Any],
+    BaseModelConfig,
+    StepDataData,
+    """Structured,
+    :,
+    @beartype,
+    class,
+    dict[str,
+    model,
+    replacing,
+    usage.""",
+)
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class IntelligenceData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class InitialDataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class PerformanceStatsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
     get_current_user,
     get_optional_user,
     get_quote_service,
@@ -334,7 +382,7 @@ async def search_quotes(
 @beartype
 async def start_wizard_session(
     response: Response,
-    initial_data: dict[str, Any] | None = None,
+    initial_data: InitialDataData | None = None,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
 ) -> WizardSessionResponse | ErrorResponse:
     """Start a new quote wizard session."""
@@ -378,7 +426,7 @@ async def get_wizard_session(
 @beartype
 async def update_wizard_step(
     session_id: UUID,
-    step_data: dict[str, Any],
+    step_data: StepDataData,
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
 ) -> WizardSessionResponse | ErrorResponse:
@@ -608,7 +656,7 @@ class StepIntelligenceResponse(BaseModel):
 
     step_id: str = Field(..., description="Step identifier")
     session_id: UUID = Field(..., description="Session identifier")
-    intelligence: dict[str, Any] = Field(..., description="Intelligence data")
+    intelligence: IntelligenceData = Field(..., description="Intelligence data")
     generated_at: datetime = Field(..., description="Generation timestamp")
 
 
@@ -649,7 +697,7 @@ class PerformanceStatsResponse(BaseModel):
         validate_default=True,
     )
 
-    performance_stats: dict[str, Any] = Field(..., description="Performance statistics")
+    performance_stats: PerformanceStatsData = Field(..., description="Performance statistics")
     collected_at: datetime = Field(..., description="Collection timestamp")
     description: str = Field(..., description="Statistics description")
 

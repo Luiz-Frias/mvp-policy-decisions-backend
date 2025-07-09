@@ -20,6 +20,48 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.cache import Cache
 from ..core.database import Database
+from ..models.base import BaseModelConfig
+
+# Auto-generated models
+
+
+@beartype
+class MetadataData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class PriorityMetricsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+
+
+@beartype
+class ConnectionStatesCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class ErrorCountsCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class UserActivityCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
 
 
 class ConnectionMetrics(BaseModel):
@@ -105,7 +147,7 @@ class WebSocketMonitor:
             maxlen=10000
         )  # Keep last 10k latencies
         self._message_timestamps: deque[datetime] = deque(maxlen=10000)
-        self._error_counts: dict[str, int] = defaultdict(int)
+        self._error_counts: ErrorCountsCounts = defaultdict(int)
 
         # Peak tracking
         self._peak_connections = 0
@@ -142,7 +184,7 @@ class WebSocketMonitor:
         self,
         connection_id: str,
         user_id: UUID | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: MetadataData | None = None,
     ) -> None:
         """Record a new connection being established."""
         connection_metrics = ConnectionMetrics(
@@ -529,7 +571,7 @@ class WebSocketMonitor:
         event_type: str,
         connection_id: str,
         user_id: UUID | None,
-        metadata: dict[str, Any] | None,
+        metadata: MetadataData | None,
     ) -> None:
         """Store connection event in database."""
         try:
@@ -660,7 +702,9 @@ class WebSocketMonitor:
         # For now, return empty metrics structure
         return priority_metrics
 
-    async def _store_priority_metrics(self, priority_metrics: dict[str, Any]) -> None:
+    async def _store_priority_metrics(
+        self, priority_metrics: PriorityMetricsData
+    ) -> None:
         """Store priority metrics in database."""
         try:
             for priority, metrics in priority_metrics.items():
@@ -687,7 +731,7 @@ class WebSocketMonitor:
         alerts = await self.get_performance_alerts()
 
         # Connection distribution by state
-        connection_states: dict[str, int] = defaultdict(int)
+        connection_states: ConnectionStatesCounts = defaultdict(int)
         for conn in self._connection_metrics.values():
             if (datetime.now() - conn.last_activity).total_seconds() < 60:
                 connection_states["active"] += 1
@@ -697,7 +741,7 @@ class WebSocketMonitor:
                 connection_states["stale"] += 1
 
         # Top users by activity
-        user_activity: dict[str, int] = defaultdict(int)
+        user_activity: UserActivityCounts = defaultdict(int)
         for conn in self._connection_metrics.values():
             if conn.user_id:
                 user_activity[str(conn.user_id)] += (

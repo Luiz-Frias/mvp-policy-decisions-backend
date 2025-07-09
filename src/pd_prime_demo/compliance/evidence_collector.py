@@ -17,16 +17,36 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 from pd_prime_demo.schemas.common import (
+    BaseModelConfig,
     ComplianceFinding,
     ComplianceRecommendation,
     ControlEvidence,
     EvidenceContent,
     ManagementResponse,
+    ..models.base,
+    from,
+    import,
 )
 from pd_prime_demo.schemas.compliance import EvidenceCollection, EvidenceItem
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
+
+# Auto-generated models
+
+@beartype
+class TrustServiceCriteriaScoresMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
+
+
+@beartype
+class EvidenceByTypeCounts(BaseModelConfig):
+    """Structured model replacing dict[str, int] usage."""
+
+    total: int = Field(default=0, ge=0, description="Total count")
+
 
 
 class EvidenceType(str, Enum):
@@ -208,14 +228,14 @@ class ComplianceReport(BaseModel):
 
     # Compliance Summary
     overall_compliance_score: float = Field(ge=0.0, le=100.0)
-    trust_service_criteria_scores: dict[str, float] = Field(default_factory=dict)
+    trust_service_criteria_scores: TrustServiceCriteriaScoresMetrics = Field(default_factory=dict)
     control_effectiveness_summary: ControlEvidence = Field(
         default_factory=ControlEvidence
     )
 
     # Evidence Summary
     total_evidence_artifacts: int = Field(ge=0)
-    evidence_by_type: dict[str, int] = Field(default_factory=dict)
+    evidence_by_type: EvidenceByTypeCounts = Field(default_factory=dict)
     evidence_quality_score: float = Field(ge=0.0, le=100.0)
 
     # Findings and Recommendations

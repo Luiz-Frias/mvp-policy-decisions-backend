@@ -7,7 +7,6 @@ ensuring sub-50ms performance while maintaining accuracy and compliance.
 import time
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -23,11 +22,199 @@ from .calculators import (
     DiscountCalculator,
     PremiumCalculator,
 )
+from ...models.base import BaseModelConfig
+from pydantic import Field
 from .performance import RatingPerformanceOptimizer
 from .rate_tables import RateTableService
 from .state_rules import get_state_rules
 from .surcharge_calculator import SurchargeCalculator
 from .territory_management import TerritoryManager
+
+# Rating engine models
+
+@beartype
+class CustomerData(BaseModelConfig):
+    """Customer data for rating calculations."""
+    
+    customer_id: str | None = Field(default=None, description="Customer identifier")
+    loyalty_years: int = Field(default=0, ge=0, description="Years as customer")
+    claims_history: list[str] = Field(default_factory=list, description="Previous claims")
+    credit_score: int | None = Field(default=None, ge=300, le=850, description="Credit score")
+    
+@beartype
+class ExternalData(BaseModelConfig):
+    """External data for rating calculations."""
+    
+    weather_risk_score: float | None = Field(default=None, ge=0.0, le=1.0, description="Weather risk score")
+    traffic_density_score: float | None = Field(default=None, ge=0.0, le=1.0, description="Traffic density score")
+    crime_index: float | None = Field(default=None, ge=0.0, description="Area crime index")
+    
+@beartype 
+class BaseRates(BaseModelConfig):
+    """Base rates for coverage types."""
+    
+    bodily_injury: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    property_damage: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    collision: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    comprehensive: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    uninsured_motorist: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    medical_payments: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+
+@beartype
+class RatingFactors(BaseModelConfig):
+    """Collection of rating factors."""
+    
+    base_rates: BaseRates = Field(default_factory=BaseRates)
+    territory_factor: float = Field(default=1.0, gt=0)
+    driver_factors: list[float] = Field(default_factory=list)
+    vehicle_factor: float = Field(default=1.0, gt=0)
+
+@beartype
+class DiscountSummary(BaseModelConfig):
+    """Summary of applied discounts."""
+    
+    items: list[str] = Field(default_factory=list, description="List of applied discounts")
+    total_amount: float = Field(default=0.0, ge=0, description="Total discount amount")
+
+@beartype
+class SurchargeSummary(BaseModelConfig):
+    """Summary of applied surcharges."""
+    
+    items: list[str] = Field(default_factory=list, description="List of applied surcharges")
+    total_amount: float = Field(default=0.0, ge=0, description="Total surcharge amount")
+
+@beartype
+class CoverageRates(BaseModelConfig):
+    """Base rates mapping for coverages."""
+    
+    liability: Decimal = Field(default=Decimal("0.50"), ge=Decimal("0"))
+    collision: Decimal = Field(default=Decimal("0.40"), ge=Decimal("0"))
+    comprehensive: Decimal = Field(default=Decimal("0.30"), ge=Decimal("0"))
+    uninsured_motorist: Decimal = Field(default=Decimal("0.20"), ge=Decimal("0"))
+    personal_injury_protection: Decimal = Field(default=Decimal("0.25"), ge=Decimal("0"))
+
+@beartype
+class DriverFactors(BaseModelConfig):
+    """Driver risk factors."""
+    
+    driver_age: float = Field(default=1.0, gt=0)
+    experience: float = Field(default=1.0, gt=0)
+    violations: float = Field(default=1.0, gt=0)
+    accidents: float = Field(default=1.0, gt=0)
+
+@beartype
+class CoveragePremiums(BaseModelConfig):
+    """Premiums by coverage type."""
+    
+    liability: Decimal | None = Field(default=None, ge=Decimal("0"))
+    collision: Decimal | None = Field(default=None, ge=Decimal("0"))
+    comprehensive: Decimal | None = Field(default=None, ge=Decimal("0"))
+    uninsured_motorist: Decimal | None = Field(default=None, ge=Decimal("0"))
+    personal_injury_protection: Decimal | None = Field(default=None, ge=Decimal("0"))
+
+@beartype
+class DiscountInfo(BaseModelConfig):
+    """Discount information."""
+    
+    discount_type: str = Field(..., description="Type of discount")
+    rate: float = Field(..., ge=0, le=1, description="Discount rate")
+    stackable: bool = Field(default=True, description="Whether discount is stackable")
+    priority: int = Field(..., ge=1, description="Priority for stacking")
+    description: str = Field(..., description="Discount description")
+
+@beartype
+class DetailedMetrics(BaseModelConfig):
+    """Detailed performance metrics."""
+    
+    min_time_ms: float = Field(default=0.0, ge=0)
+    max_time_ms: float = Field(default=0.0, ge=0)
+    p50_time_ms: float = Field(default=0.0, ge=0)
+    p95_time_ms: float = Field(default=0.0, ge=0)
+    p99_time_ms: float = Field(default=0.0, ge=0)
+
+@beartype
+class CacheStatistics(BaseModelConfig):
+    """Cache performance statistics."""
+    
+    hit_rate: float = Field(default=0.0, ge=0, le=1)
+    miss_rate: float = Field(default=0.0, ge=0, le=1)
+    total_hits: int = Field(default=0, ge=0)
+    total_misses: int = Field(default=0, ge=0)
+
+@beartype
+class PerformanceStats(BaseModelConfig):
+    """Performance statistics data."""
+    
+    calculations_performed: int = Field(..., ge=0)
+    average_time_ms: float = Field(..., ge=0)
+    target_met_percentage: float = Field(..., ge=0, le=100)
+    detailed_metrics: DetailedMetrics = Field(default_factory=DetailedMetrics)
+    cache_statistics: CacheStatistics = Field(default_factory=CacheStatistics)
+
+@beartype
+class CacheWarmingResult(BaseModelConfig):
+    """Result of cache warming operation."""
+    
+    cache_warming_completed: bool = Field(...)
+    states_warmed: list[str] = Field(default_factory=list)
+
+@beartype
+class QuoteTestData(BaseModelConfig):
+    """Quote data for testing."""
+    
+    quote_id: str = Field(..., description="Quote identifier")
+    state: str = Field(..., min_length=2, max_length=2)
+    vehicle_year: int = Field(..., ge=1900, le=2030)
+    driver_age: int = Field(..., ge=16, le=100)
+    coverage_type: str = Field(..., description="Coverage type")
+
+@beartype
+class TestCase(BaseModelConfig):
+    """Test case for rating validation."""
+    
+    quote_data: QuoteTestData = Field(..., description="Quote data for test")
+    expected_premium: Decimal | None = Field(default=None, ge=Decimal("0"))
+    tolerance: float = Field(default=0.01, gt=0, le=1)
+
+@beartype
+class ValidationFailure(BaseModelConfig):
+    """Validation failure details."""
+    
+    case_id: int = Field(..., ge=0)
+    error: str | None = Field(default=None)
+    expected: Decimal | None = Field(default=None)
+    actual: Decimal | None = Field(default=None)
+    difference_pct: float | None = Field(default=None)
+
+@beartype
+class ValidationResults(BaseModelConfig):
+    """Validation results summary."""
+    
+    total_cases: int = Field(..., ge=0)
+    passed: int = Field(..., ge=0)
+    failed: int = Field(..., ge=0)
+    accuracy_rate: float = Field(..., ge=0, le=100)
+    failures: list[ValidationFailure] = Field(default_factory=list)
+
+@beartype
+class RatingCalculationResult(BaseModelConfig):
+    """Complete rating calculation result."""
+    
+    quote_id: str = Field(description="Quote identifier")
+    calculation_timestamp: str = Field(description="ISO timestamp of calculation")
+    state: str = Field(min_length=2, max_length=2, description="State code")
+    base_premium: float = Field(ge=0, description="Base premium amount")
+    factored_premium: float = Field(ge=0, description="Premium after factors")
+    discounts: DiscountSummary = Field(description="Applied discounts")
+    surcharges: SurchargeSummary = Field(description="Applied surcharges")
+    final_premium: float = Field(ge=0, description="Final premium amount")
+    factors: dict[str, float] = Field(default_factory=dict, description="Applied rating factors")
+    factor_impacts: dict[str, float] = Field(default_factory=dict, description="Factor impact amounts")
+    coverage_premiums: dict[str, float] = Field(default_factory=dict, description="Premium by coverage")
+    ai_risk_score: float | None = Field(default=None, ge=0.0, le=1.0, description="AI risk score")
+    business_rule_validation: str | None = Field(default=None, description="Business rule validation report")
+    performance_metrics: PerformanceMetrics = Field(description="Performance metrics")
+
 
 
 @beartype
@@ -74,9 +261,9 @@ class RatingEngine:
         vehicle_info: VehicleInfo,
         drivers: list[DriverInfo],
         coverage_selections: list[CoverageSelection],
-        customer_data: dict[str, Any] | None = None,
-        external_data: dict[str, Any] | None = None,
-    ) -> Result[dict[str, Any], str]:
+        customer_data: CustomerData | None = None,
+        external_data: ExternalData | None = None,
+    ) -> Result[RatingCalculationResult, str]:
         """Calculate complete premium with all factors, discounts, and surcharges.
 
         This is the main entry point for premium calculation.
@@ -135,11 +322,19 @@ class RatingEngine:
             if results.is_err():
                 return Err(f"Parallel calculation failed: {results.unwrap_err()}")
 
-            factors: dict[str, Any] = results.unwrap()
+            factors_dict = results.unwrap()
+            
+            # Convert to RatingFactors model
+            factors = RatingFactors(
+                base_rates=factors_dict.get("base_rates", BaseRates()),
+                territory_factor=factors_dict.get("territory_factor", 1.0),
+                driver_factors=factors_dict.get("driver_factors", []),
+                vehicle_factor=factors_dict.get("vehicle_factor", 1.0)
+            )
 
             # Calculate base premium for each coverage
             base_premium_result = await self._calculate_base_premiums(
-                coverage_selections, factors.get("base_rates", {})
+                coverage_selections, factors.base_rates
             )
             if base_premium_result.is_err():
                 return base_premium_result
@@ -148,7 +343,15 @@ class RatingEngine:
             total_base_premium = Decimal(str(sum(base_premiums.values())))
 
             # Apply state-specific factor validation
-            validated_factors = state_rules.validate_factors(factors)
+            # Convert factors to dict for state rules validation
+            factors_dict_for_validation = {
+                "territory": factors.territory_factor,
+                "vehicle": factors.vehicle_factor,
+            }
+            if factors.driver_factors:
+                factors_dict_for_validation["driver"] = sum(factors.driver_factors) / len(factors.driver_factors)
+            
+            validated_factors = state_rules.validate_factors(factors_dict_for_validation)
 
             # Apply all rating factors
             factor_result = PremiumCalculator.apply_multiplicative_factors(
@@ -197,9 +400,9 @@ class RatingEngine:
             ai_risk_score = None
             if self._enable_ai_scoring:
                 ai_result = await self._ai_scorer.calculate_ai_risk_score(
-                    customer_data or {},
-                    vehicle_info.__dict__,
-                    [d.__dict__ for d in drivers],
+                    customer_data or CustomerData(),
+                    vehicle_info,
+                    drivers,
                     external_data,
                 )
                 if ai_result.is_ok():
@@ -245,40 +448,47 @@ class RatingEngine:
                 # Log performance violation but don't fail
                 await self._log_performance_violation(quote_id, calculation_time_ms)
 
-            result = {
-                "quote_id": str(quote_id),
-                "calculation_timestamp": datetime.utcnow().isoformat(),
-                "state": state,
-                "base_premium": float(total_base_premium),
-                "factored_premium": float(factored_premium),
-                "discounts": {
-                    "items": discounts,
-                    "total_amount": float(discount_amount),
-                },
-                "surcharges": SurchargeCalculator.format_surcharge_summary(
-                    surcharges, surcharge_amount
+            # Format surcharge summary
+            surcharge_summary = SurchargeCalculator.format_surcharge_summary(
+                surcharges, surcharge_amount
+            )
+            
+            result = RatingCalculationResult(
+                quote_id=str(quote_id),
+                calculation_timestamp=datetime.utcnow().isoformat(),
+                state=state,
+                base_premium=float(total_base_premium),
+                factored_premium=float(factored_premium),
+                discounts=DiscountSummary(
+                    items=discounts,
+                    total_amount=float(discount_amount)
                 ),
-                "final_premium": float(final_premium),
-                "factors": {k: float(v) for k, v in validated_factors.items()},
-                "factor_impacts": {
+                surcharges=SurchargeSummary(
+                    items=surcharge_summary.get("items", []),
+                    total_amount=surcharge_summary.get("total_amount", 0.0),
+                    details=surcharge_summary.get("details", [])
+                ),
+                final_premium=float(final_premium),
+                factors={k: float(v) for k, v in validated_factors.items()},
+                factor_impacts={
                     impact.factor_name: float(impact.impact_amount)
                     for impact in factor_impacts
                 },
-                "coverage_premiums": {
+                coverage_premiums={
                     k: float(v)
                     for k, v in (base_premiums.items() if base_premiums else [])
                 },
-                "ai_risk_score": ai_risk_score,
-                "business_rule_validation": business_rule_report,
-                "performance_metrics": {
-                    "calculation_time_ms": calculation_time_ms,
-                    "target_met": calculation_time_ms <= 50,
-                },
-            }
+                ai_risk_score=ai_risk_score,
+                business_rule_validation=business_rule_report,
+                performance_metrics=PerformanceMetrics(
+                    calculation_time_ms=calculation_time_ms,
+                    target_met=calculation_time_ms <= 50
+                )
+            )
 
             # Cache result for performance
             cache_key = f"rating:quote:{quote_id}"
-            await self._cache.set(cache_key, result, 3600)  # 1 hour cache
+            await self._cache.set(cache_key, result.model_dump(), 3600)  # 1 hour cache
 
             # End performance monitoring
             if perf_token:
@@ -301,9 +511,9 @@ class RatingEngine:
         state: str,
         effective_date: datetime,
         coverage_selections: list[CoverageSelection],
-    ) -> dict[str, Decimal]:
+    ) -> BaseRates:
         """Get base rates for selected coverages."""
-        base_rates: dict[str, Decimal] = {}
+        base_rates = BaseRates()
 
         for coverage in coverage_selections:
             coverage_type = coverage.coverage_type.value
@@ -315,21 +525,15 @@ class RatingEngine:
 
             if rate_result.is_ok():
                 rates_dict = rate_result.unwrap()
-                base_rates[coverage_type] = rates_dict.get(
-                    coverage_type, Decimal("0.35")
-                )
+                if hasattr(base_rates, coverage_type):
+                    setattr(base_rates, coverage_type, rates_dict.get(
+                        coverage_type, Decimal("0.35")
+                    ))
             else:
                 # Use default rates if not found
-                default_rates = {
-                    "liability": Decimal("0.50"),
-                    "collision": Decimal("0.40"),
-                    "comprehensive": Decimal("0.30"),
-                    "uninsured_motorist": Decimal("0.20"),
-                    "personal_injury_protection": Decimal("0.25"),
-                }
-                base_rates[coverage_type] = default_rates.get(
-                    coverage_type, Decimal("0.35")
-                )
+                default_rates = BaseRates()
+                if hasattr(base_rates, coverage_type):
+                    setattr(base_rates, coverage_type, getattr(default_rates, coverage_type, Decimal("0.35")))
 
         return base_rates
 
@@ -342,10 +546,10 @@ class RatingEngine:
     @beartype
     async def _calculate_driver_factors(
         self, drivers: list[DriverInfo], state: str
-    ) -> dict[str, float]:
+    ) -> DriverFactors:
         """Calculate aggregated driver factors."""
         if not drivers:
-            return {}
+            return DriverFactors()
 
         # Find the highest risk driver (primary rated driver)
         primary_driver = max(
@@ -366,7 +570,7 @@ class RatingEngine:
         )
 
         if risk_result.is_err():
-            return {"driver_combined": 1.0}
+            return DriverFactors()
 
         driver_risk_result = risk_result.unwrap()
         risk_score = driver_risk_result.risk_score
@@ -394,12 +598,12 @@ class RatingEngine:
         violation_factor = 1.0 + (primary_driver.violations_3_years * 0.15)
         accident_factor = 1.0 + (primary_driver.accidents_3_years * 0.25)
 
-        return {
-            "driver_age": age_factor,
-            "experience": experience_factor,
-            "violations": violation_factor,
-            "accidents": accident_factor,
-        }
+        return DriverFactors(
+            driver_age=age_factor,
+            experience=experience_factor,
+            violations=violation_factor,
+            accidents=accident_factor,
+        )
 
     @beartype
     async def _calculate_vehicle_factor(self, vehicle_info: VehicleInfo) -> float:
@@ -419,14 +623,14 @@ class RatingEngine:
     async def _calculate_base_premiums(
         self,
         coverage_selections: list[CoverageSelection],
-        base_rates: dict[str, Decimal],
-    ) -> Result[dict[str, Decimal], str]:
+        base_rates: CoverageRates,
+    ) -> Result[CoveragePremiums, str]:
         """Calculate base premium for each coverage."""
-        premiums = {}
+        premiums = CoveragePremiums()
 
         for coverage in coverage_selections:
             coverage_type = coverage.coverage_type.value
-            base_rate = base_rates.get(coverage_type, Decimal("0.35"))
+            base_rate = getattr(base_rates, coverage_type, Decimal("0.35"))
 
             # Calculate base premium
             premium_result = PremiumCalculator.calculate_base_premium(
@@ -441,7 +645,8 @@ class RatingEngine:
                     f"{premium_result.unwrap_err()}"
                 )
 
-            premiums[coverage_type] = premium_result.unwrap()
+            if hasattr(premiums, coverage_type):
+                setattr(premiums, coverage_type, premium_result.unwrap())
 
         return Ok(premiums)
 
@@ -450,23 +655,23 @@ class RatingEngine:
         self,
         drivers: list[DriverInfo],
         vehicle_info: VehicleInfo,
-        customer_data: dict[str, Any] | None,
+        customer_data: CustomerDataData | None,
         base_premium: Decimal,
         state: str,
-    ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
+    ) -> Result[tuple[list[DiscountInfo], Decimal], str]:
         """Calculate all applicable discounts."""
         applicable_discounts = []
 
         # Multi-policy discount
-        if customer_data and customer_data.get("policy_count", 0) > 1:
+        if customer_data and customer_data.policy_count > 1:
             applicable_discounts.append(
-                {
-                    "discount_type": {"value": "multi_policy"},
-                    "rate": 0.10,  # 10% discount
-                    "stackable": True,
-                    "priority": 1,
-                    "description": "Multi-policy discount",
-                }
+                DiscountInfo(
+                    discount_type="multi_policy",
+                    rate=0.10,  # 10% discount
+                    stackable=True,
+                    priority=1,
+                    description="Multi-policy discount",
+                )
             )
 
         # Good driver discount (no violations/accidents)
@@ -475,13 +680,13 @@ class RatingEngine:
         )
         if has_clean_record:
             applicable_discounts.append(
-                {
-                    "discount_type": {"value": "good_driver"},
-                    "rate": 0.15,  # 15% discount
-                    "stackable": True,
-                    "priority": 2,
-                    "description": "Good driver discount",
-                }
+                DiscountInfo(
+                    discount_type="good_driver",
+                    rate=0.15,  # 15% discount
+                    stackable=True,
+                    priority=2,
+                    description="Good driver discount",
+                )
             )
 
         # Anti-theft device discount
@@ -491,25 +696,25 @@ class RatingEngine:
                 f in ["anti_theft", "alarm", "gps_tracking"] for f in safety_features
             ):
                 applicable_discounts.append(
-                    {
-                        "discount_type": {"value": "anti_theft"},
-                        "rate": 0.05,  # 5% discount
-                        "stackable": True,
-                        "priority": 3,
-                        "description": "Anti-theft device discount",
-                    }
+                    DiscountInfo(
+                        discount_type="anti_theft",
+                        rate=0.05,  # 5% discount
+                        stackable=True,
+                        priority=3,
+                        description="Anti-theft device discount",
+                    )
                 )
 
         # Low mileage discount
         if vehicle_info.annual_mileage < 7500:
             applicable_discounts.append(
-                {
-                    "discount_type": {"value": "low_mileage"},
-                    "rate": 0.08,  # 8% discount
-                    "stackable": True,
-                    "priority": 4,
-                    "description": "Low mileage discount",
-                }
+                DiscountInfo(
+                    discount_type="low_mileage",
+                    rate=0.08,  # 8% discount
+                    stackable=True,
+                    priority=4,
+                    description="Low mileage discount",
+                )
             )
 
         # Apply discount stacking rules
@@ -519,9 +724,11 @@ class RatingEngine:
             # Get state-specific discount rules if available
             state_discount_rules = {"max_discount": 0.40}  # 40% max by default
 
+        # Convert DiscountInfo objects to dicts for DiscountCalculator
+        discount_dicts = [discount.model_dump() for discount in applicable_discounts]
         stacked_result = DiscountCalculator.calculate_stacked_discounts(
             base_premium,
-            applicable_discounts,
+            discount_dicts,
             Decimal("0.40"),  # 40% max total discount
             state_discount_rules,
         )
@@ -529,11 +736,12 @@ class RatingEngine:
             return Err(stacked_result.unwrap_err())
 
         stacked_discounts = stacked_result.unwrap()
-        # Convert StackedDiscounts to expected format - convert Discount objects to dicts
-        discount_dicts = [
-            discount.model_dump() for discount in stacked_discounts.applied_discounts
+        # Return the original DiscountInfo objects that were applied
+        applied_discount_infos = [
+            d for d in applicable_discounts 
+            if any(applied.discount_type == d.discount_type for applied in stacked_discounts.applied_discounts)
         ]
-        return Ok((discount_dicts, stacked_discounts.total_discount_amount))
+        return Ok((applied_discount_infos, stacked_discounts.total_discount_amount))
 
     @beartype
     async def _apply_minimum_premium(
@@ -592,7 +800,7 @@ class RatingEngine:
         self._total_calculation_time += elapsed_ms
 
     @beartype
-    async def get_performance_metrics(self) -> dict[str, Any]:
+    async def get_performance_metrics(self) -> PerformanceMetrics:
         """Get current performance metrics."""
         optimizer_metrics = self._performance_optimizer.get_performance_metrics()
 
@@ -602,28 +810,30 @@ class RatingEngine:
             else 0
         )
 
-        return {
-            "calculations_performed": self._calculation_count,
-            "average_time_ms": avg_time,
-            "target_met_percentage": (
-                sum(
-                    1
-                    for _, v in optimizer_metrics.items()
-                    if v.get("avg_ms", 100) <= 50
-                )
-                / len(optimizer_metrics)
-                * 100
-                if optimizer_metrics
-                else 100
-            ),
-            "detailed_metrics": optimizer_metrics,
-            "cache_statistics": self._performance_optimizer.get_cache_statistics(),
-        }
+        target_met_percentage = (
+            sum(
+                1
+                for _, v in optimizer_metrics.items()
+                if v.get("avg_ms", 100) <= 50
+            )
+            / len(optimizer_metrics)
+            * 100
+            if optimizer_metrics
+            else 100
+        )
+
+        return PerformanceMetrics(
+            calculations_performed=self._calculation_count,
+            average_time_ms=avg_time,
+            target_met_percentage=target_met_percentage,
+            detailed_metrics=optimizer_metrics,
+            cache_statistics=self._performance_optimizer.get_cache_statistics(),
+        )
 
     @beartype
     async def warm_caches(
         self, states: list[str] | None = None
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[CacheWarmingResult, str]:
         """Warm caches for optimal performance.
 
         Args:
@@ -656,15 +866,15 @@ class RatingEngine:
 
             scenarios_result.unwrap()
 
-            return Ok({"cache_warming_completed": True, "states_warmed": states})
+            return Ok(CacheWarmingResult(cache_warming_completed=True, states_warmed=states))
 
         except Exception as e:
             return Err(f"Cache warming failed: {str(e)}")
 
     @beartype
     async def validate_rating_accuracy(
-        self, test_cases: list[dict[str, Any]]
-    ) -> Result[dict[str, Any], str]:
+        self, test_cases: list[TestCase]
+    ) -> Result[ValidationResults, str]:
         """Validate rating accuracy with test cases.
 
         Args:
@@ -674,32 +884,28 @@ class RatingEngine:
             Result containing validation report or error
         """
         try:
-            results: dict[str, Any] = {
-                "total_cases": len(test_cases),
-                "passed": 0,
-                "failed": 0,
-                "accuracy_rate": 0.0,
-                "failures": [],
-            }
+            failures: list[ValidationFailure] = []
+            passed = 0
+            failed = 0
 
             for i, test_case in enumerate(test_cases):
                 # Extract test data
-                quote_data = test_case.get("quote_data", {})
-                expected_premium = test_case.get("expected_premium")
-                tolerance = test_case.get("tolerance", 0.01)  # 1% tolerance
+                quote_data = test_case.quote_data
+                expected_premium = test_case.expected_premium
+                tolerance = test_case.tolerance  # 1% tolerance
 
                 # Calculate premium
                 calc_result = await self.calculate_premium(**quote_data)
 
                 if calc_result.is_err():
-                    results["failed"] += 1
-                    results["failures"].append(
-                        {"case_id": i, "error": calc_result.unwrap_err()}
+                    failed += 1
+                    failures.append(
+                        ValidationFailure(case_id=i, error=calc_result.unwrap_err())
                     )
                     continue
 
-                actual_result: dict[str, Any] = calc_result.unwrap()
-                actual_premium = actual_result.get("final_premium", 0)
+                actual_result = calc_result.unwrap()
+                actual_premium = actual_result.get("final_premium", Decimal("0"))
 
                 # Check accuracy
                 if expected_premium:
@@ -707,28 +913,35 @@ class RatingEngine:
                     percentage_diff = difference / expected_premium
 
                     if percentage_diff <= tolerance:
-                        results["passed"] += 1
+                        passed += 1
                     else:
-                        results["failed"] += 1
-                        results["failures"].append(
-                            {
-                                "case_id": i,
-                                "expected": expected_premium,
-                                "actual": actual_premium,
-                                "difference_pct": percentage_diff * 100,
-                            }
+                        failed += 1
+                        failures.append(
+                            ValidationFailure(
+                                case_id=i,
+                                expected=expected_premium,
+                                actual=actual_premium,
+                                difference_pct=percentage_diff * 100,
+                            )
                         )
                 else:
                     # No expected value, just check if calculation succeeded
-                    results["passed"] += 1
+                    passed += 1
 
-            results["accuracy_rate"] = (
-                results["passed"] / results["total_cases"] * 100
-                if results["total_cases"] > 0
+            total_cases = len(test_cases)
+            accuracy_rate = (
+                passed / total_cases * 100
+                if total_cases > 0
                 else 0
             )
 
-            return Ok(results)
+            return Ok(ValidationResults(
+                total_cases=total_cases,
+                passed=passed,
+                failed=failed,
+                accuracy_rate=accuracy_rate,
+                failures=failures
+            ))
 
         except Exception as e:
             return Err(f"Validation failed: {str(e)}")

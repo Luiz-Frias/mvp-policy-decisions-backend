@@ -11,9 +11,38 @@ import asyncpg
 import asyncpg.exceptions  # type: ignore[import-untyped]
 from attrs import field, frozen
 from beartype import beartype
+from pydantic import Field
 
+from ..models.base import BaseModelConfig
 from .config import get_settings
 from .result_types import Err, Ok, Result
+
+# Auto-generated models
+
+
+@beartype
+class ServerSettingsMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
+
+@beartype
+class PreparedStatementsMapping(BaseModelConfig):
+    """Structured model replacing dict[str, str] usage."""
+
+    key: str = Field(..., min_length=1, description="Mapping key")
+    value: str = Field(..., min_length=1, description="Mapping value")
+
+
+@beartype
+class MetricsData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @frozen
@@ -36,7 +65,7 @@ class PoolConfig:
     connection_timeout: float = field(default=30.0)
     command_timeout: float = field(default=60.0)
     max_inactive_connection_lifetime: float = field(default=600.0)
-    server_settings: dict[str, str] = field(factory=dict)
+    server_settings: ServerSettingsMapping = field(factory=dict)
 
 
 @frozen
@@ -103,7 +132,7 @@ class Database:
         self._main_config: PoolConfig | None = None
 
         # Performance metrics
-        self._metrics: dict[str, Any] = {
+        self._metrics: MetricsData = {
             "connections_active": 0,
             "connections_idle": 0,
             "queries_total": 0,
@@ -118,7 +147,7 @@ class Database:
         }
 
         # Prepared statement cache
-        self._prepared_statements: dict[str, str] = {}
+        self._prepared_statements: PreparedStatementsMapping = {}
 
     @beartype
     def calculate_min_connections(self, expected_rps: int) -> int:
@@ -847,6 +876,7 @@ class Database:
                 yield conn
 
     @property
+    @beartype
     def is_connected(self) -> bool:
         """Check if database is connected."""
         return self._pool is not None

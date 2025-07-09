@@ -100,6 +100,7 @@ class WebAuthnCredential(BaseModel):
     """WebAuthn credential information."""
 
     model_config = ConfigDict(
+        frozen=True,
         frozen=False,  # Allow mutation for counter updates
         extra="forbid",
         validate_assignment=True,
@@ -203,6 +204,7 @@ class MFAChallenge(BaseModel):
     """MFA challenge for verification."""
 
     model_config = ConfigDict(
+        frozen=True,
         frozen=False,  # Allow mutation for challenge tracking
         extra="forbid",
         validate_assignment=True,

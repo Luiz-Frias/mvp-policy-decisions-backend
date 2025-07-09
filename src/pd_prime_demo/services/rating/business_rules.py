@@ -9,10 +9,21 @@ from decimal import Decimal
 from typing import Any
 
 from beartype import beartype
+from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
+from ...models.base import BaseModelConfig
 from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo
+
+# Auto-generated models
+
+
+@beartype
+class FactorsMetrics(BaseModelConfig):
+    """Structured model replacing dict[str, float] usage."""
+
+    average: float = Field(default=0.0, ge=0.0, description="Average value")
 
 
 @beartype
@@ -89,7 +100,7 @@ class RatingBusinessRules:
         vehicle_info: VehicleInfo | None,
         drivers: list[DriverInfo],
         coverage_selections: list[CoverageSelection],
-        factors: dict[str, float],
+        factors: FactorsMetrics,
         base_premium: Decimal,
         total_premium: Decimal,
         discounts: list[Any],
@@ -170,7 +181,7 @@ class RatingBusinessRules:
 
     @beartype
     async def _validate_factor_ranges(
-        self, factors: dict[str, float]
+        self, factors: FactorsMetrics
     ) -> list[BusinessRuleViolation]:
         """Validate that all factors are within acceptable ranges."""
         violations = []
@@ -231,7 +242,7 @@ class RatingBusinessRules:
         self,
         base_premium: Decimal,
         total_premium: Decimal,
-        factors: dict[str, float],
+        factors: FactorsMetrics,
     ) -> list[BusinessRuleViolation]:
         """Validate that premiums are within reasonable ranges."""
         violations = []
@@ -596,7 +607,7 @@ class RatingBusinessRules:
     async def _validate_regulatory_compliance(
         self,
         state: str,
-        factors: dict[str, float],
+        factors: FactorsMetrics,
         total_premium: Decimal,
         coverage_selections: list[CoverageSelection],
     ) -> list[BusinessRuleViolation]:
