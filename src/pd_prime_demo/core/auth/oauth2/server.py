@@ -938,7 +938,7 @@ class OAuth2Server:
             if not pwd_context.verify(password, password_hash):
                 return None
 
-            return customer_row["id"]
+            return UUID(customer_row["id"]) if customer_row["id"] else None
 
         except Exception:
             # Authentication failure should not expose internal errors

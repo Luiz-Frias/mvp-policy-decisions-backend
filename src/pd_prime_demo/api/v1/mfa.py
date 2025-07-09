@@ -359,12 +359,12 @@ async def setup_sms(
     request: SMSSetupRequest,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, str]:
+) -> dict[str, str | int]:
     """Setup SMS authentication."""
     user_id = UUID(current_user["sub"])
 
     # Encrypt phone number
-    encrypt_result = await mfa_manager._sms_provider.encrypt_phone_number(
+    encrypt_result = mfa_manager._sms_provider.encrypt_phone_number(
         request.phone_number
     )
     if encrypt_result.is_err():

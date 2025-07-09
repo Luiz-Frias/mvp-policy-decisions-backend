@@ -80,7 +80,7 @@ class Cache:
             self._config.url,
             max_connections=self._config.max_connections,
             decode_responses=self._config.decode_responses,
-        )  # type: ignore[assignment]
+        )
 
     @beartype
     async def disconnect(self) -> None:
@@ -252,7 +252,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         keys = []
-        async for key in self._redis.scan_iter(match=pattern):  # type: ignore[attr-defined]
+        async for key in self._redis.scan_iter(match=pattern):
             keys.append(key)
         return keys
 
@@ -290,7 +290,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         result = await self._redis.brpoplpush(source, destination, timeout)  # type: ignore[attr-defined]
-        return result
+        return str(result) if result is not None else None
 
     @beartype
     async def lrem(self, key: str, count: int, value: str) -> int:
@@ -308,7 +308,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         result = await self._redis.lrange(key, start, end)  # type: ignore[attr-defined]
-        return result
+        return [str(item) for item in result] if result else []
 
     @beartype
     async def llen(self, key: str) -> int:
@@ -326,7 +326,7 @@ class Cache:
             raise RuntimeError("Cache not connected")
 
         result = await self._redis.hgetall(key)  # type: ignore[attr-defined]
-        return result
+        return {str(k): str(v) for k, v in result.items()} if result else {}
 
     @beartype
     async def hset(self, key: str, field: str, value: str) -> int:

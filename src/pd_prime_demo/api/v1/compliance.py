@@ -242,7 +242,7 @@ async def list_controls(
 @router.post("/controls/execute", response_model=ControlExecutionResponse)
 @beartype
 async def execute_control(
-    request: ControlExecutionRequest, current_user: dict = Depends(get_current_user)
+    request: ControlExecutionRequest, current_user: dict[str, Any] = Depends(get_current_user)
 ) -> ControlExecutionResponse:
     """Execute a specific SOC 2 control."""
     try:
@@ -288,7 +288,7 @@ async def execute_control(
 @router.get("/controls/{control_id}/status")
 @beartype
 async def get_control_status(
-    control_id: str, current_user: dict = Depends(get_current_user)
+    control_id: str, current_user: dict[str, Any] = Depends(get_current_user)
 ) -> dict[str, Any]:
     """Get the current status of a specific control."""
     try:
@@ -454,7 +454,7 @@ async def get_evidence_summary(
 @router.post("/reports/generate")
 @beartype
 async def generate_compliance_report(
-    request: ComplianceReportRequest, current_user: dict = Depends(get_current_user)
+    request: ComplianceReportRequest, current_user: dict[str, Any] = Depends(get_current_user)
 ) -> dict[str, Any]:
     """Generate a comprehensive compliance report."""
     try:
@@ -528,7 +528,7 @@ async def get_testing_dashboard(
 @router.post("/testing/plans")
 @beartype
 async def create_test_plan(
-    request: TestPlanRequest, current_user: dict = Depends(get_current_user)
+    request: TestPlanRequest, current_user: dict[str, Any] = Depends(get_current_user)
 ) -> dict[str, Any]:
     """Create a new control testing plan."""
     try:

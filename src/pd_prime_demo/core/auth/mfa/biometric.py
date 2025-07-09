@@ -162,7 +162,7 @@ class BiometricProvider:
         challenge_id: str,
         biometric_data: str,
         liveness_data: dict[str, Any] | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Verify biometric authentication.
 
         Args:
@@ -225,7 +225,7 @@ class BiometricProvider:
             if match_found:
                 # Update template usage stats
                 await self._update_template_usage(
-                    challenge["user_id"], matched_template
+                    challenge["user_id"], str(matched_template)
                 )
 
                 return Ok(True)
@@ -261,7 +261,7 @@ class BiometricProvider:
                 f"user_biometrics:{user_id}", updated_biometrics, ttl=86400 * 365
             )
 
-            return Ok(True)
+            return Ok(None)
 
         except Exception as e:
             return Err(f"Failed to remove biometric: {str(e)}")

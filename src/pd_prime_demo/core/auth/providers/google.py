@@ -210,7 +210,7 @@ class GoogleSSOProvider(OIDCProvider):
                     )
 
             # Get Google Workspace groups if available
-            groups = []
+            groups: list[str] = []
             if (
                 "https://www.googleapis.com/auth/admin.directory.group.readonly"
                 in self.scopes
@@ -334,7 +334,7 @@ class GoogleSSOProvider(OIDCProvider):
         self,
         access_token: str,
         user_id: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[str], str]:
         """Get user's Google Workspace groups.
 
         Args:

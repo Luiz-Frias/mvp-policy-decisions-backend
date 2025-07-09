@@ -166,7 +166,7 @@ class RatingEngine:
                 drivers, vehicle_info, customer_data, factored_premium, state
             )
             if discount_result.is_err():
-                return discount_result
+                return Err(discount_result.unwrap_err())
 
             discounts, discount_amount = discount_result.unwrap()
 
@@ -189,7 +189,7 @@ class RatingEngine:
                 final_premium, state, coverage_selections
             )
             if min_premium_result.is_err():
-                return min_premium_result
+                return Err(min_premium_result.unwrap_err())
 
             final_premium = min_premium_result.unwrap()
 
@@ -260,7 +260,7 @@ class RatingEngine:
                 ),
                 "final_premium": float(final_premium),
                 "factors": {k: float(v) for k, v in validated_factors.items()},
-                "factor_impacts": {k: float(v) for k, v in (factor_impacts.items() if isinstance(factor_impacts, dict) else [])},
+                "factor_impacts": {k: float(v) for k, v in (factor_impacts.items() if factor_impacts else [])},
                 "coverage_premiums": {k: float(v) for k, v in (base_premiums.items() if base_premiums else [])},
                 "ai_risk_score": ai_risk_score,
                 "business_rule_validation": business_rule_report,
@@ -297,18 +297,19 @@ class RatingEngine:
         coverage_selections: list[CoverageSelection],
     ) -> dict[str, Decimal]:
         """Get base rates for selected coverages."""
-        base_rates = {}
+        base_rates: dict[str, Decimal] = {}
 
         for coverage in coverage_selections:
             coverage_type = coverage.coverage_type.value
 
             # Get base rate from rate tables
             rate_result = await self._rate_table_service.get_active_rates(
-                state, coverage_type, effective_date
+                state, "auto"  # product_type is auto
             )
 
             if rate_result.is_ok():
-                base_rates[coverage_type] = rate_result.unwrap()
+                rates_dict = rate_result.unwrap()
+                base_rates[coverage_type] = rates_dict.get(coverage_type, Decimal("0.35"))
             else:
                 # Use default rates if not found
                 default_rates = {
@@ -509,12 +510,19 @@ class RatingEngine:
             # Get state-specific discount rules if available
             state_discount_rules = {"max_discount": 0.40}  # 40% max by default
 
-        return DiscountCalculator.calculate_stacked_discounts(
+        stacked_result = DiscountCalculator.calculate_stacked_discounts(
             base_premium,
             applicable_discounts,
             Decimal("0.40"),  # 40% max total discount
             state_discount_rules,
         )
+        if stacked_result.is_err():
+            return Err(stacked_result.unwrap_err())
+        
+        stacked_discounts = stacked_result.unwrap()
+        # Convert StackedDiscounts to expected format - convert Discount objects to dicts
+        discount_dicts = [discount.model_dump() for discount in stacked_discounts.applied_discounts]
+        return Ok((discount_dicts, stacked_discounts.total_discount_amount))
 
     @beartype
     async def _apply_minimum_premium(
@@ -620,7 +628,7 @@ class RatingEngine:
                 await self._performance_optimizer.initialize_performance_caches()
             )
             if init_result.is_err():
-                return init_result
+                return Err(init_result.unwrap_err())
 
             # Warm state-specific caches
             for state in states:
@@ -635,7 +643,7 @@ class RatingEngine:
 
             scenarios_result.unwrap()
 
-            return Ok(True)
+            return Ok({"cache_warming_completed": True, "states_warmed": states})
 
         except Exception as e:
             return Err(f"Cache warming failed: {str(e)}")

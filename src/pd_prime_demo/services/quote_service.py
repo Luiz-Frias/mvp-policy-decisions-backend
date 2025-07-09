@@ -35,7 +35,7 @@ try:
 
     HAS_RATING_ENGINE = True
 except ImportError:
-    RatingEngine = None  # type: ignore[assignment]
+    RatingEngine = None  # type: ignore[assignment,misc]
     HAS_RATING_ENGINE = False
 
 try:
@@ -43,7 +43,7 @@ try:
 
     HAS_WEBSOCKET = True
 except ImportError:
-    ConnectionManager = None  # type: ignore[assignment]
+    ConnectionManager = None  # type: ignore[assignment,misc]
     HAS_WEBSOCKET = False
 
 
@@ -89,7 +89,7 @@ class QuoteService:
         self,
         quote_data: QuoteCreate,
         user_id: UUID | None = None,
-    ):
+    ) -> Result[Quote, str]:
         """Create a new quote with initial calculations."""
         try:
             # Validate business rules
@@ -297,7 +297,7 @@ class QuoteService:
         quote_id: UUID,
         update_data: QuoteUpdate,
         user_id: UUID | None = None,
-    ):
+    ) -> Result[Quote, str]:
         """Update quote and create new version if needed."""
         try:
             # Get existing quote
@@ -351,6 +351,8 @@ class QuoteService:
                 return validation
 
             # Process payment (mock for now)
+            if quote.total_premium is None:
+                return Err("Quote has no total premium")
             payment_result = await self._process_payment(
                 conversion_request, quote.total_premium
             )
@@ -510,7 +512,7 @@ class QuoteService:
         admin_user_id: UUID,
         filters: dict[str, Any],
         include_pii: bool = False,
-    ) -> Ok[dict[str, Any]] | Err[str]:
+    ) -> Result[list[Quote], str]:
         """Admin search with advanced filters and PII control."""
         # Verify admin permissions
         admin_check = await self._verify_admin_permissions(
@@ -569,7 +571,7 @@ class QuoteService:
         quote_id: UUID,
         admin_user_id: UUID,
         override_request: QuoteOverrideRequest,
-    ):
+    ) -> Result[Quote, str]:
         """Allow admin to override quote pricing or terms."""
         try:
             # Get existing quote
@@ -739,7 +741,7 @@ class QuoteService:
             if not quote_data.coverage_selections:
                 return Err("Coverage selections required for auto quotes")
 
-        return Ok(True)
+        return Ok(None)
 
     # REMOVED: _mock_calculate_premium - NO MOCK DATA ALLOWED
     # All calculations MUST use real RatingEngine with database-backed rate tables
@@ -773,7 +775,7 @@ class QuoteService:
     @performance_monitor("create_quote_version")
     async def _create_quote_version(
         self, existing: Quote, update_data: QuoteUpdate, user_id: UUID | None
-    ):
+    ) -> Result[Quote, str]:
         """Create new version of quote."""
         # Create new quote with updated data
         new_quote_data = QuoteCreate(
@@ -827,7 +829,7 @@ class QuoteService:
     @performance_monitor("update_quote_inplace")
     async def _update_quote_inplace(
         self, quote_id: UUID, update_data: QuoteUpdate, user_id: UUID | None
-    ):
+    ) -> Result[Quote, str]:
         """Update quote in place for minor changes."""
         update_parts = []
         params: list[Any] = [quote_id]
@@ -901,7 +903,7 @@ class QuoteService:
         if not quote.coverage_selections:
             return Err("No coverage selections")
 
-        return Ok(True)
+        return Ok(None)
 
     @beartype
     @performance_monitor("process_payment")
@@ -1033,7 +1035,7 @@ class QuoteService:
             converted_at=get_field("converted_at"),
             created_by=get_field("created_by"),
             updated_by=get_field("updated_by"),
-            referral_source=get_field("referral_source"),
+            referral_code=get_field("referral_source"),
             version=get_field("version"),
             parent_quote_id=get_field("parent_quote_id"),
             created_at=get_field("created_at"),
@@ -1218,12 +1220,12 @@ class QuoteService:
 
         try:
             # Use the WebSocket message structure directly
-            from ..websocket.manager import WebSocketMessage
+            from ..websocket.manager import WebSocketMessage, MessageType
 
             # Send update to quote-specific room
             room_id = f"quote:{quote.id}"
             quote_msg = WebSocketMessage(
-                type="quote_update",
+                type=MessageType.QUOTE_UPDATE,
                 data={
                     "quote_id": str(quote.id),
                     "quote_number": quote.quote_number,
@@ -1242,7 +1244,7 @@ class QuoteService:
             if quote.customer_id:
                 customer_room = f"customer:{quote.customer_id}"
                 customer_msg = WebSocketMessage(
-                    type="customer_quote_update",
+                    type=MessageType.QUOTE_UPDATE,
                     data={
                         "quote_id": str(quote.id),
                         "quote_number": quote.quote_number,
@@ -1257,7 +1259,7 @@ class QuoteService:
             # Send to admin analytics room
             admin_room = "analytics:admin"
             admin_msg = WebSocketMessage(
-                type="quote_metrics_update",
+                type=MessageType.QUOTE_UPDATE,
                 data={
                     "event": "quote_priced",
                     "quote_id": str(quote.id),
@@ -1361,7 +1363,7 @@ class QuoteService:
         self,
         admin_user_id: UUID,
         required_permission: str,
-    ):
+    ) -> Result[bool, str]:
         """Verify admin user has required permission.
 
         Args:

@@ -57,6 +57,8 @@ class ClientCertificateManager:
                 return cert_validation
 
             cert_info = cert_validation.ok_value
+            if cert_info is None:
+                return Err("Certificate validation returned None")
 
             # Check if certificate is already registered
             existing_cert = await self._db.fetchrow(
@@ -142,6 +144,8 @@ class ClientCertificateManager:
                 return cert_validation
 
             cert_info = cert_validation.ok_value
+            if cert_info is None:
+                return Err("Certificate validation returned None")
             fingerprint = cert_info["fingerprint"]
 
             # Check cache first

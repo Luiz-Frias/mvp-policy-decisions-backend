@@ -186,7 +186,7 @@ class ClaimService:
         self,
         claim_id: UUID,
         claim_update: ClaimUpdate,
-    ):
+    ) -> Result[Claim | None, str]:
         """Update claim details."""
         # Get existing claim
         existing_result = await self.get(claim_id)
@@ -236,7 +236,7 @@ class ClaimService:
         self,
         claim_id: UUID,
         status_update: ClaimStatusUpdate,
-    ):
+    ) -> Result[Claim | None, str]:
         """Update claim status with business logic."""
         # Get existing claim
         existing_result = await self.get(claim_id)
@@ -346,7 +346,7 @@ class ClaimService:
         self,
         claim_data: ClaimCreate,
         policy_id: UUID,
-    ):
+    ) -> Result[bool, str]:
         """Validate claim business rules."""
         # Check if policy exists and is active
         policy_query = """

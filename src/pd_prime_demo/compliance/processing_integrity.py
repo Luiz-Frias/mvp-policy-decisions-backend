@@ -545,6 +545,8 @@ class ProcessingIntegrityManager:
     ) -> ReconciliationResult:
         """Reconcile data between two systems."""
         # Simulated reconciliation
+        discrepancy_details: list[dict[str, Any]] = []
+        
         if data_type == "policies":
             records_compared = 1000
             matches = 998
@@ -952,7 +954,7 @@ class ProcessingIntegrityManager:
 
         active_systems = [s for s in detection_systems if s["active"]]
         average_coverage = (
-            sum(float(system["coverage"]) for system in active_systems) / len(active_systems)
+            sum(float(system["coverage"]) for system in active_systems) / len(active_systems)  # type: ignore
             if active_systems else 0.0
         )
 
@@ -978,11 +980,11 @@ class ProcessingIntegrityManager:
         ]
 
         # Simple trend calculation
-        recent_errors = [d["errors"] for d in error_data[-3:]]
-        older_errors = [d["errors"] for d in error_data[:2]]
+        recent_errors = [d["errors"] for d in error_data[-3:]]  # type: ignore
+        older_errors = [d["errors"] for d in error_data[:2]]  # type: ignore
 
-        recent_avg = sum(recent_errors) / len(recent_errors)
-        older_avg = sum(older_errors) / len(older_errors)
+        recent_avg = sum(recent_errors) / len(recent_errors)  # type: ignore
+        older_avg = sum(older_errors) / len(older_errors)  # type: ignore
 
         increase_percentage = ((recent_avg - older_avg) / older_avg) * 100
 
@@ -1013,7 +1015,7 @@ class ProcessingIntegrityManager:
 
         average_correction_time = (
             sum(
-                float(error["correction_time"])
+                float(error["correction_time"])  # type: ignore
                 for error in errors_found
                 if error["corrected"] and error["correction_time"]
             )
@@ -1079,8 +1081,8 @@ class ProcessingIntegrityManager:
             "reconciliation_discrepancies": sum(
                 result.get("discrepancies", 0)
                 for result in (
-                    reconciliation_unwrapped.evidence_collected.get("reconciliation_results", [])
-                    if reconciliation_result.is_ok() and (reconciliation_unwrapped := reconciliation_result.unwrap()) is not None
+                    reconciliation_result.unwrap().evidence_collected.get("reconciliation_results", [])
+                    if reconciliation_result.is_ok()
                     else []
                 )
             ),

@@ -17,7 +17,7 @@ try:
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
-    np = None
+    np = None  # type: ignore[assignment]
 
 from beartype import beartype
 from pydantic import Field
@@ -388,7 +388,10 @@ class RatingEngine:
         # Check preloaded rates
         key = f"{state}:{product_type}"
         if key in self._base_rates:
-            return Ok(self._base_rates[key])
+            # Convert Decimal to float
+            decimal_rates = self._base_rates[key]
+            float_rates = {k: float(v) for k, v in decimal_rates.items()}
+            return Ok(float_rates)
 
         # Load from database
         query = """
@@ -418,7 +421,9 @@ class RatingEngine:
             self._rate_cache_ttl,
         )
 
-        return Ok(rates)
+        # Convert to float for return
+        float_rates = {k: float(v) for k, v in rates.items()}
+        return Ok(float_rates)
 
     @beartype
     @performance_monitor("calculate_factors")
@@ -666,9 +671,15 @@ class RatingEngine:
         if total_discount_pct > Decimal("50"):
             # Cap total discounts at 50%
             scale_factor = Decimal("50") / total_discount_pct
+            scaled_discounts = []
             for discount in discounts:
-                discount.amount *= scale_factor
-                discount.percentage *= scale_factor
+                # Create new discount instance with scaled values
+                scaled_discount = discount.model_copy(update={
+                    "amount": discount.amount * scale_factor,
+                    "percentage": discount.percentage * scale_factor if discount.percentage else None
+                })
+                scaled_discounts.append(scaled_discount)
+            discounts = scaled_discounts
 
         return Ok(discounts)
 
@@ -1049,7 +1060,7 @@ class RatingEngine:
                     vehicle_info.garage_zip
                 )
                 if crime_result.is_ok():
-                    external_data["area_crime_rate"] = crime_result.unwrap()
+                    external_data["area_crime_rate"] = int(crime_result.unwrap() or 0)
 
                 # Get weather risk
                 from datetime import datetime
@@ -1058,7 +1069,7 @@ class RatingEngine:
                     vehicle_info.garage_zip, datetime.now()
                 )
                 if weather_result.is_ok():
-                    external_data["weather_risk"] = weather_result.unwrap()
+                    external_data["weather_risk"] = int(weather_result.unwrap() or 0)
 
             return Ok(external_data if external_data else None)
 

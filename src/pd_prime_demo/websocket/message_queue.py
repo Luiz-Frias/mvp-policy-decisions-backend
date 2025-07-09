@@ -86,7 +86,7 @@ class QueuedMessage(BaseModel):
 
     def get_retry_delay(self, base_delay: int) -> int:
         """Get exponential backoff delay for retry."""
-        return min(base_delay * (2**self.retry_count), 60)  # Max 60 seconds
+        return int(min(base_delay * (2**self.retry_count), 60))  # Max 60 seconds
 
 
 class RedisMessageQueue:
@@ -113,8 +113,8 @@ class RedisMessageQueue:
         self._metrics_key = f"{self._config.redis_key_prefix}:metrics"
 
         # Background tasks
-        self._cleanup_task: asyncio.Task | None = None
-        self._metrics_task: asyncio.Task | None = None
+        self._cleanup_task: asyncio.Task[None] | None = None
+        self._metrics_task: asyncio.Task[None] | None = None
 
         # Performance tracking
         self._processing_times: dict[str, list[float]] = {}

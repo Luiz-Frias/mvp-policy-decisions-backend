@@ -536,6 +536,8 @@ class APIKeyManager:
                 return validation_result
 
             key_info = validation_result.ok_value
+            if key_info is None:
+                return Err("API key validation returned None")
 
             # Check each required permission
             from .scopes import ScopeValidator

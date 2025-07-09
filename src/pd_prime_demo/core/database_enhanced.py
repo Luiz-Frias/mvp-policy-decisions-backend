@@ -318,7 +318,7 @@ class Database:
                 try:
                     if self._pool is None:
                         return False
-                    conn = await asyncio.wait_for(self._pool.acquire(), timeout=2.0)
+                    conn: Any = await asyncio.wait_for(self._pool.acquire(), timeout=2.0)
                     connections.append(conn)
 
                     # Perform initialization queries to fully warm the connection
@@ -358,7 +358,7 @@ class Database:
             print(f"⚠️ Pool warming partially failed: {str(e)}")
         finally:
             # Release all warmed connections back to pool
-            release_tasks = []
+            release_tasks: list[Any] = []
             for conn in connections:
                 # asyncpg pool connections are managed by context managers
                 # We don't need to manually release them
@@ -440,8 +440,8 @@ class Database:
 
         # asyncpg Pool doesn't expose size methods in newer versions
         # We'll use the _holders attribute if available, otherwise estimate
-        pool_size = len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else (self._main_config.max_connections if self._main_config else 20)  # type: ignore
-        free_size = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0  # type: ignore
+        pool_size = len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else (self._main_config.max_connections if self._main_config else 20)
+        free_size = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0
 
         # Check if pool is exhausted
         if free_size == 0:
@@ -466,9 +466,11 @@ class Database:
 
         # Check pool health first
         health = await self.check_pool_health()
-        if health.is_err() and "exhausted" in health.err_value:
-            # Use TimeoutError for pool timeout
-            raise asyncio.TimeoutError("Pool exhausted")
+        if health.is_err():
+            err_msg = health.err_value
+            if "exhausted" in err_msg:
+                # Use TimeoutError for pool timeout
+                raise asyncio.TimeoutError("Pool exhausted")
 
         timeout = timeout or self._settings.database_pool_timeout
         start_time = time.perf_counter()
@@ -481,7 +483,7 @@ class Database:
                 self._metrics["connection_acquisitions"] += 1
                 self._metrics["connections_active"] += 1
                 # Estimate idle connections based on pool internals
-                self._metrics["connections_idle"] = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0  # type: ignore
+                self._metrics["connections_idle"] = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0
                 self._metrics["queries_total"] += 1
 
                 # Keep only last 1000 wait time measurements
@@ -578,7 +580,7 @@ class Database:
         )
 
     @beartype
-    async def execute_many(self, query: str, args: list[tuple]) -> None:
+    async def execute_many(self, query: str, args: list[tuple[Any, ...]]) -> None:
         """Execute many statements efficiently in a batch."""
         async with self.acquire() as conn:
             # Use execute in a loop instead of executemany
@@ -611,8 +613,8 @@ class Database:
 
         return PoolMetrics(
             # Use pool config values and estimates since newer asyncpg doesn't expose these methods
-            size=len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else 0,  # type: ignore
-            free_size=len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0,  # type: ignore  
+            size=len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else 0,
+            free_size=len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0,  
             min_size=self._main_config.min_connections if self._main_config else 5,
             max_size=self._main_config.max_connections if self._main_config else 20,
             connections_active=self._metrics["connections_active"],
@@ -764,7 +766,7 @@ class Database:
         result = await self.execute_with_retry(query, *args)
         if result.is_err():
             raise RuntimeError(result.err_value)
-        return result.ok_value
+        return str(result.ok_value)
 
     @beartype
     async def fetch(self, query: str, *args: Any) -> list[asyncpg.Record]:

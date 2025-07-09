@@ -6,6 +6,15 @@ from uuid import UUID
 
 from beartype import beartype
 
+# Define mock classes first
+class _MockPublicKeyCredentialDescriptor:
+    def __init__(self, id: str, type: str) -> None:
+        self.id = id
+        self.type = type
+
+class _MockPublicKeyCredentialType:
+    PUBLIC_KEY = "public-key"
+
 try:
     from webauthn import (
         generate_authentication_options,
@@ -67,7 +76,8 @@ except ImportError:
         )()
 
     def verify_authentication_response(*args: Any, **kwargs: Any) -> bool:
-        return type("MockVerification", (), {"verified": True, "new_sign_count": 1})()
+        # Mock implementation returns True for verified
+        return True
 
     def base64url_to_bytes(data: str) -> bytes:
         import base64
@@ -79,13 +89,8 @@ except ImportError:
 
         return base64.urlsafe_b64encode(data).decode().rstrip("=")
 
-    class PublicKeyCredentialDescriptor:
-        def __init__(self, id: str, type: str) -> None:
-            self.id = id
-            self.type = type
-
-    class PublicKeyCredentialType:
-        PUBLIC_KEY = "public-key"
+    PublicKeyCredentialDescriptor = _MockPublicKeyCredentialDescriptor
+    PublicKeyCredentialType = _MockPublicKeyCredentialType
 
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
@@ -185,7 +190,7 @@ class WebAuthnProvider:
                     {"type": "public-key", "alg": -7},  # ES256
                     {"type": "public-key", "alg": -257},  # RS256
                     {"type": "public-key", "alg": -8},  # EdDSA
-                ],
+                ],  # type: ignore
             )
 
             # Convert to JSON-serializable format
@@ -245,7 +250,7 @@ class WebAuthnProvider:
                 require_user_verification=self._user_verification == "required",
             )
 
-            if not verification.user_verified:  # type: ignore[attr-defined]
+            if not verification.user_verified:
                 return Err("Registration verification failed")
 
             # Extract credential data

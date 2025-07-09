@@ -351,9 +351,8 @@ async def get_current_admin_user(
 
         admin_user = AdminUser(**user_data)
 
-        # For now, set effective permissions from the role
-        # In production, this would be computed properly
-        admin_user.effective_permissions = permissions or []
+        # Note: effective_permissions is a computed field based on role
+        # No need to set it manually as it's calculated from the role
 
         return admin_user
 

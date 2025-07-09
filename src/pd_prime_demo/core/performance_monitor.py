@@ -7,7 +7,7 @@ from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Any
+from typing import Any, Awaitable
 
 from attrs import field, frozen
 from beartype import beartype
@@ -220,7 +220,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         self.track_memory = track_memory
         self.collector = get_performance_collector()
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """Monitor request performance with memory tracking."""
         start_time = time.perf_counter()
         timestamp = time.time()
@@ -503,7 +503,7 @@ async def performance_context(operation_name: str) -> AsyncIterator[dict[str, An
 @beartype
 async def benchmark_operation(
     operation_name: str,
-    operation_func: Callable,
+    operation_func: Callable[[], Any],
     iterations: int = 100,
 ) -> PerformanceMetrics:
     """Benchmark an operation multiple times and return performance metrics."""

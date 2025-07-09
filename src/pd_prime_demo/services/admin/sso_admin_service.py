@@ -110,7 +110,7 @@ class SSOAdminService:
         provider_id: UUID,
         admin_user_id: UUID,
         updates: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Update SSO provider configuration.
 
         Args:
@@ -272,7 +272,7 @@ class SSOAdminService:
     async def get_user_provisioning_rules(
         self,
         provider_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[dict[str, Any]], str]:
         """Get user provisioning rules for a provider.
 
         Args:
@@ -307,7 +307,7 @@ class SSOAdminService:
         sso_group: str,
         internal_role: str,
         auto_assign: bool = True,
-    ):
+    ) -> Result[UUID, str]:
         """Create SSO group to internal role mapping.
 
         Args:
@@ -470,7 +470,7 @@ class SSOAdminService:
         self,
         provider_type: str,
         config: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Validate provider configuration.
 
         Args:
@@ -740,7 +740,7 @@ class SSOAdminService:
         self,
         provider_id: UUID,
         admin_user_id: UUID,
-    ):
+    ) -> Result[bool, str]:
         """Delete SSO provider configuration.
 
         Args:
@@ -802,7 +802,7 @@ class SSOAdminService:
     async def list_group_mappings(
         self,
         provider_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[dict[str, Any]], str]:
         """List group mappings for a provider.
 
         Args:
@@ -849,7 +849,7 @@ class SSOAdminService:
         try:
             # Build query with optional provider filter
             where_clause = "WHERE 1=1"
-            params = []
+            params: list[UUID | int] = []
 
             if provider_id:
                 where_clause += " AND provider_id = $1"

@@ -1,7 +1,7 @@
 """Enhanced message models for WebSocket communication."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
@@ -219,6 +219,16 @@ class BinaryMessage(BaseModel, MessageValidationMixin):
         return v
 
 
+# Union type for all message types
+MessageType = Union[
+    QuoteMessage,
+    RoomMessage,
+    AnalyticsMessage,
+    NotificationMessage,
+    AdminMessage,
+    BinaryMessage,
+]
+
 # Message type registry for validation
 MESSAGE_TYPE_REGISTRY = {
     "quote_subscribe": QuoteMessage,
@@ -240,7 +250,7 @@ MESSAGE_TYPE_REGISTRY = {
 
 
 @beartype
-def validate_message_data(message_type: str, data: dict[str, Any]) -> BaseModel:
+def validate_message_data(message_type: str, data: dict[str, Any]) -> MessageType:
     """Validate message data based on type."""
     if message_type not in MESSAGE_TYPE_REGISTRY:
         raise ValueError(f"Unknown message type: {message_type}")

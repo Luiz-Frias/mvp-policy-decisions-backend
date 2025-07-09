@@ -191,7 +191,7 @@ class AzureADSSOProvider(OIDCProvider):
             user_data = response.json()
 
             # Get user groups if permission granted
-            groups = []
+            groups: list[str] = []
             if "Group.Read.All" in self.scopes or "Directory.Read.All" in self.scopes:
                 groups_result = await self._get_user_groups(access_token)
                 if isinstance(groups_result, Ok):
@@ -296,7 +296,7 @@ class AzureADSSOProvider(OIDCProvider):
     async def _get_user_groups(
         self,
         access_token: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[str], str]:
         """Get user's Azure AD groups.
 
         Args:
@@ -323,7 +323,7 @@ class AzureADSSOProvider(OIDCProvider):
                     return Err(f"Failed to fetch groups: HTTP {response.status_code}")
 
             data = response.json()
-            groups = []
+            groups: list[str] = []
 
             for group in data.get("value", []):
                 # Only include security groups and Microsoft 365 groups

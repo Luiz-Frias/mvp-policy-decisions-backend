@@ -1,6 +1,6 @@
 """Result types for error handling without exceptions."""
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar
 
 from attrs import frozen
 from beartype import beartype
@@ -82,7 +82,7 @@ class Err(Generic[E]):
         return self.error
 
     @beartype
-    def unwrap(self) -> None:
+    def unwrap(self) -> NoReturn:
         """Raise ValueError as this is Err."""
         raise ValueError(f"Called unwrap on Err value: {self.error}")
 

@@ -494,7 +494,7 @@ class RatingPerformanceOptimizer:
         return p95_time <= target_ms
 
     @beartype
-    async def optimize_slow_calculations(self) -> Result[dict[str, Any], str]:
+    async def optimize_slow_calculations(self) -> Result[list[str], str]:
         """Identify and suggest optimizations for slow calculations."""
         try:
             optimizations = []

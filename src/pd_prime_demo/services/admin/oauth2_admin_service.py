@@ -172,7 +172,7 @@ class OAuth2AdminService:
         client_id: str,
         admin_user_id: UUID,
         updates: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Update OAuth2 client configuration.
 
         Args:
@@ -275,7 +275,7 @@ class OAuth2AdminService:
         self,
         client_id: str,
         admin_user_id: UUID,
-    ):
+    ) -> Result[str, str]:
         """Regenerate client secret for confidential clients.
 
         Args:
@@ -458,7 +458,7 @@ class OAuth2AdminService:
         client_id: str,
         admin_user_id: UUID,
         reason: str,
-    ):
+    ) -> Result[dict[str, Any], str]:
         """Revoke all active tokens for a client.
 
         Args:

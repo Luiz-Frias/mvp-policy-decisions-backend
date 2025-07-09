@@ -90,7 +90,7 @@ class SMSProvider:
     @beartype
     async def send_verification_code(
         self, user_id: str, encrypted_phone: str, purpose: str = "mfa"
-    ):
+    ) -> Result[SMSVerification, str]:
         """Send verification code via SMS with anti-SIM swap checks.
 
         Args:
@@ -282,10 +282,10 @@ class SMSProvider:
             if current_count >= self._max_sends_per_window:
                 return Err("SMS rate limit exceeded. Please try again later.")
 
-            return Ok(True)
+            return Ok(None)
 
         except Exception:
-            return Ok(True)  # Don't block on rate limit errors
+            return Ok(None)  # Don't block on rate limit errors
 
     @beartype
     async def _update_rate_limit(self, user_id: str) -> None:
@@ -336,7 +336,7 @@ class SMSProvider:
             # )
 
             print(f"[MOCK SMS] To: {phone_number}, Code: {code}, Purpose: {purpose}")
-            return Ok(True)
+            return Ok("SMS sent successfully")
 
         except Exception as e:
             return Err(f"Failed to send SMS: {str(e)}")

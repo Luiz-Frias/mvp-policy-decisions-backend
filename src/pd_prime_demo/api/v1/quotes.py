@@ -1,6 +1,7 @@
 """Quote API endpoints."""
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -8,7 +9,7 @@ from beartype import beartype
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...models.quote import (
     Quote,
@@ -40,6 +41,84 @@ from ..dependencies import (
 router = APIRouter(prefix="/quotes", tags=["quotes"])
 
 
+def _convert_quote_to_response(quote: Quote) -> QuoteResponse:
+    """Convert Quote model to QuoteResponse schema."""
+    return QuoteResponse(
+        id=quote.id,
+        quote_number=quote.quote_number,
+        customer_id=quote.customer_id,
+        product_type=quote.product_type,
+        state=quote.state,
+        zip_code=quote.zip_code,
+        effective_date=quote.effective_date,
+        status=quote.status,
+        email=quote.email,
+        phone=quote.phone,
+        preferred_contact=quote.preferred_contact,
+        vehicle_info=quote.vehicle_info,
+        drivers=quote.drivers,
+        coverage_selections=quote.coverage_selections,
+        base_premium=quote.base_premium,
+        total_premium=quote.total_premium,
+        monthly_premium=quote.monthly_premium,
+        discounts_applied=quote.discounts_applied,
+        surcharges_applied=quote.surcharges_applied,
+        total_discount_amount=quote.total_discount_amount,
+        total_surcharge_amount=quote.total_surcharge_amount,
+        rating_factors=quote.rating_factors,
+        rating_tier=quote.rating_tier,
+        ai_risk_score=Decimal(str(quote.ai_risk_score)) if quote.ai_risk_score is not None else None,
+        ai_risk_factors=quote.ai_risk_factors,
+        expires_at=quote.expires_at,
+        is_expired=quote.expires_at < datetime.now(timezone.utc),
+        days_until_expiration=max(0, (quote.expires_at - datetime.now(timezone.utc)).days),
+        can_be_bound=quote.status == QuoteStatus.QUOTED,
+        version=quote.version,
+        created_at=quote.created_at,
+        updated_at=quote.updated_at,
+    )
+
+
+def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionResponse:
+    """Convert WizardState to WizardSessionResponse."""
+    # Convert dict data to WizardStepData
+    from ...schemas.quote import WizardStepData, ValidationErrors, FieldError
+    
+    # Create WizardStepData with default values for missing fields
+    # This is a simplified conversion - in production, you'd want proper mapping
+    step_data = WizardStepData()
+    
+    # Convert validation errors from dict to ValidationErrors
+    field_errors = []
+    for field, errors in state.validation_errors.items():
+        field_errors.append(FieldError(
+            field_name=field,
+            error_messages=errors,
+            error_code=None,
+            suggested_fix=None
+        ))
+    
+    validation_errors = ValidationErrors(
+        field_errors=field_errors,
+        form_errors=[],
+        warning_messages=[]
+    )
+    
+    return WizardSessionResponse(
+        session_id=state.session_id,
+        quote_id=state.quote_id,
+        current_step=state.current_step,
+        completed_steps=state.completed_steps,
+        data=step_data,
+        validation_errors=validation_errors,
+        started_at=state.started_at,
+        last_updated=state.last_updated,
+        expires_at=state.expires_at,
+        is_complete=state.is_complete,
+        completion_percentage=int(len(state.completed_steps) * 100 / 10),  # Assuming 10 steps total
+    )
+
+
 @router.post("/", response_model=QuoteResponse)
 @beartype
 async def create_quote(
@@ -47,7 +126,7 @@ async def create_quote(
     background_tasks: BackgroundTasks,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Quote:
+) -> QuoteResponse:
     """Create a new insurance quote."""
     # Convert request to domain model
     quote_create = QuoteCreate(**quote_data.model_dump())
@@ -61,12 +140,14 @@ async def create_quote(
         raise HTTPException(status_code=400, detail=result.err_value)
 
     quote = result.ok_value
+    if quote is None:
+        raise HTTPException(status_code=500, detail="Quote creation failed")
 
     # Trigger async calculation if data is complete
     if quote.vehicle_info and quote.drivers and quote.coverage_selections:
         background_tasks.add_task(quote_service.calculate_quote, quote.id)
 
-    return quote
+    return _convert_quote_to_response(quote)
 
 
 @router.get("/{quote_id}", response_model=QuoteResponse)
@@ -75,7 +156,7 @@ async def get_quote(
     quote_id: UUID,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Quote:
+) -> QuoteResponse:
     """Get quote by ID."""
     result = await quote_service.get_quote(quote_id)
 
@@ -95,7 +176,7 @@ async def get_quote(
         # Anonymous users need session validation (future enhancement)
         pass
 
-    return quote
+    return _convert_quote_to_response(quote)
 
 
 @router.put("/{quote_id}", response_model=QuoteResponse)
@@ -105,7 +186,7 @@ async def update_quote(
     update_data: QuoteUpdateRequest,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Quote:
+) -> QuoteResponse:
     """Update an existing quote."""
     # Convert request to domain model
     quote_update = QuoteUpdate(**update_data.model_dump(exclude_unset=True))
@@ -117,7 +198,11 @@ async def update_quote(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    quote = result.ok_value
+    if quote is None:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    return _convert_quote_to_response(quote)
 
 
 @router.post("/{quote_id}/calculate", response_model=QuoteResponse)
@@ -126,14 +211,18 @@ async def calculate_quote(
     quote_id: UUID,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Quote:
+) -> QuoteResponse:
     """Calculate or recalculate quote pricing."""
     result = await quote_service.calculate_quote(quote_id)
 
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    quote = result.ok_value
+    if quote is None:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    return _convert_quote_to_response(quote)
 
 
 @router.post("/{quote_id}/convert", response_model=QuoteConversionResponse)
@@ -143,7 +232,7 @@ async def convert_to_policy(
     conversion_request: QuoteConversionRequest,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> QuoteConversionResponse:
     """Convert quote to policy."""
     result = await quote_service.convert_to_policy(
         quote_id, conversion_request, current_user.id
@@ -189,40 +278,7 @@ async def search_quotes(
     quotes: list[Quote] = result.ok_value
 
     # Convert Quote objects to QuoteResponse objects
-    quote_responses = [QuoteResponse(
-        id=quote.id,
-        quote_number=quote.quote_number,
-        customer_id=quote.customer_id,
-        product_type=quote.product_type,
-        state=quote.state,
-        zip_code=quote.zip_code,
-        effective_date=quote.effective_date,
-        status=quote.status,
-        email=quote.email,
-        phone=quote.phone,
-        preferred_contact=quote.preferred_contact,
-        vehicle_info=quote.vehicle_info,
-        drivers=quote.drivers,
-        coverage_selections=quote.coverage_selections,
-        base_premium=quote.base_premium,
-        total_premium=quote.total_premium,
-        monthly_premium=quote.monthly_premium,
-        discounts_applied=quote.discounts_applied,
-        surcharges_applied=quote.surcharges_applied,
-        total_discount_amount=quote.total_discount_amount,
-        total_surcharge_amount=quote.total_surcharge_amount,
-        rating_factors=quote.rating_factors,
-        rating_tier=quote.rating_tier,
-        ai_risk_score=quote.ai_risk_score,
-        ai_risk_factors=quote.ai_risk_factors,
-        expires_at=quote.expires_at,
-        is_expired=quote.expires_at < datetime.now(timezone.utc),
-        days_until_expiration=max(0, (quote.expires_at - datetime.now(timezone.utc)).days),
-        can_be_bound=quote.status == QuoteStatus.QUOTED,
-        version=quote.version,
-        created_at=quote.created_at,
-        updated_at=quote.updated_at,
-    ) for quote in quotes]
+    quote_responses = [_convert_quote_to_response(quote) for quote in quotes]
     
     return QuoteSearchResponse(
         quotes=quote_responses,
@@ -240,14 +296,18 @@ async def search_quotes(
 async def start_wizard_session(
     initial_data: dict[str, Any] | None = None,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardState:
+) -> WizardSessionResponse:
     """Start a new quote wizard session."""
     result = await wizard_service.start_session(initial_data)
 
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    wizard_state = result.ok_value
+    if wizard_state is None:
+        raise HTTPException(status_code=404, detail="Wizard session not found")
+
+    return _convert_wizard_state_to_response(wizard_state)
 
 
 @router.get("/wizard/{session_id}", response_model=WizardSessionResponse)
@@ -255,7 +315,7 @@ async def start_wizard_session(
 async def get_wizard_session(
     session_id: UUID,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardState:
+) -> WizardSessionResponse:
     """Get wizard session state."""
     result = await wizard_service.get_session(session_id)
 
@@ -266,7 +326,7 @@ async def get_wizard_session(
     if not state:
         raise HTTPException(status_code=404, detail="Session not found or expired")
 
-    return state
+    return _convert_wizard_state_to_response(state)
 
 
 @router.put("/wizard/{session_id}/step", response_model=WizardSessionResponse)
@@ -275,14 +335,18 @@ async def update_wizard_step(
     session_id: UUID,
     step_data: dict[str, Any],
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardState:
+) -> WizardSessionResponse:
     """Update current wizard step with data."""
     result = await wizard_service.update_step(session_id, step_data)
 
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    wizard_state = result.ok_value
+    if wizard_state is None:
+        raise HTTPException(status_code=404, detail="Wizard session not found")
+
+    return _convert_wizard_state_to_response(wizard_state)
 
 
 @router.post("/wizard/{session_id}/next", response_model=WizardSessionResponse)
@@ -290,14 +354,18 @@ async def update_wizard_step(
 async def next_wizard_step(
     session_id: UUID,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardState:
+) -> WizardSessionResponse:
     """Move to next step in wizard."""
     result = await wizard_service.next_step(session_id)
 
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    wizard_state = result.ok_value
+    if wizard_state is None:
+        raise HTTPException(status_code=404, detail="Wizard session not found")
+
+    return _convert_wizard_state_to_response(wizard_state)
 
 
 @router.post("/wizard/{session_id}/previous", response_model=WizardSessionResponse)
@@ -305,14 +373,18 @@ async def next_wizard_step(
 async def previous_wizard_step(
     session_id: UUID,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardState:
+) -> WizardSessionResponse:
     """Move to previous step in wizard."""
     result = await wizard_service.previous_step(session_id)
 
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    wizard_state = result.ok_value
+    if wizard_state is None:
+        raise HTTPException(status_code=404, detail="Wizard session not found")
+
+    return _convert_wizard_state_to_response(wizard_state)
 
 
 @router.post(
@@ -323,14 +395,18 @@ async def jump_to_wizard_step(
     session_id: UUID,
     step_id: str,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardState:
+) -> WizardSessionResponse:
     """Jump to a specific wizard step."""
     result = await wizard_service.jump_to_step(session_id, step_id)
 
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    wizard_state = result.ok_value
+    if wizard_state is None:
+        raise HTTPException(status_code=404, detail="Wizard session not found")
+
+    return _convert_wizard_state_to_response(wizard_state)
 
 
 class WizardCompletionResponse(BaseModel):

@@ -294,7 +294,7 @@ class RatingCacheStrategy:
         Returns:
             Serializable dictionary
         """
-        serialized = {}
+        serialized: dict[str, Any] = {}
         for key, value in result.items():
             if isinstance(value, Decimal):
                 serialized[key] = str(value)
@@ -329,7 +329,7 @@ class RatingCacheStrategy:
             "tax_amount",
         }
 
-        deserialized = {}
+        deserialized: dict[str, Any] = {}
         for key, value in data.items():
             if key in decimal_fields and isinstance(value, str):
                 deserialized[key] = Decimal(value)
@@ -403,12 +403,12 @@ class RatingCacheManager:
                 if cached_result.is_ok() and cached_result.unwrap() is not None:
                     return Ok(cached_result.unwrap())
         elif cache_type == "quote_calculation":
-            cached_result = await self._strategy.get_quote_calculation(cache_key)
-            if cached_result is not None:
-                return Ok(cached_result)
+            quote_result = await self._strategy.get_quote_calculation(cache_key)
+            if quote_result.is_ok() and quote_result.unwrap() is not None:
+                return Ok(quote_result.unwrap())
 
         # Calculate if not cached
-        calc_result = await calculation_func()
+        calc_result: Result[Any, str] = await calculation_func()
         if calc_result.is_err():
             return calc_result
 

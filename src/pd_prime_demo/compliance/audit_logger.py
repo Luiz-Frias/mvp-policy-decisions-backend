@@ -383,7 +383,7 @@ class AuditLogger:
 
     @beartype
     async def log_privacy_event(
-        self, user_id: UUID, action: str, data_type: str, **metadata: Any
+        self, user_id: UUID | None, action: str, data_type: str, **metadata: Any
     ) -> Result[None, str]:
         """Log privacy-related event."""
         event = ComplianceEvent(

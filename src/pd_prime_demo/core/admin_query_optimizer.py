@@ -284,7 +284,7 @@ class AdminQueryOptimizer:
         self,
         use_cache: bool = True,
         cache_ttl_seconds: int = 300,
-    ):
+    ) -> Result[AdminMetrics, str]:
         """Get optimized admin dashboard metrics."""
         cache_key = "admin:dashboard:metrics:v2"
 
@@ -298,7 +298,7 @@ class AdminQueryOptimizer:
             # Refresh views if needed
             refresh_result = await self.refresh_materialized_views()
             if refresh_result.is_err():
-                return Err(refresh_result.err_value)
+                return Err(refresh_result.unwrap_err() or "Unknown error")
 
             # Fetch data from materialized views in parallel
             async with self._db.acquire_admin() as conn:
@@ -382,7 +382,12 @@ class AdminQueryOptimizer:
                         cache_key, metrics_data, ttl_seconds=cache_ttl_seconds
                     )
 
-                return Ok(AdminMetrics(**metrics_data))
+                return Ok(AdminMetrics(
+                    daily_metrics=metrics_data["daily_metrics"],  # type: ignore
+                    user_activity=metrics_data["user_activity"],  # type: ignore
+                    system_health=metrics_data["system_health"],  # type: ignore
+                    cache_timestamp=metrics_data["cache_timestamp"],  # type: ignore
+                ))
 
         except Exception as e:
             return Err(f"Failed to fetch admin metrics: {str(e)}")

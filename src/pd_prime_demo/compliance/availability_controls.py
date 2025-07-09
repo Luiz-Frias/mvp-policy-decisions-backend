@@ -247,7 +247,7 @@ class AvailabilityControlManager:
         ]
 
         total_downtime_minutes = sum(
-            float(inc["duration_minutes"]) for inc in downtime_incidents
+            float(inc["duration_minutes"]) for inc in downtime_incidents  # type: ignore
         )
         total_minutes = 24 * 60
         uptime_percentage = (
@@ -259,7 +259,7 @@ class AvailabilityControlManager:
             total_downtime_minutes=total_downtime_minutes,
             incident_count=len(downtime_incidents),
             mttr_minutes=(
-                mean([float(inc["duration_minutes"]) for inc in downtime_incidents])
+                mean([float(inc["duration_minutes"]) for inc in downtime_incidents])  # type: ignore
                 if downtime_incidents
                 else 0.0
             ),

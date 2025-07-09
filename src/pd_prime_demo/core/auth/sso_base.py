@@ -8,7 +8,7 @@ from uuid import uuid4
 from beartype import beartype
 from pydantic import ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok, Result, Result
+from ...core.result_types import Err, Ok, Result
 
 from ...models.base import BaseModelConfig
 

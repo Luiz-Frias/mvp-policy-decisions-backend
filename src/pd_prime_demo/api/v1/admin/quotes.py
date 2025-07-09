@@ -10,6 +10,7 @@ from uuid import UUID
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ....core.result_types import Result
 from ....models.admin import AdminUser
 from ....models.quote import Quote, QuoteOverrideRequest
 from ....schemas.quote import QuoteResponse

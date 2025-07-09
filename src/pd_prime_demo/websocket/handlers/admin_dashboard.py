@@ -92,7 +92,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         dashboard_config: dict[str, Any],
-    ) -> None:
+    ) -> Result[None, str]:
         """Start real-time system monitoring for admin with explicit permission check."""
         # Verify admin permissions
         permission_result = await self._check_admin_permissions(
@@ -147,7 +147,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         filters: dict[str, Any],
-    ) -> None:
+    ) -> Result[None, str]:
         """Start real-time user activity monitoring with audit permissions."""
         # Verify audit permissions
         permission_result = await self._check_admin_permissions(
@@ -180,7 +180,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         metrics: list[str],
-    ) -> None:
+    ) -> Result[None, str]:
         """Start real-time performance monitoring."""
         # Verify performance monitoring permissions
         permission_result = await self._check_admin_permissions(

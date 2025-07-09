@@ -4,7 +4,7 @@ import asyncio
 from collections import deque
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 from uuid import UUID
 
 from beartype import beartype
@@ -16,6 +16,12 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ..core.cache import Cache
 from ..core.database import Database
 from .monitoring import WebSocketMonitor
+
+
+class RateLimiterState(TypedDict):
+    """Type for rate limiter state."""
+    tokens: int
+    last_refill: datetime
 
 
 class MessageType(str, Enum):
@@ -366,10 +372,10 @@ class ConnectionManager:
         self._max_connections_allowed = 10000
 
         # Rate limiting
-        self._rate_limiters: dict[str, dict[str, int]] = (
+        self._rate_limiters: dict[str, RateLimiterState] = (
             {}
         )  # connection_id -> {"tokens": int, "last_refill": timestamp}
-        self._rate_limit_config = {
+        self._rate_limit_config: dict[str, int | float] = {
             "tokens_per_second": 20,
             "max_tokens": 100,
             "refill_interval": 1.0,  # seconds
@@ -1238,10 +1244,10 @@ class ConnectionManager:
         now = datetime.now()
 
         if connection_id not in self._rate_limiters:
-            self._rate_limiters[connection_id] = {
-                "tokens": self._rate_limit_config["max_tokens"],
-                "last_refill": now,
-            }
+            self._rate_limiters[connection_id] = RateLimiterState(
+                tokens=int(self._rate_limit_config["max_tokens"]),
+                last_refill=now,
+            )
 
         limiter = self._rate_limiters[connection_id]
 

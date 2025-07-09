@@ -260,7 +260,7 @@ class AdminActivityLogger:
             WHERE created_at > NOW() - INTERVAL '%s days'
         """
 
-        params = [days]
+        params: list[int | UUID] = [days]
 
         if admin_user_id:
             query += " AND admin_user_id = $2"

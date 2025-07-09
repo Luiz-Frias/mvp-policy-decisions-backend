@@ -746,7 +746,7 @@ class QuoteWizardService:
         if not state:
             return Err("Session not found or expired")
 
-        intelligence = {}
+        intelligence: dict[str, Any] = {}
 
         # Provide step-specific intelligence
         if step_id == "start":

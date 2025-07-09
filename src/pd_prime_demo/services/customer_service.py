@@ -130,7 +130,7 @@ class CustomerService:
     async def get_by_customer_number(
         self,
         customer_number: str,
-    ):
+    ) -> Result[Customer | None, str]:
         """Get customer by customer number."""
         query = """
             SELECT id, external_id, data, created_at, updated_at
@@ -170,7 +170,7 @@ class CustomerService:
         self,
         customer_id: UUID,
         customer_update: CustomerUpdate,
-    ):
+    ) -> Result[Customer | None, str]:
         """Update customer."""
         # Get existing customer
         existing_result = await self.get(customer_id)
@@ -272,7 +272,7 @@ class CustomerService:
     async def _validate_customer_data(
         self,
         customer_data: CustomerCreate,
-    ):
+    ) -> Result[bool, str]:
         """Validate customer business rules."""
         # Check if email already exists
         query = "SELECT 1 FROM customers WHERE data->>'email' = $1"

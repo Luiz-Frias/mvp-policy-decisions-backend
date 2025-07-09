@@ -583,7 +583,7 @@ class PrivacyControlManager:
         ]
 
         non_compliant_mechanisms = [
-            f"Mechanism '{mech['mechanism']}': {', '.join(mech['issues'])}"
+            f"Mechanism '{mech['mechanism']}': {', '.join(mech['issues'])}"  # type: ignore
             for mech in consent_mechanisms
             if not mech["compliant"]
         ]

@@ -433,7 +433,7 @@ class RiskEngine:
     # Helper methods (mock implementations)
 
     @beartype
-    def _get_location_from_ip(self, ip: str) -> dict[str, str]:
+    def _get_location_from_ip(self, ip: str) -> dict[str, str | float]:
         """Get geographic location from IP (mock)."""
         # In production, use MaxMind GeoIP2 or similar
         return {
@@ -444,7 +444,7 @@ class RiskEngine:
         }
 
     @beartype
-    def _calculate_distance(self, loc1: dict, loc2: dict) -> float:
+    def _calculate_distance(self, loc1: dict[str, Any], loc2: dict[str, Any]) -> float:
         """Calculate distance between two locations in km (mock)."""
         # In production, use proper geographic distance calculation
         return 100.0  # Mock 100km

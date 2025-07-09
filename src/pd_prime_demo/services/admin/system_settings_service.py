@@ -44,6 +44,7 @@ class SystemSettingsService:
         self._cache_ttl = 3600  # 1 hour
 
         # Initialize encryption for sensitive settings
+        self._fernet: Fernet | None
         if encryption_key:
             self._fernet = Fernet(
                 encryption_key.encode()

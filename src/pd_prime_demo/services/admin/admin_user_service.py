@@ -1,6 +1,7 @@
 """Admin user management service."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -35,7 +36,7 @@ class AdminUserService:
         self,
         admin_data: AdminUserCreate,
         created_by: UUID,
-    ):
+    ) -> Result[AdminUser, str]:
         """Create new admin user with role assignment.
 
         Args:
@@ -129,7 +130,7 @@ class AdminUserService:
         admin_id: UUID,
         role_id: UUID,
         updated_by: UUID,
-    ):
+    ) -> Result[AdminUser, str]:
         """Update admin user's role.
 
         Args:
@@ -211,7 +212,7 @@ class AdminUserService:
         admin_id: UUID,
         resource: str,
         action: str,
-    ):
+    ) -> Result[bool, str]:
         """Check if admin has specific permission.
 
         Args:
@@ -328,8 +329,8 @@ class AdminUserService:
         action: str,
         resource_type: str,
         resource_id: UUID | None = None,
-        old_values: dict | None = None,
-        new_values: dict | None = None,
+        old_values: dict[str, Any] | None = None,
+        new_values: dict[str, Any] | None = None,
     ) -> None:
         """Log admin activity (fire and forget)."""
         try:

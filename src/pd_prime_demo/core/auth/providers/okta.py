@@ -362,7 +362,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         access_token: str,
         user_id: str,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[dict[str, Any]], str]:
         """Get detailed group information for a user from Okta.
 
         Args:

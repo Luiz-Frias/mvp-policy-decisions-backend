@@ -549,11 +549,11 @@ class CreditBasedInsuranceScorer:
 
         # Credit utilization impact (30% weight)
         if credit_utilization <= 0.10:
-            util_adjustment = 20  # Very low utilization is good
+            util_adjustment = 20.0  # Very low utilization is good
         elif credit_utilization <= 0.30:
-            util_adjustment = 0  # Normal utilization
+            util_adjustment = 0.0  # Normal utilization
         else:
-            util_adjustment = -50 * (
+            util_adjustment = -50.0 * (
                 credit_utilization - 0.30
             )  # High utilization penalty
 
@@ -769,8 +769,6 @@ class AIRiskScorer:
                 return Err(f"Feature extraction failed: {features_result.unwrap_err()}")
 
             features = features_result.unwrap()
-            if features is None:
-                return Err("Feature extraction returned None")
 
             # Simulate model predictions (in production, use real ML models)
             # Check if models are loaded

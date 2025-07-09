@@ -1083,7 +1083,7 @@ class ConfidentialityControlManager:
 
         implemented_techs = [tech for tech in anonymization_techniques if tech["implemented"]]
         avg_effectiveness = (
-            sum(float(tech["effectiveness"]) for tech in implemented_techs) / len(implemented_techs)
+            sum(float(tech["effectiveness"]) for tech in implemented_techs) / len(implemented_techs)  # type: ignore
             if implemented_techs else 0.0
         )
 

@@ -117,7 +117,7 @@ class PerformanceCache:
         )
 
     @beartype
-    async def warm_rating_cache(self) -> dict[str, int]:
+    async def warm_rating_cache(self) -> dict[str, int | float]:
         """Pre-warm cache with common rating calculations."""
         warmed_keys = 0
         start_time = time.time()
@@ -193,7 +193,7 @@ class PerformanceCache:
         }
 
     @beartype
-    async def warm_reference_data(self) -> dict[str, int]:
+    async def warm_reference_data(self) -> dict[str, int | float]:
         """Pre-warm cache with reference data (states, vehicle makes, etc.)."""
         warmed_keys = 0
         start_time = time.time()
@@ -270,12 +270,12 @@ def cached_operation(
     cache_prefix: str,
     ttl_seconds: int = 3600,
     invalidate_on_error: bool = True,
-):
+) -> Callable[..., Any]:
     """Decorator for caching expensive operations with performance monitoring."""
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs) -> Any:
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             perf_cache = get_performance_cache()
 
             # Create cache key from function arguments
@@ -313,7 +313,7 @@ def cached_operation(
                     raise
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs) -> Any:
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             # For sync functions, we'd need to run in an async context
             # This is a simplified version
             return func(*args, **kwargs)
@@ -332,7 +332,7 @@ async def warm_all_caches() -> dict[str, Any]:
     perf_cache = get_performance_cache()
 
     start_time = time.time()
-    results = {}
+    results: dict[str, Any] = {}
 
     # Warm rating calculations cache
     rating_result = await perf_cache.warm_rating_cache()

@@ -242,7 +242,7 @@ class EvidenceCollector:
         execution_result: Any,
         period_start: datetime,
         period_end: datetime,
-    ) -> Result[EvidenceRecord, str]:
+    ) -> Result[EvidenceArtifact, str]:
         """Collect evidence from control execution."""
         try:
             evidence_content = {
@@ -361,7 +361,7 @@ class EvidenceCollector:
         period_start: datetime,
         period_end: datetime,
         control_id: str | None = None,
-    ) -> Result[EvidenceRecord, str]:
+    ) -> Result[EvidenceArtifact, str]:
         """Collect evidence from system data."""
         try:
             evidence_content = {
