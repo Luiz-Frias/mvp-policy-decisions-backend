@@ -242,7 +242,7 @@ class EvidenceCollector:
         execution_result: Any,
         period_start: datetime,
         period_end: datetime,
-    ):
+    ) -> Result[EvidenceRecord, str]:
         """Collect evidence from control execution."""
         try:
             evidence_content = {
@@ -361,7 +361,7 @@ class EvidenceCollector:
         period_start: datetime,
         period_end: datetime,
         control_id: str | None = None,
-    ):
+    ) -> Result[EvidenceRecord, str]:
         """Collect evidence from system data."""
         try:
             evidence_content = {
@@ -432,7 +432,7 @@ class EvidenceCollector:
         period_start: datetime,
         period_end: datetime,
         created_by: str,
-    ):
+    ) -> Result[EvidenceCollection, str]:
         """Create a new evidence collection for an assessment period."""
         try:
             collection = EvidenceCollection(
@@ -530,7 +530,7 @@ class EvidenceCollector:
         period_end: datetime,
         generated_by: str,
         evidence_collection_ids: list[UUID],
-    ):
+    ) -> Result[ComplianceReport, str]:
         """Generate a comprehensive compliance report."""
         try:
             # Collect compliance data (simulated)

@@ -38,7 +38,7 @@ async def admin_search_quotes(
     # Dependencies
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> list[Quote]:
+) -> list[dict[str, Any]]:
     """Search quotes with admin privileges."""
     filters = {
         "status": status,
@@ -59,7 +59,12 @@ async def admin_search_quotes(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid list, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Quote search failed")
+    # Convert Quote objects to dict format for JSON response
+    return [quote.model_dump() if hasattr(quote, 'model_dump') else quote for quote in value]  # type: ignore[misc]
 
 
 @router.post("/{quote_id}/override")
@@ -69,7 +74,7 @@ async def override_quote(
     override_request: QuoteOverrideRequest,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Quote:
+) -> dict[str, Any]:
     """Override quote pricing or terms."""
     # Check permission
     if "quote:override" not in admin_user.effective_permissions:
@@ -84,7 +89,12 @@ async def override_quote(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid quote, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Quote override failed")
+    # Convert Quote object to dict format for JSON response
+    return value.model_dump() if hasattr(value, 'model_dump') else value  # type: ignore[no-any-return]
 
 
 @router.post("/bulk/{operation}")
@@ -92,7 +102,7 @@ async def override_quote(
 async def bulk_quote_operation(
     operation: str,
     quote_ids: list[UUID],
-    parameters: dict[str, Any] = None,
+    parameters: dict[str, Any] | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
@@ -168,7 +178,7 @@ async def bulk_quote_operation(
                 else:
                     results["failed"] += 1
                     results["errors"].append(
-                        {"quote_id": str(quote_id), "error": result.error}
+                        {"quote_id": str(quote_id), "error": result.err_value}
                     )
 
     return results
@@ -193,7 +203,11 @@ async def get_quote_analytics(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Quote analytics failed")
+    return value
 
 
 @router.get("/export")
@@ -290,10 +304,10 @@ async def export_quotes(
     else:
         # Implement Excel export using openpyxl
         try:
-            import openpyxl
-            import pandas as pd
-            from openpyxl.styles import Font, PatternFill
-            from openpyxl.utils.dataframe import dataframe_to_rows
+            import openpyxl  # type: ignore[import-untyped]
+            import pandas as pd  # type: ignore[import-untyped]
+            from openpyxl.styles import Font, PatternFill  # type: ignore[import-untyped]
+            from openpyxl.utils.dataframe import dataframe_to_rows  # type: ignore[import-untyped]
 
         except ImportError:
             # Graceful fallback if Excel libraries not available

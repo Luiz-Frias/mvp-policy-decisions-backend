@@ -246,7 +246,8 @@ def validate_message_data(message_type: str, data: dict[str, Any]) -> BaseModel:
         raise ValueError(f"Unknown message type: {message_type}")
 
     model_class = MESSAGE_TYPE_REGISTRY[message_type]
-    return model_class(**data)
+    validated_model = model_class(**data)
+    return validated_model
 
 
 @beartype

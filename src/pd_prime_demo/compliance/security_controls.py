@@ -18,11 +18,14 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.config import get_settings
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import ControlExecution, ControlStatus
+
+# Type alias for control execution result
+ControlResult = Result[ControlExecution, str]
 
 
 class EncryptionConfig(BaseModel):
@@ -679,7 +682,7 @@ class SecurityControlManager:
         )
 
         # Collect all findings
-        all_findings = []
+        all_findings: list[str] = []
         for result in results:
             if result.is_ok():
                 all_findings.extend(result.unwrap().findings)

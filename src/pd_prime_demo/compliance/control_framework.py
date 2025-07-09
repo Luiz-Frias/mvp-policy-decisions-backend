@@ -250,7 +250,7 @@ class ControlFramework:
                 )
 
             # Get latest execution for each control
-            latest_executions = {}
+            latest_executions: dict[str, ControlExecution] = {}
             for execution in self._executions:
                 control_id = execution.control_id
                 if (
@@ -304,7 +304,7 @@ class ControlFramework:
     @beartype
     def get_failing_controls(self) -> list[ControlExecution]:
         """Get all controls that are currently failing."""
-        latest_executions = {}
+        latest_executions: dict[str, ControlExecution] = {}
         for execution in self._executions:
             control_id = execution.control_id
             if (
@@ -340,7 +340,9 @@ class ControlFramework:
                             error=result.unwrap_err(),
                         )
 
-            return Ok(executions)
+            # Filter out None values to ensure type safety
+            valid_executions = [exec for exec in executions if exec is not None]
+            return Ok(valid_executions)
 
         except Exception as e:
             return Err(f"Bulk control execution failed: {str(e)}")

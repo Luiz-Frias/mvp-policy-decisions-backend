@@ -10,7 +10,7 @@ from typing import Any
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo
 
@@ -112,7 +112,7 @@ class RatingBusinessRules:
         Returns:
             Result containing list of violations or error
         """
-        violations = []
+        violations: list[BusinessRuleViolation] = []
 
         try:
             # Validate factor ranges
@@ -306,7 +306,7 @@ class RatingBusinessRules:
         base_premium: Decimal,
     ) -> list[BusinessRuleViolation]:
         """Validate discount stacking rules."""
-        violations = []
+        violations: list[BusinessRuleViolation] = []
 
         if not discounts:
             return violations
@@ -672,7 +672,7 @@ class RatingBusinessRules:
         self, violations: list[BusinessRuleViolation]
     ) -> dict[str, Any]:
         """Format violations into a comprehensive report."""
-        by_severity = {"error": [], "warning": [], "info": []}
+        by_severity: dict[str, list[dict[str, Any]]] = {"error": [], "warning": [], "info": []}
 
         for violation in violations:
             by_severity[violation.severity].append(violation.to_dict())

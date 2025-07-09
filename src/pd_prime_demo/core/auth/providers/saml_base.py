@@ -8,7 +8,7 @@ from uuid import uuid4
 import defusedxml.ElementTree as ET  # Use defusedxml for security
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..sso_base import SAMLProvider, SSOUserInfo
 
@@ -73,7 +73,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> Result[str, str]:
         """Get SAML authorization URL (redirect to IdP).
 
         Args:
@@ -118,7 +118,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         self,
         code: str,  # SAML Response in this case
         state: str,  # RelayState
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Process SAML response (no token exchange in SAML).
 
         Args:
@@ -149,7 +149,7 @@ class EnhancedSAMLProvider(SAMLProvider):
     async def get_user_info(
         self,
         access_token: str,  # SAML assertion data as JSON string
-    ):
+    ) -> Result[SSOUserInfo, str]:
         """Extract user information from SAML assertion.
 
         Args:
@@ -219,7 +219,7 @@ class EnhancedSAMLProvider(SAMLProvider):
     async def refresh_token(
         self,
         refresh_token: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """SAML doesn't support token refresh."""
         return Err("Token refresh not supported in SAML. Users must re-authenticate.")
 
@@ -228,7 +228,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         self,
         token: str,
         token_type: str = "saml_assertion",
-    ):
+    ) -> Result[bool, str]:
         """SAML doesn't support token revocation."""
         # SAML doesn't have tokens to revoke, but we can indicate logout
         return Ok(True)
@@ -237,7 +237,7 @@ class EnhancedSAMLProvider(SAMLProvider):
     def create_saml_request(
         self,
         relay_state: str | None = None,
-    ):
+    ) -> Result[str, str]:
         """Create SAML authentication request.
 
         Args:
@@ -277,7 +277,7 @@ class EnhancedSAMLProvider(SAMLProvider):
         self,
         saml_response: str,
         relay_state: str | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Process SAML response and extract attributes.
 
         Args:
@@ -399,7 +399,7 @@ class EnhancedSAMLProvider(SAMLProvider):
     async def validate_signature(
         self,
         saml_response: str,
-    ):
+    ) -> Result[bool, str]:
         """Validate SAML response signature.
 
         Note: This is a simplified implementation.

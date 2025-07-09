@@ -92,7 +92,7 @@ class SSOProvider(ABC):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> Result[str, str]:
         """Get authorization URL for user redirect.
 
         Args:
@@ -128,7 +128,7 @@ class SSOProvider(ABC):
     async def get_user_info(
         self,
         access_token: str,
-    ):
+    ) -> Result[SSOUserInfo, str]:
         """Get user information from provider.
 
         Args:
@@ -161,7 +161,7 @@ class SSOProvider(ABC):
         self,
         token: str,
         token_type: str = "access_token",
-    ):
+    ) -> Result[bool, str]:
         """Revoke a token.
 
         Args:
@@ -342,7 +342,7 @@ class SAMLProvider(SSOProvider):
     def create_saml_request(
         self,
         relay_state: str | None = None,
-    ):
+    ) -> Result[str, str]:
         """Create SAML authentication request.
 
         Args:

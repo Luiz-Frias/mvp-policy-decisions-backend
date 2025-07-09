@@ -20,7 +20,7 @@ try:
     )
 except ImportError:
     # Mock implementation for testing
-    def generate_registration_options(*args, **kwargs) -> Any:
+    def generate_registration_options(*args: Any, **kwargs: Any) -> Any:
         return type(
             "MockOptions",
             (),
@@ -40,7 +40,7 @@ except ImportError:
             },
         )()
 
-    def generate_authentication_options(*args, **kwargs) -> Any:
+    def generate_authentication_options(*args: Any, **kwargs: Any) -> Any:
         return type(
             "MockOptions",
             (),
@@ -53,7 +53,7 @@ except ImportError:
             },
         )()
 
-    def verify_registration_response(*args, **kwargs) -> Any:
+    def verify_registration_response(*args: Any, **kwargs: Any) -> Any:
         return type(
             "MockVerification",
             (),
@@ -66,21 +66,21 @@ except ImportError:
             },
         )()
 
-    def verify_authentication_response(*args, **kwargs) -> bool:
+    def verify_authentication_response(*args: Any, **kwargs: Any) -> bool:
         return type("MockVerification", (), {"verified": True, "new_sign_count": 1})()
 
-    def base64url_to_bytes(data) -> bytes:
+    def base64url_to_bytes(data: str) -> bytes:
         import base64
 
         return base64.urlsafe_b64decode(data + "==")
 
-    def bytes_to_base64url(data) -> str:
+    def bytes_to_base64url(data: bytes) -> str:
         import base64
 
         return base64.urlsafe_b64encode(data).decode().rstrip("=")
 
     class PublicKeyCredentialDescriptor:
-        def __init__(self, id, type) -> None:
+        def __init__(self, id: str, type: str) -> None:
             self.id = id
             self.type = type
 

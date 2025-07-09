@@ -215,7 +215,7 @@ class MFAManager:
         user_id: UUID,
         risk_assessment: RiskAssessment | None = None,
         preferred_method: MFAMethod | None = None,
-    ):
+    ) -> Result[MFAChallenge, str]:
         """Create MFA challenge for authentication.
 
         Args:
@@ -403,7 +403,7 @@ class MFAManager:
         device_name: str,
         ip_address: str,
         user_agent: str,
-    ):
+    ) -> Result[DeviceTrust, str]:
         """Mark device as trusted for future logins.
 
         Args:

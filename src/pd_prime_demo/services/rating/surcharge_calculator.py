@@ -46,7 +46,7 @@ class SurchargeCalculator:
         if base_premium <= 0:
             return Err("Base premium must be positive for surcharge calculation")
 
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_surcharge_amount = Decimal("0")
 
         # DUI/SR-22 surcharges
@@ -145,7 +145,7 @@ class SurchargeCalculator:
         base_premium: Decimal,
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate DUI and SR-22 surcharges."""
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_amount = Decimal("0")
 
         for driver_idx, driver in enumerate(drivers):
@@ -201,7 +201,7 @@ class SurchargeCalculator:
         base_premium: Decimal,
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharges for high-risk drivers (multiple violations/accidents)."""
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_amount = Decimal("0")
 
         for driver_idx, driver in enumerate(drivers):
@@ -227,7 +227,7 @@ class SurchargeCalculator:
             surcharges.append(
                 {
                     "type": "high_risk_driver",
-                    "driver_id": driver.id,
+                    "driver_id": driver_idx,
                     "driver_name": f"{driver.first_name} {driver.last_name}",
                     "reason": f"{driver.violations_3_years} violations, {driver.accidents_3_years} accidents",
                     "rate": float(surcharge_rate),
@@ -249,7 +249,7 @@ class SurchargeCalculator:
         base_premium: Decimal,
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharges for young drivers."""
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_amount = Decimal("0")
 
         # State-specific young driver definitions
@@ -302,7 +302,7 @@ class SurchargeCalculator:
         base_premium: Decimal,
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharges for inexperienced drivers."""
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_amount = Decimal("0")
 
         for driver_idx, driver in enumerate(drivers):
@@ -341,7 +341,7 @@ class SurchargeCalculator:
         base_premium: Decimal,
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate surcharge for lapse in coverage."""
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_amount = Decimal("0")
 
         # Check if any driver has coverage lapse
@@ -392,7 +392,7 @@ class SurchargeCalculator:
         base_premium: Decimal,
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Calculate vehicle-based surcharges."""
-        surcharges = []
+        surcharges: list[dict[str, Any]] = []
         total_amount = Decimal("0")
 
         # High-performance vehicle surcharge

@@ -71,12 +71,16 @@ class OAuth2ClientCreateRequest(BaseModel):
 
     @field_validator("redirect_uris")
     @classmethod
-    def validate_redirect_uris(cls, v: list[str], values: dict[str, Any]) -> list[str]:
-        """Validate redirect URIs based on grant types."""
-        # Check if values dict has allowed_grant_types
-        grant_types = values.get("allowed_grant_types", [])
-        if "authorization_code" in grant_types and not v:
-            raise ValueError("redirect_uris required for authorization_code grant")
+    def validate_redirect_uris(cls, v: list[str]) -> list[str]:
+        """Validate redirect URIs format."""
+        # Validate URL format for each URI
+        import re
+        url_pattern = re.compile(
+            r'^https?://[^\s/$.?#].[^\s]*$'
+        )
+        for uri in v:
+            if not url_pattern.match(uri):
+                raise ValueError(f"Invalid redirect URI format: {uri}")
         return v
 
 
@@ -155,7 +159,11 @@ async def create_oauth2_client(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="OAuth2 client creation failed")
+    return value
 
 
 @router.get("/clients", response_model=list[dict[str, Any]])
@@ -192,7 +200,11 @@ async def list_oauth2_clients(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid list, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="OAuth2 client listing failed")
+    return value
 
 
 @router.get("/clients/{client_id}", response_model=dict[str, Any])
@@ -220,7 +232,11 @@ async def get_oauth2_client(
     if result.is_err():
         raise HTTPException(status_code=404, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="OAuth2 client retrieval failed")
+    return value
 
 
 @router.patch("/clients/{client_id}", response_model=dict[str, Any])
@@ -336,7 +352,11 @@ async def get_client_analytics(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="OAuth2 client analytics failed")
+    return value
 
 
 @router.post("/clients/{client_id}/revoke", response_model=dict[str, Any])
@@ -443,7 +463,11 @@ async def upload_client_certificate(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Certificate upload failed")
+    return value
 
 
 @router.get("/clients/{client_id}/certificates", response_model=list[dict[str, Any]])
@@ -488,7 +512,11 @@ async def list_client_certificates(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid list, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Certificate listing failed")
+    return value
 
 
 @router.delete("/certificates/{certificate_id}", response_model=dict[str, Any])

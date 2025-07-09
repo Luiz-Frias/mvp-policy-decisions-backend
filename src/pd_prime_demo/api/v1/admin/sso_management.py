@@ -147,7 +147,11 @@ async def list_sso_providers(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="SSO provider listing failed")
+    return value
 
 
 @router.get("/providers/{provider_id}")
@@ -169,11 +173,16 @@ async def get_sso_provider(
     result = await sso_service.get_sso_provider(provider_id)
 
     if result.is_err():
-        if "not found" in result.err_value.lower():
-            raise HTTPException(status_code=404, detail=result.err_value)
-        raise HTTPException(status_code=400, detail=result.error)
+        err_value = result.err_value
+        if err_value and "not found" in err_value.lower():
+            raise HTTPException(status_code=404, detail=err_value)
+        raise HTTPException(status_code=400, detail=err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="SSO provider retrieval failed")
+    return value
 
 
 @router.put("/providers/{provider_id}")
@@ -226,7 +235,11 @@ async def test_sso_provider(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="SSO provider test failed")
+    return value
 
 
 @router.post("/providers/{provider_id}/mappings")
@@ -284,7 +297,12 @@ async def list_group_mappings(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"mappings": result.ok_value, "total": len(result.ok_value)}
+    # Ensure we have valid mappings
+    mappings = result.ok_value
+    if mappings is None:
+        raise HTTPException(status_code=500, detail="Group mappings retrieval failed")
+    
+    return {"mappings": mappings, "total": len(mappings)}
 
 
 @router.get("/providers/{provider_id}/rules")
@@ -308,7 +326,12 @@ async def list_provisioning_rules(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"rules": result.ok_value, "total": len(result.ok_value)}
+    # Ensure we have valid rules
+    rules = result.ok_value
+    if rules is None:
+        raise HTTPException(status_code=500, detail="Provisioning rules retrieval failed")
+    
+    return {"rules": rules, "total": len(rules)}
 
 
 @router.get("/analytics")
@@ -333,7 +356,11 @@ async def get_sso_analytics(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="SSO analytics failed")
+    return value
 
 
 @router.delete("/providers/{provider_id}")
@@ -355,9 +382,10 @@ async def delete_sso_provider(
     result = await sso_service.delete_sso_provider(provider_id, admin_user.id)
 
     if result.is_err():
-        if "not found" in result.err_value.lower():
-            raise HTTPException(status_code=404, detail=result.err_value)
-        raise HTTPException(status_code=400, detail=result.error)
+        err_value = result.err_value
+        if err_value and "not found" in err_value.lower():
+            raise HTTPException(status_code=404, detail=err_value)
+        raise HTTPException(status_code=400, detail=err_value)
 
     return {"message": "SSO provider deleted successfully"}
 
@@ -385,4 +413,8 @@ async def get_sso_activity_logs(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="SSO activity logs failed")
+    return value

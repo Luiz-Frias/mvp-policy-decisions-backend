@@ -358,7 +358,7 @@ class RatingEngine:
         risk_score, _ = risk_result.unwrap()
 
         # Convert risk score to factor (higher risk = higher factor)
-        0.8 + (risk_score * 0.8)  # Range: 0.8 to 1.6
+        driver_risk_factor = 0.8 + (risk_score * 0.8)  # Range: 0.8 to 1.6
 
         # Age-based factor
         if primary_driver.age < 25:
@@ -518,7 +518,7 @@ class RatingEngine:
         calculated_premium: Decimal,
         state: str,
         coverage_selections: list[CoverageSelection],
-    ):
+    ) -> Result[Decimal, str]:
         """Apply state-specific minimum premium rules."""
         # State minimum premiums (simplified)
         state_minimums = {

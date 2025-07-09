@@ -16,11 +16,14 @@ import psutil
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import ControlExecution, ControlStatus
+
+# Type alias for control execution result
+ControlResult = Result[ControlExecution, str]
 
 
 class UptimeMetrics(BaseModel):
@@ -244,7 +247,7 @@ class AvailabilityControlManager:
         ]
 
         total_downtime_minutes = sum(
-            inc["duration_minutes"] for inc in downtime_incidents
+            float(inc["duration_minutes"]) for inc in downtime_incidents
         )
         total_minutes = 24 * 60
         uptime_percentage = (
@@ -256,9 +259,9 @@ class AvailabilityControlManager:
             total_downtime_minutes=total_downtime_minutes,
             incident_count=len(downtime_incidents),
             mttr_minutes=(
-                mean([inc["duration_minutes"] for inc in downtime_incidents])
+                mean([float(inc["duration_minutes"]) for inc in downtime_incidents])
                 if downtime_incidents
-                else 0
+                else 0.0
             ),
             mtbf_hours=24.0 / len(downtime_incidents) if downtime_incidents else 24.0,
             measurement_period_hours=24,
@@ -324,7 +327,7 @@ class AvailabilityControlManager:
         ]
 
         all_delivered = all(alert["delivered"] for alert in test_alerts)
-        max_latency = max(int(alert["latency_seconds"]) for alert in test_alerts)
+        max_latency = max(int(alert["latency_seconds"]) for alert in test_alerts if isinstance(alert["latency_seconds"], (int, str)))
 
         return {
             "functional": all_delivered and max_latency < 60,
@@ -450,7 +453,7 @@ class AvailabilityControlManager:
             f"{metric}: {data['change_percentage']:+.1f}%"
             for metric, data in trends.items()
             if data["trend"] in ["degrading", "increasing"]
-            and float(data["change_percentage"]) > 10
+            and (float(data["change_percentage"]) > 10 if isinstance(data["change_percentage"], (int, float, str)) else False)
         ]
 
         return {
@@ -589,7 +592,7 @@ class AvailabilityControlManager:
         ]
 
         all_successful = all(test["success"] for test in test_scenarios)
-        total_duration = sum(test["duration_minutes"] for test in test_scenarios)
+        total_duration = sum(float(test["duration_minutes"]) for test in test_scenarios if isinstance(test["duration_minutes"], (int, float, str)))
 
         return {
             "success": all_successful,
@@ -710,7 +713,7 @@ class AvailabilityControlManager:
         ]
 
         failed_systems = [s["name"] for s in systems if not s["failover_functional"]]
-        max_failover_time = max(int(s["failover_time_seconds"]) for s in systems)
+        max_failover_time = max(int(s["failover_time_seconds"]) for s in systems if isinstance(s["failover_time_seconds"], (int, str)))
 
         return {
             "all_systems_functional": len(failed_systems) == 0,

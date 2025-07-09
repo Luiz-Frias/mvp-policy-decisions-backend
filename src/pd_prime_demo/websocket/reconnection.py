@@ -123,7 +123,7 @@ class ConnectionMetrics(BaseModel):
 class ReconnectionManager:
     """Manages WebSocket reconnection strategies and connection health."""
 
-    def __init__(self, config: ReconnectionConfig = None) -> None:
+    def __init__(self, config: ReconnectionConfig | None = None) -> None:
         """Initialize reconnection manager."""
         self.config = config or ReconnectionConfig()
 
@@ -153,8 +153,8 @@ class ReconnectionManager:
         self.on_reconnection_failed: Callable[[str], None] | None = None
 
         # Background tasks
-        self._health_check_task: asyncio.Task | None = None
-        self._reconnection_task: asyncio.Task | None = None
+        self._health_check_task: asyncio.Task[None] | None = None
+        self._reconnection_task: asyncio.Task[None] | None = None
 
         # Health check state
         self._last_ping_time: datetime | None = None
@@ -176,7 +176,7 @@ class ReconnectionManager:
 
     @beartype
     async def handle_connection_established(
-        self, connection_id: str, user_id: UUID = None
+        self, connection_id: str, user_id: UUID | None = None
     ) -> None:
         """Handle successful connection establishment."""
         self.state = ConnectionState.CONNECTED

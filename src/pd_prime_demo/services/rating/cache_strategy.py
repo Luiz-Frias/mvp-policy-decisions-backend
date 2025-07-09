@@ -37,7 +37,7 @@ class RatingCacheStrategy:
         state: str,
         zip_code: str,
         factor: float,
-    ):
+    ) -> Result[None, str]:
         """Cache territory factor with appropriate TTL.
 
         Args:
@@ -70,7 +70,7 @@ class RatingCacheStrategy:
         self,
         state: str,
         zip_code: str,
-    ):
+    ) -> Result[float | None, str]:
         """Get cached territory factor.
 
         Args:
@@ -99,7 +99,7 @@ class RatingCacheStrategy:
         self,
         quote_hash: str,
         calculation_result: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Cache complete quote calculation result.
 
         Args:
@@ -130,7 +130,7 @@ class RatingCacheStrategy:
     async def get_quote_calculation(
         self,
         quote_hash: str,
-    ) -> dict[str, Any]:
+    ) -> Result[dict[str, Any] | None, str]:
         """Get cached quote calculation.
 
         Args:
@@ -159,7 +159,7 @@ class RatingCacheStrategy:
         self,
         state: str,
         rules: list[dict[str, Any]],
-    ):
+    ) -> Result[bool, str]:
         """Cache discount rules for a state.
 
         Args:
@@ -190,7 +190,7 @@ class RatingCacheStrategy:
     async def invalidate_quote_calculations(
         self,
         pattern: str | None = None,
-    ):
+    ) -> Result[int, str]:
         """Invalidate cached quote calculations.
 
         Args:
@@ -216,7 +216,7 @@ class RatingCacheStrategy:
     async def warm_cache(
         self,
         common_zip_codes: list[tuple[str, str]],  # List of (state, zip) tuples
-    ):
+    ) -> Result[int, str]:
         """Pre-warm cache with common data.
 
         Args:
@@ -382,7 +382,7 @@ class RatingCacheManager:
         cache_key: str,
         calculation_func: Any,  # Callable that returns Result
         cache_type: str = "quote_calculation",
-    ):
+    ) -> Result[Any, str]:
         """Get from cache or calculate if not cached.
 
         Args:

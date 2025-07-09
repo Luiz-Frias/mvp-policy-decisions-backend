@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from functools import wraps
+from typing import Any
 
 from attrs import field, frozen
 from beartype import beartype
@@ -56,7 +57,7 @@ class PerformanceCollector:
     def __init__(self, max_samples: int = 10000) -> None:
         """Initialize collector with maximum sample size."""
         self.max_samples = max_samples
-        self._metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=max_samples))
+        self._metrics: dict[str, deque[dict[str, Any]]] = defaultdict(lambda: deque(maxlen=max_samples))
         self._counters: dict[str, int] = defaultdict(int)
         self._error_counts: dict[str, int] = defaultdict(int)
         self._lock = asyncio.Lock()
@@ -213,13 +214,13 @@ def get_performance_collector() -> PerformanceCollector:
 class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
     """Comprehensive performance monitoring middleware for all API endpoints."""
 
-    def __init__(self, app, track_memory: bool = True) -> None:
+    def __init__(self, app: Any, track_memory: bool = True) -> None:
         """Initialize performance monitoring middleware."""
         super().__init__(app)
         self.track_memory = track_memory
         self.collector = get_performance_collector()
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         """Monitor request performance with memory tracking."""
         start_time = time.perf_counter()
         timestamp = time.time()
@@ -324,12 +325,12 @@ def performance_monitor(
     log_slow_queries: bool = True,
     threshold_ms: float = 100,
     memory_threshold_mb: float = 1.0,
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for monitoring function performance with memory tracking."""
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs) -> Any:
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.perf_counter()
             memory_start = 0.0
 
@@ -399,7 +400,7 @@ def performance_monitor(
                 raise
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs) -> Any:
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.perf_counter()
             memory_start = 0.0
 

@@ -556,7 +556,9 @@ class RoomPermissionManager:
             if datetime.now() - cache_entry["timestamp"] < timedelta(
                 seconds=self._cache_ttl
             ):
-                return cache_entry["result"]
+                result = cache_entry["result"]
+                if isinstance(result, bool):
+                    return result
             else:
                 del self._permission_cache[cache_key]
         return None

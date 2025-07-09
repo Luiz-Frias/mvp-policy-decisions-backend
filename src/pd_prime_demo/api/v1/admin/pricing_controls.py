@@ -9,6 +9,8 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from ....core.cache import Cache
+from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
 from ....services.admin.pricing_override_service import PricingOverrideService
 from ...dependencies import get_cache, get_current_admin_user, get_database
@@ -83,9 +85,10 @@ class ApprovalRequest(BaseModel):
 
 
 # Helper dependency
+@beartype
 async def get_pricing_service(
-    database=Depends(get_database),
-    cache=Depends(get_cache),
+    database: Database = Depends(get_database),
+    cache: Cache = Depends(get_cache),
 ) -> PricingOverrideService:
     """Get pricing override service instance."""
     return PricingOverrideService(database, cache)
@@ -198,7 +201,11 @@ async def get_pending_overrides(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid list, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Pending overrides retrieval failed")
+    return value
 
 
 @router.post("/overrides/{override_id}/approve")

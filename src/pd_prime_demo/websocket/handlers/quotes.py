@@ -8,7 +8,7 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...services.quote_service import QuoteService
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
@@ -185,7 +185,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def broadcast_quote_update(
         self, quote_id: UUID, update_data: QuoteUpdateData
-    ):
+    ) -> Result[int, str]:
         """Broadcast quote update to all subscribers with deduplication."""
         # Deduplication check
         dedup_key = f"{quote_id}:{update_data.update_type}:{update_data.field}"
@@ -219,7 +219,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def handle_collaborative_edit(
         self, connection_id: str, edit_request: CollaborativeEditRequest
-    ):
+    ) -> Result[None, str]:
         """Handle collaborative quote editing with field-level locking."""
         quote_id = edit_request.quote_id
         field = edit_request.field
@@ -275,7 +275,10 @@ class QuoteWebSocketHandler:
         # Release lock after short delay (allows for rapid edits)
         asyncio.create_task(self._auto_release_lock(field_key, connection_id, 2.0))
 
-        return Ok(None) if broadcast_result.is_ok() else broadcast_result
+        if broadcast_result.is_ok():
+            return Ok(None)
+        else:
+            return Err(broadcast_result.unwrap_err())
 
     @beartype
     async def stream_calculation_progress(
@@ -284,7 +287,7 @@ class QuoteWebSocketHandler:
         progress: float,
         stage: str,
         details: dict[str, Any] | None = None,
-    ):
+    ) -> Result[int, str]:
         """Stream calculation progress to subscribers."""
         if not 0 <= progress <= 100:
             return Err(
@@ -313,7 +316,7 @@ class QuoteWebSocketHandler:
         old_status: str,
         new_status: str,
         reason: str | None = None,
-    ):
+    ) -> Result[int, str]:
         """Notify subscribers of quote status changes."""
         room_id = f"quote:{quote_id}"
 
@@ -333,7 +336,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def handle_field_focus(
         self, connection_id: str, quote_id: UUID, field: str, focused: bool
-    ):
+    ) -> Result[None, str]:
         """Handle field focus events for collaborative awareness."""
         room_id = f"quote:{quote_id}"
 
@@ -361,7 +364,7 @@ class QuoteWebSocketHandler:
     @beartype
     async def handle_cursor_position(
         self, connection_id: str, quote_id: UUID, field: str, position: int
-    ):
+    ) -> Result[None, str]:
         """Handle cursor position updates for real-time collaboration."""
         # Validate position
         if position < 0:
@@ -440,6 +443,6 @@ class QuoteWebSocketHandler:
             await self._manager.send_to_room(room_id, unlock_msg)
 
         # Remove from all active sessions
-        for quote_id in list(self._active_quote_sessions.keys()):
-            if connection_id in self._active_quote_sessions[quote_id]:
-                await self.handle_quote_unsubscribe(connection_id, quote_id)
+        for quote_id_uuid in list(self._active_quote_sessions.keys()):
+            if connection_id in self._active_quote_sessions[quote_id_uuid]:
+                await self.handle_quote_unsubscribe(connection_id, quote_id_uuid)

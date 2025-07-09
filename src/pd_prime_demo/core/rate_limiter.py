@@ -68,8 +68,8 @@ class ClientRateTracker:
     """Track rate limiting for a specific client."""
 
     client_id: str = field()
-    requests_this_minute: deque = field(factory=lambda: deque(maxlen=100))
-    requests_this_hour: deque = field(factory=lambda: deque(maxlen=2000))
+    requests_this_minute: deque[float] = field(factory=lambda: deque(maxlen=100))
+    requests_this_hour: deque[float] = field(factory=lambda: deque(maxlen=2000))
     burst_tokens: int = field(default=10)
     last_request_time: float = field(default=0.0)
 
@@ -303,15 +303,15 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware for rate limiting."""
 
     def __init__(
-        self, app, config: RateLimitConfig | None = None, enabled: bool = True
-    ):
+        self, app: Any, config: RateLimitConfig | None = None, enabled: bool = True
+    ) -> None:
         """Initialize rate limiting middleware."""
         super().__init__(app)
         self.config = config or RateLimitConfig()
         self.enabled = enabled
         self.rate_limiter = RateLimiter(self.config) if enabled else None
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         """Apply rate limiting to incoming requests."""
         if not self.enabled or self.rate_limiter is None:
             return await call_next(request)
@@ -389,17 +389,17 @@ def rate_limit(
     requests_per_minute: int = 60,
     requests_per_hour: int = 1000,
     burst_requests: int = 10,
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for function-level rate limiting."""
 
-    def decorator(func) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         RateLimitRule(
             requests_per_minute=requests_per_minute,
             requests_per_hour=requests_per_hour,
             burst_requests=burst_requests,
         )
 
-        async def wrapper(request: Request, *args, **kwargs) -> Any:
+        async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
             # This would require request context - simplified for now
             return await func(request, *args, **kwargs)
 

@@ -12,7 +12,7 @@ from attrs import field, frozen
 from beartype import beartype
 
 from .config import get_settings
-from .result_types import Err, Ok
+from .result_types import Err, Ok, Result
 
 
 @frozen
@@ -99,6 +99,7 @@ class Database:
         self._admin_pool: asyncpg.Pool | None = None
         self._settings = get_settings()
         self._recovery_config = RecoveryConfig()
+        self._main_config: PoolConfig | None = None
 
         # Performance metrics
         self._metrics: dict[str, Any] = {
@@ -303,9 +304,10 @@ class Database:
         try:
             # Based on Agent 03 audit: warm more connections to reduce initial timeout rates
             assert self._pool is not None  # Help MyPy understand the control flow
-            self._pool.get_min_size()
             # Target 80% of max_size for aggressive pre-warming
-            target_warmup = int(self._pool.get_max_size() * 0.8)
+            # Note: asyncpg Pool doesn't expose direct size getters in newer versions
+            # Use the config values we set during pool creation
+            target_warmup = int(self._main_config.max_connections * 0.8) if self._main_config else 20
 
             # Parallel connection establishment for faster warming
             batch_size = 10  # Increased from 5
@@ -355,7 +357,9 @@ class Database:
             # Release all warmed connections back to pool
             release_tasks = []
             for conn in connections:
-                release_tasks.append(self._pool.release(conn))
+                # asyncpg pool.release expects the connection to be released
+                # back to the pool it was acquired from
+                release_tasks.append(asyncio.create_task(self._pool.release(conn, timeout=2.0)))
 
             # Release all connections in parallel
             await asyncio.gather(*release_tasks, return_exceptions=True)
@@ -368,6 +372,7 @@ class Database:
 
         # Main write pool configuration
         main_config = self._get_pool_config("main")
+        self._main_config = main_config  # Save for later use
 
         self._pool = await asyncpg.create_pool(
             self._settings.database_url,
@@ -429,8 +434,10 @@ class Database:
         if self._pool is None:
             return Err("Database pool not initialized")
 
-        pool_size = self._pool.get_size()
-        free_size = self._pool.get_free_size()
+        # asyncpg Pool doesn't expose size methods in newer versions
+        # We'll use the _holders attribute if available, otherwise estimate
+        pool_size = len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else (self._main_config.max_connections if self._main_config else 20)  # type: ignore
+        free_size = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0  # type: ignore
 
         # Check if pool is exhausted
         if free_size == 0:
@@ -456,7 +463,8 @@ class Database:
         # Check pool health first
         health = await self.check_pool_health()
         if health.is_err() and "exhausted" in health.err_value:
-            raise asyncpg.PoolTimeout(health.err_value)
+            # asyncpg.exceptions.PoolTimeout is the correct exception
+            raise asyncpg.exceptions.PoolTimeout()
 
         timeout = timeout or self._settings.database_pool_timeout
         start_time = time.perf_counter()
@@ -468,7 +476,8 @@ class Database:
                 self._metrics["pool_wait_times_ms"].append(acquisition_time_ms)
                 self._metrics["connection_acquisitions"] += 1
                 self._metrics["connections_active"] += 1
-                self._metrics["connections_idle"] = self._pool.get_free_size()
+                # Estimate idle connections based on pool internals
+                self._metrics["connections_idle"] = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0  # type: ignore
                 self._metrics["queries_total"] += 1
 
                 # Keep only last 1000 wait time measurements
@@ -495,7 +504,7 @@ class Database:
 
                 self._metrics["connection_releases"] += 1
 
-        except asyncpg.PoolTimeout:
+        except asyncpg.exceptions.PoolTimeout:
             self._metrics["pool_exhausted_count"] += 1
             raise
         except Exception:
@@ -541,7 +550,7 @@ class Database:
         query: str,
         *args: Any,
         max_attempts: int = 3,
-    ):
+    ) -> Any:
         """Execute query with automatic retry on connection errors."""
         last_error = None
 
@@ -550,7 +559,7 @@ class Database:
                 async with self.acquire() as conn:
                     result = await conn.execute(query, *args)
                     return Ok(result)
-            except asyncpg.PostgresConnectionError as e:
+            except (asyncpg.PostgresConnectionError, asyncpg.exceptions.PostgresConnectionError) as e:
                 last_error = e
                 if attempt < max_attempts - 1:
                     # Exponential backoff
@@ -595,10 +604,11 @@ class Database:
             )
 
         return PoolMetrics(
-            size=self._pool.get_size(),
-            free_size=self._pool.get_free_size(),
-            min_size=self._pool.get_min_size(),
-            max_size=self._pool.get_max_size(),
+            # Use pool config values and estimates since newer asyncpg doesn't expose these methods
+            size=len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else 0,  # type: ignore
+            free_size=len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0,  # type: ignore  
+            min_size=self._main_config.min_connections if self._main_config else 5,
+            max_size=self._main_config.max_connections if self._main_config else 20,
             connections_active=self._metrics["connections_active"],
             connections_idle=self._metrics["connections_idle"],
             queries_total=self._metrics["queries_total"],

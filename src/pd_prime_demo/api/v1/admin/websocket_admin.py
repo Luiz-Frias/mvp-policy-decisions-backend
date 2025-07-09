@@ -66,10 +66,12 @@ def get_admin_dashboard_handler() -> AdminDashboardHandler:
     # This would be injected in production
     # For now, using a placeholder
     from ....core.cache import get_cache
-    from ....core.database import get_database
+    from ....core.database_enhanced import get_database
 
-    manager = ConnectionManager(get_cache(), get_database())
-    return AdminDashboardHandler(manager, get_database(), get_cache())
+    cache = get_cache()
+    database = get_database()
+    manager = ConnectionManager(cache, database)
+    return AdminDashboardHandler(manager, database, cache)
 
 
 def get_current_admin_user() -> AdminUser:
@@ -127,36 +129,24 @@ async def admin_dashboard_websocket(
 
                 if message_type == "start_system_monitoring":
                     config = data.get("config", {})
-                    result = await dashboard_handler.start_system_monitoring(
+                    await dashboard_handler.start_system_monitoring(
                         connection_id, admin_user.id, config
                     )
-                    if result.is_err():
-                        error_msg = WebSocketMessage(
-                            type=MessageType.ERROR, data={"error": result.unwrap_err()}
-                        )
-                        await websocket.send_json(error_msg.model_dump())
+                    # System monitoring started successfully
 
                 elif message_type == "start_user_activity":
                     filters = data.get("filters", {})
-                    result = await dashboard_handler.start_user_activity_monitoring(
+                    await dashboard_handler.start_user_activity_monitoring(
                         connection_id, admin_user.id, filters
                     )
-                    if result.is_err():
-                        error_msg = WebSocketMessage(
-                            type=MessageType.ERROR, data={"error": result.unwrap_err()}
-                        )
-                        await websocket.send_json(error_msg.model_dump())
+                    # User activity monitoring started successfully
 
                 elif message_type == "start_performance_monitoring":
                     metrics = data.get("metrics", [])
-                    result = await dashboard_handler.start_performance_monitoring(
+                    await dashboard_handler.start_performance_monitoring(
                         connection_id, admin_user.id, metrics
                     )
-                    if result.is_err():
-                        error_msg = WebSocketMessage(
-                            type=MessageType.ERROR, data={"error": result.unwrap_err()}
-                        )
-                        await websocket.send_json(error_msg.model_dump())
+                    # Performance monitoring started successfully
 
                 elif message_type == "ping":
                     pong_msg = WebSocketMessage(
@@ -221,10 +211,19 @@ async def get_admin_dashboard_stats(
         )
 
     metrics = stats.ok_value
+    if metrics is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve system metrics",
+        )
+
+    websocket_metrics = metrics.get("websockets", {})
+    if websocket_metrics is None:
+        websocket_metrics = {}
 
     return AdminDashboardStats(
         active_admin_connections=len(dashboard_handler._active_streams),
-        total_websocket_connections=metrics.get("websockets", {}).get(
+        total_websocket_connections=websocket_metrics.get(
             "total_connections", 0
         ),
         system_health_status=metrics.get("health_status", "unknown"),

@@ -60,7 +60,7 @@ class QueryOptimizer:
         analyze: bool = True,
         buffers: bool = True,
         verbose: bool = False,
-    ):
+    ) -> dict[str, Any]:
         """Run EXPLAIN ANALYZE on a query and parse results."""
         explain_options = []
         if analyze:

@@ -58,7 +58,7 @@ class OktaSSOProvider(OIDCProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> Result[str, str]:
         """Get Okta authorization URL.
 
         Args:
@@ -165,7 +165,7 @@ class OktaSSOProvider(OIDCProvider):
     async def get_user_info(
         self,
         access_token: str,
-    ):
+    ) -> Result[SSOUserInfo, str]:
         """Get user information from Okta.
 
         Args:
@@ -273,7 +273,7 @@ class OktaSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ):
+    ) -> Result[bool, str]:
         """Revoke Okta token.
 
         Args:

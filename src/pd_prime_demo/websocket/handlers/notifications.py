@@ -8,10 +8,10 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
-from ..manager import ConnectionManager, WebSocketMessage
+from ..manager import ConnectionManager, MessageType, WebSocketMessage
 
 
 class NotificationConfig(BaseModel):
@@ -100,7 +100,7 @@ class NotificationHandler:
         user_id: UUID,
         notification: NotificationData,
         config: NotificationConfig,
-    ):
+    ) -> Result[int, str]:
         """Send notification to a specific user with delivery tracking."""
         # Validate user exists and has active connections
         if user_id not in self._manager._user_connections:
@@ -118,7 +118,7 @@ class NotificationHandler:
 
         # Build notification message
         notification_msg = WebSocketMessage(
-            type="notification",
+            type=MessageType.NOTIFICATION_RECEIVED,
             data={
                 "id": str(notification_id),
                 "notification_type": config.notification_type,
@@ -176,7 +176,7 @@ class NotificationHandler:
         alert: SystemAlert,
         notification: NotificationData,
         target_roles: list[str] | None = None,
-    ):
+    ) -> Result[int, str]:
         """Broadcast system alert to all relevant users."""
         alert_id = (
             f"alert_{alert.alert_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -187,7 +187,7 @@ class NotificationHandler:
 
         # Build alert message
         alert_msg = WebSocketMessage(
-            type="system_alert",
+            type=MessageType.SYSTEM_ALERT,
             data={
                 "alert_id": alert_id,
                 "alert_type": alert.alert_type,
@@ -237,7 +237,7 @@ class NotificationHandler:
     @beartype
     async def send_quote_expiration_alert(
         self, quote_id: UUID, customer_user_id: UUID, expiration_time: datetime
-    ):
+    ) -> Result[int, str]:
         """Send quote expiration notification."""
         # Calculate time until expiration
         time_until_expiry = expiration_time - datetime.now()
@@ -284,7 +284,7 @@ class NotificationHandler:
     @beartype
     async def send_policy_renewal_reminder(
         self, policy_id: UUID, customer_user_id: UUID, renewal_date: datetime
-    ):
+    ) -> Result[int, str]:
         """Send policy renewal reminder."""
         days_until_renewal = (renewal_date - datetime.now()).days
 
@@ -313,7 +313,7 @@ class NotificationHandler:
     @beartype
     async def handle_notification_acknowledgment(
         self, connection_id: str, notification_id: UUID
-    ):
+    ) -> Result[None, str]:
         """Handle user acknowledgment of notification."""
         if notification_id not in self._pending_notifications:
             return Err(
@@ -339,7 +339,7 @@ class NotificationHandler:
 
         # Send acknowledgment confirmation
         confirm_msg = WebSocketMessage(
-            type="notification_acknowledged",
+            type=MessageType.NOTIFICATION_RECEIVED,
             data={
                 "notification_id": str(notification_id),
                 "acknowledged_at": datetime.now().isoformat(),
@@ -437,7 +437,7 @@ class NotificationHandler:
         user_id: UUID,
         notification: NotificationData,
         config: NotificationConfig,
-    ):
+    ) -> Result[None, str]:
         """Store notification in database for later delivery."""
         try:
             await self._db.execute(
@@ -560,7 +560,7 @@ class NotificationHandler:
 
             # Send resolution notification
             resolution_msg = WebSocketMessage(
-                type="alert_resolved",
+                type=MessageType.SYSTEM_ALERT,
                 data={
                     "alert_id": alert_id,
                     "alert_type": alert.alert_type,

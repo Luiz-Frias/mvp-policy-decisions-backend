@@ -11,7 +11,7 @@ from beartype import beartype
 from fastapi import WebSocket
 from pydantic import BaseModel, ConfigDict, Field, validator
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -527,7 +527,7 @@ class ConnectionManager:
             connection_id, user_id, metadata
         )
 
-        return Ok(None)
+        return Ok(connection_id)
 
     @beartype
     async def disconnect(
@@ -844,7 +844,7 @@ class ConnectionManager:
         self,
         message: WebSocketMessage,
         exclude: list[str] | None = None,
-    ):
+    ) -> Result[int, str]:
         """Broadcast a message to all connections. Use sparingly."""
         exclude = exclude or []
         successful_sends = 0
@@ -1095,7 +1095,7 @@ class ConnectionManager:
     @beartype
     async def _cache_room_subscription(
         self, room_id: str, connection_id: str, subscribe: bool
-    ):
+    ) -> Result[None, str]:
         """Cache room subscription for distributed systems."""
         try:
             cache_key = f"ws:room:{room_id}:members"

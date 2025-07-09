@@ -12,6 +12,8 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from ....core.cache import Cache
+from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
 from ....services.admin.rate_management_service import RateManagementService
 from ...dependencies import get_cache, get_current_admin_user, get_database
@@ -95,9 +97,10 @@ class RateAnalyticsQuery(BaseModel):
 
 
 # Helper dependency
+@beartype
 async def get_rate_management_service(
-    database=Depends(get_database),
-    cache=Depends(get_cache),
+    database: Database = Depends(get_database),
+    cache: Cache = Depends(get_cache),
 ) -> RateManagementService:
     """Get rate management service instance."""
     return RateManagementService(database, cache)
@@ -123,11 +126,11 @@ async def create_rate_table_version(
             status_code=403, detail="Insufficient permissions. Required: rate:write"
         )
 
-    # Override table_name with path parameter for security
-    version_request.table_name = table_name
+    # Create a new version request with the table name from the path parameter
+    # (Cannot modify frozen model directly)
 
     result = await rate_service.create_rate_table_version(
-        version_request.table_name,
+        table_name,
         version_request.rate_data,
         admin_user.id,
         version_request.effective_date,
@@ -137,7 +140,11 @@ async def create_rate_table_version(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Rate table creation failed")
+    return value
 
 
 @router.post("/rate-versions/{version_id}/approve")
@@ -227,7 +234,11 @@ async def compare_rate_versions(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Rate comparison failed")
+    return value
 
 
 @router.post("/ab-tests")
@@ -288,7 +299,11 @@ async def get_rate_analytics(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid dict, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Rate analytics failed")
+    return value
 
 
 @router.get("/pending-approvals")
@@ -313,7 +328,11 @@ async def get_pending_approvals(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    # Ensure we return a valid list, not None
+    value = result.ok_value
+    if value is None:
+        raise HTTPException(status_code=500, detail="Pending approvals retrieval failed")
+    return value
 
 
 # Additional endpoints for rate management
@@ -338,12 +357,12 @@ async def list_rate_table_versions(
         )
 
     # Use underlying rate table service for version listing
-    from ....core.cache import get_cache
-    from ....core.database import get_database
+    from ....core.cache import Cache
+    from ....core.database_enhanced import get_database
     from ....services.rating.rate_tables import RateTableService
 
-    db = await get_database()
-    cache = await get_cache()
+    db = get_database()
+    cache = Cache()
     rate_table_service = RateTableService(db, cache)
 
     result = await rate_table_service.list_rate_versions(table_name, include_inactive)
@@ -351,9 +370,14 @@ async def list_rate_table_versions(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
+    # Ensure we have a valid list of versions
+    versions_list = result.ok_value
+    if versions_list is None:
+        raise HTTPException(status_code=500, detail="Rate table versions retrieval failed")
+
     # Convert to dict format for API response
     versions = []
-    for version in result.ok_value:
+    for version in versions_list:
         versions.append(
             {
                 "id": version.id,
@@ -393,12 +417,12 @@ async def get_active_rates(
         )
 
     # Use underlying rate table service for active rates
-    from ....core.cache import get_cache
-    from ....core.database import get_database
+    from ....core.cache import Cache
+    from ....core.database_enhanced import get_database
     from ....services.rating.rate_tables import RateTableService
 
-    db = await get_database()
-    cache = await get_cache()
+    db = get_database()
+    cache = Cache()
     rate_table_service = RateTableService(db, cache)
 
     result = await rate_table_service.get_active_rates(state, product_type)
@@ -407,8 +431,12 @@ async def get_active_rates(
         raise HTTPException(status_code=400, detail=result.err_value)
 
     # Convert Decimal values to float for JSON serialization
+    rates_data = result.ok_value
+    if rates_data is None:
+        raise HTTPException(status_code=500, detail="Active rates retrieval failed")
+    
     rates = {}
-    for coverage_type, rate_value in result.ok_value.items():
+    for coverage_type, rate_value in rates_data.items():
         rates[coverage_type] = float(rate_value)
 
     return {
@@ -438,11 +466,11 @@ async def rate_management_health(
 
     try:
         # Basic health checks
-        from ....core.cache import get_cache
-        from ....core.database import get_database
+        from ....core.cache import Cache
+        from ....core.database_enhanced import get_database
 
-        db = await get_database()
-        cache = await get_cache()
+        db = get_database()
+        cache = Cache()
 
         # Test database connectivity
         await db.fetchval("SELECT 1")

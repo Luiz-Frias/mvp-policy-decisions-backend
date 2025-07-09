@@ -12,7 +12,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ..manager import ConnectionManager, WebSocketMessage
+from ..manager import ConnectionManager, MessageType, WebSocketMessage
 
 
 class SystemMetrics(BaseModel):
@@ -92,7 +92,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         dashboard_config: dict[str, Any],
-    ):
+    ) -> None:
         """Start real-time system monitoring for admin with explicit permission check."""
         # Verify admin permissions
         permission_result = await self._check_admin_permissions(
@@ -130,7 +130,7 @@ class AdminDashboardHandler:
         initial_metrics = await self._collect_system_metrics()
         if initial_metrics.is_ok():
             welcome_msg = WebSocketMessage(
-                type="admin_monitoring_started",
+                type=MessageType.SYSTEM_ALERT,
                 data={
                     "initial_metrics": initial_metrics.unwrap(),
                     "config": dashboard_config,
@@ -147,7 +147,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         filters: dict[str, Any],
-    ):
+    ) -> None:
         """Start real-time user activity monitoring with audit permissions."""
         # Verify audit permissions
         permission_result = await self._check_admin_permissions(
@@ -180,7 +180,7 @@ class AdminDashboardHandler:
         connection_id: str,
         admin_user_id: UUID,
         metrics: list[str],
-    ):
+    ) -> None:
         """Start real-time performance monitoring."""
         # Verify performance monitoring permissions
         permission_result = await self._check_admin_permissions(
@@ -252,7 +252,7 @@ class AdminDashboardHandler:
 
                     if error_count > 3:
                         error_msg = WebSocketMessage(
-                            type="monitoring_error",
+                            type=MessageType.ERROR,
                             data={
                                 "error": "Failed to collect system metrics",
                                 "consecutive_errors": error_count,
@@ -270,7 +270,7 @@ class AdminDashboardHandler:
 
                 # Send update
                 update_msg = WebSocketMessage(
-                    type="system_metrics",
+                    type=MessageType.SYSTEM_ALERT,
                     data=metrics,
                 )
 
@@ -299,7 +299,7 @@ class AdminDashboardHandler:
             recent_activities = await self._get_recent_user_activity(filters)
             if recent_activities.is_ok():
                 initial_msg = WebSocketMessage(
-                    type="user_activity_batch",
+                    type=MessageType.SYSTEM_ALERT,
                     data={
                         "activities": recent_activities.unwrap(),
                         "is_initial": True,
@@ -319,7 +319,7 @@ class AdminDashboardHandler:
                 )
                 if new_activities.is_ok() and new_activities.unwrap():
                     activity_msg = WebSocketMessage(
-                        type="user_activity",
+                        type=MessageType.SYSTEM_ALERT,
                         data={
                             "activities": new_activities.unwrap(),
                             "is_incremental": True,
@@ -352,7 +352,7 @@ class AdminDashboardHandler:
 
                 if perf_data.is_ok():
                     perf_msg = WebSocketMessage(
-                        type="performance_metrics",
+                        type=MessageType.SYSTEM_ALERT,
                         data=perf_data.unwrap(),
                     )
 
@@ -471,7 +471,7 @@ class AdminDashboardHandler:
                     / max(
                         float(info.get("keyspace_hits", 0)) + float(info.get("keyspace_misses", 0)), 1
                     ),
-                    "total_keys": await redis_client.dbsize(),
+                    "total_keys": await redis_client.dbsize() if hasattr(redis_client, 'dbsize') else 0,
                     "status": "healthy",
                 }
             )
@@ -617,7 +617,7 @@ class AdminDashboardHandler:
     async def _collect_performance_metrics(self, metrics: list[str]) -> Result[dict[str, Any], str]:
         """Collect requested performance metrics."""
         try:
-            data = {}
+            data: dict[str, Any] = {}
 
             if "api_response_times" in metrics:
                 # Get from recent request logs
@@ -658,7 +658,7 @@ class AdminDashboardHandler:
                     WHERE last_activity > NOW() - INTERVAL '15 minutes'
                     """
                 )
-                data["active_sessions"] = sessions or 0
+                data["active_sessions"] = int(sessions) if sessions is not None else 0
 
             if "error_rates" in metrics:
                 # Calculate error rates
@@ -690,7 +690,7 @@ class AdminDashboardHandler:
         message: str,
         severity: str,
         data: dict[str, Any] | None = None,
-    ):
+    ) -> Result[None, str]:
         """Broadcast alert to all admin users with proper severity validation."""
         if severity not in ["low", "medium", "high", "critical"]:
             return Err(
@@ -699,7 +699,7 @@ class AdminDashboardHandler:
             )
 
         WebSocketMessage(
-            type="admin_alert",
+            type=MessageType.SYSTEM_ALERT,
             data={
                 "alert_type": alert_type,
                 "message": message,
@@ -730,7 +730,7 @@ class AdminDashboardHandler:
     @beartype
     async def _check_admin_permissions(
         self, admin_user_id: UUID, required_permission: str
-    ):
+    ) -> Result[None, str]:
         """Check if admin user has required permission."""
         # In production, query actual permissions from database
         # For now, simplified check
@@ -845,7 +845,7 @@ class AdminDashboardHandler:
     ) -> None:
         """Send permission error message."""
         error_msg = WebSocketMessage(
-            type="permission_error",
+            type=MessageType.ERROR,
             data={
                 "error": "Insufficient permissions",
                 "required_permission": required_permission,
@@ -860,7 +860,7 @@ class AdminDashboardHandler:
     ) -> None:
         """Send circuit breaker alert."""
         alert_msg = WebSocketMessage(
-            type="circuit_breaker_alert",
+            type=MessageType.SYSTEM_ALERT,
             data={
                 "service": service,
                 "status": "open",
@@ -877,7 +877,7 @@ class AdminDashboardHandler:
     ) -> None:
         """Send streaming error message."""
         error_msg = WebSocketMessage(
-            type="stream_error",
+            type=MessageType.ERROR,
             data={
                 "stream_type": stream_type,
                 "error": error,

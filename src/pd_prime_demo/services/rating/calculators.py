@@ -10,8 +10,11 @@ from beartype import beartype
 from numpy.typing import NDArray
 
 from pd_prime_demo.schemas.rating import (
+    Discount,
     DriverRiskScore,
+    FactorImpact,
     FactorizedPremium,
+    RiskFactor,
     StackedDiscounts,
 )
 
@@ -114,7 +117,15 @@ class PremiumCalculator:
         return Ok(
             FactorizedPremium(
                 final_premium=current_premium.quantize(Decimal("0.01")),
-                factor_impacts={k: v for k, v in factor_impacts.items()},
+                factor_impacts=[
+                    FactorImpact(
+                        factor_name=k,
+                        impact_amount=v,
+                        impact_type="multiplicative",
+                        description=f"Factor {k} impact on premium"
+                    )
+                    for k, v in factor_impacts.items()
+                ],
             )
         )
 
@@ -124,7 +135,7 @@ class PremiumCalculator:
     def calculate_territory_factor(
         zip_code: str,
         territory_data: dict[str, Any],
-    ):
+    ) -> Result[float, str]:
         """Calculate territory factor using actuarial data.
 
         Args:
@@ -419,7 +430,7 @@ class CreditBasedInsuranceScorer:
         credit_score: int,
         state: str,
         product_type: str = "auto",
-    ):
+    ) -> Result[float, str]:
         """Calculate credit-based insurance factor.
 
         Args:
@@ -466,7 +477,7 @@ class CreditBasedInsuranceScorer:
         credit_utilization: float,  # 0.0-1.0+ (0.3+ is concerning)
         length_of_credit: int,  # Years
         new_credit_inquiries: int,  # Last 12 months
-    ):
+    ) -> Result[int, str]:
         """Calculate insurance-specific credit score.
 
         This differs from FICO by weighting factors differently for insurance risk.
@@ -529,7 +540,7 @@ class ExternalDataIntegrator:
     async def get_weather_risk_factor(
         zip_code: str,
         effective_date: datetime,
-    ):
+    ) -> Result[float, str]:
         """Get weather-based risk factor for geographic area.
 
         Args:
@@ -577,7 +588,7 @@ class ExternalDataIntegrator:
     @staticmethod
     async def get_crime_risk_factor(
         zip_code: str,
-    ):
+    ) -> Result[float, str]:
         """Get crime-based risk factor for geographic area.
 
         Args:
@@ -944,7 +955,7 @@ class StatisticalRatingModels:
         features: dict[str, float],
         coefficients: dict[str, float],
         link_function: str = "log",
-    ):
+    ) -> Result[float, str]:
         """Calculate GLM-based rating factor.
 
         Args:
@@ -991,7 +1002,7 @@ class StatisticalRatingModels:
         exposure_data: dict[str, Any],
         loss_data: dict[str, Any],
         credibility_threshold: float = 0.3,
-    ):
+    ) -> Result[float, str]:
         """Calculate loss cost relativity using Buhlmann credibility.
 
         Args:
@@ -1348,7 +1359,7 @@ class AdvancedPerformanceCalculator:
             return Err(f"Batch calculation failed: {str(e)}")
 
     @beartype
-    def lookup_factor(self, table_name: str, key: Any) -> float:
+    def lookup_factor(self, table_name: str, key: Any) -> Result[float, str]:
         """Fast lookup of precomputed factors.
 
         Args:
@@ -1409,7 +1420,7 @@ class RegulatoryComplianceCalculator:
         filed_rate: Decimal,
         state: str,
         coverage_type: str,
-    ):
+    ) -> Result[bool, str]:
         """Validate that calculated rate is within acceptable deviation from filed rate.
 
         Args:

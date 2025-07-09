@@ -51,7 +51,7 @@ class GoogleSSOProvider(OIDCProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> Result[str, str]:
         """Get Google authorization URL.
 
         Args:
@@ -165,7 +165,7 @@ class GoogleSSOProvider(OIDCProvider):
     async def get_user_info(
         self,
         access_token: str,
-    ):
+    ) -> Result[SSOUserInfo, str]:
         """Get user information from Google.
 
         Args:
@@ -300,7 +300,7 @@ class GoogleSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ):
+    ) -> Result[bool, str]:
         """Revoke Google token.
 
         Args:

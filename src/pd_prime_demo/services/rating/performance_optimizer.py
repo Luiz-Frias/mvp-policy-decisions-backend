@@ -296,7 +296,7 @@ class RatingPerformanceOptimizer:
 
         try:
             # Group requests by type for optimized processing
-            grouped_requests = {}
+            grouped_requests: dict[str, list[tuple[int, Any]]] = {}
             for i, (factor_type, args) in enumerate(factor_requests):
                 if factor_type not in grouped_requests:
                     grouped_requests[factor_type] = []

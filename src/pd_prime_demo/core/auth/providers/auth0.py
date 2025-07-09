@@ -58,7 +58,7 @@ class Auth0SSOProvider(OIDCProvider):
         state: str,
         nonce: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> Result[str, str]:
         """Get Auth0 authorization URL.
 
         Args:
@@ -181,7 +181,7 @@ class Auth0SSOProvider(OIDCProvider):
     async def get_user_info(
         self,
         access_token: str,
-    ):
+    ) -> Result[SSOUserInfo, str]:
         """Get user information from Auth0.
 
         Args:
@@ -305,7 +305,7 @@ class Auth0SSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "refresh_token",
-    ):
+    ) -> Result[bool, str]:
         """Revoke Auth0 token.
 
         Note: Auth0 only supports revoking refresh tokens.
@@ -388,7 +388,7 @@ class Auth0SSOProvider(OIDCProvider):
         secondary_user_id: str,
         secondary_provider: str,
         management_token: str,
-    ):
+    ) -> Result[dict[str, Any], str]:
         """Link two user accounts in Auth0.
 
         Args:

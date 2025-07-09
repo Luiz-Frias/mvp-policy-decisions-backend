@@ -522,7 +522,7 @@ class RateTableService:
         self, rate_data_1: dict[str, Any], rate_data_2: dict[str, Any]
     ) -> dict[str, Any]:
         """Calculate differences between two rate structures."""
-        differences = {
+        differences: dict[str, dict[str, Any]] = {
             "added": {},
             "removed": {},
             "modified": {},

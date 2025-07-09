@@ -8,7 +8,7 @@ from beartype import beartype
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import get_cache
 from ..core.config import get_settings

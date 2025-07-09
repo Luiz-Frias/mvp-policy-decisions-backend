@@ -17,11 +17,14 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import ControlExecution, ControlStatus
+
+# Type alias for control execution result
+ControlResult = Result[ControlExecution, str]
 
 
 class DataValidationRule(BaseModel):
@@ -102,7 +105,7 @@ class DataValidationResult(BaseModel):
         if "records_validated" in values and values["records_validated"] > 0:
             passed = values.get("records_passed", 0)
             total = values["records_validated"]
-            return (passed / total) * 100
+            return float((passed / total) * 100)
         return 0.0
 
 
@@ -135,7 +138,7 @@ class ReconciliationResult(BaseModel):
         if "records_compared" in values and values["records_compared"] > 0:
             matches = values.get("matches", 0)
             total = values["records_compared"]
-            return (matches / total) * 100
+            return float((matches / total) * 100)
         return 0.0
 
 
@@ -171,7 +174,7 @@ class ChangeRecord(BaseModel):
             "before": values.get("before_values"),
             "after": values.get("after_values"),
             "timestamp": (
-                values.get("timestamp").isoformat() if values.get("timestamp") else None
+                values.get("timestamp").isoformat() if values.get("timestamp") is not None else None
             ),
         }
         change_json = json.dumps(change_data, sort_keys=True, default=str)

@@ -134,6 +134,30 @@ class Settings(BaseSettings):
         description="OpenAI API key for AI features",
     )
 
+    # External APIs
+    vin_api_key: str | None = Field(
+        default=None,
+        description="VIN decoder API key",
+    )
+    vin_api_endpoint: str | None = Field(
+        default=None,
+        description="VIN decoder API endpoint URL",
+    )
+
+    # SSO Configuration
+    google_oauth_client_id: str | None = Field(
+        default=None,
+        description="Google OAuth2 client ID",
+    )
+    azure_ad_client_id: str | None = Field(
+        default=None,
+        description="Azure AD client ID",
+    )
+    okta_domain: str | None = Field(
+        default=None,
+        description="Okta domain for SSO",
+    )
+
     # Feature Flags
     enable_metrics: bool = Field(
         default=True,

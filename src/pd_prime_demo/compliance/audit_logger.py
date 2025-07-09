@@ -153,7 +153,7 @@ class ComplianceEvent(BaseModel):
 class AuditLogger:
     """Enterprise audit logger for SOC 2 compliance."""
 
-    def __init__(self, database=None) -> None:
+    def __init__(self, database: Any = None) -> None:
         """Initialize audit logger with database connection."""
         self._database = database or get_database()
         self._batch_size = 100
@@ -279,7 +279,7 @@ class AuditLogger:
         ip_address: str | None = None,
         user_agent: str | None = None,
         **metadata: Any,
-    ):
+    ) -> Result[None, str]:
         """Log authentication-related event."""
         event = ComplianceEvent(
             event_type=AuditEventType.AUTHENTICATION,
@@ -304,7 +304,7 @@ class AuditLogger:
         action: str,
         ip_address: str | None = None,
         **metadata: Any,
-    ):
+    ) -> Result[None, str]:
         """Log data access event."""
         event = ComplianceEvent(
             event_type=AuditEventType.DATA_ACCESS,
@@ -322,7 +322,7 @@ class AuditLogger:
         return await self.log_event(event)
 
     @beartype
-    async def log_control_execution(self, execution) -> Result[None, str]:
+    async def log_control_execution(self, execution: Any) -> Result[None, str]:
         """Log control execution event."""
         event = ComplianceEvent(
             event_type=AuditEventType.CONTROL_EXECUTION,
@@ -363,7 +363,7 @@ class AuditLogger:
     @beartype
     async def log_encryption_event(
         self, action: str, data_type: str, encryption_algorithm: str, **metadata: Any
-    ):
+    ) -> Result[None, str]:
         """Log encryption operation."""
         event = ComplianceEvent(
             event_type=AuditEventType.ENCRYPTION_OPERATION,
@@ -384,7 +384,7 @@ class AuditLogger:
     @beartype
     async def log_privacy_event(
         self, user_id: UUID, action: str, data_type: str, **metadata: Any
-    ):
+    ) -> Result[None, str]:
         """Log privacy-related event."""
         event = ComplianceEvent(
             event_type=AuditEventType.PRIVACY_REQUEST,
@@ -442,7 +442,7 @@ class AuditLogger:
             if user_id:
                 param_count += 1
                 conditions.append(f"user_id = ${param_count}")
-                params.append(user_id)
+                params.append(str(user_id))
 
             if event_type:
                 param_count += 1
@@ -485,16 +485,16 @@ class AuditLogger:
                     record["security_alerts"] = json.loads(record["security_alerts"])
                 audit_records.append(record)
 
-            return Ok(audit_records)
+            return audit_records
 
         except Exception as e:
-            return Err(f"Failed to retrieve audit trail: {str(e)}")
+            return []
 
     async def __aenter__(self) -> "AuditLogger":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit - flush any pending events."""
         if self._pending_events:
             await self._flush_pending_events()

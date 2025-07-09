@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import (
@@ -22,7 +22,7 @@ from .control_framework import (
     ControlFramework,
     TrustServiceCriteria,
 )
-from .evidence_collector import EvidenceCollector, get_evidence_collector
+from .evidence_collector import EvidenceCollector, EvidenceType, get_evidence_collector
 
 
 class TestType(str, Enum):
@@ -331,7 +331,7 @@ class ControlTestingFramework:
         period_end: datetime,
         criteria: list[TrustServiceCriteria],
         created_by: str,
-    ):
+    ) -> Result[TestPlan, str]:
         """Create a comprehensive test plan."""
         try:
             # Get controls for specified criteria
@@ -378,7 +378,7 @@ class ControlTestingFramework:
         executed_by: str,
         test_period_start: datetime,
         test_period_end: datetime,
-    ):
+    ) -> Result[ControlTest, str]:
         """Execute an individual control test."""
         try:
             # Find test definition
@@ -409,7 +409,7 @@ class ControlTestingFramework:
 
             # Collect evidence
             await self._evidence_collector.collect_system_evidence(
-                evidence_type="control_testing",
+                evidence_type=EvidenceType.CONTROL_TESTING,
                 title=f"Control Test: {executed_test.test_name}",
                 system_data={
                     "test_execution": executed_test.model_dump(),
@@ -472,7 +472,7 @@ class ControlTestingFramework:
         await asyncio.sleep(0.1)  # Simulate processing time
 
         # Execute control to get real results
-        control_result = await self._control_framework.execute_control(
+        control_result = self._control_framework.execute_control(
             test_definition.control_id
         )
 
@@ -483,7 +483,7 @@ class ControlTestingFramework:
             if execution.result:
                 test_result = TestResult.EFFECTIVE
                 deficiencies = []
-                exceptions = []
+                exceptions: list[dict[str, Any]] = []
                 conclusion = "Control is operating effectively"
             else:
                 test_result = TestResult.INEFFECTIVE
@@ -773,7 +773,7 @@ class ControlTestingFramework:
         }
 
     @beartype
-    async def execute_test_plan(self, test_plan: TestPlan, executed_by: str) -> Result[TestRunReport, str]:
+    async def execute_test_plan(self, test_plan: TestPlan, executed_by: str) -> Result[TestPlan, str]:
         """Execute all tests in a test plan."""
         try:
             executed_tests = []

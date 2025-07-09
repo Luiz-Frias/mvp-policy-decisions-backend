@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any
 
 from beartype import beartype
-from pydantic import Field, computed_field, field_validator, model_validator
+from pydantic import Field, computed_field, field_validator, model_validator, ValidationInfo
 from pydantic.types import UUID4
 
 from .base import BaseModelConfig, IdentifiableModel, TimestampedModel
@@ -223,7 +223,7 @@ class OverrideData(BaseModelConfig):
 
     @field_validator("new_value")
     @classmethod
-    def validate_new_value_different(cls, v: Any, info) -> Any:
+    def validate_new_value_different(cls, v: Any, info: ValidationInfo) -> Any:
         """Ensure new value is different from original."""
         if info.data.get("original_value") == v:
             raise ValueError("New value must be different from original value")

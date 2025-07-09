@@ -486,18 +486,18 @@ class WebSocketMonitor:
                 current_metrics = await self.get_system_metrics()
 
                 # Store metrics in cache for dashboards
-                await self._cache.setex(
+                await self._cache.set(
                     "websocket:current_metrics",
-                    300,  # 5 minutes TTL
                     current_metrics.model_dump_json(),
+                    ttl=300,  # 5 minutes TTL
                 )
 
                 # Store detailed metrics by priority
                 priority_metrics = await self._get_priority_metrics()
-                await self._cache.setex(
+                await self._cache.set(
                     "websocket:priority_metrics",
-                    300,
                     json.dumps(priority_metrics),
+                    ttl=300,
                 )
 
                 # Check for alerts
@@ -633,7 +633,7 @@ class WebSocketMonitor:
         alert_key = (
             f"websocket:alert:{alert.alert_type}:{int(alert.timestamp.timestamp())}"
         )
-        await self._cache.setex(alert_key, 3600, alert.model_dump_json())  # 1 hour TTL
+        await self._cache.set(alert_key, alert.model_dump_json(), ttl=3600)  # 1 hour TTL
 
         # Could also send to notification system here
         # await notification_handler.send_admin_alert(alert)
