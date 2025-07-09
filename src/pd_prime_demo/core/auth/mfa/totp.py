@@ -11,7 +11,7 @@ from beartype import beartype
 from cryptography.fernet import Fernet
 
 from ....core.config import Settings
-from ....services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from .models import TOTPSetupData
 
 

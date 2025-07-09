@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import httpx
 from beartype import beartype
 
-from ....services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from ..sso_base import OIDCProvider, SSOUserInfo
 
 

@@ -25,7 +25,7 @@ from ...models.claim import ClaimType as ServiceClaimType
 from ...models.claim import ClaimUpdate as ServiceClaimUpdate
 from ...schemas.auth import CurrentUser
 from ...services.claim_service import ClaimService
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()

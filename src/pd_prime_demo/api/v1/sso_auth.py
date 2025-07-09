@@ -10,7 +10,7 @@ from ...core.auth.sso_manager import SSOManager
 from ...core.cache import Cache
 from ...core.config import Settings, get_settings
 from ...core.security import create_jwt_token
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import get_redis, get_sso_manager
 
 router = APIRouter(prefix="/auth/sso", tags=["sso-auth"])

@@ -12,7 +12,7 @@ from ...core.auth.oauth2 import OAuth2Server
 from ...core.cache import Cache
 from ...core.config import Settings
 from ...core.database import Database
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import get_db_connection, get_redis, get_settings
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])

@@ -9,7 +9,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.cache import Cache
-from ..services.result import Err, Ok, Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 from .manager import MessagePriority, WebSocketMessage
 
 logger = logging.getLogger(__name__)

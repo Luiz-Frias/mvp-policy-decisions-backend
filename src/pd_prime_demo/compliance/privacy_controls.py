@@ -18,7 +18,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.database import get_database
-from ..services.result import Result
+from pd_prime_demo.core.result_types import Result
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import ControlExecution, ControlStatus
 

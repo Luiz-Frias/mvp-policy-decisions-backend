@@ -12,9 +12,9 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
-from ....core.security import AdminUser, get_current_admin_user
+from ....models.admin import AdminUser
 from ....services.admin.rate_management_service import RateManagementService
-from ...dependencies import get_cache, get_database
+from ...dependencies import get_cache, get_current_admin_user, get_database
 
 router = APIRouter(prefix="/admin/rate-management", tags=["admin-rate-management"])
 

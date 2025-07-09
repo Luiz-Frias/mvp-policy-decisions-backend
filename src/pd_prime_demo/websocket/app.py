@@ -12,7 +12,7 @@ from ..core.cache import get_cache
 from ..core.config import get_settings
 from ..core.database import get_database
 from ..services.quote_service import QuoteService
-from ..services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from .handlers.admin_dashboard import AdminDashboardHandler
 from .handlers.analytics import AnalyticsWebSocketHandler, DashboardConfig
 from .handlers.notifications import NotificationHandler

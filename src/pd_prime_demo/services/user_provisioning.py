@@ -10,7 +10,7 @@ from ..core.auth.sso_base import SSOUserInfo
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.base import BaseModelConfig
-from ..services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 
 
 class ProvisioningRule(BaseModelConfig):

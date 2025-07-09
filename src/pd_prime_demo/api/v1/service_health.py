@@ -16,7 +16,7 @@ from ...core.config import Settings, get_settings
 from ...core.database import Database
 from ...services.quote_service import QuoteService
 from ...services.rating_engine import RatingEngine
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import get_cache, get_db_raw
 
 router = APIRouter()

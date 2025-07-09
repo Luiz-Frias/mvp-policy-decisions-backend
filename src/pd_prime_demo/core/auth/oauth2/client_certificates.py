@@ -13,7 +13,7 @@ from cryptography.x509.oid import NameOID
 
 from ....core.cache import Cache
 from ....core.database import Database
-from ....services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 
 
 class ClientCertificateManager:

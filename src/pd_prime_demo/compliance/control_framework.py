@@ -14,7 +14,7 @@ from attrs import define, field, frozen
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..services.result import Result
+from pd_prime_demo.core.result_types import Result
 
 
 class TrustServiceCriteria(str, Enum):

@@ -8,7 +8,7 @@ from uuid import uuid4
 import defusedxml.ElementTree as ET  # Use defusedxml for security
 from beartype import beartype
 
-from ....services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from ..sso_base import SAMLProvider, SSOUserInfo
 
 

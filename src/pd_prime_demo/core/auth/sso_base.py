@@ -9,7 +9,7 @@ from beartype import beartype
 from pydantic import ConfigDict, Field
 
 from ...models.base import BaseModelConfig
-from ...services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 
 
 class SSOUserInfo(BaseModelConfig):

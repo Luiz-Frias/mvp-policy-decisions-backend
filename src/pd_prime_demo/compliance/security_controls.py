@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.config import get_settings
-from ..services.result import Result
+from pd_prime_demo.core.result_types import Result
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import ControlExecution, ControlStatus
 

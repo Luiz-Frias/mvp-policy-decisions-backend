@@ -9,6 +9,12 @@ import numpy as np
 from beartype import beartype
 from numpy.typing import NDArray
 
+from pd_prime_demo.schemas.rating import (
+    DriverRiskScore,
+    FactorizedPremium,
+    StackedDiscounts,
+)
+
 from ...core.result_types import Err, Ok, Result
 from ..performance_monitor import performance_monitor
 
@@ -55,7 +61,7 @@ class PremiumCalculator:
     def apply_multiplicative_factors(
         base_premium: Decimal,
         factors: dict[str, float],
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[FactorizedPremium, str]:
         """Apply rating factors with detailed breakdown.
 
         Args:
@@ -68,8 +74,8 @@ class PremiumCalculator:
         if base_premium <= 0:
             return Err("Base premium must be positive")
 
-        factor_impacts = {}
-        current_premium = base_premium
+        factor_impacts: dict[str, Decimal] = {}
+        current_premium: Decimal = base_premium
 
         # Apply factors in specific order for consistency
         factor_order = [
@@ -105,7 +111,12 @@ class PremiumCalculator:
                 # Apply factor
                 current_premium *= factor_value
 
-        return Ok((current_premium.quantize(Decimal("0.01")), factor_impacts))
+        return Ok(
+            FactorizedPremium(
+                final_premium=current_premium.quantize(Decimal("0.01")),
+                factor_impacts={k: v for k, v in factor_impacts.items()},
+            )
+        )
 
     @beartype
     @staticmethod
@@ -157,7 +168,7 @@ class PremiumCalculator:
     @performance_monitor("calculate_driver_risk_score")
     def calculate_driver_risk_score(
         driver_data: dict[str, Any],
-    ) -> dict:
+    ) -> Result[DriverRiskScore, str]:
         """Calculate driver risk score using statistical model.
 
         Args:
@@ -220,14 +231,14 @@ class PremiumCalculator:
         # Normalize to 0-1 scale
         risk_score = 1 / (1 + math.exp(-2 * total_risk))
 
-        return Ok((risk_score, risk_factors))
+        return Ok(DriverRiskScore(risk_score=risk_score, risk_factors=risk_factors))
 
     @beartype
     @staticmethod
     @performance_monitor("calculate_vehicle_risk_score")
     def calculate_vehicle_risk_score(
         vehicle_data: dict[str, Any],
-    ):
+    ) -> Result[float, str]:
         """Calculate vehicle risk score based on characteristics.
 
         Args:
@@ -304,7 +315,7 @@ class DiscountCalculator:
         applicable_discounts: list[dict[str, Any]],
         max_total_discount: Decimal = Decimal("0.40"),
         state_rules: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> Result[StackedDiscounts, str]:
         """Calculate discounts with proper stacking rules.
 
         Args:
@@ -320,7 +331,11 @@ class DiscountCalculator:
             return Err("Base premium must be positive")
 
         if not applicable_discounts:
-            return Ok(([], Decimal("0")))
+            return Ok(
+                StackedDiscounts(
+                    applied_discounts=[], total_discount_amount=Decimal("0")
+                )
+            )
 
         # Apply state-specific max discount if provided
         if state_rules and "max_discount" in state_rules:
@@ -387,7 +402,12 @@ class DiscountCalculator:
                     discount["applied_rate"] = discount["rate"]
                     total_discount_amount = discount_amount
 
-        return Ok((applied_discounts, total_discount_amount.quantize(Decimal("0.01"))))
+        return Ok(
+            StackedDiscounts(
+                applied_discounts=applied_discounts,
+                total_discount_amount=total_discount_amount.quantize(Decimal("0.01")),
+            )
+        )
 
 
 class CreditBasedInsuranceScorer:
@@ -614,7 +634,7 @@ class ExternalDataIntegrator:
     @staticmethod
     async def validate_vehicle_data(
         vin: str,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Validate and enhance vehicle data via VIN decode.
 
         Args:
@@ -671,7 +691,7 @@ class AIRiskScorer:
         vehicle_data: dict[str, Any],
         driver_data: list[dict[str, Any]],
         external_data: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate AI risk score using multiple models.
 
         Args:
@@ -756,7 +776,7 @@ class AIRiskScorer:
         vehicle_data: dict[str, Any],
         driver_data: list[dict[str, Any]],
         external_data: dict[str, Any] | None,
-    ) -> dict:
+    ) -> Result[NDArray[np.float64], str]:
         """Extract features for ML models.
 
         Returns:
@@ -1029,7 +1049,7 @@ class StatisticalRatingModels:
         driver_profile: dict[str, Any],
         vehicle_profile: dict[str, Any],
         territory_profile: dict[str, Any],
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate separate frequency and severity models.
 
         Args:
@@ -1116,7 +1136,7 @@ class StatisticalRatingModels:
         zip_code: str,
         coverage_types: list[str],
         dwelling_characteristics: dict[str, Any] | None = None,
-    ):
+    ) -> Result[float, str]:
         """Calculate catastrophe loading factor.
 
         Args:
@@ -1182,7 +1202,7 @@ class StatisticalRatingModels:
         policy_effective_date: datetime,
         loss_trend_rate: float = 0.05,  # 5% annual loss trend
         expense_trend_rate: float = 0.03,  # 3% annual expense trend
-    ) -> dict:
+    ) -> Result[dict[str, Any], str]:
         """Calculate trend factors for rate adequacy.
 
         Args:
@@ -1277,7 +1297,7 @@ class AdvancedPerformanceCalculator:
     def batch_calculate_factors(
         self,
         factor_requests: list[dict[str, Any]],
-    ) -> dict:
+    ) -> Result[list[dict[str, Any]], str]:
         """Batch calculate factors for multiple risks.
 
         Args:
@@ -1439,7 +1459,7 @@ class RegulatoryComplianceCalculator:
         state: str,
         selected_coverages: list[str],
         vehicle_type: str = "auto",
-    ) -> dict:
+    ) -> Result[list[str], str]:
         """Apply state-mandated coverage requirements.
 
         Args:

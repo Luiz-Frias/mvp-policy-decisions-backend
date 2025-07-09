@@ -495,3 +495,17 @@ async def get_sso_manager(
     await sso_manager.initialize()
 
     return sso_manager
+
+
+@beartype
+def get_database():
+    """Backward-compatibility wrapper returning global Database instance.
+
+    Several legacy components import `get_database` from this module. The
+    canonical helper now lives in `pd_prime_demo.core.database_enhanced` (and
+    previously in `pd_prime_demo.core.database`).  To minimise churn while we
+    update callers, we simply delegate to the core helper here.
+    """
+    from ..core.database_enhanced import get_database as _core_get_database
+
+    return _core_get_database()

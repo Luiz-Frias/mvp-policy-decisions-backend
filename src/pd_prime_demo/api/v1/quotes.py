@@ -28,7 +28,7 @@ from ...schemas.quote import (
 from ...services.performance_monitor import performance_tracker
 from ...services.quote_service import QuoteService
 from ...services.quote_wizard import QuoteWizardService, WizardState
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import (
     get_current_user,
     get_optional_user,

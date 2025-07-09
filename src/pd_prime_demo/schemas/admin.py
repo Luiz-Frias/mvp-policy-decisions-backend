@@ -33,7 +33,7 @@ class AdminRoleCreateRequest(BaseModel):
         None, max_length=200, description="Human-readable role description"
     )
     permissions: list[Permission] = Field(
-        ..., min_items=1, description="List of permissions to grant"
+        ..., min_length=1, description="List of permissions to grant"
     )
     parent_role_id: UUID4 | None = Field(
         None, description="Parent role for permission inheritance"
@@ -451,7 +451,7 @@ class AdminDashboardCreateRequest(BaseModel):
     slug: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9\-]+$")
     description: str | None = Field(None, max_length=500)
     layout_type: str = Field(default="grid", pattern=r"^(grid|flex|fixed)$")
-    widgets: list[dict[str, Any]] = Field(default_factory=list, max_items=20)
+    widgets: list[dict[str, Any]] = Field(default_factory=list, max_length=20)
     refresh_interval: int = Field(default=60, ge=10, le=3600)
     required_permission: Permission | None = None
     theme: str = Field(default="light", pattern=r"^(light|dark|auto)$")
@@ -472,12 +472,12 @@ class AdminDashboardUpdateRequest(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = Field(None, max_length=500)
-    widgets: list[dict[str, Any]] | None = Field(None, max_items=20)
+    widgets: list[dict[str, Any]] | None = Field(None, max_length=20)
     refresh_interval: int | None = Field(None, ge=10, le=3600)
     required_permission: Permission | None = None
     theme: str | None = Field(None, pattern=r"^(light|dark|auto)$")
     is_public: bool | None = None
-    shared_with: list[UUID4] | None = Field(None, max_items=100)
+    shared_with: list[UUID4] | None = Field(None, max_length=100)
 
 
 @beartype

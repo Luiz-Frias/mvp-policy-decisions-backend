@@ -10,7 +10,7 @@ from beartype import beartype
 from ....core.cache import Cache
 from ....core.config import Settings
 from ....core.database import Database
-from ....services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from .biometric import BiometricProvider
 from .models import (
     DeviceTrust,

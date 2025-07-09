@@ -308,7 +308,7 @@ class QuoteCompareRequest(BaseModel):
         validate_default=True,
     )
 
-    quote_ids: list[UUID] = Field(..., min_items=2, max_items=5)
+    quote_ids: list[UUID] = Field(..., min_length=2, max_length=5)
     comparison_type: str = Field(
         default="premium", pattern=r"^(premium|coverage|features)$"
     )
@@ -418,7 +418,7 @@ class QuoteBulkActionRequest(BaseModel):
         validate_default=True,
     )
 
-    quote_ids: list[UUID] = Field(..., min_items=1, max_items=100)
+    quote_ids: list[UUID] = Field(..., min_length=1, max_length=100)
     action: str = Field(..., pattern=r"^(expire|archive|delete|assign_agent)$")
     action_data: BulkActionData | None = None
     reason: str | None = Field(None, max_length=500)

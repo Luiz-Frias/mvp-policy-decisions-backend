@@ -39,11 +39,23 @@ class CacheConfig:
 
 
 class Cache:
-    """Redis cache manager with async support."""
+    """Redis cache manager with async support.
 
-    def __init__(self) -> None:
-        """Initialize cache manager."""
-        self._redis: RedisType | None = None
+    The constructor now optionally accepts an *already-created* ``redis.asyncio.Redis``
+    instance.  This lets dependency-injection helpers do ``Cache(redis_client)``
+    without running afoul of the strict ``mypy`` check that previously complained
+    about “Too many arguments for \"Cache\"”.
+    """
+
+    def __init__(self, redis_client: RedisType | None = None) -> None:  # noqa: D401
+        """Create a cache wrapper.
+
+        Args:
+            redis_client: Optional existing Redis client.  If provided the
+                instance is used directly and :py:meth:`connect` becomes a no-op.
+        """
+
+        self._redis: RedisType | None = redis_client
         self._config = self._get_config()
 
     @beartype
@@ -58,6 +70,8 @@ class Cache:
     @beartype
     async def connect(self) -> None:
         """Create Redis connection pool."""
+        # If a client was pre-supplied, assume the caller already established
+        # the connection (e.g. FastAPI dependency injection).  Nothing to do.
         if self._redis is not None:
             return
 

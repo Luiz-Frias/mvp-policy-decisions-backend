@@ -9,7 +9,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...services.quote_service import QuoteService
-from ...services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from ..manager import ConnectionManager, WebSocketMessage
 
 

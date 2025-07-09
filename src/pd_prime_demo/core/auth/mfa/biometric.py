@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from ....core.cache import Cache
 from ....core.config import Settings
-from ....services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 
 
 class BiometricProvider:

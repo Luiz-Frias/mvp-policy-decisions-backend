@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..services.result import Result
+from pd_prime_demo.core.result_types import Result
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import (
     SOC2_CORE_CONTROLS,

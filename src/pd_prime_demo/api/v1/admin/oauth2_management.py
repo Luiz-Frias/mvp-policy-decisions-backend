@@ -36,8 +36,8 @@ class OAuth2ClientCreateRequest(BaseModel):
 
     client_name: str = Field(..., min_length=1, max_length=100)
     client_type: str = Field(..., pattern="^(public|confidential)$")
-    allowed_grant_types: list[str] = Field(..., min_items=1)
-    allowed_scopes: list[str] = Field(..., min_items=1)
+    allowed_grant_types: list[str] = Field(..., min_length=1)
+    allowed_scopes: list[str] = Field(..., min_length=1)
     redirect_uris: list[str] = Field(default_factory=list)
     description: str | None = Field(None, max_length=500)
     token_lifetime: int = Field(3600, ge=300, le=86400)  # 5 min to 24 hours
@@ -93,8 +93,8 @@ class OAuth2ClientUpdateRequest(BaseModel):
 
     client_name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = Field(None, max_length=500)
-    allowed_grant_types: list[str] | None = Field(None, min_items=1)
-    allowed_scopes: list[str] | None = Field(None, min_items=1)
+    allowed_grant_types: list[str] | None = Field(None, min_length=1)
+    allowed_scopes: list[str] | None = Field(None, min_length=1)
     redirect_uris: list[str] | None = None
     token_lifetime: int | None = Field(None, ge=300, le=86400)
     refresh_token_lifetime: int | None = Field(None, ge=3600, le=2592000)

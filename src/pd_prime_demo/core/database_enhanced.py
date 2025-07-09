@@ -65,10 +65,33 @@ class RecoveryConfig:
 
 
 class Database:
-    """Enhanced database connection manager with monitoring and optimization."""
+    """Enhanced database connection manager with monitoring and optimization.
 
-    def __init__(self) -> None:
-        """Initialize database manager with monitoring."""
+    ``Database`` now **optionally** wraps an existing :class:`asyncpg.Connection`.
+    This is purely for backward-compatibility with helper code that used to do
+
+    >>> db_conn = await get_db_connection()
+    >>> database = Database(db_conn)
+
+    When a direct connection is supplied we bypass the internal pool-acquire
+    logic inside convenience helpers like :py:meth:`fetch` and route queries
+    straight to that connection.  Pool-based usage continues to work
+    unchanged.
+    """
+
+    def __init__(self, connection: asyncpg.Connection | None = None) -> None:  # noqa: D401
+        """Create the manager.
+
+        Args:
+            connection: Optional existing connection obtained elsewhere
+                (e.g., FastAPI dependency injection).  If ``None`` the caller
+                must invoke :py:meth:`connect` to create a pool before issuing
+                queries.
+        """
+
+        # Direct connection takes precedence over pools.
+        self._direct_conn: asyncpg.Connection | None = connection
+
         self._pool: asyncpg.Pool | None = None
         self._read_pool: asyncpg.Pool | None = None
         self._admin_pool: asyncpg.Pool | None = None
@@ -158,8 +181,7 @@ class Database:
         # Validate pool size against database limits - using new 300 max_connections
         if max_conn > 300 * 0.8:
             raise ValueError(
-                f"Pool size {max_conn} exceeds safe database limit "
-                f"({300 * 0.8:.0f})"
+                f"Pool size {max_conn} exceeds safe database limit ({300 * 0.8:.0f})"
             )
 
         server_settings = {
@@ -714,9 +736,12 @@ class Database:
             return Err(f"Health check failed: {str(e)}")
 
     # Backward compatibility methods
-    @beartype
     async def execute(self, query: str, *args: Any) -> str:
         """Execute a query without returning results."""
+        # Shortcut when wrapping a direct connection – no retries.
+        if self._direct_conn is not None:
+            return await self._direct_conn.execute(query, *args)
+
         result = await self.execute_with_retry(query, *args)
         if result.is_err():
             raise RuntimeError(result.err_value)
@@ -725,18 +750,28 @@ class Database:
     @beartype
     async def fetch(self, query: str, *args: Any) -> list[asyncpg.Record]:
         """Execute a query and fetch all results."""
+        # If wrapping a direct connection, use it.
+        if self._direct_conn is not None:
+            return await self._direct_conn.fetch(query, *args)
+
         async with self.acquire_read() as conn:
             return await conn.fetch(query, *args)
 
     @beartype
     async def fetchrow(self, query: str, *args: Any) -> asyncpg.Record | None:
         """Execute a query and fetch a single row."""
+        if self._direct_conn is not None:
+            return await self._direct_conn.fetchrow(query, *args)
+
         async with self.acquire_read() as conn:
             return await conn.fetchrow(query, *args)
 
     @beartype
     async def fetchval(self, query: str, *args: Any) -> Any:
         """Execute a query and fetch a single value."""
+        if self._direct_conn is not None:
+            return await self._direct_conn.fetchval(query, *args)
+
         async with self.acquire_read() as conn:
             return await conn.fetchval(query, *args)
 
@@ -744,6 +779,12 @@ class Database:
     @beartype
     async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
         """Create a database transaction context."""
+        if self._direct_conn is not None:
+            # Transaction handling on a single connection; delegate directly.
+            async with self._direct_conn.transaction():
+                yield self._direct_conn
+            return
+
         async with self.acquire() as conn:
             async with conn.transaction():
                 yield conn

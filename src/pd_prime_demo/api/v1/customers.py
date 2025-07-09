@@ -19,7 +19,7 @@ from ...models.customer import Customer, CustomerCreate, CustomerUpdate
 from ...schemas.auth import CurrentUser
 from ...schemas.common import PolicySummary
 from ...services.customer_service import CustomerService
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()

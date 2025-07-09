@@ -8,7 +8,7 @@ from beartype import beartype
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
-from ...services.result import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok
 from .providers.auth0 import Auth0SSOProvider
 from .providers.azure import AzureADSSOProvider
 from .providers.google import GoogleSSOProvider

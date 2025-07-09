@@ -29,10 +29,10 @@ class APIKeyCreateRequest(BaseModel):
     )
 
     name: str = Field(..., min_length=1, max_length=100)
-    scopes: list[str] = Field(..., min_items=1)
+    scopes: list[str] = Field(..., min_length=1)
     expires_in_days: int | None = Field(None, ge=1, le=365)
     rate_limit_per_minute: int = Field(60, ge=1, le=1000)
-    allowed_ips: list[str] | None = Field(None, max_items=100)
+    allowed_ips: list[str] | None = Field(None, max_length=100)
 
 
 class APIKeyResponse(BaseModel):

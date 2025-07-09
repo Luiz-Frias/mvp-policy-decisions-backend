@@ -24,7 +24,7 @@ from ...models.policy import (
 )
 from ...schemas.auth import CurrentUser
 from ...services.policy_service import PolicyService
-from ...services.result import Err
+from pd_prime_demo.core.result_types import Err
 from ..dependencies import (
     PaginationParams,
     get_db,
