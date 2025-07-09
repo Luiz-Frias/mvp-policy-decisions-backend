@@ -14,7 +14,7 @@ from beartype import beartype
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from .result_types import Err, Ok
+from .result_types import Err, Ok, Result
 
 
 @frozen
@@ -57,7 +57,9 @@ class PerformanceCollector:
     def __init__(self, max_samples: int = 10000) -> None:
         """Initialize collector with maximum sample size."""
         self.max_samples = max_samples
-        self._metrics: dict[str, deque[dict[str, Any]]] = defaultdict(lambda: deque(maxlen=max_samples))
+        self._metrics: dict[str, deque[dict[str, Any]]] = defaultdict(
+            lambda: deque(maxlen=max_samples)
+        )
         self._counters: dict[str, int] = defaultdict(int)
         self._error_counts: dict[str, int] = defaultdict(int)
         self._lock = asyncio.Lock()
@@ -85,7 +87,7 @@ class PerformanceCollector:
                 self._error_counts[endpoint_key] += 1
 
     @beartype
-    async def get_metrics(self, operation: str) -> Result[dict[str, Any], str]:
+    async def get_metrics(self, operation: str) -> Result[PerformanceMetrics, str]:
         """Get aggregated metrics for an operation."""
         async with self._lock:
             if operation not in self._metrics:
@@ -153,7 +155,7 @@ class PerformanceCollector:
             for operation in self._metrics.keys():
                 metrics_result = await self.get_metrics(operation)
                 if metrics_result.is_ok():
-                    results[operation] = metrics_result.ok_value
+                    results[operation] = metrics_result.unwrap()
             return results
 
     @beartype
@@ -220,7 +222,9 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         self.track_memory = track_memory
         self.collector = get_performance_collector()
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Monitor request performance with memory tracking."""
         start_time = time.perf_counter()
         timestamp = time.time()
@@ -479,7 +483,7 @@ async def performance_context(operation_name: str) -> AsyncIterator[dict[str, An
     tracemalloc.start()
 
     try:
-        yield
+        yield {}
     finally:
         duration_ms = (time.perf_counter() - start_time) * 1000
 

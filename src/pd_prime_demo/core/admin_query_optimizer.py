@@ -248,7 +248,7 @@ class AdminQueryOptimizer:
 
                         # Get row count
                         # Use identifier quoting to prevent SQL injection
-                        from asyncpg.sql import Identifier
+                        from asyncpg.sql import Identifier  # type: ignore[import-untyped]
 
                         row_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM $1", Identifier(view_name)

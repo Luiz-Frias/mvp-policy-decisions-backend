@@ -109,7 +109,7 @@ class NotificationHandler:
                 user_id, notification, config
             )
             if store_result.is_err():
-                return Err(store_result.err_value)
+                return Err(store_result.unwrap_err())
             return Ok(1)  # Stored for later delivery - count of 1
 
         # Create notification ID for tracking
@@ -168,7 +168,7 @@ class NotificationHandler:
                 notification_id, user_id, notification, config, "failed"
             )
 
-        return Ok(None)
+        return Ok(1)
 
     @beartype
     async def broadcast_system_alert(

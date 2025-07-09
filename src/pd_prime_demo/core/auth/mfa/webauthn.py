@@ -1,10 +1,25 @@
 """WebAuthn/FIDO2 provider implementation."""
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from uuid import UUID
 
 from beartype import beartype
+
+if TYPE_CHECKING:
+    from webauthn.helpers.cose import COSEAlgorithmIdentifier
+    from webauthn.helpers.structs import (
+        AttestationConveyancePreference,
+        AuthenticatorSelectionCriteria,
+        PublicKeyCredentialDescriptor,
+        PublicKeyCredentialType,
+        UserVerificationRequirement,
+    )
+else:
+    AttestationConveyancePreference = str
+    AuthenticatorSelectionCriteria = dict[str, Any]
+    COSEAlgorithmIdentifier = dict[str, Any]
+    UserVerificationRequirement = str
 
 # Define mock classes first
 class _MockPublicKeyCredentialDescriptor:
@@ -23,13 +38,14 @@ try:
         verify_registration_response,
     )
     from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
+    from webauthn.helpers.cose import COSEAlgorithmIdentifier
     from webauthn.helpers.structs import (
         PublicKeyCredentialDescriptor,
         PublicKeyCredentialType,
     )
 except ImportError:
     # Mock implementation for testing
-    def generate_registration_options(*args: Any, **kwargs: Any) -> Any:
+    def generate_registration_options(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
         return type(
             "MockOptions",
             (),
@@ -49,7 +65,7 @@ except ImportError:
             },
         )()
 
-    def generate_authentication_options(*args: Any, **kwargs: Any) -> Any:
+    def generate_authentication_options(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
         return type(
             "MockOptions",
             (),
@@ -62,7 +78,7 @@ except ImportError:
             },
         )()
 
-    def verify_registration_response(*args: Any, **kwargs: Any) -> Any:
+    def verify_registration_response(*args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
         return type(
             "MockVerification",
             (),
@@ -75,22 +91,23 @@ except ImportError:
             },
         )()
 
-    def verify_authentication_response(*args: Any, **kwargs: Any) -> bool:
+    def verify_authentication_response(*args: Any, **kwargs: Any) -> bool:  # type: ignore[misc]
         # Mock implementation returns True for verified
         return True
 
-    def base64url_to_bytes(data: str) -> bytes:
+    def base64url_to_bytes(val: str) -> bytes:
         import base64
 
-        return base64.urlsafe_b64decode(data + "==")
+        return base64.urlsafe_b64decode(val + "==")
 
-    def bytes_to_base64url(data: bytes) -> str:
+    def bytes_to_base64url(val: bytes) -> str:
         import base64
 
-        return base64.urlsafe_b64encode(data).decode().rstrip("=")
+        return base64.urlsafe_b64encode(val).decode().rstrip("=")
 
-    PublicKeyCredentialDescriptor = _MockPublicKeyCredentialDescriptor
-    PublicKeyCredentialType = _MockPublicKeyCredentialType
+    # Type aliases for mock types - use globals() to avoid MyPy assignment error
+    globals()["PublicKeyCredentialDescriptor"] = _MockPublicKeyCredentialDescriptor
+    globals()["PublicKeyCredentialType"] = _MockPublicKeyCredentialType
 
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
@@ -111,8 +128,8 @@ class WebAuthnProvider:
 
         # WebAuthn configuration
         self._timeout = 60000  # 60 seconds
-        self._user_verification = "preferred"
-        self._attestation = "none"  # We don't need attestation for most use cases
+        self._user_verification: "UserVerificationRequirement" = "preferred"  # type: ignore[assignment]
+        self._attestation: "AttestationConveyancePreference" = "none"  # type: ignore[assignment]
         
         # Challenge storage - in production, use Redis with proper TTL
         self._challenge_store: dict[str, dict[str, str]] = {}
@@ -187,10 +204,10 @@ class WebAuthnProvider:
                 timeout=self._timeout,
                 # Support various algorithms
                 supported_pub_key_algs=[
-                    {"type": "public-key", "alg": -7},  # ES256
-                    {"type": "public-key", "alg": -257},  # RS256
-                    {"type": "public-key", "alg": -8},  # EdDSA
-                ],  # type: ignore
+                    COSEAlgorithmIdentifier.ECDSA_SHA_256,  # ES256 (-7)
+                    COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,  # RS256 (-257)
+                    COSEAlgorithmIdentifier.EDDSA,  # EdDSA (-8)
+                ],
             )
 
             # Convert to JSON-serializable format
@@ -265,7 +282,7 @@ class WebAuthnProvider:
                 device_name=self._detect_device_name(credential_response),
                 created_at=datetime.now(timezone.utc),
                 aaguid=(
-                    bytes_to_base64url(verification.aaguid)
+                    bytes_to_base64url(verification.aaguid if isinstance(verification.aaguid, bytes) else verification.aaguid.encode())
                     if verification.aaguid
                     else None
                 ),
@@ -341,7 +358,7 @@ class WebAuthnProvider:
         user_id: UUID,
         credential_response: dict[str, Any],
         stored_credential: WebAuthnCredential,
-    ):
+    ) -> Result[bool, str]:
         """Verify WebAuthn authentication response.
 
         Args:

@@ -434,13 +434,19 @@ async def get_evidence_summary(
             period_start, period_end
         )
 
-        if summary_result.is_err():  # type: ignore[attr-defined]
+        if summary_result.is_err():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get evidence summary: {summary_result.err_value}",  # type: ignore[attr-defined]
+                detail=f"Failed to get evidence summary: {summary_result.err_value}",
             )
 
-        return summary_result.ok_value  # type: ignore[attr-defined]
+        summary = summary_result.ok_value
+        if summary is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Evidence summary returned None",
+            )
+        return summary
 
     except HTTPException:
         raise

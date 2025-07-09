@@ -286,7 +286,7 @@ async def get_admin_metrics(
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
-    metrics = result.ok_value
+    metrics = result.unwrap()  # Safe to unwrap after checking is_err()
 
     # Add cache hit rate (simplified for now)
     cache_hit_rate = 85.0 if use_cache else 0.0
@@ -325,6 +325,7 @@ async def optimize_admin_queries(db: Database = Depends(get_db)) -> dict[str, An
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
+    assert result.ok_value is not None
     return result.ok_value
 
 
@@ -338,6 +339,7 @@ async def monitor_admin_performance(db: Database = Depends(get_db)) -> dict[str,
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
+    assert result.ok_value is not None
     return result.ok_value
 
 
@@ -439,7 +441,8 @@ async def get_operation_metrics(operation: str) -> PerformanceMetricsResponse:
     if result.is_err():
         raise HTTPException(status_code=404, detail=result.err_value)
 
-    metrics = result.ok_value
+    metrics = result.unwrap()  # Safe to unwrap after checking is_err()
+    
     return PerformanceMetricsResponse(
         operation=metrics.operation,
         total_requests=metrics.total_requests,

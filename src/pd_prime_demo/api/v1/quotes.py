@@ -241,7 +241,8 @@ async def convert_to_policy(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    assert result.ok_value is not None
+    return QuoteConversionResponse(**result.ok_value)
 
 
 @router.get("/", response_model=QuoteSearchResponse)
@@ -275,7 +276,7 @@ async def search_quotes(
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
-    quotes: list[Quote] = result.ok_value
+    quotes: list[Quote] = result.ok_value or []
 
     # Convert Quote objects to QuoteResponse objects
     quote_responses = [_convert_quote_to_response(quote) for quote in quotes]
@@ -456,6 +457,8 @@ async def complete_wizard_session(
         raise HTTPException(status_code=400, detail=quote_result.err_value)
 
     quote = quote_result.ok_value
+    if not quote:
+        raise HTTPException(status_code=400, detail="Failed to create quote")
 
     # Trigger calculation
     background_tasks.add_task(quote_service.calculate_quote, quote.id)
@@ -479,6 +482,7 @@ async def get_all_wizard_steps(
     if result.is_err():
         raise HTTPException(status_code=500, detail=result.err_value)
 
+    assert result.ok_value is not None
     return result.ok_value
 
 

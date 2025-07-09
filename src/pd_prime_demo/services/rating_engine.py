@@ -22,7 +22,7 @@ except ImportError:
 from beartype import beartype
 from pydantic import Field
 
-from pd_prime_demo.core.result_types import Err, Ok, Result, Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -145,7 +145,7 @@ class RatingEngine:
         drivers: list[DriverInfo],
         coverage_selections: list[CoverageSelection],
         customer_id: UUID | None = None,
-    ):
+    ) -> Result[RatingResult, str]:
         """Calculate premium with all factors - MUST complete in <50ms."""
         # Start performance monitoring
         perf_token = self._performance_optimizer.start_performance_monitoring()
@@ -186,7 +186,7 @@ class RatingEngine:
 
                 base_rate = base_rates.value[coverage.coverage_type.value]
                 coverage_premium = (
-                    coverage.limit * base_rate / Decimal("1000")
+                    coverage.limit * Decimal(str(base_rate)) / Decimal("1000")
                 )  # Rate per $1000
                 coverage_premiums[coverage.coverage_type] = coverage_premium.quantize(
                     Decimal("0.01"), rounding=ROUND_HALF_UP
@@ -263,7 +263,7 @@ class RatingEngine:
                     base_premium=total_base,
                     total_premium=total_premium,
                     discounts=discounts.value,
-                    surcharges=surcharges.value,
+                    surcharges=[s.model_dump() for s in surcharges.value],
                 )
             )
 
@@ -296,9 +296,9 @@ class RatingEngine:
                 ),
                 coverage_premiums=coverage_premiums,
                 discounts=discounts.value,
-                total_discount_amount=total_discount,
-                surcharges=surcharges.value,
-                total_surcharge_amount=total_surcharge,
+                total_discount_amount=Decimal(str(total_discount)),
+                surcharges=[s.model_dump() for s in surcharges.value],
+                total_surcharge_amount=Decimal(str(total_surcharge)),
                 factors=factors.value,
                 tier=tier,
                 ai_risk_score=ai_risk_score,
@@ -332,7 +332,7 @@ class RatingEngine:
         product_type: str,
         drivers: list[DriverInfo],
         coverage_selections: list[CoverageSelection],
-    ):
+    ) -> Result[bool, str]:
         """Validate rating inputs - FAIL FAST."""
         # Validate state support
         if state not in self._state_rules:
@@ -962,7 +962,7 @@ class RatingEngine:
                 customer_data.unwrap(),
                 vehicle_data,
                 driver_data,
-                external_data.unwrap_or(None),
+                external_data.unwrap_or({}),
             )
 
             if ai_result.is_err():
@@ -1071,11 +1071,11 @@ class RatingEngine:
                 if weather_result.is_ok():
                     external_data["weather_risk"] = int(weather_result.unwrap() or 0)
 
-            return Ok(external_data if external_data else None)
+            return Ok(external_data)
 
         except Exception:
-            # Return None for external data if there are issues
-            return Ok(None)
+            # Return empty dict for external data if there are issues
+            return Ok({})
 
     @beartype
     async def _log_slow_calculation(
@@ -1222,7 +1222,7 @@ class RatingEngine:
         return self._performance_optimizer.is_performance_target_met(target_ms)
 
     @beartype
-    async def optimize_performance(self) -> Result[dict[str, Any], str]:
+    async def optimize_performance(self) -> Result[list[str], str]:
         """Get performance optimization recommendations."""
         return await self._performance_optimizer.optimize_slow_calculations()
 

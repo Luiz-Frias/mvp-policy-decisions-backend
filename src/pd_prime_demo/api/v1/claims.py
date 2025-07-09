@@ -628,6 +628,10 @@ async def update_claim(
             )
 
         claim_model = status_result.ok_value
+        if not claim_model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found after status update"
+            )
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -793,11 +797,6 @@ async def delete_claim(
             detail=str(result.error),
         )
 
-    deleted = result.ok_value
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
-        )
     # This is a placeholder implementation
 
     # Invalidate caches

@@ -218,6 +218,7 @@ async def create_customer(
             )
 
         customer = result.ok_value
+        assert customer is not None
 
         # Invalidate relevant caches
         pattern = "customers:list:*"
@@ -399,13 +400,6 @@ async def delete_customer(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(result.err_value),
-            )
-
-        deleted = result.ok_value
-        if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Customer not found",
             )
 
         # Invalidate caches

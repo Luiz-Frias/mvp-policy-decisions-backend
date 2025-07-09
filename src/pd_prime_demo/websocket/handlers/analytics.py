@@ -656,7 +656,7 @@ class AnalyticsWebSocketHandler:
         # Return success if at least one broadcast succeeded
         successful_sends = sum(1 for r in send_results if r.is_ok())
         return (
-            Ok(None)
+            Ok(successful_sends)
             if successful_sends > 0
             else Err("Failed to broadcast event to any dashboard")
         )
@@ -668,7 +668,7 @@ class AnalyticsWebSocketHandler:
         message: str,
         severity: str,
         data: dict[str, Any] | None = None,
-    ):
+    ) -> Result[int, str]:
         """Send alert to admin dashboard subscribers."""
         if severity not in ["low", "medium", "high", "critical"]:
             return Err(f"Invalid severity level: {severity}")

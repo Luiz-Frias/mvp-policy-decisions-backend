@@ -1011,7 +1011,7 @@ class ConfidentialityControlManager:
             {"category": "audit_trails", "retention_days": 2555, "expired_records": 0},
         ]
 
-        total_expired = sum(int(cat["expired_records"]) for cat in data_categories)
+        total_expired = sum(int(cat["expired_records"]) for cat in data_categories)  # type: ignore[call-overload]
 
         return {
             "data_categories_checked": len(data_categories),

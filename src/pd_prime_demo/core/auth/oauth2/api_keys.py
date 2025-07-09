@@ -225,7 +225,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         reason: str | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Revoke an API key.
 
         Args:
@@ -470,7 +470,7 @@ class APIKeyManager:
         self,
         client_id: str,
         reason: str,
-    ):
+    ) -> Result[int, str]:
         """Bulk revoke all API keys for a client.
 
         Args:
@@ -621,7 +621,7 @@ class APIKeyManager:
                             }
                         )
 
-            return Ok(events[:limit])
+            return Ok({"events": events[:limit]})
 
         except Exception as e:
             return Err(f"Failed to get security events: {str(e)}")
@@ -631,7 +631,7 @@ class APIKeyManager:
         self,
         key_id: UUID,
         client_id: str,
-    ):
+    ) -> Result[bool, str]:
         """Verify that an API key belongs to the specified client.
 
         Args:

@@ -5,7 +5,7 @@ from typing import Any
 from urllib.parse import urlencode
 from uuid import uuid4
 
-import defusedxml.ElementTree as ET  # Use defusedxml for security
+import defusedxml.ElementTree as ET  # type: ignore[import-untyped]
 from beartype import beartype
 
 from pd_prime_demo.core.result_types import Err, Ok, Result

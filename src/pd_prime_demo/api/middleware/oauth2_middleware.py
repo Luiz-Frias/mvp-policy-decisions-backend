@@ -1,11 +1,12 @@
 """OAuth2 authentication middleware with API key support."""
 
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from beartype import beartype
 from fastapi import HTTPException, Request, Response
 from fastapi.security.utils import get_authorization_scheme_param
-from jose import jwt
+from jose import jwt  # type: ignore[import-untyped]
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
@@ -18,7 +19,7 @@ from ...core.database import get_db_session
 class OAuth2Middleware(BaseHTTPMiddleware):
     """Middleware for OAuth2 token validation and API key authentication."""
 
-    def __init__(self, app, exempt_paths: set[str] | None = None) -> None:
+    def __init__(self, app: Any, exempt_paths: set[str] | None = None) -> None:
         """Initialize OAuth2 middleware.
 
         Args:

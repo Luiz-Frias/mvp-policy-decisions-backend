@@ -125,11 +125,9 @@ async def authorize(
     )
 
     if result.is_err():
-        error: OAuth2Error = result.err_value
+        error_str = result.unwrap_err()
         # Build error redirect
-        error_params = f"error={error.error}"
-        if error.error_description:
-            error_params += f"&error_description={error.error_description}"
+        error_params = f"error={error_str}"
         if state:
             error_params += f"&state={state}"
 
@@ -236,12 +234,13 @@ async def token(
     )
 
     if result.is_err():
-        error: OAuth2Error = result.err_value
+        error_str = result.unwrap_err()
         raise HTTPException(
-            status_code=error.status_code,
-            detail=error.to_dict(),
+            status_code=400,
+            detail={"error": error_str},
         )
 
+    assert result.ok_value is not None
     return result.ok_value
 
 

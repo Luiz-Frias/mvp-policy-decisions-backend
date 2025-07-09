@@ -669,7 +669,7 @@ class EvidenceCollector:
     @beartype
     async def get_evidence_summary(
         self, period_start: datetime, period_end: datetime
-    ) -> dict[str, Any]:
+    ) -> Result[dict[str, Any], str]:
         """Get summary of evidence collected for a period."""
         try:
             # In a real implementation, this would query the database

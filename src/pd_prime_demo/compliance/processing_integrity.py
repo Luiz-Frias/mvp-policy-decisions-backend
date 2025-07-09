@@ -249,7 +249,7 @@ class ProcessingIntegrityManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence = {}
+            evidence: dict[str, Any] = {}
 
             # Validate data in critical tables
             validation_results = []
@@ -463,7 +463,7 @@ class ProcessingIntegrityManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence = {}
+            evidence: dict[str, Any] = {}
 
             # Reconcile critical data between systems
             reconciliation_results = []
@@ -593,6 +593,7 @@ class ProcessingIntegrityManager:
             matches=matches,
             discrepancies=discrepancies,
             discrepancy_details=discrepancy_details,
+            reconciliation_percentage=float((matches / records_compared) * 100) if records_compared > 0 else 0.0,
         )
 
     @beartype
@@ -614,6 +615,7 @@ class ProcessingIntegrityManager:
                     "difference": 50.00,
                 }
             ],
+            reconciliation_percentage=float((248 / 250) * 100),
         )
 
     @beartype
@@ -980,8 +982,8 @@ class ProcessingIntegrityManager:
         ]
 
         # Simple trend calculation
-        recent_errors = [d["errors"] for d in error_data[-3:]]  # type: ignore
-        older_errors = [d["errors"] for d in error_data[:2]]  # type: ignore
+        recent_errors = [d["errors"] for d in error_data[-3:]]
+        older_errors = [d["errors"] for d in error_data[:2]]
 
         recent_avg = sum(recent_errors) / len(recent_errors)  # type: ignore
         older_avg = sum(older_errors) / len(older_errors)  # type: ignore

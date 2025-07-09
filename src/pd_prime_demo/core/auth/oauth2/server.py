@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
-from jose import JWTError, jwt
+from jose import JWTError, jwt  # type: ignore[import-untyped]
 from passlib.context import CryptContext
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
@@ -231,6 +231,8 @@ class OAuth2Server:
 
             # Generate authorization code
             if response_type == "code":
+                # user_id is guaranteed to be not None due to check above
+                assert user_id is not None
                 code = await self._generate_authorization_code(
                     client_id,
                     user_id,
@@ -269,6 +271,10 @@ class OAuth2Server:
                         "state": state,
                     }
                 )
+            
+            # This should not happen as response_type is validated above
+            else:
+                return Err(f"unsupported_response_type: {response_type}")
 
         except OAuth2Error as e:
             return Err(f"{e.error}: {e.error_description or e.error}")
@@ -323,14 +329,20 @@ class OAuth2Server:
                 )
 
             elif grant_type == "refresh_token":
+                if not client:
+                    return Err("invalid_client")
                 return await self._handle_refresh_token_grant(
                     refresh_token, scope, client
                 )
 
             elif grant_type == "client_credentials":
+                if not client:
+                    return Err("invalid_client")
                 return await self._handle_client_credentials_grant(client, scope)
 
             elif grant_type == "password":
+                if not client:
+                    return Err("invalid_client")
                 return await self._handle_password_grant(
                     username, password, scope, client
                 )
@@ -410,7 +422,7 @@ class OAuth2Server:
         token_type_hint: str | None = None,
         client_id: str | None = None,
         client_secret: str | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Revoke a token.
 
         Args:
@@ -981,7 +993,7 @@ class OAuth2Server:
         }
 
     @beartype
-    async def _revoke_refresh_token(self, token: str) -> Result[None, str]:
+    async def _revoke_refresh_token(self, token: str) -> Result[bool, str]:
         """Revoke a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
@@ -1039,7 +1051,7 @@ class OAuth2Server:
         self,
         client_id: str,
         operation: str = "token_request",
-    ):
+    ) -> Result[bool, str]:
         """Validate client-specific rate limiting.
 
         Args:

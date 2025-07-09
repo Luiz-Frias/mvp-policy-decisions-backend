@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 import asyncpg
-import asyncpg.exceptions
+import asyncpg.exceptions  # type: ignore[import-untyped]
 from beartype import beartype
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
@@ -273,7 +273,7 @@ async def upsert_with_conflict(
     try:
         if returning_columns:
             row = await db.fetchrow(query, *update_values)
-            return Ok(row)
+            return Ok(dict(row) if row else None)
         else:
             await db.execute(query, *update_values)
             return Ok(None)

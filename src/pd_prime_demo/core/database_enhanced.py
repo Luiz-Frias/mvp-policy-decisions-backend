@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import asyncpg
-import asyncpg.exceptions
+import asyncpg.exceptions  # type: ignore[import-untyped]
 from attrs import field, frozen
 from beartype import beartype
 
@@ -318,7 +318,7 @@ class Database:
                 try:
                     if self._pool is None:
                         return False
-                    conn: Any = await asyncio.wait_for(self._pool.acquire(), timeout=2.0)
+                    conn: Any = await self._pool.acquire().__aenter__()
                     connections.append(conn)
 
                     # Perform initialization queries to fully warm the connection
@@ -468,7 +468,7 @@ class Database:
         health = await self.check_pool_health()
         if health.is_err():
             err_msg = health.err_value
-            if "exhausted" in err_msg:
+            if err_msg and isinstance(err_msg, str) and "exhausted" in err_msg:
                 # Use TimeoutError for pool timeout
                 raise asyncio.TimeoutError("Pool exhausted")
 
@@ -749,9 +749,9 @@ class Database:
                 (stats.size - stats.free_size) / stats.size if stats.size > 0 else 0
             )
             if utilization > 0.9:
-                return Ok(False)  # Unhealthy but operational
+                return Ok(f"Warning: Pool at {utilization:.0%} capacity")  # Unhealthy but operational
 
-            return Ok(True)
+            return Ok("Healthy")
 
         except Exception as e:
             return Err(f"Health check failed: {str(e)}")

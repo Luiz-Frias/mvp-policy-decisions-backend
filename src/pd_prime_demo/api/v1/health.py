@@ -351,7 +351,7 @@ async def readiness_check(
             )
             openai_start = datetime.utcnow()
             try:
-                import openai
+                import openai  # type: ignore[import-not-found]
 
                 client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
                 # Simple API test with minimal cost

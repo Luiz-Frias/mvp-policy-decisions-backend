@@ -305,7 +305,7 @@ class SystemSettingsService:
         elif value_type == SettingType.JSON:
             return json.loads(value)
         # This should never happen as all enum values are covered
-        return value
+        raise ValueError(f"Unknown setting type: {value_type}")
 
     @beartype
     def _serialize_value(self, value: Any, value_type: SettingType) -> str:

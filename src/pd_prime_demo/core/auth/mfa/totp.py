@@ -6,11 +6,11 @@ import secrets
 from datetime import datetime, timezone
 
 import pyotp
-import qrcode
+import qrcode  # type: ignore[import-untyped]
 from beartype import beartype
 from cryptography.fernet import Fernet
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.config import Settings
 from .models import TOTPSetupData
@@ -45,7 +45,9 @@ class TOTPProvider:
         return base64.urlsafe_b64encode(key_material)
 
     @beartype
-    def generate_setup(self, user_email: str, user_id: str) -> Result[TOTPSetupData, str]:
+    def generate_setup(
+        self, user_email: str, user_id: str
+    ) -> Result[TOTPSetupData, str]:
         """Generate TOTP setup data for user enrollment.
 
         Args:

@@ -116,14 +116,14 @@ class RatingEngine:
 
             # Parallel calculation of base components
             calculation_tasks = {
-                "base_rates": self._get_base_rates(
+                "base_rates": lambda: self._get_base_rates(
                     state, effective_date, coverage_selections
                 ),
-                "territory_factor": self._get_territory_factor(
+                "territory_factor": lambda: self._get_territory_factor(
                     state, vehicle_info.garage_zip
                 ),
-                "driver_factors": self._calculate_driver_factors(drivers, state),
-                "vehicle_factor": self._calculate_vehicle_factor(vehicle_info),
+                "driver_factors": lambda: self._calculate_driver_factors(drivers, state),
+                "vehicle_factor": lambda: self._calculate_vehicle_factor(vehicle_info),
             }
 
             # Execute parallel calculations
@@ -143,13 +143,9 @@ class RatingEngine:
                 return base_premium_result
 
             base_premiums = base_premium_result.unwrap()
-            if base_premiums is None:
-                return Err("Base premium calculation returned None")
-            total_base_premium = sum(base_premiums.values())
+            total_base_premium = Decimal(str(sum(base_premiums.values())))
 
             # Apply state-specific factor validation
-            if state_rules is None:
-                return Err("State rules not found")
             validated_factors = state_rules.validate_factors(factors)
 
             # Apply all rating factors
@@ -159,7 +155,9 @@ class RatingEngine:
             if factor_result.is_err():
                 return Err(f"Factor application failed: {factor_result.unwrap_err()}")
 
-            factored_premium, factor_impacts = factor_result.unwrap()
+            factored_result = factor_result.unwrap()
+            factored_premium = factored_result.final_premium
+            factor_impacts = factored_result.factor_impacts
 
             # Calculate applicable discounts
             discount_result = await self._calculate_discounts(
@@ -260,7 +258,7 @@ class RatingEngine:
                 ),
                 "final_premium": float(final_premium),
                 "factors": {k: float(v) for k, v in validated_factors.items()},
-                "factor_impacts": {k: float(v) for k, v in (factor_impacts.items() if factor_impacts else [])},
+                "factor_impacts": {impact.factor_name: float(impact.impact_amount) for impact in factor_impacts},
                 "coverage_premiums": {k: float(v) for k, v in (base_premiums.items() if base_premiums else [])},
                 "ai_risk_score": ai_risk_score,
                 "business_rule_validation": business_rule_report,
@@ -360,7 +358,8 @@ class RatingEngine:
         if risk_result.is_err():
             return {"driver_combined": 1.0}
 
-        risk_score, _ = risk_result.unwrap()
+        driver_risk_result = risk_result.unwrap()
+        risk_score = driver_risk_result.risk_score
 
         # Convert risk score to factor (higher risk = higher factor)
         driver_risk_factor = 0.8 + (risk_score * 0.8)  # Range: 0.8 to 1.6

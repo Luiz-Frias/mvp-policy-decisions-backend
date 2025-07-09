@@ -92,7 +92,7 @@ class QueuedMessage(BaseModel):
 class RedisMessageQueue:
     """Redis-backed message queue with priority support and reliability features."""
 
-    def __init__(self, cache: Cache, config: MessageQueueConfig = None) -> None:
+    def __init__(self, cache: Cache, config: MessageQueueConfig | None = None) -> None:
         """Initialize Redis message queue."""
         self._cache = cache
         self._config = config or MessageQueueConfig()

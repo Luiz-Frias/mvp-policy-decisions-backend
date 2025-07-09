@@ -257,7 +257,9 @@ def validate_message_data(message_type: str, data: dict[str, Any]) -> MessageTyp
 
     model_class = MESSAGE_TYPE_REGISTRY[message_type]
     validated_model = model_class(**data)
-    return validated_model
+    # Type casting is safe here because we know the model_class creates
+    # instances of the correct type from the MessageType union
+    return validated_model  # type: ignore[no-any-return]
 
 
 @beartype

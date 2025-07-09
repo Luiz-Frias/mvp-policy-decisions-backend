@@ -6,7 +6,7 @@ from typing import Any
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
@@ -65,7 +65,7 @@ class RiskEngine:
         user_agent: str,
         device_fingerprint: str | None = None,
         additional_context: dict[str, Any] | None = None,
-    ):
+    ) -> Result[RiskAssessment, str]:
         """Assess authentication risk based on multiple factors.
 
         Args:

@@ -95,7 +95,7 @@ async def override_quote(
     if value is None:
         raise HTTPException(status_code=500, detail="Quote override failed")
     # Convert Quote object to dict format for JSON response
-    return value.model_dump() if hasattr(value, 'model_dump') else value  # type: ignore[no-any-return]
+    return value.model_dump() if hasattr(value, 'model_dump') else dict(value)
 
 
 @router.post("/bulk/{operation}")

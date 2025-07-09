@@ -340,7 +340,7 @@ async def begin_webauthn_registration(
         existing_creds = config_result.ok_value.webauthn_credentials
 
     # Generate registration options
-    options_result = await mfa_manager._webauthn_provider.generate_registration_options(
+    options_result = mfa_manager._webauthn_provider.generate_registration_options(
         user_id, user_email, user_name, existing_creds
     )
 

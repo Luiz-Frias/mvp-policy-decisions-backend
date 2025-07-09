@@ -478,15 +478,6 @@ class ControlTestingFramework:
 
         if control_result.is_ok():
             execution = control_result.unwrap()
-            if execution is None:
-                return {
-                    "test_result": TestResult.INCONCLUSIVE,
-                    "deficiencies": [{"type": DeficiencyType.CONTROL_GAP.value, "description": "Control execution returned None", "severity": "high"}],
-                    "exceptions_noted": [],
-                    "evidence_obtained": [],
-                    "conclusion": "Control execution failed",
-                    "recommendations": ["Investigate control execution failure"]
-                }
 
             # Analyze results for test conclusion
             if execution.result:

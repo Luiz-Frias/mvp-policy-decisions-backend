@@ -48,7 +48,7 @@ class Ok(Generic[T]):
         return self.value
 
     @beartype
-    def unwrap_err(self) -> None:
+    def unwrap_err(self) -> NoReturn:
         """Raise ValueError as this is Ok."""
         raise ValueError("Called unwrap_err on Ok value")
 

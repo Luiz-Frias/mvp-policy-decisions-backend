@@ -10,6 +10,7 @@ This module implements comprehensive privacy controls including:
 """
 
 from datetime import datetime, timedelta, timezone
+from typing import cast
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -797,7 +798,7 @@ class PrivacyControlManager:
             [
                 req
                 for req in requests_last_30_days
-                if (datetime.now(timezone.utc) - req["submitted"]).days > 30
+                if (datetime.now(timezone.utc) - cast(datetime, req["submitted"])).days > 30
                 and req["status"] != "completed"
             ]
         )

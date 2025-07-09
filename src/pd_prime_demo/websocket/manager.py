@@ -452,7 +452,7 @@ class ConnectionManager:
         if user_id:
             permission_check = await self._validate_user_permissions(user_id)
             if permission_check.is_err():
-                return Err(permission_check.err_value)
+                return Err(permission_check.unwrap_err())
 
         try:
             await websocket.accept()
@@ -495,7 +495,7 @@ class ConnectionManager:
             self._active_connection_count -= 1
             if user_id and user_id in self._user_connections:
                 self._user_connections[user_id].discard(connection_id)
-            return Err(store_result.err_value)
+            return Err(store_result.unwrap_err())
 
         # Send welcome message with explicit connection state
         welcome_msg = WebSocketMessage(
@@ -526,7 +526,7 @@ class ConnectionManager:
         if send_result.is_err():
             # Connection failed immediately
             await self.disconnect(connection_id, "Initial message send failed")
-            return Err(send_result.err_value)
+            return Err(send_result.unwrap_err())
 
         # Record successful connection in monitoring
         await self._monitor.record_connection_established(
@@ -1258,7 +1258,7 @@ class ConnectionManager:
                 time_passed * self._rate_limit_config["tokens_per_second"]
             )
             limiter["tokens"] = min(
-                limiter["tokens"] + tokens_to_add, self._rate_limit_config["max_tokens"]
+                limiter["tokens"] + tokens_to_add, int(self._rate_limit_config["max_tokens"])
             )
             limiter["last_refill"] = now
 
