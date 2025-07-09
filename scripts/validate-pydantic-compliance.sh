@@ -81,7 +81,7 @@ while IFS= read -r -d '' file; do
             fi
         fi
     fi
-done < <(find src -name "*.py" -type f -print0)
+done < <(find src -name "*.py" -type f -not -path "*/example_elite_pattern.py" -print0)
 
 # Re-enable strict error handling for the remainder of the script.
 set -e

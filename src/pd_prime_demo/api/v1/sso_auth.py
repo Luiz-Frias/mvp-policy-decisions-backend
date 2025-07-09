@@ -144,12 +144,13 @@ async def initiate_sso_auth(
 async def handle_sso_callback(
     provider: str,
     request: Request,
+    response: Response,
     code: str = Query(..., description="Authorization code"),
     state: str = Query(..., description="State parameter"),
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_redis),
     settings: Settings = Depends(get_settings),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Handle SSO authentication callback.
 
     Args:

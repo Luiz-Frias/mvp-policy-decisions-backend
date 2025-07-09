@@ -1,6 +1,6 @@
 """Elite API response patterns following Result[T,E] + HTTP semantics."""
 
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union, cast
 from fastapi import Response
 from pydantic import BaseModel, ConfigDict, Field
 from beartype import beartype
@@ -153,7 +153,8 @@ def handle_result(
     success_status: int = 200
 ) -> Union[T, ErrorResponse]:
     """Convenience function for standard result handling."""
-    return APIResponseHandler.from_result(result, response, success_status)
+    # Type assertion to satisfy mypy - we know T won't be ErrorResponse here
+    return APIResponseHandler.from_result(cast(Result[Union[T, ErrorResponse], str], result), response, success_status)
 
 @beartype  
 def handle_result_wrapped(

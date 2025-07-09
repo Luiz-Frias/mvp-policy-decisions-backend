@@ -142,7 +142,7 @@ async def get_compliance_overview(
         metrics_result = control_framework.generate_compliance_report()
 
         if metrics_result.is_err():
-            return handle_result(metrics_result, response)
+            return handle_result(Err(metrics_result.err_value or "Failed to generate compliance report"), response)
 
         metrics = metrics_result.ok_value
         
@@ -167,7 +167,8 @@ async def get_compliance_overview(
             "privacy": (await privacy_manager.get_privacy_dashboard())["privacy_score"],
         }
 
-        return ComplianceOverviewResponse(
+        # Create the response model from the domain model
+        compliance_response = ComplianceOverviewResponse(
             overall_compliance_score=metrics.compliance_percentage,
             trust_service_criteria_scores=criteria_scores,
             total_controls=metrics.total_controls,
@@ -180,6 +181,8 @@ async def get_compliance_overview(
                 else "non_compliant"
             ),
         )
+        
+        return compliance_response
 
     except Exception as e:
         return handle_result(Err(f"Failed to get compliance overview: {str(e)}"), response)
@@ -188,9 +191,10 @@ async def get_compliance_overview(
 @router.get("/controls")
 @beartype
 async def list_controls(
+    response: Response,
     criteria: str | None = Query(None, description="Filter by trust service criteria"),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """List all SOC 2 controls with optional filtering."""
     try:
         if criteria:
@@ -239,7 +243,7 @@ async def execute_control(
         )
 
         if execution_result.is_err():
-            return handle_result(execution_result, response)
+            return handle_result(Err(execution_result.err_value or "Failed to execute control"), response)
 
         execution = execution_result.ok_value
         
@@ -247,7 +251,8 @@ async def execute_control(
         if execution is None:
             return handle_result(Err("Internal server error: control execution is None"), response)
 
-        return ControlExecutionResponse(
+        # Create the response model from the domain model
+        execution_response = ControlExecutionResponse(
             execution_id=str(execution.execution_id),
             control_id=execution.control_id,
             timestamp=execution.timestamp.isoformat(),
@@ -256,6 +261,8 @@ async def execute_control(
             findings=execution.findings,
             execution_time_ms=execution.execution_time_ms,
         )
+        
+        return execution_response
 
     except Exception as e:
         return handle_result(Err(f"Failed to execute control: {str(e)}"), response)
@@ -273,7 +280,7 @@ async def get_control_status(
         status_result = control_framework.get_control_status(control_id)
 
         if status_result.is_err():
-            return handle_result(status_result, response)
+            return handle_result(Err(status_result.err_value or "Failed to get control status"), response)
 
         control_status = status_result.ok_value
         
@@ -281,6 +288,7 @@ async def get_control_status(
         if control_status is None:
             return handle_result(Err("Internal server error: control status is None"), response)
 
+        # Return the formatted response directly
         return {
             "control_id": control_id,
             "status": control_status.value,
@@ -393,11 +401,13 @@ async def get_evidence_summary(
         )
 
         if summary_result.is_err():
-            return handle_result(summary_result, response)
+            return handle_result(Err(summary_result.err_value or "Failed to get evidence summary"), response)
 
         summary = summary_result.ok_value
         if summary is None:
             return handle_result(Err("Evidence summary returned None"), response)
+        
+        # Return the summary directly (it's already a dict)
         return summary
 
     except Exception as e:
@@ -424,7 +434,7 @@ async def generate_compliance_report(
         )
 
         if report_result.is_err():
-            return handle_result(report_result, response)
+            return handle_result(Err(report_result.err_value or "Failed to generate compliance report"), response)
 
         report = report_result.ok_value
         
@@ -432,7 +442,8 @@ async def generate_compliance_report(
         if report is None:
             return handle_result(Err("Internal server error: compliance report is None"), response)
 
-        return {
+        # Create the response dict from the domain model
+        report_response = {
             "report_id": str(report.report_id),
             "title": report.title,
             "report_type": report.report_type,
@@ -447,6 +458,8 @@ async def generate_compliance_report(
                 "end": report.assessment_period_end.isoformat(),
             },
         }
+        
+        return report_response
 
     except Exception as e:
         return handle_result(Err(f"Failed to generate compliance report: {str(e)}"), response)
@@ -494,7 +507,7 @@ async def create_test_plan(
         )
 
         if plan_result.is_err():
-            return handle_result(plan_result, response)
+            return handle_result(Err(plan_result.err_value or "Failed to create test plan"), response)
 
         plan = plan_result.ok_value
         
@@ -502,7 +515,8 @@ async def create_test_plan(
         if plan is None:
             return handle_result(Err("Internal server error: test plan is None"), response)
 
-        return {
+        # Create the response dict from the domain model
+        plan_response = {
             "plan_id": str(plan.plan_id),
             "plan_name": plan.plan_name,
             "description": plan.description,
@@ -515,6 +529,8 @@ async def create_test_plan(
             "total_tests": plan.total_tests,
             "status": plan.status,
         }
+        
+        return plan_response
 
     except Exception as e:
         return handle_result(Err(f"Failed to create test plan: {str(e)}"), response)
@@ -541,7 +557,7 @@ async def execute_all_controls(
         execution_result = control_framework.execute_all_controls(criteria_enum)
 
         if execution_result.is_err():
-            return handle_result(execution_result, response)
+            return handle_result(Err(execution_result.err_value or "Failed to execute all controls"), response)
 
         executions = execution_result.ok_value
         
@@ -554,7 +570,8 @@ async def execute_all_controls(
         successful_executions = sum(1 for exec in executions if exec.result)
         failed_executions = total_executions - successful_executions
 
-        return {
+        # Create the response dict
+        executions_response = {
             "execution_summary": {
                 "total_executions": total_executions,
                 "successful_executions": successful_executions,
@@ -578,6 +595,8 @@ async def execute_all_controls(
                 for exec in executions
             ],
         }
+        
+        return executions_response
 
     except Exception as e:
         return handle_result(Err(f"Failed to execute all controls: {str(e)}"), response)

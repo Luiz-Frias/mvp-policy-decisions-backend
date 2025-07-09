@@ -118,7 +118,9 @@ async def create_sso_provider(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     response.status_code = 201
     return {
@@ -146,7 +148,12 @@ async def list_sso_providers(
 
     result = await sso_service.list_sso_providers(limit, offset)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.get("/providers/{provider_id}")
@@ -167,7 +174,12 @@ async def get_sso_provider(
 
     result = await sso_service.get_sso_provider(provider_id)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.put("/providers/{provider_id}")
@@ -194,7 +206,9 @@ async def update_sso_provider(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"message": "SSO provider updated successfully"}
 
@@ -217,7 +231,12 @@ async def test_sso_provider(
 
     result = await sso_service.test_provider_connection(provider_id, admin_user.id)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.post("/providers/{provider_id}/mappings")
@@ -246,7 +265,9 @@ async def create_group_mapping(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     response.status_code = 201
     return {
@@ -274,7 +295,9 @@ async def list_group_mappings(
     result = await sso_service.list_group_mappings(provider_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     # Ensure we have valid mappings
     mappings = result.unwrap()
@@ -301,7 +324,9 @@ async def list_provisioning_rules(
     result = await sso_service.get_user_provisioning_rules(provider_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     # Ensure we have valid rules
     rules = result.unwrap()
@@ -328,7 +353,12 @@ async def get_sso_analytics(
 
     result = await sso_service.get_sso_analytics(date_from, date_to)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.delete("/providers/{provider_id}")
@@ -350,7 +380,9 @@ async def delete_sso_provider(
     result = await sso_service.delete_sso_provider(provider_id, admin_user.id)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     return {"message": "SSO provider deleted successfully"}
 
@@ -375,4 +407,9 @@ async def get_sso_activity_logs(
 
     result = await sso_service.get_activity_logs(limit, offset, provider_id)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()

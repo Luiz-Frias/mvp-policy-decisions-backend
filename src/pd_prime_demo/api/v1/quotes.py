@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Union
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
+from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse, APIResponseHandler
 
 from ...models.quote import (
     Quote,
@@ -81,6 +81,12 @@ def _convert_quote_to_response(quote: Quote) -> QuoteResponse:
     )
 
 
+def _handle_service_error(error: str, response: Response, success_status: int = 200) -> ErrorResponse:
+    """Handle service layer errors by mapping to appropriate HTTP status."""
+    response.status_code = APIResponseHandler.map_error_to_status(error)
+    return ErrorResponse(error=error)
+
+
 def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionResponse:
     """Convert WizardState to WizardSessionResponse."""
     # Convert dict data to WizardStepData
@@ -140,16 +146,18 @@ async def create_quote(
     )
 
     if result.is_err():
-        return handle_result(result, response, success_status=201)
+        return _handle_service_error(result.unwrap_err(), response, 201)
 
     quote = result.ok_value
     if quote is None:
-        return handle_result(Err("Quote creation failed"), response, success_status=201)
+        return _handle_service_error("Quote creation failed", response, 201)
 
     # Trigger async calculation if data is complete
     if quote.vehicle_info and quote.drivers and quote.coverage_selections:
         background_tasks.add_task(quote_service.calculate_quote, quote.id)
 
+    # Convert to response and return with proper status
+    response.status_code = 201
     return _convert_quote_to_response(quote)
 
 
@@ -165,21 +173,23 @@ async def get_quote(
     result = await quote_service.get_quote(quote_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     quote = result.ok_value
     if not quote:
-        return handle_result(Err("Quote not found"), response)
+        return _handle_service_error("Quote not found", response)
 
     # Check access permissions
     if current_user:
         # Logged in users can see their own quotes
         if quote.customer_id and quote.customer_id != current_user.id:
-            return handle_result(Err("Access denied"), response)
+            return _handle_service_error("Access denied", response)
     else:
         # Anonymous users need session validation (future enhancement)
         pass
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_quote_to_response(quote)
 
 
@@ -201,12 +211,14 @@ async def update_quote(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     quote = result.ok_value
     if quote is None:
-        return handle_result(Err("Quote not found"), response)
+        return _handle_service_error("Quote not found", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_quote_to_response(quote)
 
 
@@ -222,12 +234,14 @@ async def calculate_quote(
     result = await quote_service.calculate_quote(quote_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     quote = result.ok_value
     if quote is None:
-        return handle_result(Err("Quote not found"), response)
+        return _handle_service_error("Quote not found", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_quote_to_response(quote)
 
 
@@ -246,11 +260,13 @@ async def convert_to_policy(
     )
 
     if result.is_err():
-        return handle_result(result, response, success_status=201)
+        return _handle_service_error(result.unwrap_err(), response, 201)
 
     if result.ok_value is None:
-        return handle_result(Err("Policy conversion failed"), response, success_status=201)
+        return _handle_service_error("Policy conversion failed", response, 201)
 
+    # Convert to response and return with proper status
+    response.status_code = 201
     return QuoteConversionResponse(**result.ok_value)
 
 
@@ -284,13 +300,15 @@ async def search_quotes(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     quotes: list[Quote] = result.ok_value or []
 
     # Convert Quote objects to QuoteResponse objects
     quote_responses = [_convert_quote_to_response(quote) for quote in quotes]
     
+    # Return success with proper status
+    response.status_code = 200
     return QuoteSearchResponse(
         quotes=quote_responses,
         total=len(quotes),
@@ -313,12 +331,14 @@ async def start_wizard_session(
     result = await wizard_service.start_session(initial_data)
 
     if result.is_err():
-        return handle_result(result, response, success_status=201)
+        return _handle_service_error(result.unwrap_err(), response, 201)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        return handle_result(Err("Wizard session not found"), response, success_status=201)
+        return _handle_service_error("Wizard session not found", response, 201)
 
+    # Convert to response and return with proper status
+    response.status_code = 201
     return _convert_wizard_state_to_response(wizard_state)
 
 
@@ -333,12 +353,14 @@ async def get_wizard_session(
     result = await wizard_service.get_session(session_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     state = result.ok_value
     if not state:
-        return handle_result(Err("Session not found or expired"), response)
+        return _handle_service_error("Session not found or expired", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_wizard_state_to_response(state)
 
 
@@ -354,12 +376,14 @@ async def update_wizard_step(
     result = await wizard_service.update_step(session_id, step_data)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        return handle_result(Err("Wizard session not found"), response)
+        return _handle_service_error("Wizard session not found", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_wizard_state_to_response(wizard_state)
 
 
@@ -374,12 +398,14 @@ async def next_wizard_step(
     result = await wizard_service.next_step(session_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        return handle_result(Err("Wizard session not found"), response)
+        return _handle_service_error("Wizard session not found", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_wizard_state_to_response(wizard_state)
 
 
@@ -394,12 +420,14 @@ async def previous_wizard_step(
     result = await wizard_service.previous_step(session_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        return handle_result(Err("Wizard session not found"), response)
+        return _handle_service_error("Wizard session not found", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_wizard_state_to_response(wizard_state)
 
 
@@ -417,12 +445,14 @@ async def jump_to_wizard_step(
     result = await wizard_service.jump_to_step(session_id, step_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        return handle_result(Err("Wizard session not found"), response)
+        return _handle_service_error("Wizard session not found", response)
 
+    # Convert to response and return
+    response.status_code = 200
     return _convert_wizard_state_to_response(wizard_state)
 
 
@@ -458,11 +488,11 @@ async def complete_wizard_session(
     result = await wizard_service.complete_session(session_id)
 
     if result.is_err():
-        return handle_result(result, response, success_status=201)
+        return _handle_service_error(result.unwrap_err(), response, 201)
 
     wizard_data = result.ok_value
     if not wizard_data:
-        return handle_result(Err("Invalid wizard data"), response, success_status=201)
+        return _handle_service_error("Invalid wizard data", response, 201)
 
     # Create quote from wizard data
     quote_create = QuoteCreate(**wizard_data["quote_data"])
@@ -471,15 +501,17 @@ async def complete_wizard_session(
     )
 
     if quote_result.is_err():
-        return handle_result(quote_result, response, success_status=201)
+        return _handle_service_error(quote_result.unwrap_err(), response, 201)
 
     quote = quote_result.ok_value
     if not quote:
-        return handle_result(Err("Failed to create quote"), response, success_status=201)
+        return _handle_service_error("Failed to create quote", response, 201)
 
     # Trigger calculation
     background_tasks.add_task(quote_service.calculate_quote, quote.id)
 
+    # Return success with proper status
+    response.status_code = 201
     return WizardCompletionResponse(
         session_id=wizard_data["session_id"],
         quote_id=quote.id,
@@ -498,11 +530,13 @@ async def get_all_wizard_steps(
     result = await wizard_service.get_all_steps()
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     if result.ok_value is None:
-        return handle_result(Err("No wizard steps available"), response)
+        return _handle_service_error("No wizard steps available", response)
 
+    # Return success
+    response.status_code = 200
     return result.ok_value
 
 
@@ -534,14 +568,16 @@ async def extend_wizard_session(
     result = await wizard_service.extend_session(session_id, additional_minutes)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     state = result.ok_value
     
     # Type narrowing - this should never be None due to service logic
     if state is None:
-        return handle_result(Err("Internal server error: session state is None"), response)
+        return _handle_service_error("Internal server error: session state is None", response)
 
+    # Return success
+    response.status_code = 200
     return WizardExtensionResponse(
         session_id=state.session_id,
         expires_at=state.expires_at,
@@ -582,8 +618,10 @@ async def get_step_business_intelligence(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
+    # Return success
+    response.status_code = 200
     return StepIntelligenceResponse(
         step_id=step_id,
         session_id=session_id,

@@ -16,7 +16,7 @@ from ...core.database import Database
 from ...core.result_types import Err
 from ...schemas.auth import CurrentUser
 from ..dependencies import get_current_user, get_db_connection, get_redis
-from ..response_patterns import handle_result, ErrorResponse
+from ..response_patterns import handle_result, ErrorResponse, APIResponseHandler
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 
@@ -78,6 +78,12 @@ class APIKeyCreateResponse(BaseModel):
     expires_at: str | None
     rate_limit_per_minute: int
     note: str
+
+
+def _handle_service_error(error: str, response: Response, success_status: int = 200) -> ErrorResponse:
+    """Handle service layer errors by mapping to appropriate HTTP status."""
+    response.status_code = APIResponseHandler.map_error_to_status(error)
+    return ErrorResponse(error=error)
 
 
 class APIKeyRevokeResponse(BaseModel):
@@ -154,9 +160,7 @@ async def create_api_key(
     if "api:write" not in current_user.scopes:
         response.status_code = 403
         return ErrorResponse(
-            error="Insufficient permissions to create API keys",
-            status_code=403,
-            request_id=str(uuid4())
+            error="Insufficient permissions to create API keys"
         )
 
     # Use client_id from current user's OAuth2 token
@@ -172,12 +176,14 @@ async def create_api_key(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     key_data = result.ok_value
     if key_data is None:
-        return handle_result(Err("Unexpected null result"), response)
-        
+        return _handle_service_error("Unexpected null result", response)
+    
+    # Convert to response and return with proper status
+    response.status_code = 201
     return APIKeyCreateResponse(
         id=key_data["id"],
         api_key=key_data["api_key"],
@@ -219,7 +225,7 @@ async def list_api_keys(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     keys = []
     key_list = result.ok_value
@@ -238,6 +244,8 @@ async def list_api_keys(
                 )
             )
 
+    # Return success
+    response.status_code = 200
     return keys
 
 
@@ -267,9 +275,7 @@ async def revoke_api_key(
     if "api:write" not in current_user.scopes:
         response.status_code = 403
         return ErrorResponse(
-            error="Insufficient permissions to revoke API keys",
-            status_code=403,
-            request_id=str(uuid4())
+            error="Insufficient permissions to revoke API keys"
         )
 
     # Verify key belongs to user's client
@@ -277,13 +283,15 @@ async def revoke_api_key(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        return handle_result(ownership_result, response)
+        return _handle_service_error(ownership_result.unwrap_err(), response)
 
     result = await api_key_manager.revoke_api_key(key_id, reason)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
+    # Return success
+    response.status_code = 200
     return APIKeyRevokeResponse(message="API key revoked successfully")
 
 
@@ -313,9 +321,7 @@ async def rotate_api_key(
     if "api:write" not in current_user.scopes:
         response.status_code = 403
         return ErrorResponse(
-            error="Insufficient permissions to rotate API keys",
-            status_code=403,
-            request_id=str(uuid4())
+            error="Insufficient permissions to rotate API keys"
         )
 
     # Verify key belongs to user's client
@@ -323,17 +329,19 @@ async def rotate_api_key(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        return handle_result(ownership_result, response)
+        return _handle_service_error(ownership_result.unwrap_err(), response)
 
     result = await api_key_manager.rotate_api_key(key_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     key_data = result.ok_value
     if key_data is None:
-        return handle_result(Err("Unexpected null result"), response)
-        
+        return _handle_service_error("Unexpected null result", response)
+    
+    # Convert to response and return with proper status
+    response.status_code = 201
     return APIKeyCreateResponse(
         id=key_data["id"],
         api_key=key_data["api_key"],
@@ -373,17 +381,19 @@ async def get_api_key_usage(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        return handle_result(ownership_result, response)
+        return _handle_service_error(ownership_result.unwrap_err(), response)
 
     result = await api_key_manager.get_usage_statistics(key_id, days)
 
     if result.is_err():
-        return handle_result(result, response)
+        return _handle_service_error(result.unwrap_err(), response)
 
     stats = result.ok_value
     if stats is None:
-        return handle_result(Err("Unexpected null result"), response)
-        
+        return _handle_service_error("Unexpected null result", response)
+    
+    # Return success
+    response.status_code = 200
     return APIKeyUsageResponse(
         key_id=stats["key_id"],
         name=stats["name"],

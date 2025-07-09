@@ -383,3 +383,6 @@ async def delete_policy(
             await redis.delete(key)
         
         return None
+    
+    # This should never be reached as the dependency should provide a connection
+    return handle_result(Err("Database connection not available"), response)

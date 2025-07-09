@@ -205,7 +205,8 @@ async def get_admin_dashboard_stats(
     stats = await dashboard_handler._collect_system_metrics()
 
     if stats.is_err():
-        return handle_result(stats, response)
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ErrorResponse(error=stats.unwrap_err())
 
     metrics = stats.unwrap()
 
@@ -245,7 +246,8 @@ async def broadcast_admin_alert(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ErrorResponse(error=result.unwrap_err())
 
     return {
         "status": "success",

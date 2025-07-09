@@ -281,11 +281,7 @@ class WebAuthnProvider:
                 counter=verification.sign_count,
                 device_name=self._detect_device_name(credential_response),
                 created_at=datetime.now(timezone.utc),
-                aaguid=(
-                    bytes_to_base64url(verification.aaguid if isinstance(verification.aaguid, bytes) else verification.aaguid.encode())
-                    if verification.aaguid
-                    else None
-                ),
+                aaguid=verification.aaguid if verification.aaguid else None,
             )
 
             # Clear used challenge

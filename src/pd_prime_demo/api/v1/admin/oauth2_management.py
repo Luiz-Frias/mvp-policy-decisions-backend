@@ -159,7 +159,13 @@ async def create_oauth2_client(
         client_request.refresh_token_lifetime,
     )
 
-    return handle_result(result, response, success_status=201)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    response.status_code = 201
+    return result.unwrap()
 
 
 @router.get("/clients", response_model=list[dict[str, Any]])
@@ -195,7 +201,12 @@ async def list_oauth2_clients(
 
     result = await oauth2_service.list_clients(active_only, limit, offset)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.get("/clients/{client_id}", response_model=dict[str, Any])
@@ -221,7 +232,12 @@ async def get_oauth2_client(
     """
     result = await oauth2_service.get_client_details(client_id)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.patch("/clients/{client_id}", response_model=dict[str, Any])
@@ -265,7 +281,9 @@ async def update_oauth2_client(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"success": True, "message": "Client updated successfully"}
 
@@ -302,7 +320,9 @@ async def regenerate_client_secret(
     result = await oauth2_service.regenerate_client_secret(client_id, admin_user.id)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {
         "client_secret": result.ok_value,
@@ -341,7 +361,12 @@ async def get_client_analytics(
 
     result = await oauth2_service.get_client_analytics(client_id, date_from, date_to)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.post("/clients/{client_id}/revoke", response_model=dict[str, Any])
@@ -380,7 +405,9 @@ async def revoke_client_access(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {
         "tokens_revoked": result.ok_value,
@@ -449,7 +476,13 @@ async def upload_client_certificate(
         admin_user.id,
     )
 
-    return handle_result(result, response, success_status=201)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() else 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    response.status_code = 201
+    return result.unwrap()
 
 
 @router.get("/clients/{client_id}/certificates", response_model=list[dict[str, Any]])
@@ -493,7 +526,12 @@ async def list_client_certificates(
 
     result = await cert_manager.list_client_certificates(client_id, include_revoked)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.delete("/certificates/{certificate_id}", response_model=dict[str, Any])
@@ -540,6 +578,8 @@ async def revoke_client_certificate(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"success": True, "message": "Certificate revoked successfully"}

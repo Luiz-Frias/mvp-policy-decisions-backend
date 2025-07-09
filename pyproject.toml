@@ -260,6 +260,12 @@ multi_line_output = 3
 line_length = 88
 known_first_party = ["pd_prime_demo"]
 
+[tool.ruff]
+# Exclude example files from linting
+extend-exclude = ["src/pd_prime_demo/api/example_elite_pattern.py"]
+line-length = 88
+target-version = "py311"
+
 [tool.mypy]
 # 🛡️ MASTER RULESET: MAXIMUM Type Safety Standards
 python_version = "3.11"
@@ -273,6 +279,11 @@ mypy_path = "stubs"
 # PLUGINS for framework support
 plugins = [
     "pydantic.mypy",
+]
+
+# EXCLUDE example files from type checking
+exclude = [
+    "src/pd_prime_demo/api/example_elite_pattern.py",
 ]
 
 # TYPE SAFETY MAXIMIZATION

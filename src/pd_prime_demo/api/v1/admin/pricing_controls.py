@@ -123,7 +123,9 @@ async def create_pricing_override(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     response.status_code = 201
     return {"override_id": result.ok_value, "status": "created"}
@@ -155,7 +157,9 @@ async def apply_manual_discount(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"applied": result.ok_value or False}
 
@@ -186,7 +190,9 @@ async def create_special_pricing_rule(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     response.status_code = 201
     return {"rule_id": result.ok_value, "status": "active"}
@@ -209,7 +215,12 @@ async def get_pending_overrides(
 
     result = await pricing_service.get_pending_overrides(admin_user.id)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.post("/overrides/{override_id}/approve")
@@ -236,7 +247,9 @@ async def approve_pricing_override(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"approved": result.ok_value or False}
 

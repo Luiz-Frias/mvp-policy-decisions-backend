@@ -7,6 +7,8 @@ Use this as a reference for the systematic conversion.
 from fastapi import APIRouter, Response, Depends
 from typing import Union
 from uuid import UUID
+from datetime import datetime
+from decimal import Decimal
 from beartype import beartype
 
 from pd_prime_demo.api.response_patterns import (
@@ -22,7 +24,7 @@ from pd_prime_demo.schemas.responses import (
     UpdatedResult,
     DeletedResult
 )
-from pd_prime_demo.schemas.quote import QuoteRequest, QuoteResponse
+from pd_prime_demo.schemas.quote import QuoteCreateRequest, QuoteResponse
 from pd_prime_demo.core.result_types import Result
 from pd_prime_demo.api.dependencies import get_current_user
 
@@ -44,7 +46,7 @@ async def create_quote_old(request: QuoteRequest) -> QuoteResponse:
 @router.post("/quotes", status_code=201)
 @beartype
 async def create_quote(
-    request: QuoteRequest,
+    request: QuoteCreateRequest,
     response: Response,
     current_user = Depends(get_current_user)
 ) -> Union[QuoteResponse, ErrorResponse]:
@@ -54,8 +56,18 @@ async def create_quote(
         QuoteResponse on success (201 Created)
         ErrorResponse on failure (400/404/422 with business-appropriate status)
     """
-    # Call service layer (returns Result[Quote, str])
-    result = await quote_service.create_quote(request, current_user.user_id)
+    # Mock service call for example
+    from pd_prime_demo.core.result_types import Ok
+    result: Result[QuoteResponse, str] = Ok(QuoteResponse(
+        quote_id=UUID("12345678-1234-5678-1234-567812345678"),
+        policy_type="auto",
+        customer_id=current_user.user_id,
+        state="CA",
+        premium=1200.00,
+        status="draft",
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    ))
     
     # Convert Result to HTTP response with proper status codes
     return APIResponseHandler.from_result(result, response, success_status=201)
@@ -69,7 +81,22 @@ async def get_quote(
     current_user = Depends(get_current_user)
 ) -> Union[QuoteResponse, ErrorResponse]:
     """Get quote by ID using elite pattern."""
-    result = await quote_service.get_quote(quote_id, current_user.user_id)
+    # Mock service call for example
+    from pd_prime_demo.core.result_types import Ok, Err
+    
+    if str(quote_id) == "12345678-1234-5678-1234-567812345678":
+        result: Result[QuoteResponse, str] = Ok(QuoteResponse(
+            quote_id=quote_id,
+            policy_type="auto",
+            customer_id=current_user.user_id,
+            state="CA",
+            premium=Decimal("1200.00"),
+            status="draft",
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        ))
+    else:
+        result = Err("Quote not found")
     
     # Using convenience function (equivalent to above)
     return handle_result(result, response)

@@ -61,7 +61,9 @@ async def admin_search_quotes(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     # Ensure we return a valid list, not None
     value = result.unwrap()
@@ -91,7 +93,9 @@ async def override_quote(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     # Ensure we return a valid quote, not None
     value = result.unwrap()
@@ -203,7 +207,12 @@ async def get_quote_analytics(
         group_by,
     )
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.get("/export")

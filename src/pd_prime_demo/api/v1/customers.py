@@ -15,7 +15,7 @@ from redis.asyncio import Redis
 from typing import Union
 
 from pd_prime_demo.core.result_types import Err
-from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
+from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse, APIResponseHandler
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -216,7 +216,9 @@ async def create_customer(
         result = await service.create(customer_data)
 
         if result.is_err():
-            return handle_result(result, response, success_status=status.HTTP_201_CREATED)
+            error_msg = result.unwrap_err()
+            response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+            return ErrorResponse(error=error_msg)
 
         customer = result.ok_value
         assert customer is not None
@@ -226,10 +228,13 @@ async def create_customer(
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
+        response.status_code = status.HTTP_201_CREATED
         return customer
 
     except Exception as e:
-        return handle_result(Err(f"Failed to create customer: {str(e)}"), response, success_status=status.HTTP_201_CREATED)
+        error_msg = f"Failed to create customer: {str(e)}"
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
 
 
 @router.get("/{customer_id}")
@@ -276,11 +281,14 @@ async def get_customer(
     result = await service.get(customer_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
 
     customer = result.ok_value
     if not customer:
-        return handle_result(Err("Customer not found"), response)
+        response.status_code = 404
+        return ErrorResponse(error="Customer not found")
 
     # Cache the result
     await redis.setex(cache_key, 300, customer.model_dump_json())
@@ -328,11 +336,14 @@ async def update_customer(
         result = await service.update(customer_id, customer_update)
 
         if result.is_err():
-            return handle_result(result, response)
+            error_msg = result.unwrap_err()
+            response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+            return ErrorResponse(error=error_msg)
 
         customer = result.ok_value
         if not customer:
-            return handle_result(Err("Customer not found"), response)
+            response.status_code = 404
+            return ErrorResponse(error="Customer not found")
 
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
@@ -381,7 +392,9 @@ async def delete_customer(
         result = await service.delete(customer_id)
 
         if result.is_err():
-            return handle_result(result, response)
+            error_msg = result.unwrap_err()
+            response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+            return ErrorResponse(error=error_msg)
 
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
@@ -389,10 +402,13 @@ async def delete_customer(
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
+        response.status_code = status.HTTP_204_NO_CONTENT
         return None
 
     except Exception as e:
-        return handle_result(Err(f"Failed to delete customer: {str(e)}"), response)
+        error_msg = f"Failed to delete customer: {str(e)}"
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
 
 
 @router.get("/{customer_id}/policies")
@@ -445,7 +461,9 @@ async def get_customer_policies(
     result = await service.get_policies(customer_id)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
 
     policies = result.ok_value
     

@@ -164,7 +164,7 @@ class AvailabilityControlManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence: dict[str, Any] = {}
+            evidence: dict[str, Any] = {}  # Will contain UptimeMetrics dict and check results
 
             # Get uptime metrics
             uptime_metrics = await self._calculate_uptime_metrics()

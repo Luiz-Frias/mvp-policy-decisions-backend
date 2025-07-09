@@ -164,14 +164,15 @@ async def get_slow_queries(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to analyze slow queries"), response)
 
     # Type narrowing - ok_value should not be None if is_ok() is True
     slow_queries = result.ok_value
     if slow_queries is None:
         return handle_result(Err("Internal server error: slow queries result is None"), response)
 
-    return [
+    # Convert domain models to response models
+    slow_query_responses = [
         SlowQueryResponse(
             query=sq.query,
             calls=sq.calls,
@@ -182,6 +183,8 @@ async def get_slow_queries(
         )
         for sq in slow_queries
     ]
+    
+    return slow_query_responses
 
 
 @router.post("/analyze-query", response_model=QueryPlanResponse)
@@ -196,7 +199,7 @@ async def analyze_query(
     result = await optimizer.explain_analyze(query)
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to analyze query"), response)
 
     plan = result.ok_value
     
@@ -204,7 +207,8 @@ async def analyze_query(
     if plan is None:
         return handle_result(Err("Internal server error: query plan is None"), response)
     
-    return QueryPlanResponse(
+    # Convert domain model to response model
+    plan_response = QueryPlanResponse(
         query=plan.query,
         execution_time_ms=plan.execution_time_ms,
         planning_time_ms=plan.planning_time_ms,
@@ -212,6 +216,8 @@ async def analyze_query(
         rows_returned=plan.rows_returned,
         suggestions=plan.suggestions,
     )
+    
+    return plan_response
 
 
 @router.get(
@@ -231,14 +237,15 @@ async def get_index_suggestions(
     result = await optimizer.suggest_indexes(table_name, min_cardinality)
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to suggest indexes"), response)
 
     # Type narrowing - ok_value should not be None if is_ok() is True
     suggestions = result.ok_value
     if suggestions is None:
         return handle_result(Err("Internal server error: index suggestions result is None"), response)
 
-    return [
+    # Convert domain models to response models
+    suggestion_responses = [
         IndexSuggestionResponse(
             table_name=suggestion.table_name,
             column_name=suggestion.column_name,
@@ -248,6 +255,8 @@ async def get_index_suggestions(
         )
         for suggestion in suggestions
     ]
+    
+    return suggestion_responses
 
 
 @router.get("/table-bloat")
@@ -264,8 +273,9 @@ async def check_table_bloat(
     result = await optimizer.check_table_bloat(threshold_percent)
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to check table bloat"), response)
 
+    # Return the formatted response
     return {"bloated_tables": result.ok_value}
 
 
@@ -281,19 +291,22 @@ async def get_admin_metrics(
     result = await admin_optimizer.get_admin_dashboard_metrics(use_cache=use_cache)
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to get admin metrics"), response)
 
     metrics = result.unwrap()  # Safe to unwrap after checking is_err()
 
     # Add cache hit rate (simplified for now)
     cache_hit_rate = 85.0 if use_cache else 0.0
 
-    return AdminMetricsResponse(
+    # Convert domain model to response model
+    metrics_response = AdminMetricsResponse(
         daily_metrics=metrics.daily_metrics,
         user_activity=metrics.user_activity,
         system_health=metrics.system_health,
         cache_hit_rate=cache_hit_rate,
     )
+    
+    return metrics_response
 
 
 @router.post("/admin/refresh-views")
@@ -308,9 +321,14 @@ async def refresh_admin_views(
     result = await admin_optimizer.refresh_materialized_views(force_refresh=force)
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to refresh views"), response)
 
-    return {"refreshed_views": result.ok_value}
+    # Type narrowing and response formatting
+    refreshed_views = result.ok_value
+    if refreshed_views is None:
+        return handle_result(Err("Internal server error: refreshed views result is None"), response)
+    
+    return {"refreshed_views": refreshed_views}
 
 
 @router.post("/admin/optimize")
@@ -324,10 +342,14 @@ async def optimize_admin_queries(
     result = await admin_optimizer.optimize_admin_queries()
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to optimize queries"), response)
 
-    assert result.ok_value is not None
-    return result.ok_value
+    # Type narrowing and response formatting
+    optimization_result = result.ok_value
+    if optimization_result is None:
+        return handle_result(Err("Internal server error: optimization result is None"), response)
+    
+    return optimization_result
 
 
 @router.get("/admin/performance")
@@ -341,10 +363,14 @@ async def monitor_admin_performance(
     result = await admin_optimizer.monitor_admin_query_performance()
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to monitor performance"), response)
 
-    assert result.ok_value is not None
-    return result.ok_value
+    # Type narrowing and response formatting
+    performance_result = result.ok_value
+    if performance_result is None:
+        return handle_result(Err("Internal server error: performance result is None"), response)
+    
+    return performance_result
 
 
 @router.get("/pool-metrics/detailed")
@@ -446,11 +472,12 @@ async def get_operation_metrics(
     result = await collector.get_metrics(operation)
 
     if result.is_err():
-        return handle_result(result, response)
+        return handle_result(Err(result.err_value or "Failed to get operation metrics"), response)
 
     metrics = result.unwrap()  # Safe to unwrap after checking is_err()
     
-    return PerformanceMetricsResponse(
+    # Convert domain model to response model
+    metrics_response = PerformanceMetricsResponse(
         operation=metrics.operation,
         total_requests=metrics.total_requests,
         avg_duration_ms=metrics.avg_duration_ms,
@@ -462,6 +489,8 @@ async def get_operation_metrics(
         requests_per_second=metrics.requests_per_second,
         meets_100ms_requirement=metrics.p99_duration_ms < 100.0,
     )
+    
+    return metrics_response
 
 
 @router.get("/performance/alerts")

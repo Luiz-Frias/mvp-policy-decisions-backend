@@ -74,7 +74,7 @@ class StatusResponse(BaseModel):
     
     status: str = Field(..., description="Current status")
     message: str = Field(..., description="Status description")
-    details: dict[str, Any] | None = Field(default=None, description="Additional status details")
+    details: dict[str, str | int | bool | float | list[str] | None] | None = Field(default=None, description="Additional status details")
 
 
 @beartype

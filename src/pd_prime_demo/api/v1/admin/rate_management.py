@@ -138,7 +138,13 @@ async def create_rate_table_version(
         version_request.notes,
     )
 
-    return handle_result(result, response, success_status=201)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    response.status_code = 201
+    return result.unwrap()
 
 
 @router.post("/rate-versions/{version_id}/approve")
@@ -168,7 +174,9 @@ async def approve_rate_version(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"approved": result.ok_value or False}
 
@@ -199,7 +207,9 @@ async def reject_rate_version(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 400
+        return ErrorResponse(error=error_msg)
 
     return {"rejected": result.ok_value or False}
 
@@ -225,7 +235,12 @@ async def compare_rate_versions(
 
     result = await rate_service.get_rate_comparison(version_id_1, version_id_2)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.post("/ab-tests")
@@ -256,7 +271,9 @@ async def create_ab_test(
     )
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 400 if "invalid" in error_msg.lower() or "conflict" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     response.status_code = 201
     return {"test_id": result.ok_value, "status": "scheduled"}
@@ -284,7 +301,12 @@ async def get_rate_analytics(
 
     result = await rate_service.get_rate_analytics(table_name, date_from, date_to)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 @router.get("/pending-approvals")
@@ -306,7 +328,12 @@ async def get_pending_approvals(
 
     result = await rate_service.get_pending_approvals(admin_user.id)
 
-    return handle_result(result, response)
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = 500
+        return ErrorResponse(error=error_msg)
+    
+    return result.unwrap()
 
 
 # Additional endpoints for rate management
@@ -342,7 +369,9 @@ async def list_rate_table_versions(
     result = await rate_table_service.list_rate_versions(table_name, include_inactive)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     # Ensure we have a valid list of versions
     versions_list = result.unwrap()
@@ -400,7 +429,9 @@ async def get_active_rates(
     result = await rate_table_service.get_active_rates(state, product_type)
 
     if result.is_err():
-        return handle_result(result, response)
+        error_msg = result.unwrap_err()
+        response.status_code = 404 if "not found" in error_msg.lower() else 500
+        return ErrorResponse(error=error_msg)
 
     # Convert Decimal values to float for JSON serialization
     rates_data = result.unwrap()

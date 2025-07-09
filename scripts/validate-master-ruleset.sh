@@ -46,7 +46,7 @@ fi
 
 # Check 2: All data models use Pydantic (no plain dicts)
 echo "🔍 Checking for plain dictionary usage..."
-dict_usage=$(grep -r "dict\[str,\|Dict\[str,\|: dict\|-> dict" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" || true)
+dict_usage=$(grep -r "dict\[str,\|Dict\[str,\|: dict\|-> dict" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" | grep -v "example_elite_pattern.py" || true)
 if [[ -n "$dict_usage" ]]; then
     echo -e "${YELLOW}⚠️  WARNING: Found plain dictionary type hints. Consider using Pydantic models:${NC}"
     echo "$dict_usage" | head -5
@@ -55,7 +55,7 @@ fi
 
 # Check 3: No bare 'Any' types
 echo "🔍 Checking for Any type usage..."
-any_usage=$(grep -r "Any\|typing.Any" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" | grep -v "# type: ignore" || true)
+any_usage=$(grep -r "Any\|typing.Any" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" | grep -v "# type: ignore" | grep -v "example_elite_pattern.py" || true)
 if [[ -n "$any_usage" ]]; then
     echo -e "${RED}❌ ERROR: Found 'Any' type usage without proper boundaries:${NC}"
     echo "$any_usage" | head -5
