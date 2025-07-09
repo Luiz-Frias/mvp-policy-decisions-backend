@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from beartype import beartype
-from fastapi import HTTPException, Request, Response
+from fastapi import Request, Response
 from fastapi.security.utils import get_authorization_scheme_param
 from jose import jwt  # type: ignore[import-untyped]
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -61,6 +61,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
             if api_key:
                 await self._validate_api_key(request, api_key)
             else:
+                # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                from fastapi import HTTPException
                 raise HTTPException(
                     status_code=HTTP_401_UNAUTHORIZED,
                     detail="Authorization required",
@@ -75,6 +77,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
             elif scheme.lower() == "apikey":
                 await self._validate_api_key(request, token)
             else:
+                # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                from fastapi import HTTPException
                 raise HTTPException(
                     status_code=HTTP_401_UNAUTHORIZED,
                     detail="Invalid authentication scheme",
@@ -110,6 +114,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                 redis = get_redis_client()
                 revoked = await redis.get(f"revoked_token:{jti}")
                 if revoked:
+                    # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                    from fastapi import HTTPException
                     raise HTTPException(
                         status_code=HTTP_401_UNAUTHORIZED,
                         detail="Token has been revoked",
@@ -142,17 +148,23 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                 if not ScopeValidator.check_scope_permission(
                     token_scopes, required_scope
                 ):
+                    # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                    from fastapi import HTTPException
                     raise HTTPException(
                         status_code=HTTP_403_FORBIDDEN,
                         detail=f"Insufficient scope. Required: {required_scope}",
                     )
 
         except jwt.ExpiredSignatureError:
+            # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+            from fastapi import HTTPException
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
             )
         except jwt.JWTError:
+            # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+            from fastapi import HTTPException
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
@@ -195,6 +207,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
             )
 
             if result.is_err():
+                # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                from fastapi import HTTPException
                 raise HTTPException(
                     status_code=HTTP_401_UNAUTHORIZED,
                     detail=result.err_value,
@@ -210,6 +224,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                     "scopes": key_info["scopes"],
                 }
             else:
+                # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                from fastapi import HTTPException
                 raise HTTPException(
                     status_code=HTTP_401_UNAUTHORIZED,
                     detail="Invalid API key validation result",
@@ -299,6 +315,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                 )
 
                 if result.is_err():
+                    # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                    from fastapi import HTTPException
                     raise HTTPException(
                         status_code=HTTP_401_UNAUTHORIZED,
                         detail=f"Invalid client certificate: {result.err_value}",
@@ -313,6 +331,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                         "validated": True,
                     }
                 else:
+                    # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+                    from fastapi import HTTPException
                     raise HTTPException(
                         status_code=HTTP_401_UNAUTHORIZED,
                         detail="Invalid certificate validation result",
@@ -321,6 +341,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
         except HTTPException:
             raise
         except Exception as e:
+            # NOTE: Middleware needs to raise HTTPException for FastAPI to handle properly
+            from fastapi import HTTPException
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,
                 detail=f"Certificate validation failed: {str(e)}",

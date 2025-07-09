@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,6 +16,7 @@ from ...core.result_types import Err
 from ...core.security import get_security, Security
 from ..dependencies import get_sso_manager, get_db_connection
 from ..response_patterns import handle_result, ErrorResponse
+from typing import Union
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -92,7 +93,8 @@ async def login(
     request: LoginRequest,
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
-) -> LoginResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[LoginResponse, ErrorResponse]:
     """Login with email and password.
 
     This endpoint is for traditional email/password authentication.
@@ -104,13 +106,13 @@ async def login(
     )
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        return handle_result(Err("Invalid email or password"), response)
 
     # Check if user is SSO-only
     if user["password_hash"].startswith("sso:"):
-        raise HTTPException(
-            status_code=401,
-            detail="This account uses SSO authentication. Please use the SSO login option.",
+        return handle_result(
+            Err("This account uses SSO authentication. Please use the SSO login option."),
+            response
         )
 
     # Verify password
@@ -120,7 +122,7 @@ async def login(
             "UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = $1",
             user["id"],
         )
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        return handle_result(Err("Invalid email or password"), response)
 
     # Reset failed login attempts and update last login
     await db.execute(

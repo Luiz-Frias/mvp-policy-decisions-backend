@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -16,6 +16,8 @@ from ...core.cache import Cache
 from ...core.config import Settings, get_settings
 from ...core.database import Database
 from ..dependencies import get_db_connection, get_redis
+from ..response_patterns import handle_result, ErrorResponse
+from typing import Union
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 
@@ -178,7 +180,8 @@ async def token(
     password: str | None = Form(None),
     code_verifier: str | None = Form(None),
     oauth2_server: OAuth2Server = Depends(get_oauth2_server),
-) -> dict[str, Any]:
+    response: Response = Depends(lambda: Response()),
+) -> Union[dict[str, Any], ErrorResponse]:
     """OAuth2 token endpoint.
 
     This endpoint handles all OAuth2 token requests including:
@@ -212,12 +215,11 @@ async def token(
             client_id, "token_request"
         )
         if rate_limit_result.is_err():
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "error": "rate_limit_exceeded",
-                    "error_description": rate_limit_result.err_value,
-                },
+            response.status_code = 429
+            return ErrorResponse(
+                error="rate_limit_exceeded",
+                error_code="rate_limit_exceeded",
+                details={"error_description": rate_limit_result.err_value}
             )
 
     result = await oauth2_server.token(
@@ -235,9 +237,10 @@ async def token(
 
     if result.is_err():
         error_str = result.unwrap_err()
-        raise HTTPException(
-            status_code=400,
-            detail={"error": error_str},
+        response.status_code = 400
+        return ErrorResponse(
+            error=error_str,
+            error_code="invalid_request"
         )
 
     assert result.ok_value is not None
