@@ -11,7 +11,10 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ...models.admin import AdminUser, AdminUserCreate, AdminActivityLog, ActivityAction, AdminUserUpdate
+from ...models.admin import (
+    AdminUser,
+    AdminUserCreate,
+)
 from ..cache_keys import CacheKeys
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -100,7 +103,11 @@ class AdminUserService:
             admin_user = AdminUser(
                 id=row["id"],
                 email=row["email"],
-                full_name=f"{row['first_name']} {row['last_name']}" if row["first_name"] and row["last_name"] else row["first_name"] or row["last_name"] or "",
+                full_name=(
+                    f"{row['first_name']} {row['last_name']}"
+                    if row["first_name"] and row["last_name"]
+                    else row["first_name"] or row["last_name"] or ""
+                ),
                 role_id=row["role_id"],
                 is_super_admin=row["is_super_admin"],
                 created_at=row["created_at"],
@@ -181,7 +188,11 @@ class AdminUserService:
         updated_admin = AdminUser(
             id=row["id"],
             email=row["email"],
-            full_name=f"{row['first_name']} {row['last_name']}" if row["first_name"] and row["last_name"] else row["first_name"] or row["last_name"] or "",
+            full_name=(
+                f"{row['first_name']} {row['last_name']}"
+                if row["first_name"] and row["last_name"]
+                else row["first_name"] or row["last_name"] or ""
+            ),
             role_id=row["role_id"],
             is_super_admin=row["is_super_admin"],
             created_at=row["created_at"],
@@ -267,9 +278,7 @@ class AdminUserService:
         rows = await self._db.fetch(all_permissions_query, admin.role_id)
         permissions = [f"{row['resource']}:{row['action']}" for row in rows]
 
-        await self._cache.set(
-            cache_key, {"permissions": permissions}, self._cache_ttl
-        )
+        await self._cache.set(cache_key, {"permissions": permissions}, self._cache_ttl)
 
         return Ok(has_permission)
 
@@ -306,7 +315,11 @@ class AdminUserService:
         admin = AdminUser(
             id=row["id"],
             email=row["email"],
-            full_name=f"{row['first_name']} {row['last_name']}" if row["first_name"] and row["last_name"] else row["first_name"] or row["last_name"] or "",
+            full_name=(
+                f"{row['first_name']} {row['last_name']}"
+                if row["first_name"] and row["last_name"]
+                else row["first_name"] or row["last_name"] or ""
+            ),
             role_id=row["role_id"],
             is_super_admin=row["is_super_admin"],
             created_at=row["created_at"],
@@ -316,9 +329,7 @@ class AdminUserService:
         )
 
         # Cache result
-        await self._cache.set(
-            cache_key, admin.model_dump(mode="json"), self._cache_ttl
-        )
+        await self._cache.set(cache_key, admin.model_dump(mode="json"), self._cache_ttl)
 
         return Ok(admin)
 

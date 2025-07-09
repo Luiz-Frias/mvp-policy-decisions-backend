@@ -12,7 +12,7 @@ from ...core.config import Settings, get_settings
 from ...core.result_types import Err
 from ...core.security import create_jwt_token
 from ..dependencies import get_redis, get_sso_manager
-from ..response_patterns import handle_result, ErrorResponse
+from ..response_patterns import ErrorResponse, handle_result
 
 router = APIRouter(prefix="/auth/sso", tags=["sso-auth"])
 
@@ -81,7 +81,7 @@ async def initiate_sso_auth(
     cache: Cache = Depends(get_redis),
     redirect_url: str | None = Query(None, description="Post-auth redirect URL"),
     response: Response = Depends(lambda: Response()),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Initiate SSO authentication flow.
 
     Args:
@@ -98,9 +98,11 @@ async def initiate_sso_auth(
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
         return handle_result(
-            Err(f"SSO provider '{provider}' not found or not enabled. "
-                f"Available providers: {sso_manager.list_providers()}"),
-            response
+            Err(
+                f"SSO provider '{provider}' not found or not enabled. "
+                f"Available providers: {sso_manager.list_providers()}"
+            ),
+            response,
         )
 
     # Generate state parameter for CSRF protection
@@ -128,7 +130,7 @@ async def initiate_sso_auth(
     if isinstance(auth_url_result, Err):
         return handle_result(
             Err(f"Failed to generate authorization URL: {auth_url_result.error}"),
-            response
+            response,
         )
 
     return {
@@ -150,7 +152,7 @@ async def handle_sso_callback(
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_redis),
     settings: Settings = Depends(get_settings),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Handle SSO authentication callback.
 
     Args:
@@ -168,26 +170,27 @@ async def handle_sso_callback(
     # Get SSO provider
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
-        return handle_result(
-            Err(f"SSO provider '{provider}' not found"),
-            response
-        )
+        return handle_result(Err(f"SSO provider '{provider}' not found"), response)
 
     # Validate state parameter
     state_data = await cache.get(f"sso_state:{state}")
     if not state_data:
         return handle_result(
-            Err("Invalid or expired state parameter. "
-                "Required action: Restart SSO authentication flow."),
-            response
+            Err(
+                "Invalid or expired state parameter. "
+                "Required action: Restart SSO authentication flow."
+            ),
+            response,
         )
 
     # Verify state belongs to this provider
     if state_data.get("provider") != provider:
         return handle_result(
-            Err(f"State parameter for different provider. "
-                f"Expected: {provider}, Got: {state_data.get('provider')}"),
-            response
+            Err(
+                f"State parameter for different provider. "
+                f"Expected: {provider}, Got: {state_data.get('provider')}"
+            ),
+            response,
         )
 
     try:
@@ -195,24 +198,21 @@ async def handle_sso_callback(
         tokens_result = await sso_provider.exchange_code_for_token(code, state)
         if isinstance(tokens_result, Err):
             return handle_result(
-                Err(f"Token exchange failed: {tokens_result.error}"),
-                response
+                Err(f"Token exchange failed: {tokens_result.error}"), response
             )
 
         tokens = tokens_result.value
         access_token = tokens.get("access_token")
         if not access_token:
             return handle_result(
-                Err("No access token received from provider"),
-                response
+                Err("No access token received from provider"), response
             )
 
         # Get user information
         user_info_result = await sso_provider.get_user_info(access_token)
         if isinstance(user_info_result, Err):
             return handle_result(
-                Err(f"Failed to get user info: {user_info_result.error}"),
-                response
+                Err(f"Failed to get user info: {user_info_result.error}"), response
             )
 
         sso_user_info = user_info_result.value
@@ -221,8 +221,7 @@ async def handle_sso_callback(
         user_result = await sso_manager.create_or_update_user(sso_user_info, provider)
         if isinstance(user_result, Err):
             return handle_result(
-                Err(f"User provisioning failed: {user_result.error}"),
-                response
+                Err(f"User provisioning failed: {user_result.error}"), response
             )
 
         user = user_result.value
@@ -272,10 +271,7 @@ async def handle_sso_callback(
     except Exception as e:
         # Log authentication failure
         await sso_manager._log_auth_event(None, "sso", provider, "failed", str(e))
-        return handle_result(
-            Err(f"SSO authentication failed: {str(e)}"),
-            response
-        )
+        return handle_result(Err(f"SSO authentication failed: {str(e)}"), response)
 
 
 @router.post("/{provider}/logout")
@@ -285,7 +281,7 @@ async def logout_sso_user(
     access_token: str = Query(..., description="Provider access token"),
     sso_manager: SSOManager = Depends(get_sso_manager),
     response: Response = Depends(lambda: Response()),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Logout user from SSO provider.
 
     Args:
@@ -299,10 +295,7 @@ async def logout_sso_user(
     # Get SSO provider
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
-        return handle_result(
-            Err(f"SSO provider '{provider}' not found"),
-            response
-        )
+        return handle_result(Err(f"SSO provider '{provider}' not found"), response)
 
     # Attempt to revoke token
     revoke_result = await sso_provider.revoke_token(access_token)
@@ -329,7 +322,7 @@ async def refresh_sso_token(
     refresh_token: str = Query(..., description="Refresh token"),
     sso_manager: SSOManager = Depends(get_sso_manager),
     response: Response = Depends(lambda: Response()),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Refresh SSO access token.
 
     Args:
@@ -343,18 +336,14 @@ async def refresh_sso_token(
     # Get SSO provider
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
-        return handle_result(
-            Err(f"SSO provider '{provider}' not found"),
-            response
-        )
+        return handle_result(Err(f"SSO provider '{provider}' not found"), response)
 
     # Refresh token
     refresh_result = await sso_provider.refresh_token(refresh_token)
 
     if isinstance(refresh_result, Err):
         return handle_result(
-            Err(f"Token refresh failed: {refresh_result.error}"),
-            response
+            Err(f"Token refresh failed: {refresh_result.error}"), response
         )
 
     return {

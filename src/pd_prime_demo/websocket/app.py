@@ -186,7 +186,9 @@ async def websocket_endpoint(
     if connect_result.is_err():
         await websocket.close(
             code=status.WS_1013_TRY_AGAIN_LATER,
-            reason=(connect_result.unwrap_err() or "Connection failed")[:123],  # Reason limited to 123 bytes
+            reason=(connect_result.unwrap_err() or "Connection failed")[
+                :123
+            ],  # Reason limited to 123 bytes
         )
         return
 

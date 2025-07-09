@@ -19,7 +19,7 @@ from ...dependencies import (
     get_oauth2_admin_service,
     get_redis,
 )
-from ...response_patterns import handle_result, ErrorResponse
+from ...response_patterns import ErrorResponse
 
 router = APIRouter(prefix="/oauth2", tags=["admin-oauth2"])
 
@@ -76,9 +76,8 @@ class OAuth2ClientCreateRequest(BaseModel):
         """Validate redirect URIs format."""
         # Validate URL format for each URI
         import re
-        url_pattern = re.compile(
-            r'^https?://[^\s/$.?#].[^\s]*$'
-        )
+
+        url_pattern = re.compile(r"^https?://[^\s/$.?#].[^\s]*$")
         for uri in v:
             if not url_pattern.match(uri):
                 raise ValueError(f"Invalid redirect URI format: {uri}")
@@ -127,7 +126,7 @@ async def create_oauth2_client(
     response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Create new OAuth2 client application.
 
     Required permission: admin:clients
@@ -161,7 +160,11 @@ async def create_oauth2_client(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower() or "already exists" in error_msg.lower()
+            else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -177,7 +180,7 @@ async def list_oauth2_clients(
     offset: int = Query(0, ge=0),
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """List OAuth2 clients.
 
     Required permission: admin:clients
@@ -216,7 +219,7 @@ async def get_oauth2_client(
     response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get OAuth2 client details.
 
     Args:
@@ -248,7 +251,7 @@ async def update_oauth2_client(
     response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Update OAuth2 client configuration.
 
     Required permission: admin:clients
@@ -295,7 +298,7 @@ async def regenerate_client_secret(
     response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Regenerate client secret.
 
     Required permission: admin:clients
@@ -339,7 +342,7 @@ async def get_client_analytics(
     date_to: datetime = Query(..., description="End date for analytics"),
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get OAuth2 client usage analytics.
 
     Args:
@@ -377,7 +380,7 @@ async def revoke_client_access(
     response: Response,
     oauth2_service: OAuth2AdminService = Depends(get_oauth2_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Revoke all access tokens for a client.
 
     Required permission: admin:clients
@@ -439,7 +442,7 @@ async def upload_client_certificate(
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Upload a client certificate for mTLS authentication.
 
     Required permission: admin:clients
@@ -478,7 +481,11 @@ async def upload_client_certificate(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() else 404 if "not found" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower()
+            else 404 if "not found" in error_msg.lower() else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -494,7 +501,7 @@ async def list_client_certificates(
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """List certificates for a client.
 
     Required permission: admin:clients
@@ -543,7 +550,7 @@ async def revoke_client_certificate(
     admin_user: AdminUser = Depends(get_current_admin_user),
     db: asyncpg.Connection = Depends(get_db_connection),
     redis: Redis = Depends(get_redis),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Revoke a client certificate.
 
     Required permission: admin:clients

@@ -2,20 +2,18 @@
 
 import base64
 from datetime import datetime, timezone
-from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from pydantic import BaseModel, ConfigDict
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
 from .models import BiometricCaptureSettings
-from pydantic import BaseModel, ConfigDict, Field
-from beartype import beartype
 
 
 @beartype
@@ -150,12 +148,12 @@ class LivenessData(BaseModel):
     blink_detected: bool = False
     head_movement: bool = False
     smile_detected: bool = False
-    
+
     # Fingerprint liveness
     pulse_detected: bool = False
     temperature_range: bool = False
     pressure_variation: bool = False
-    
+
     # Voice liveness
     natural_speech: bool = False
     background_noise: bool = False
@@ -265,9 +263,7 @@ class BiometricProvider:
                 return Err("No biometric data enrolled for user")
 
             # Filter by requested type
-            type_biometrics = [
-                b for b in user_biometrics if b.type == biometric_type
-            ]
+            type_biometrics = [b for b in user_biometrics if b.type == biometric_type]
 
             if not type_biometrics:
                 return Err(f"No {biometric_type} biometric enrolled")
@@ -355,8 +351,10 @@ class BiometricProvider:
 
                 if template_metadata_dict:
                     # Reconstruct template metadata
-                    template_metadata = BiometricTemplateMetadata(**template_metadata_dict)
-                    
+                    template_metadata = BiometricTemplateMetadata(
+                        **template_metadata_dict
+                    )
+
                     # Perform biometric matching (mock implementation)
                     similarity = self._match_biometric(
                         biometric_data,
@@ -372,7 +370,9 @@ class BiometricProvider:
             # Update challenge status
             challenge.status = "verified" if match_found else "failed"
             await self._cache.set(
-                challenge_key, challenge.model_dump(), ttl=60  # Keep for 1 minute for audit
+                challenge_key,
+                challenge.model_dump(),
+                ttl=60,  # Keep for 1 minute for audit
             )
 
             if match_found:
@@ -389,7 +389,9 @@ class BiometricProvider:
             return Err(f"Failed to verify biometric: {str(e)}")
 
     @beartype
-    async def remove_biometric(self, user_id: UUID, template_id: str) -> Result[None, str]:
+    async def remove_biometric(
+        self, user_id: UUID, template_id: str
+    ) -> Result[None, str]:
         """Remove biometric template.
 
         Args:
@@ -411,7 +413,9 @@ class BiometricProvider:
             ]
 
             await self._cache.set(
-                f"user_biometrics:{user_id}", [b.model_dump() for b in updated_biometrics], ttl=86400 * 365
+                f"user_biometrics:{user_id}",
+                [b.model_dump() for b in updated_biometrics],
+                ttl=86400 * 365,
             )
 
             return Ok(None)
@@ -489,7 +493,9 @@ class BiometricProvider:
         user_biometrics.append(new_biometric)
 
         await self._cache.set(
-            f"user_biometrics:{user_id}", [b.model_dump() for b in user_biometrics], ttl=86400 * 365
+            f"user_biometrics:{user_id}",
+            [b.model_dump() for b in user_biometrics],
+            ttl=86400 * 365,
         )
 
     @beartype
@@ -527,7 +533,9 @@ class BiometricProvider:
             )
 
     @beartype
-    async def _check_liveness(self, biometric_type: str, liveness_data: LivenessData) -> Result[bool, str]:
+    async def _check_liveness(
+        self, biometric_type: str, liveness_data: LivenessData
+    ) -> Result[bool, str]:
         """Check liveness to prevent spoofing attacks."""
         try:
             # Mock liveness detection
@@ -583,7 +591,7 @@ class BiometricProvider:
         if template_metadata_dict:
             # Reconstruct and update metadata
             template_metadata = BiometricTemplateMetadata(**template_metadata_dict)
-            
+
             # Create updated metadata (since it's frozen, we need to create a new instance)
             updated_metadata = BiometricTemplateMetadata(
                 template_id=template_metadata.template_id,
@@ -596,4 +604,6 @@ class BiometricProvider:
                 use_count=template_metadata.use_count + 1,
             )
 
-            await self._cache.set(cache_key, updated_metadata.model_dump(), ttl=86400 * 365)
+            await self._cache.set(
+                cache_key, updated_metadata.model_dump(), ttl=86400 * 365
+            )

@@ -308,7 +308,11 @@ class Database:
             # Target 80% of max_size for aggressive pre-warming
             # Note: asyncpg Pool doesn't expose direct size getters in newer versions
             # Use the config values we set during pool creation
-            target_warmup = int(self._main_config.max_connections * 0.8) if self._main_config else 20
+            target_warmup = (
+                int(self._main_config.max_connections * 0.8)
+                if self._main_config
+                else 20
+            )
 
             # Parallel connection establishment for faster warming
             batch_size = 10  # Increased from 5
@@ -440,8 +444,16 @@ class Database:
 
         # asyncpg Pool doesn't expose size methods in newer versions
         # We'll use the _holders attribute if available, otherwise estimate
-        pool_size = len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else (self._main_config.max_connections if self._main_config else 20)
-        free_size = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0
+        pool_size = (
+            len(getattr(self._pool, "_holders", []))
+            if hasattr(self._pool, "_holders")
+            else (self._main_config.max_connections if self._main_config else 20)
+        )
+        free_size = (
+            len([h for h in getattr(self._pool, "_holders", []) if h._con is None])
+            if hasattr(self._pool, "_holders")
+            else 0
+        )
 
         # Check if pool is exhausted
         if free_size == 0:
@@ -470,7 +482,7 @@ class Database:
             err_msg = health.err_value
             if err_msg and isinstance(err_msg, str) and "exhausted" in err_msg:
                 # Use TimeoutError for pool timeout
-                raise asyncio.TimeoutError("Pool exhausted")
+                raise TimeoutError("Pool exhausted")
 
         timeout = timeout or self._settings.database_pool_timeout
         start_time = time.perf_counter()
@@ -483,7 +495,17 @@ class Database:
                 self._metrics["connection_acquisitions"] += 1
                 self._metrics["connections_active"] += 1
                 # Estimate idle connections based on pool internals
-                self._metrics["connections_idle"] = len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0
+                self._metrics["connections_idle"] = (
+                    len(
+                        [
+                            h
+                            for h in getattr(self._pool, "_holders", [])
+                            if h._con is None
+                        ]
+                    )
+                    if hasattr(self._pool, "_holders")
+                    else 0
+                )
                 self._metrics["queries_total"] += 1
 
                 # Keep only last 1000 wait time measurements
@@ -510,7 +532,7 @@ class Database:
 
                 self._metrics["connection_releases"] += 1
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._metrics["pool_exhausted_count"] += 1
             raise
         except Exception:
@@ -565,7 +587,10 @@ class Database:
                 async with self.acquire() as conn:
                     result = await conn.execute(query, *args)
                     return Ok(result)
-            except (asyncpg.exceptions.PostgresConnectionError, asyncpg.PostgresError) as e:
+            except (
+                asyncpg.exceptions.PostgresConnectionError,
+                asyncpg.PostgresError,
+            ) as e:
                 last_error = e
                 if attempt < max_attempts - 1:
                     # Exponential backoff
@@ -613,8 +638,16 @@ class Database:
 
         return PoolMetrics(
             # Use pool config values and estimates since newer asyncpg doesn't expose these methods
-            size=len(getattr(self._pool, '_holders', [])) if hasattr(self._pool, '_holders') else 0,
-            free_size=len([h for h in getattr(self._pool, '_holders', []) if h._con is None]) if hasattr(self._pool, '_holders') else 0,
+            size=(
+                len(getattr(self._pool, "_holders", []))
+                if hasattr(self._pool, "_holders")
+                else 0
+            ),
+            free_size=(
+                len([h for h in getattr(self._pool, "_holders", []) if h._con is None])
+                if hasattr(self._pool, "_holders")
+                else 0
+            ),
             min_size=self._main_config.min_connections if self._main_config else 5,
             max_size=self._main_config.max_connections if self._main_config else 20,
             connections_active=self._metrics["connections_active"],
@@ -749,7 +782,9 @@ class Database:
                 (stats.size - stats.free_size) / stats.size if stats.size > 0 else 0
             )
             if utilization > 0.9:
-                return Ok(f"Warning: Pool at {utilization:.0%} capacity")  # Unhealthy but operational
+                return Ok(
+                    f"Warning: Pool at {utilization:.0%} capacity"
+                )  # Unhealthy but operational
 
             return Ok("Healthy")
 

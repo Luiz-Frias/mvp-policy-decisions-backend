@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import asyncpg
 from beartype import beartype
-from fastapi import Depends, HTTPException, Header, Security, status
+from fastapi import Depends, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 
@@ -25,7 +25,6 @@ from ..core.database import Database, get_db_session
 from ..core.security import verify_jwt_token
 from ..models.admin import AdminUser
 from ..schemas.auth import CurrentUser
-from ..core.result_types import Ok, Err, Result
 from ..services.admin.oauth2_admin_service import OAuth2AdminService
 from ..services.admin.sso_admin_service import SSOAdminService
 

@@ -456,7 +456,9 @@ class RiskEngine:
             return f"{risk_level.value.title()} risk detected"
 
     @beartype
-    def _update_risk_factors(self, risk_factors: RiskFactors, updates: dict[str, float]) -> RiskFactors:
+    def _update_risk_factors(
+        self, risk_factors: RiskFactors, updates: dict[str, float]
+    ) -> RiskFactors:
         """Update risk factors with new values."""
         location_risk = risk_factors.location_risk
         device_risk = risk_factors.device_risk
@@ -468,19 +470,35 @@ class RiskEngine:
 
         # Map risk factor names to appropriate categories
         for factor_name, value in updates.items():
-            if any(term in factor_name for term in ["location", "travel", "country", "city"]):
+            if any(
+                term in factor_name
+                for term in ["location", "travel", "country", "city"]
+            ):
                 location_risk = max(location_risk, value)
-            elif any(term in factor_name for term in ["device", "fingerprint", "user_agent"]):
+            elif any(
+                term in factor_name for term in ["device", "fingerprint", "user_agent"]
+            ):
                 device_risk = max(device_risk, value)
-            elif any(term in factor_name for term in ["behavior", "action", "access", "sensitive"]):
+            elif any(
+                term in factor_name
+                for term in ["behavior", "action", "access", "sensitive"]
+            ):
                 behavioral_risk = max(behavioral_risk, value)
             elif any(term in factor_name for term in ["time", "hour", "pattern"]):
                 time_risk = max(time_risk, value)
-            elif any(term in factor_name for term in ["network", "ip", "vpn", "proxy", "tor"]):
+            elif any(
+                term in factor_name for term in ["network", "ip", "vpn", "proxy", "tor"]
+            ):
                 network_risk = max(network_risk, value)
-            elif any(term in factor_name for term in ["velocity", "failed", "attempts", "rapid"]):
+            elif any(
+                term in factor_name
+                for term in ["velocity", "failed", "attempts", "rapid"]
+            ):
                 velocity_risk = max(velocity_risk, value)
-            elif any(term in factor_name for term in ["credential", "password", "mfa", "account"]):
+            elif any(
+                term in factor_name
+                for term in ["credential", "password", "mfa", "account"]
+            ):
                 credential_risk = max(credential_risk, value)
 
         return RiskFactors(

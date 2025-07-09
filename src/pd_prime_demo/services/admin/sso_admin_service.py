@@ -16,9 +16,9 @@ from ...models.base import BaseModelConfig
 
 class SSOProviderUpdate(BaseModelConfig):
     """Model for updating SSO provider configuration."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     provider_name: str | None = None
     configuration: dict[str, Any] | None = None
     is_enabled: bool | None = None
@@ -26,9 +26,9 @@ class SSOProviderUpdate(BaseModelConfig):
 
 class SSOConnectionTestResult(BaseModelConfig):
     """Result of SSO connection test."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     success: bool
     error: str | None = None
     details: dict[str, Any]
@@ -37,9 +37,9 @@ class SSOConnectionTestResult(BaseModelConfig):
 
 class SSOAnalytics(BaseModelConfig):
     """SSO analytics model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     login_statistics: list[dict[str, Any]]
     provisioning_statistics: list[dict[str, Any]]
     sync_statistics: dict[str, Any]
@@ -49,9 +49,9 @@ class SSOAnalytics(BaseModelConfig):
 
 class SSOProviderList(BaseModelConfig):
     """SSO provider list response."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     providers: list[dict[str, Any]]
     total: int
     limit: int
@@ -60,9 +60,9 @@ class SSOProviderList(BaseModelConfig):
 
 class SSOProviderDetails(BaseModelConfig):
     """SSO provider details."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     id: UUID
     provider_name: str
     provider_type: str
@@ -76,9 +76,9 @@ class SSOProviderDetails(BaseModelConfig):
 
 class SSOActivityLogs(BaseModelConfig):
     """SSO activity logs response."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     activities: list[dict[str, Any]]
     total: int
     limit: int
@@ -617,7 +617,9 @@ class SSOAdminService:
                 response = await client.get(discovery_url, timeout=10.0)
 
                 if response.status_code == 200:
-                    discovery = response.json()  # SYSTEM_BOUNDARY - OIDC discovery document
+                    discovery = (
+                        response.json()
+                    )  # SYSTEM_BOUNDARY - OIDC discovery document
                     return {
                         "success": True,
                         "details": {
@@ -713,6 +715,7 @@ class SSOAdminService:
             if isinstance(value, str) and value.startswith("encrypted:"):
                 # Basic base64 decoding for demo - production would use KMS
                 import base64
+
                 try:
                     encrypted_value = value.replace("encrypted:", "")
                     decoded_value = base64.b64decode(encrypted_value).decode()

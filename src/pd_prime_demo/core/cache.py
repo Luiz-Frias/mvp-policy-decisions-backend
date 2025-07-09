@@ -92,7 +92,9 @@ class Cache:
         self._redis = None
 
     @beartype
-    async def get(self, key: str) -> Any | None:  # SYSTEM_BOUNDARY - Redis interface returns untyped data
+    async def get(
+        self, key: str
+    ) -> Any | None:  # SYSTEM_BOUNDARY - Redis interface returns untyped data
         """Get value from cache."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")
@@ -284,7 +286,9 @@ class Cache:
         return int(result)
 
     @beartype
-    async def brpoplpush(self, source: str, destination: str, timeout: int = 0) -> str | None:
+    async def brpoplpush(
+        self, source: str, destination: str, timeout: int = 0
+    ) -> str | None:
         """Pop from right of source and push to left of destination."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")
@@ -320,7 +324,9 @@ class Cache:
         return int(result)
 
     @beartype
-    async def hgetall(self, key: str) -> dict[str, str]:  # SYSTEM_BOUNDARY - Redis interface returns raw dict
+    async def hgetall(
+        self, key: str
+    ) -> dict[str, str]:  # SYSTEM_BOUNDARY - Redis interface returns raw dict
         """Get all fields and values from hash."""
         if self._redis is None:
             raise RuntimeError("Cache not connected")

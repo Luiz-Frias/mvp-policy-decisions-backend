@@ -3,14 +3,15 @@
 import math
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, getcontext
-from typing import Any
-from pydantic import Field
 from enum import Enum
+from typing import Any
 
 import numpy as np
 from beartype import beartype
 from numpy.typing import NDArray
+from pydantic import Field
 
+from pd_prime_demo.models.base import BaseModelConfig
 from pd_prime_demo.schemas.rating import (
     Discount,
     DriverRiskScore,
@@ -19,7 +20,6 @@ from pd_prime_demo.schemas.rating import (
     RiskFactor,
     StackedDiscounts,
 )
-from pd_prime_demo.models.base import BaseModelConfig
 
 from ...core.result_types import Err, Ok, Result
 from ..performance_monitor import performance_monitor
@@ -31,7 +31,7 @@ getcontext().prec = 10
 @beartype
 class RatingFactors(BaseModelConfig):
     """Structured rating factors for premium calculation."""
-    
+
     territory: float = Field(ge=0.1, le=5.0, description="Territory factor")
     driver_age: float = Field(ge=0.1, le=5.0, description="Driver age factor")
     experience: float = Field(ge=0.1, le=5.0, description="Driver experience factor")
@@ -40,12 +40,12 @@ class RatingFactors(BaseModelConfig):
     credit: float = Field(ge=0.1, le=5.0, description="Credit score factor")
     violations: float = Field(ge=0.1, le=5.0, description="Violations factor")
     accidents: float = Field(ge=0.1, le=5.0, description="Accidents factor")
-    
+
     def to_dict(self) -> dict[str, float]:
         """Convert to legacy dict format for backward compatibility."""
         return {
             "territory": self.territory,
-            "driver_age": self.driver_age, 
+            "driver_age": self.driver_age,
             "experience": self.experience,
             "vehicle_age": self.vehicle_age,
             "safety_features": self.safety_features,
@@ -58,16 +58,30 @@ class RatingFactors(BaseModelConfig):
 @beartype
 class FactorImpacts(BaseModelConfig):
     """Structured factor impacts for premium calculation breakdown."""
-    
-    territory: Decimal = Field(default=Decimal("0"), description="Territory impact amount")
-    driver_age: Decimal = Field(default=Decimal("0"), description="Driver age impact amount")
-    experience: Decimal = Field(default=Decimal("0"), description="Experience impact amount")
-    vehicle_age: Decimal = Field(default=Decimal("0"), description="Vehicle age impact amount")
-    safety_features: Decimal = Field(default=Decimal("0"), description="Safety features impact amount")
+
+    territory: Decimal = Field(
+        default=Decimal("0"), description="Territory impact amount"
+    )
+    driver_age: Decimal = Field(
+        default=Decimal("0"), description="Driver age impact amount"
+    )
+    experience: Decimal = Field(
+        default=Decimal("0"), description="Experience impact amount"
+    )
+    vehicle_age: Decimal = Field(
+        default=Decimal("0"), description="Vehicle age impact amount"
+    )
+    safety_features: Decimal = Field(
+        default=Decimal("0"), description="Safety features impact amount"
+    )
     credit: Decimal = Field(default=Decimal("0"), description="Credit impact amount")
-    violations: Decimal = Field(default=Decimal("0"), description="Violations impact amount")
-    accidents: Decimal = Field(default=Decimal("0"), description="Accidents impact amount")
-    
+    violations: Decimal = Field(
+        default=Decimal("0"), description="Violations impact amount"
+    )
+    accidents: Decimal = Field(
+        default=Decimal("0"), description="Accidents impact amount"
+    )
+
     def to_dict(self) -> dict[str, Decimal]:
         """Convert to legacy dict format for backward compatibility."""
         return {
@@ -80,7 +94,7 @@ class FactorImpacts(BaseModelConfig):
             "violations": self.violations,
             "accidents": self.accidents,
         }
-        
+
     def set_impact(self, factor_name: str, amount: Decimal) -> None:
         """Set impact amount for a specific factor."""
         if hasattr(self, factor_name):
@@ -90,111 +104,133 @@ class FactorImpacts(BaseModelConfig):
 @beartype
 class ZipTerritoryData(BaseModelConfig):
     """Territory data for a specific ZIP code."""
-    
+
     loss_cost: float = Field(default=100.0, gt=0, description="Loss cost for this ZIP")
-    credibility: float = Field(default=0.5, ge=0, le=1, description="Credibility factor")
+    credibility: float = Field(
+        default=0.5, ge=0, le=1, description="Credibility factor"
+    )
 
 
 @beartype
 class TerritoryData(BaseModelConfig):
     """Structured territory data for rating calculations."""
-    
-    base_loss_cost: float = Field(gt=0, description="Base loss cost for territory calculation")
-    zip_territories: dict[str, ZipTerritoryData] = Field(
-        default_factory=dict, 
-        description="ZIP code specific territory data"
+
+    base_loss_cost: float = Field(
+        gt=0, description="Base loss cost for territory calculation"
     )
-    
+    zip_territories: dict[str, ZipTerritoryData] = Field(
+        default_factory=dict, description="ZIP code specific territory data"
+    )
+
     def get_zip_data(self, zip_code: str) -> ZipTerritoryData:
         """Get territory data for specific ZIP code."""
         return self.zip_territories.get(zip_code, ZipTerritoryData())
 
 
-@beartype  
+@beartype
 class DriverData(BaseModelConfig):
     """Structured driver data for risk calculation."""
-    
+
     age: int = Field(ge=16, le=100, description="Driver age")
     years_licensed: int = Field(ge=0, description="Years licensed")
-    violations_3_years: int = Field(default=0, ge=0, description="Violations in last 3 years")
-    accidents_3_years: int = Field(default=0, ge=0, description="Accidents in last 3 years")
-    
+    violations_3_years: int = Field(
+        default=0, ge=0, description="Violations in last 3 years"
+    )
+    accidents_3_years: int = Field(
+        default=0, ge=0, description="Accidents in last 3 years"
+    )
+
     def validate_experience(self) -> bool:
         """Validate that years licensed doesn't exceed reasonable maximum."""
         return self.years_licensed <= (self.age - 16)
 
 
-# ============================================================================ 
+# ============================================================================
 # STRUCTURED MODELS TO REPLACE dict[str, Any] - AGENT D IMPLEMENTATION
 # ============================================================================
+
 
 @beartype
 class ApplicableDiscount(BaseModelConfig):
     """Structured model for applicable discount data."""
+
     rate: float = Field(..., ge=0, le=1, description="Discount rate (0.0-1.0)")
-    stackable: bool = Field(default=True, description="Whether discount can stack with others")
-    priority: int = Field(default=100, ge=1, description="Priority for discount application")
+    stackable: bool = Field(
+        default=True, description="Whether discount can stack with others"
+    )
+    priority: int = Field(
+        default=100, ge=1, description="Priority for discount application"
+    )
     name: str = Field(..., min_length=1, description="Discount name or identifier")
 
 
-@beartype
-class StateDiscountRules(BaseModelConfig):
-    """State-specific discount rules."""
-    max_discount: Decimal | None = Field(None, ge=0, le=1, description="Maximum allowed discount")
-    state_code: str = Field(..., min_length=2, max_length=2, description="State code")
-    prohibited_discounts: list[str] = Field(default_factory=list, description="Prohibited discount types")
 
 
-@beartype
-class VehicleData(BaseModelConfig):
-    """Enhanced vehicle data from VIN decode."""
-    make: str = Field(..., min_length=1, description="Vehicle manufacturer")
-    model: str = Field(..., min_length=1, description="Vehicle model")
-    year: int = Field(..., ge=1900, le=2030, description="Model year")
-    trim: str = Field(default="", description="Vehicle trim level")
-    engine_size: float = Field(default=2.0, ge=0.5, le=10.0, description="Engine displacement in liters")
-    safety_rating: int = Field(default=3, ge=1, le=5, description="NHTSA safety rating")
-    theft_rate: float = Field(default=1.0, ge=0.1, le=5.0, description="Relative theft rate")
 
 
 @beartype
 class CustomerAIData(BaseModelConfig):
     """Customer data for AI risk scoring."""
-    policy_count: int = Field(default=0, ge=0, description="Number of policies with company")
+
+    policy_count: int = Field(
+        default=0, ge=0, description="Number of policies with company"
+    )
     years_as_customer: int = Field(default=0, ge=0, description="Years as customer")
-    previous_claims: int = Field(default=0, ge=0, description="Number of previous claims")
+    previous_claims: int = Field(
+        default=0, ge=0, description="Number of previous claims"
+    )
 
 
 @beartype
 class VehicleAIData(BaseModelConfig):
     """Vehicle data for AI risk scoring."""
+
     age: int = Field(..., ge=0, le=50, description="Vehicle age in years")
     value: int = Field(..., ge=1000, le=500000, description="Vehicle value in dollars")
-    annual_mileage: int = Field(default=12000, ge=0, le=100000, description="Annual mileage")
-    safety_features: list[str] = Field(default_factory=list, description="List of safety features")
+    annual_mileage: int = Field(
+        default=12000, ge=0, le=100000, description="Annual mileage"
+    )
+    safety_features: list[str] = Field(
+        default_factory=list, description="List of safety features"
+    )
 
 
 @beartype
 class DriverAIData(BaseModelConfig):
     """Driver data for AI risk scoring."""
+
     age: int = Field(..., ge=16, le=100, description="Driver age")
     years_licensed: int = Field(..., ge=0, le=84, description="Years licensed")
-    violations_3_years: int = Field(default=0, ge=0, description="Traffic violations in last 3 years")
-    accidents_3_years: int = Field(default=0, ge=0, description="Accidents in last 3 years")
+    violations_3_years: int = Field(
+        default=0, ge=0, description="Traffic violations in last 3 years"
+    )
+    accidents_3_years: int = Field(
+        default=0, ge=0, description="Accidents in last 3 years"
+    )
 
 
 @beartype
 class ExternalAIData(BaseModelConfig):
     """External data for AI risk scoring."""
-    credit_score: int = Field(default=700, ge=300, le=850, description="FICO credit score")
-    area_crime_rate: float = Field(default=1.0, ge=0.1, le=5.0, description="Area crime rate factor")
-    weather_risk: float = Field(default=1.0, ge=0.5, le=2.0, description="Weather risk factor")
+
+    credit_score: int = Field(
+        default=700, ge=300, le=850, description="FICO credit score"
+    )
+    area_crime_rate: float = Field(
+        default=1.0, ge=0.1, le=5.0, description="Area crime rate factor"
+    )
+    weather_risk: float = Field(
+        default=1.0, ge=0.5, le=2.0, description="Weather risk factor"
+    )
 
 
 @beartype
 class AIRiskComponents(BaseModelConfig):
     """AI risk score components."""
-    claim_probability: float = Field(..., ge=0, le=1, description="Probability of claim")
+
+    claim_probability: float = Field(
+        ..., ge=0, le=1, description="Probability of claim"
+    )
     expected_severity: float = Field(..., ge=0, description="Expected claim severity")
     fraud_risk: float = Field(..., ge=0, le=1, description="Fraud risk score")
 
@@ -202,6 +238,7 @@ class AIRiskComponents(BaseModelConfig):
 @beartype
 class AIRiskScoreResult(BaseModelConfig):
     """Result of AI risk scoring."""
+
     score: float = Field(..., ge=0, le=1, description="Overall risk score")
     components: AIRiskComponents = Field(..., description="Risk score components")
     factors: list[str] = Field(..., description="Key risk factors")
@@ -212,45 +249,62 @@ class AIRiskScoreResult(BaseModelConfig):
 @beartype
 class AIModelPredictions(BaseModelConfig):
     """AI model prediction results."""
+
     claim_probability: float = Field(..., ge=0, le=1, description="Claim probability")
     expected_severity: float = Field(..., ge=0, description="Expected severity")
     fraud_risk: float = Field(..., ge=0, le=1, description="Fraud risk")
 
 
-@beartype 
+@beartype
 class GLMFeatures(BaseModelConfig):
     """Features for Generalized Linear Model calculations."""
+
     driver_age: float = Field(default=30.0, ge=16, le=100, description="Driver age")
     vehicle_age: float = Field(default=5.0, ge=0, le=50, description="Vehicle age")
-    annual_mileage: float = Field(default=12000.0, ge=0, le=100000, description="Annual mileage")
-    urban_indicator: float = Field(default=0.0, ge=0, le=1, description="Urban area indicator")
+    annual_mileage: float = Field(
+        default=12000.0, ge=0, le=100000, description="Annual mileage"
+    )
+    urban_indicator: float = Field(
+        default=0.0, ge=0, le=1, description="Urban area indicator"
+    )
     prior_claims: float = Field(default=0.0, ge=0, description="Prior claims count")
-    vehicle_value: float = Field(default=25000.0, ge=1000, le=500000, description="Vehicle value")
-    vehicle_safety_score: float = Field(default=0.0, ge=0, description="Safety features score")
+    vehicle_value: float = Field(
+        default=25000.0, ge=1000, le=500000, description="Vehicle value"
+    )
+    vehicle_safety_score: float = Field(
+        default=0.0, ge=0, description="Safety features score"
+    )
 
 
 @beartype
 class GLMCoefficients(BaseModelConfig):
     """Coefficients for GLM calculations."""
+
     intercept: float = Field(..., description="Model intercept")
     driver_age: float = Field(default=0.0, description="Driver age coefficient")
     vehicle_age: float = Field(default=0.0, description="Vehicle age coefficient")
     annual_mileage: float = Field(default=0.0, description="Annual mileage coefficient")
-    urban_indicator: float = Field(default=0.0, description="Urban indicator coefficient")
+    urban_indicator: float = Field(
+        default=0.0, description="Urban indicator coefficient"
+    )
     prior_claims: float = Field(default=0.0, description="Prior claims coefficient")
     vehicle_value: float = Field(default=0.0, description="Vehicle value coefficient")
-    vehicle_safety_score: float = Field(default=0.0, description="Safety score coefficient")
+    vehicle_safety_score: float = Field(
+        default=0.0, description="Safety score coefficient"
+    )
 
 
 @beartype
 class ExposureData(BaseModelConfig):
     """Exposure data for loss cost calculations."""
+
     exposure_years: float = Field(..., gt=0, description="Years of exposure")
-    
-    
+
+
 @beartype
 class LossData(BaseModelConfig):
     """Loss experience data."""
+
     claim_count: int = Field(default=0, ge=0, description="Number of claims")
     claim_amount: float = Field(default=0.0, ge=0, description="Total claim amount")
     manual_loss_cost: float = Field(default=100.0, gt=0, description="Manual loss cost")
@@ -259,6 +313,7 @@ class LossData(BaseModelConfig):
 @beartype
 class DriverProfile(BaseModelConfig):
     """Driver profile for frequency/severity modeling."""
+
     age: int = Field(..., ge=16, le=100, description="Driver age")
     prior_claims: int = Field(default=0, ge=0, description="Prior claims count")
 
@@ -266,54 +321,73 @@ class DriverProfile(BaseModelConfig):
 @beartype
 class VehicleProfile(BaseModelConfig):
     """Vehicle profile for modeling."""
+
     age: int = Field(..., ge=0, le=50, description="Vehicle age")
-    annual_mileage: int = Field(default=12000, ge=0, le=100000, description="Annual mileage")
+    annual_mileage: int = Field(
+        default=12000, ge=0, le=100000, description="Annual mileage"
+    )
     value: int = Field(..., ge=1000, le=500000, description="Vehicle value")
-    safety_features: list[str] = Field(default_factory=list, description="Safety features")
+    safety_features: list[str] = Field(
+        default_factory=list, description="Safety features"
+    )
 
 
 @beartype
 class TerritoryProfile(BaseModelConfig):
     """Territory profile for modeling."""
+
     urban: bool = Field(default=False, description="Urban area indicator")
 
 
 @beartype
 class FrequencySeverityResult(BaseModelConfig):
     """Result of frequency/severity model calculation."""
+
     frequency_factor: float = Field(..., gt=0, description="Frequency factor")
-    severity_factor: float = Field(..., gt=0, description="Severity factor") 
+    severity_factor: float = Field(..., gt=0, description="Severity factor")
     expected_claims: float = Field(..., ge=0, description="Expected claims per year")
-    expected_severity: float = Field(..., ge=0, description="Expected severity per claim")
+    expected_severity: float = Field(
+        ..., ge=0, description="Expected severity per claim"
+    )
     pure_premium_factor: float = Field(..., gt=0, description="Pure premium factor")
 
 
 @beartype
 class DwellingCharacteristics(BaseModelConfig):
     """Dwelling characteristics for catastrophe loading."""
-    construction_type: str = Field(default="wood_frame", description="Construction type")
+
+    construction_type: str = Field(
+        default="wood_frame", description="Construction type"
+    )
     roof_type: str = Field(default="asphalt_shingle", description="Roof material type")
 
 
 @beartype
 class TrendFactorsResult(BaseModelConfig):
     """Result of trend factor calculations."""
+
     loss_trend_factor: float = Field(..., gt=0, description="Loss trend factor")
     expense_trend_factor: float = Field(..., gt=0, description="Expense trend factor")
-    composite_trend_factor: float = Field(..., gt=0, description="Composite trend factor")
+    composite_trend_factor: float = Field(
+        ..., gt=0, description="Composite trend factor"
+    )
     years_elapsed: float = Field(..., description="Years elapsed from base period")
 
 
 @beartype
 class TableDefinition(BaseModelConfig):
     """Definition for lookup table configuration."""
+
     table_type: str = Field(..., description="Type of lookup table")
-    parameters: dict[str, Any] = Field(default_factory=dict, description="Table parameters")
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Table parameters"
+    )
 
 
 @beartype
 class FactorRequest(BaseModelConfig):
     """Request for factor calculation."""
+
     age: int = Field(default=30, ge=16, le=100, description="Driver age")
     years_licensed: int = Field(default=10, ge=0, le=84, description="Years licensed")
     violations: int = Field(default=0, ge=0, description="Number of violations")
@@ -322,6 +396,7 @@ class FactorRequest(BaseModelConfig):
 @beartype
 class FactorResult(BaseModelConfig):
     """Result of factor calculation."""
+
     age_factor: float = Field(..., gt=0, description="Age-based factor")
     experience_factor: float = Field(..., gt=0, description="Experience-based factor")
     violation_factor: float = Field(..., gt=0, description="Violation-based factor")
@@ -330,6 +405,7 @@ class FactorResult(BaseModelConfig):
 
 class VehicleType(str, Enum):
     """Enumeration for valid vehicle types."""
+
     SEDAN = "sedan"
     SUV = "suv"
     TRUCK = "truck"
@@ -340,6 +416,7 @@ class VehicleType(str, Enum):
 
 class SafetyFeature(str, Enum):
     """Enumeration for valid safety features."""
+
     ABS = "abs"
     AIRBAGS = "airbags"
     STABILITY_CONTROL = "stability_control"
@@ -351,178 +428,64 @@ class SafetyFeature(str, Enum):
 @beartype
 class VehicleData(BaseModelConfig):
     """Structured model for vehicle information used in risk calculations.
-    
+
     Replaces dict[str, Any] with typed, validated structure.
     """
-    
-    type: VehicleType = Field(
-        ..., 
-        description="Type of vehicle for risk assessment"
-    )
-    age: int = Field(
-        default=5, 
-        ge=0, 
-        le=50, 
-        description="Vehicle age in years"
-    )
+
+    type: VehicleType = Field(..., description="Type of vehicle for risk assessment")
+    age: int = Field(default=5, ge=0, le=50, description="Vehicle age in years")
     safety_features: list[SafetyFeature] = Field(
         default_factory=list,
-        description="List of safety features present on the vehicle"
+        description="List of safety features present on the vehicle",
     )
     theft_rate: float = Field(
         default=1.0,
         ge=0.1,
         le=5.0,
-        description="Relative theft rate compared to average (1.0 = average)"
+        description="Relative theft rate compared to average (1.0 = average)",
     )
 
 
 @beartype
 class DiscountData(BaseModelConfig):
     """Structured model for individual discount information.
-    
+
     Replaces dict[str, Any] with typed, validated structure.
     """
-    
+
     rate: float = Field(
-        ..., 
-        ge=0.0, 
-        le=1.0, 
-        description="Discount rate as decimal (0.1 = 10%)"
+        ..., ge=0.0, le=1.0, description="Discount rate as decimal (0.1 = 10%)"
     )
     stackable: bool = Field(
-        default=True, 
-        description="Whether this discount can stack with others"
+        default=True, description="Whether this discount can stack with others"
     )
     priority: int = Field(
-        default=100, 
-        ge=1, 
-        description="Priority for applying discount (lower = higher priority)"
+        default=100,
+        ge=1,
+        description="Priority for applying discount (lower = higher priority)",
     )
-    name: str = Field(
-        default="", 
-        description="Human-readable name for the discount"
-    )
+    name: str = Field(default="", description="Human-readable name for the discount")
 
 
 @beartype
 class StateDiscountRules(BaseModelConfig):
     """Structured model for state-specific discount rules.
-    
+
     Replaces dict[str, Any] with typed, validated structure.
     """
-    
+
     max_discount: float = Field(
-        ..., 
-        ge=0.0, 
-        le=1.0, 
-        description="Maximum total discount allowed as decimal (0.4 = 40%)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Maximum total discount allowed as decimal (0.4 = 40%)",
     )
     state_code: str = Field(
-        default="", 
-        max_length=2, 
-        description="Two-letter state code"
+        default="", max_length=2, description="Two-letter state code"
     )
 
 
 # Structured models to replace dict[str, Any] usage
-
-
-@beartype
-class TerritoryData(BaseModelConfig):
-    """Territory rating data with structured validation."""
-    
-    base_loss_cost: float = Field(
-        ..., 
-        gt=0,
-        description="Base loss cost for territory rating"
-    )
-    
-    # ZIP-specific data - using dict for now as it's dynamic by ZIP
-    # This could be further normalized if ZIP codes are known in advance
-    zip_data: dict[str, "ZipCodeData"] = Field(
-        default_factory=dict,
-        description="Loss cost data by ZIP code"
-    )
-    
-    def get_zip_data(self, zip_code: str) -> "ZipCodeData":
-        """Get ZIP code data with defaults."""
-        return self.zip_data.get(zip_code, ZipCodeData())
-
-
-@beartype
-class ZipCodeData(BaseModelConfig):
-    """ZIP code specific rating data."""
-    
-    loss_cost: float = Field(
-        default=1.0,
-        gt=0,
-        description="Loss cost for this ZIP code"
-    )
-    
-    credibility: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Credibility weight for this ZIP code"
-    )
-
-
-@beartype
-class DriverData(BaseModelConfig):
-    """Driver information for risk scoring."""
-    
-    age: int = Field(
-        ...,
-        ge=16,
-        le=100,
-        description="Driver age in years"
-    )
-    
-    years_licensed: int = Field(
-        ...,
-        ge=0,
-        description="Years driver has been licensed"
-    )
-    
-    violations_3_years: int = Field(
-        default=0,
-        ge=0,
-        description="Number of violations in last 3 years"
-    )
-    
-    accidents_3_years: int = Field(
-        default=0,
-        ge=0,
-        description="Number of accidents in last 3 years"
-    )
-    
-    credit_score: int | None = Field(
-        default=None,
-        ge=300,
-        le=850,
-        description="Credit score if available"
-    )
-    
-    education_level: str | None = Field(
-        default=None,
-        description="Education level for risk assessment"
-    )
-    
-    occupation: str | None = Field(
-        default=None,
-        description="Occupation for risk assessment"
-    )
-    
-    marital_status: str | None = Field(
-        default=None,
-        description="Marital status for risk assessment"
-    )
-    
-    @beartype
-    def validate_experience(self) -> bool:
-        """Validate that years licensed makes sense for age."""
-        return self.years_licensed <= (self.age - 16)
 
 
 class PremiumCalculator:
@@ -591,7 +554,7 @@ class PremiumCalculator:
             "violations",
             "accidents",
         ]
-        
+
         # Convert structured factors to dict for processing
         factors_dict = factors.to_dict()
 
@@ -625,7 +588,7 @@ class PremiumCalculator:
                         factor_name=k,
                         impact_amount=v,
                         impact_type="multiplicative",
-                        description=f"Factor {k} impact on premium"
+                        description=f"Factor {k} impact on premium",
                     )
                     for k, v in factor_impacts.to_dict().items()
                 ],
@@ -662,7 +625,7 @@ class PremiumCalculator:
 
         zip_data = territory_data.get_zip_data(zip_code)
         zip_loss_cost = zip_data.loss_cost
-        
+
         # Use base loss cost if ZIP-specific data is default
         if zip_loss_cost == 100.0 and zip_code not in territory_data.zip_territories:
             zip_loss_cost = base_loss_cost
@@ -724,7 +687,7 @@ class PremiumCalculator:
                     factor_type="age",
                     severity="medium" if age >= 20 else "high",
                     impact_score=min(age_risk, 1.0),
-                    description=f"Young driver (age {age})"
+                    description=f"Young driver (age {age})",
                 )
             )
         elif age > 70:
@@ -734,7 +697,7 @@ class PremiumCalculator:
                     factor_type="age",
                     severity="medium" if age <= 75 else "high",
                     impact_score=min(age_risk, 1.0),
-                    description=f"Senior driver (age {age})"
+                    description=f"Senior driver (age {age})",
                 )
             )
 
@@ -746,33 +709,37 @@ class PremiumCalculator:
                     factor_type="experience",
                     severity="high" if experience < 1 else "medium",
                     impact_score=min(exp_risk, 1.0),
-                    description=f"New driver ({experience} years)"
+                    description=f"New driver ({experience} years)",
                 )
             )
 
         # Violation risk (linear)
         viol_risk = 0.15 * violations
         if violations > 0:
-            severity = "low" if violations == 1 else "medium" if violations <= 3 else "high"
+            severity = (
+                "low" if violations == 1 else "medium" if violations <= 3 else "high"
+            )
             risk_factors.append(
                 RiskFactor(
                     factor_type="violations",
                     severity=severity,
                     impact_score=min(viol_risk, 1.0),
-                    description=f"{violations} violations"
+                    description=f"{violations} violations",
                 )
             )
 
         # Accident risk (exponential)
         acc_risk = 0.25 * (math.exp(min(accidents, 5)) - 1)
         if accidents > 0:
-            severity = "low" if accidents == 1 else "medium" if accidents <= 2 else "high"
+            severity = (
+                "low" if accidents == 1 else "medium" if accidents <= 2 else "high"
+            )
             risk_factors.append(
                 RiskFactor(
                     factor_type="accidents",
                     severity=severity,
                     impact_score=min(acc_risk, 1.0),
-                    description=f"{accidents} accidents"
+                    description=f"{accidents} accidents",
                 )
             )
 
@@ -879,9 +846,7 @@ class DiscountCalculator:
         # Discount validation is now handled by Pydantic model validation
 
         # Sort by priority (lower number = higher priority)
-        sorted_discounts = sorted(
-            applicable_discounts, key=lambda d: d.priority
-        )
+        sorted_discounts = sorted(applicable_discounts, key=lambda d: d.priority)
 
         applied_discounts: list[Discount] = []
         remaining_premium = base_premium
@@ -910,7 +875,7 @@ class DiscountCalculator:
                     amount=discount_amount.quantize(Decimal("0.01")),
                     applied_rate=applied_rate,
                     stackable=discount.stackable,
-                    priority=discount.priority
+                    priority=discount.priority,
                 )
                 applied_discounts.append(discount_obj)
 
@@ -932,7 +897,7 @@ class DiscountCalculator:
                         amount=discount_amount.quantize(Decimal("0.01")),
                         applied_rate=discount.rate,
                         stackable=discount.stackable,
-                        priority=discount.priority
+                        priority=discount.priority,
                     )
                     applied_discounts = [discount_obj]
                     total_discount_amount = discount_amount
@@ -1326,7 +1291,7 @@ class AIRiskScorer:
             ]
         )
 
-        # Vehicle features  
+        # Vehicle features
         features.extend(
             [
                 vehicle_data.age,
@@ -1495,20 +1460,38 @@ class StatisticalRatingModels:
             linear_predictor = coefficients.intercept
 
             # Add feature contributions
-            if hasattr(features, 'driver_age') and hasattr(coefficients, 'driver_age'):
+            if hasattr(features, "driver_age") and hasattr(coefficients, "driver_age"):
                 linear_predictor += coefficients.driver_age * features.driver_age
-            if hasattr(features, 'vehicle_age') and hasattr(coefficients, 'vehicle_age'):
+            if hasattr(features, "vehicle_age") and hasattr(
+                coefficients, "vehicle_age"
+            ):
                 linear_predictor += coefficients.vehicle_age * features.vehicle_age
-            if hasattr(features, 'annual_mileage') and hasattr(coefficients, 'annual_mileage'):
-                linear_predictor += coefficients.annual_mileage * features.annual_mileage
-            if hasattr(features, 'urban_indicator') and hasattr(coefficients, 'urban_indicator'):
-                linear_predictor += coefficients.urban_indicator * features.urban_indicator
-            if hasattr(features, 'prior_claims') and hasattr(coefficients, 'prior_claims'):
+            if hasattr(features, "annual_mileage") and hasattr(
+                coefficients, "annual_mileage"
+            ):
+                linear_predictor += (
+                    coefficients.annual_mileage * features.annual_mileage
+                )
+            if hasattr(features, "urban_indicator") and hasattr(
+                coefficients, "urban_indicator"
+            ):
+                linear_predictor += (
+                    coefficients.urban_indicator * features.urban_indicator
+                )
+            if hasattr(features, "prior_claims") and hasattr(
+                coefficients, "prior_claims"
+            ):
                 linear_predictor += coefficients.prior_claims * features.prior_claims
-            if hasattr(features, 'vehicle_value') and hasattr(coefficients, 'vehicle_value'):
+            if hasattr(features, "vehicle_value") and hasattr(
+                coefficients, "vehicle_value"
+            ):
                 linear_predictor += coefficients.vehicle_value * features.vehicle_value
-            if hasattr(features, 'vehicle_safety_score') and hasattr(coefficients, 'vehicle_safety_score'):
-                linear_predictor += coefficients.vehicle_safety_score * features.vehicle_safety_score
+            if hasattr(features, "vehicle_safety_score") and hasattr(
+                coefficients, "vehicle_safety_score"
+            ):
+                linear_predictor += (
+                    coefficients.vehicle_safety_score * features.vehicle_safety_score
+                )
 
             # Apply inverse link function
             if link_function == "log":

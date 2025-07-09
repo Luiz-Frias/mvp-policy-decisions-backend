@@ -38,7 +38,9 @@ class OAuth2Error(Exception):
         super().__init__(error_description or error)
 
     @beartype
-    def to_dict(self) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 error response format
+    def to_dict(
+        self,
+    ) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 error response format
         """Convert to OAuth2 error response."""
         response = {"error": self.error}
         if self.error_description:
@@ -482,7 +484,9 @@ class OAuth2Server:
         return secrets.token_urlsafe(32)
 
     @beartype
-    async def _get_client(self, client_id: str) -> dict[str, Any] | None:  # SYSTEM_BOUNDARY - Database row mapping
+    async def _get_client(
+        self, client_id: str
+    ) -> dict[str, Any] | None:  # SYSTEM_BOUNDARY - Database row mapping
         """Get client configuration from database."""
         row = await self._db.fetchrow(
             """
@@ -648,15 +652,11 @@ class OAuth2Server:
         # Retrieve code details
         code_data = await self._cache.get(f"auth_code:{code}")
         if not code_data:
-            return Err(
-                "invalid_grant: Invalid or expired authorization code"
-            )
+            return Err("invalid_grant: Invalid or expired authorization code")
 
         # Validate client
         if code_data["client_id"] != client_id:
-            return Err(
-                "invalid_grant: Code was issued to a different client"
-            )
+            return Err("invalid_grant: Code was issued to a different client")
 
         # Validate redirect URI
         if code_data["redirect_uri"] != redirect_uri:
@@ -667,9 +667,7 @@ class OAuth2Server:
         if code_challenge:
             # PKCE is mandatory when challenge was provided
             if not code_verifier:
-                return Err(
-                    "invalid_request: Code verifier required for PKCE"
-                )
+                return Err("invalid_request: Code verifier required for PKCE")
 
             challenge_method = code_data.get("code_challenge_method", "plain")
 
@@ -683,16 +681,12 @@ class OAuth2Server:
                 )
 
                 if computed_challenge != code_challenge:
-                    return Err(
-                        "invalid_grant: PKCE code verifier validation failed"
-                    )
+                    return Err("invalid_grant: PKCE code verifier validation failed")
 
             elif challenge_method == "plain":
                 # Plain method: verifier must match challenge exactly
                 if code_verifier != code_challenge:
-                    return Err(
-                        "invalid_grant: PKCE code verifier validation failed"
-                    )
+                    return Err("invalid_grant: PKCE code verifier validation failed")
             else:
                 return Err(
                     f"invalid_request: Unsupported PKCE challenge method: {challenge_method}"
@@ -763,9 +757,7 @@ class OAuth2Server:
 
         # Validate client
         if row["client_id"] != client["client_id"]:
-            return Err(
-                "invalid_grant: Token was issued to a different client"
-            )
+            return Err("invalid_grant: Token was issued to a different client")
 
         # Handle scope narrowing
         if scope:
@@ -774,9 +766,7 @@ class OAuth2Server:
 
             # Ensure requested scopes are subset of original
             if not all(s in original_scopes for s in requested_scopes):
-                return Err(
-                    "invalid_scope: Cannot request scopes not in original grant"
-                )
+                return Err("invalid_scope: Cannot request scopes not in original grant")
 
             scopes = requested_scopes
         else:
@@ -820,9 +810,7 @@ class OAuth2Server:
         """Handle client credentials grant type."""
         # Validate grant type is allowed
         if "client_credentials" not in client["allowed_grant_types"]:
-            return Err(
-                "unauthorized_client: Client not authorized for this grant type"
-            )
+            return Err("unauthorized_client: Client not authorized for this grant type")
 
         # Validate scope
         if not scope:
@@ -868,9 +856,7 @@ class OAuth2Server:
         """Handle password grant type (only for trusted clients)."""
         # This grant type should only be used by highly trusted clients
         if "password" not in client["allowed_grant_types"]:
-            return Err(
-                "unauthorized_client: Client not authorized for password grant"
-            )
+            return Err("unauthorized_client: Client not authorized for password grant")
 
         if not username or not password:
             return Err("invalid_request: Username and password required")
@@ -963,7 +949,11 @@ class OAuth2Server:
         return revoked is not None
 
     @beartype
-    async def _introspect_refresh_token(self, token: str) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 refresh token introspection response
+    async def _introspect_refresh_token(
+        self, token: str
+    ) -> dict[
+        str, Any
+    ]:  # SYSTEM_BOUNDARY - OAuth2 refresh token introspection response
         """Introspect a refresh token."""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
@@ -1093,7 +1083,9 @@ class OAuth2Server:
         return Ok(True)
 
     @beartype
-    async def get_server_health(self) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 server health metrics response
+    async def get_server_health(
+        self,
+    ) -> dict[str, Any]:  # SYSTEM_BOUNDARY - OAuth2 server health metrics response
         """Get OAuth2 server health metrics.
 
         Returns:

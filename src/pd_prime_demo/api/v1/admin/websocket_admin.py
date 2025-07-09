@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ....models.admin import AdminUser
 from ....websocket.handlers.admin_dashboard import AdminDashboardHandler
 from ....websocket.manager import ConnectionManager, MessageType, WebSocketMessage
-from ...response_patterns import handle_result, ErrorResponse
+from ...response_patterns import ErrorResponse
 
 
 class AdminWebSocketConfig(BaseModel):
@@ -195,7 +195,7 @@ async def get_admin_dashboard_stats(
     response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
-) -> Union[AdminDashboardStats, ErrorResponse]:
+) -> AdminDashboardStats | ErrorResponse:
     """Get current admin dashboard statistics."""
     if "analytics:read" not in admin_user.effective_permissions:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -216,9 +216,7 @@ async def get_admin_dashboard_stats(
 
     return AdminDashboardStats(
         active_admin_connections=len(dashboard_handler._active_streams),
-        total_websocket_connections=websocket_metrics.get(
-            "total_connections", 0
-        ),
+        total_websocket_connections=websocket_metrics.get("total_connections", 0),
         system_health_status=metrics.get("health_status", "unknown"),
         active_alerts=len(dashboard_handler._active_streams),  # Simplified
         pending_notifications=0,  # Would come from notification handler
@@ -235,7 +233,7 @@ async def broadcast_admin_alert(
     data: dict[str, Any] | None = None,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
-) -> Union[dict[str, str], ErrorResponse]:
+) -> dict[str, str] | ErrorResponse:
     """Broadcast alert to all admin dashboard users."""
     if "system:manage" not in admin_user.effective_permissions:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -261,11 +259,13 @@ async def get_websocket_connection_health(
     response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get WebSocket connection health metrics."""
     if "performance:read" not in admin_user.effective_permissions:
         response.status_code = status.HTTP_403_FORBIDDEN
-        return ErrorResponse(error="Insufficient permissions for connection health metrics")
+        return ErrorResponse(
+            error="Insufficient permissions for connection health metrics"
+        )
 
     # Get connection health from manager
     stats = await dashboard_handler._manager.get_connection_stats()
@@ -310,7 +310,7 @@ async def get_active_admin_sessions(
     response: Response,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get information about active admin WebSocket sessions."""
     if "audit:read" not in admin_user.effective_permissions:
         response.status_code = status.HTTP_403_FORBIDDEN

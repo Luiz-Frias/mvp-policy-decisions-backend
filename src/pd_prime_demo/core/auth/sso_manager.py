@@ -58,7 +58,9 @@ class SSOProviderConfig(BaseModel):
     hosted_domain: str | None = Field(None, description="Google hosted domain")
     tenant_id: str | None = Field(None, description="Azure AD tenant ID")
     okta_domain: str | None = Field(None, description="Okta domain")
-    authorization_server_id: str | None = Field(None, description="Okta authorization server ID")
+    authorization_server_id: str | None = Field(
+        None, description="Okta authorization server ID"
+    )
     auth0_domain: str | None = Field(None, description="Auth0 domain")
     audience: str | None = Field(None, description="Auth0 audience")
 
@@ -76,7 +78,9 @@ class AutoProvisioningConfig(BaseModel):
     )
 
     auto_create_users: bool = Field(..., description="Whether to auto-create users")
-    allowed_domains: list[str] = Field(default_factory=list, description="Allowed email domains")
+    allowed_domains: list[str] = Field(
+        default_factory=list, description="Allowed email domains"
+    )
     default_role: str = Field(..., description="Default role for new users")
 
 
@@ -135,7 +139,7 @@ class SSOManager:
                 # Create configuration model
                 try:
                     config = SSOProviderConfig(**config_data)
-                except Exception as e:
+                except Exception:
                     # Skip invalid configs
                     continue
 
@@ -208,7 +212,9 @@ class SSOManager:
                 )
 
             elif provider_type == "okta":
-                if not all([config.client_id, config.client_secret, config.okta_domain]):
+                if not all(
+                    [config.client_id, config.client_secret, config.okta_domain]
+                ):
                     return Err(f"Missing required Okta config for {provider_name}")
 
                 return Ok(
@@ -217,12 +223,15 @@ class SSOManager:
                         client_secret=config.client_secret,
                         redirect_uri=config.redirect_uri,
                         okta_domain=config.okta_domain,  # type: ignore  # Already checked above
-                        authorization_server_id=config.authorization_server_id or "default",
+                        authorization_server_id=config.authorization_server_id
+                        or "default",
                     )
                 )
 
             elif provider_type == "auth0":
-                if not all([config.client_id, config.client_secret, config.auth0_domain]):
+                if not all(
+                    [config.client_id, config.client_secret, config.auth0_domain]
+                ):
                     return Err(f"Missing required Auth0 config for {provider_name}")
 
                 return Ok(
@@ -317,8 +326,10 @@ class SSOManager:
                         # Check if auto-provisioning is allowed
                         config = self._provider_configs.get(provider_name)
                         if not config:
-                            return Err(f"Provider '{provider_name}' configuration not found")
-                        
+                            return Err(
+                                f"Provider '{provider_name}' configuration not found"
+                            )
+
                         auto_create = await self._check_auto_provisioning(
                             provider_name, sso_info, config
                         )
@@ -374,7 +385,7 @@ class SSOManager:
         auto_provisioning = AutoProvisioningConfig(
             auto_create_users=provider_row["auto_create_users"] or False,
             allowed_domains=provider_row["allowed_domains"] or [],
-            default_role=provider_row["default_role"] or "agent"
+            default_role=provider_row["default_role"] or "agent",
         )
 
         if not auto_provisioning.auto_create_users:
@@ -681,6 +692,7 @@ class SSOManager:
         # Basic decryption for demo purposes - production would use KMS
         if encrypted_secret.startswith("encrypted:"):
             import base64
+
             try:
                 encrypted_value = encrypted_secret.replace("encrypted:", "")
                 return base64.b64decode(encrypted_value).decode()
@@ -701,14 +713,14 @@ class SSOManager:
         """
         for provider_name, config_dict in configs.items():
             provider_type = config_dict.get("provider_type", "oidc")
-            
+
             # Create configuration model from dict
             try:
                 config = SSOProviderConfig(**config_dict)
             except Exception:
                 # Skip invalid cached config
                 continue
-            
+
             provider_result = await self._create_provider(
                 provider_name, provider_type, config
             )

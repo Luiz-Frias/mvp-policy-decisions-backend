@@ -8,15 +8,14 @@ import asyncio
 import random
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.compliance import ControlTestResult, ControlTestFinding
 from pd_prime_demo.schemas.common import EvidenceContent
+from pd_prime_demo.schemas.compliance import ControlTestFinding
 
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import (
@@ -793,7 +792,9 @@ class ControlTestingFramework:
         }
 
     @beartype
-    async def execute_test_plan(self, test_plan: TestPlan, executed_by: str) -> Result[TestPlan, str]:
+    async def execute_test_plan(
+        self, test_plan: TestPlan, executed_by: str
+    ) -> Result[TestPlan, str]:
         """Execute all tests in a test plan."""
         try:
             executed_tests = []

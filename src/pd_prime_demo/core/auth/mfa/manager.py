@@ -23,8 +23,8 @@ from .models import (
     MFAVerificationRequest,
     MFAVerificationResult,
     RiskAssessment,
-    TOTPSetupData,
     TOTPSetupCache,
+    TOTPSetupData,
 )
 from .risk_engine import RiskEngine
 from .sms import SMSProvider
@@ -111,7 +111,9 @@ class MFAManager:
             return Err(f"Failed to get MFA configuration: {str(e)}")
 
     @beartype
-    async def setup_totp(self, user_id: UUID, user_email: str) -> Result[TOTPSetupData, str]:
+    async def setup_totp(
+        self, user_id: UUID, user_email: str
+    ) -> Result[TOTPSetupData, str]:
         """Setup TOTP for user.
 
         Args:
@@ -138,8 +140,7 @@ class MFAManager:
 
             # Store encrypted secret temporarily (user must verify to activate)
             totp_cache = TOTPSetupCache(
-                secret_encrypted=encrypted_secret,
-                backup_codes=setup_data.backup_codes
+                secret_encrypted=encrypted_secret, backup_codes=setup_data.backup_codes
             )
             await self._cache.set(
                 f"totp_setup:{user_id}",
@@ -249,7 +250,7 @@ class MFAManager:
 
             # Create challenge metadata
             metadata = MFAChallengeMetadata()
-            
+
             # Create challenge
             challenge = MFAChallenge(
                 challenge_id=uuid4(),
@@ -322,7 +323,9 @@ class MFAManager:
             return Err(f"Failed to create MFA challenge: {str(e)}")
 
     @beartype
-    async def verify_mfa_challenge(self, request: MFAVerificationRequest) -> Result[MFAVerificationResult, str]:
+    async def verify_mfa_challenge(
+        self, request: MFAVerificationRequest
+    ) -> Result[MFAVerificationResult, str]:
         """Verify MFA challenge response.
 
         Args:
@@ -651,7 +654,9 @@ class MFAManager:
         return fernet.encrypt(code.encode()).decode()
 
     @beartype
-    async def _verify_recovery_code(self, user_id: UUID, code: str) -> Result[bool, str]:
+    async def _verify_recovery_code(
+        self, user_id: UUID, code: str
+    ) -> Result[bool, str]:
         """Verify and consume recovery code."""
         try:
             # Get user's recovery codes

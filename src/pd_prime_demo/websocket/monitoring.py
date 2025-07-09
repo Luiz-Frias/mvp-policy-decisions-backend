@@ -18,11 +18,6 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from .message_models import (
-    WebSocketMessageData,
-    create_websocket_message_data,
-)
-
 from ..core.cache import Cache
 from ..core.database import Database
 
@@ -638,7 +633,9 @@ class WebSocketMonitor:
         alert_key = (
             f"websocket:alert:{alert.alert_type}:{int(alert.timestamp.timestamp())}"
         )
-        await self._cache.set(alert_key, alert.model_dump_json(), ttl=3600)  # 1 hour TTL
+        await self._cache.set(
+            alert_key, alert.model_dump_json(), ttl=3600
+        )  # 1 hour TTL
 
         # Could also send to notification system here
         # await notification_handler.send_admin_alert(alert)
@@ -710,7 +707,9 @@ class WebSocketMonitor:
         top_users = sorted(user_activity.items(), key=lambda x: x[1], reverse=True)[:10]
 
         # Room statistics
-        room_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"connections": 0, "messages": 0})
+        room_stats: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"connections": 0, "messages": 0}
+        )
         for conn in self._connection_metrics.values():
             room_stats["total"]["connections"] += 1
             room_stats["total"]["messages"] += (

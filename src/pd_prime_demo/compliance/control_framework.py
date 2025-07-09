@@ -15,16 +15,12 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.compliance import ControlTestResult
+from pd_prime_demo.models.base import BaseModelConfig
 from pd_prime_demo.schemas.common import (
+    CollectionMetadata,
     ControlEvidence,
     EvidenceContent,
-    ControlExecutionDetails,
-    SystemDataEvidence,
-    CollectionMetadata,
-    AdditionalEvidenceContext,
 )
-from pd_prime_demo.models.base import BaseModelConfig
 
 
 class TrustServiceCriteria(str, Enum):
@@ -74,25 +70,38 @@ class ControlDefinition:
 
 class ControlExecutionMetadata(BaseModelConfig):
     """Structured metadata for control execution."""
-    
-    context: EvidenceContent | None = Field(None, description="Execution context")
-    execution_environment: str = Field(default="production", description="Execution environment")
-    automation_level: str = Field(default="full", description="Level of automation")
-    data_sources: list[str] = Field(default_factory=list, description="Data sources used")
-    validation_checks: list[str] = Field(default_factory=list, description="Validation checks performed")
 
+    context: EvidenceContent | None = Field(None, description="Execution context")
+    execution_environment: str = Field(
+        default="production", description="Execution environment"
+    )
+    automation_level: str = Field(default="full", description="Level of automation")
+    data_sources: list[str] = Field(
+        default_factory=list, description="Data sources used"
+    )
+    validation_checks: list[str] = Field(
+        default_factory=list, description="Validation checks performed"
+    )
 
 
 class ControlExecutionResult(BaseModelConfig):
     """Structured result from control execution logic."""
-    
+
     success: bool = Field(..., description="Control execution success status")
-    evidence: dict[str, str | bool | list[str]] = Field(default_factory=dict, description="Evidence collected")
+    evidence: dict[str, str | bool | list[str]] = Field(
+        default_factory=dict, description="Evidence collected"
+    )
     findings: list[str] = Field(default_factory=list, description="Control findings")
-    remediation: list[str] = Field(default_factory=list, description="Remediation actions")
-    execution_metadata: dict[str, str | bool | datetime] = Field(default_factory=dict, description="Execution metadata")
+    remediation: list[str] = Field(
+        default_factory=list, description="Remediation actions"
+    )
+    execution_metadata: dict[str, str | bool | datetime] = Field(
+        default_factory=dict, description="Execution metadata"
+    )
     risk_assessment: str = Field(default="low", description="Risk assessment level")
-    confidence_score: float = Field(default=100.0, ge=0.0, le=100.0, description="Confidence in result")
+    confidence_score: float = Field(
+        default=100.0, ge=0.0, le=100.0, description="Confidence in result"
+    )
 
 
 class ControlExecution(BaseModel):
@@ -136,13 +145,13 @@ class ControlExecutionRegistry(BaseModel):
         """Add execution, replacing older ones for the same control."""
         new_executions = self.executions.copy()
         control_id = execution.control_id
-        
+
         if (
             control_id not in new_executions
             or execution.timestamp > new_executions[control_id].timestamp
         ):
             new_executions[control_id] = execution
-        
+
         return ControlExecutionRegistry(executions=new_executions)
 
     @beartype
@@ -229,7 +238,7 @@ class ControlFramework:
             control = self._controls[control_id]
             start_time = datetime.now(timezone.utc)
 
-            # Execute control based on type and criteria  
+            # Execute control based on type and criteria
             default_context = EvidenceContent(
                 collection_metadata=CollectionMetadata(
                     collector_id="control_framework",
@@ -240,10 +249,12 @@ class ControlFramework:
                     collection_duration_ms=0,  # Will be updated after execution
                     data_completeness=True,
                     validation_passed=True,
-                    retention_period_days=2555  # 7 years for SOC 2 compliance
+                    retention_period_days=2555,  # 7 years for SOC 2 compliance
                 )
             )
-            execution_result = self._execute_control_logic(control, context or default_context)
+            execution_result = self._execute_control_logic(
+                control, context or default_context
+            )
 
             end_time = datetime.now(timezone.utc)
             execution_time_ms = int((end_time - start_time).total_seconds() * 1000)
@@ -316,7 +327,7 @@ class ControlFramework:
             "documents_reviewed": [control.control_id],
             "policy_compliant": True,
         }
-        
+
         # Create properly typed execution metadata
         execution_metadata: dict[str, str | bool | datetime] = {
             "control_type": control.control_type.value,

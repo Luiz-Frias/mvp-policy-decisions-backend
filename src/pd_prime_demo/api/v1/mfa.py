@@ -4,7 +4,7 @@ from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.auth.mfa import MFAManager
@@ -15,7 +15,6 @@ from ...core.auth.mfa.models import (
 from ...core.cache import get_cache
 from ...core.config import get_settings
 from ...core.database import get_database
-from ...core.result_types import Err
 from ..dependencies import get_current_user
 from ..response_patterns import ErrorResponse
 
@@ -182,7 +181,7 @@ async def get_mfa_status(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[MFAStatusResponse, ErrorResponse]:
+) -> MFAStatusResponse | ErrorResponse:
     """Get user's MFA status."""
     user_id = UUID(current_user["sub"])
 
@@ -225,14 +224,18 @@ async def setup_totp(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[TOTPSetupResponse, ErrorResponse]:
+) -> TOTPSetupResponse | ErrorResponse:
     """Start TOTP setup process."""
     user_id = UUID(current_user["sub"])
     user_email = current_user.get("email", "user@example.com")
 
     # Check if TOTP already enabled
     config_result = await mfa_manager.get_user_mfa_config(user_id)
-    if config_result.is_ok() and config_result.ok_value is not None and config_result.ok_value.totp_enabled:
+    if (
+        config_result.is_ok()
+        and config_result.ok_value is not None
+        and config_result.ok_value.totp_enabled
+    ):
         response.status_code = 400
         return ErrorResponse(error="TOTP already enabled for this account")
 
@@ -262,7 +265,7 @@ async def verify_totp_setup(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, str], ErrorResponse]:
+) -> dict[str, str] | ErrorResponse:
     """Verify TOTP setup and activate."""
     user_id = UUID(current_user["sub"])
 
@@ -280,7 +283,7 @@ async def disable_totp(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, str], ErrorResponse]:
+) -> dict[str, str] | ErrorResponse:
     """Disable TOTP authentication."""
     user_id = UUID(current_user["sub"])
 
@@ -323,7 +326,7 @@ async def begin_webauthn_registration(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[WebAuthnRegistrationResponse, ErrorResponse]:
+) -> WebAuthnRegistrationResponse | ErrorResponse:
     """Begin WebAuthn registration."""
     user_id = UUID(current_user["sub"])
     user_email = current_user.get("email", "user@example.com")
@@ -354,7 +357,7 @@ async def setup_sms(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, str | int], ErrorResponse]:
+) -> dict[str, str | int] | ErrorResponse:
     """Setup SMS authentication."""
     user_id = UUID(current_user["sub"])
 
@@ -385,7 +388,7 @@ async def create_mfa_challenge(
     preferred_method: MFAMethod | None = None,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[MFAChallengeResponse, ErrorResponse]:
+) -> MFAChallengeResponse | ErrorResponse:
     """Create MFA challenge for authentication."""
     user_id = UUID(current_user["sub"])
 
@@ -420,7 +423,7 @@ async def verify_mfa_challenge(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Verify MFA challenge."""
     # Ensure challenge ID matches request
     if request.challenge_id != challenge_id:
@@ -459,7 +462,7 @@ async def generate_recovery_codes(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Generate new recovery codes."""
     user_id = UUID(current_user["sub"])
 
@@ -483,7 +486,7 @@ async def trust_device(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Mark device as trusted."""
     user_id = UUID(current_user["sub"])
 
@@ -518,7 +521,7 @@ async def get_risk_assessment(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get current authentication risk assessment."""
     user_id = str(current_user["sub"])
 

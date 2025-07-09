@@ -14,7 +14,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
-from ...schemas.rating import TerritoryRates, TerritoryRiskFactors
+from ...schemas.rating import TerritoryRiskFactors
 
 
 @beartype
@@ -82,7 +82,9 @@ class TerritoryManager:
         self._territory_cache: dict[str, TerritoryDefinition] = {}
 
     @beartype
-    async def get_territory_factor(self, state: str, zip_code: str) -> Result[float, str]:
+    async def get_territory_factor(
+        self, state: str, zip_code: str
+    ) -> Result[float, str]:
         """Get territory factor for a specific ZIP code.
 
         Args:
@@ -223,7 +225,9 @@ class TerritoryManager:
             return Err(f"Territory update failed: {str(e)}")
 
     @beartype
-    async def get_territories_for_state(self, state: str) -> Result[list[TerritoryDefinition], str]:
+    async def get_territories_for_state(
+        self, state: str
+    ) -> Result[list[TerritoryDefinition], str]:
         """Get all territories for a state.
 
         Args:
@@ -253,7 +257,7 @@ class TerritoryManager:
                     traffic_density=risk_factors_data.get("traffic_density", 0.0),
                     catastrophe_risk=risk_factors_data.get("catastrophe_risk", 0.0),
                 )
-                
+
                 territory = TerritoryDefinition(
                     territory_id=row["territory_id"],
                     state=row["state"],
@@ -270,7 +274,9 @@ class TerritoryManager:
             return Err(f"Failed to get territories: {str(e)}")
 
     @beartype
-    async def calculate_risk_metrics(self, state: str, zip_code: str) -> Result[dict[str, Any], str]:
+    async def calculate_risk_metrics(
+        self, state: str, zip_code: str
+    ) -> Result[dict[str, Any], str]:
         """Calculate comprehensive risk metrics for a ZIP code.
 
         Args:
@@ -298,12 +304,19 @@ class TerritoryManager:
             }
 
             # Detail each risk component using structured model
-            for factor_name in ["crime_rate", "weather_risk", "traffic_density", "catastrophe_risk"]:
+            for factor_name in [
+                "crime_rate",
+                "weather_risk",
+                "traffic_density",
+                "catastrophe_risk",
+            ]:
                 factor_value = getattr(territory.risk_factors, factor_name)
                 metrics["risk_components"][factor_name] = {
                     "raw_value": factor_value,
                     "impact": territory.risk_factors.get_risk_impact(factor_name),
-                    "description": territory.risk_factors.get_risk_description(factor_name),
+                    "description": territory.risk_factors.get_risk_description(
+                        factor_name
+                    ),
                 }
 
             return Ok(metrics)
@@ -417,7 +430,7 @@ class TerritoryManager:
                 traffic_density=risk_factors_data.get("traffic_density", 0.0),
                 catastrophe_risk=risk_factors_data.get("catastrophe_risk", 0.0),
             )
-            
+
             territory = TerritoryDefinition(
                 territory_id=row["territory_id"],
                 state=row["state"],
@@ -470,7 +483,7 @@ class TerritoryManager:
                 traffic_density=risk_factors_data.get("traffic_density", 0.0),
                 catastrophe_risk=risk_factors_data.get("catastrophe_risk", 0.0),
             )
-            
+
             territory = TerritoryDefinition(
                 territory_id=row["territory_id"],
                 state=row["state"],

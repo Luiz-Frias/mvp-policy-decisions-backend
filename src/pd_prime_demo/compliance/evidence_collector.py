@@ -16,8 +16,14 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.compliance import EvidenceItem, EvidenceCollection
-from pd_prime_demo.schemas.common import EvidenceContent, ControlEvidence, ComplianceFinding, ComplianceRecommendation, ManagementResponse
+from pd_prime_demo.schemas.common import (
+    ComplianceFinding,
+    ComplianceRecommendation,
+    ControlEvidence,
+    EvidenceContent,
+    ManagementResponse,
+)
+from pd_prime_demo.schemas.compliance import EvidenceCollection, EvidenceItem
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -203,7 +209,9 @@ class ComplianceReport(BaseModel):
     # Compliance Summary
     overall_compliance_score: float = Field(ge=0.0, le=100.0)
     trust_service_criteria_scores: dict[str, float] = Field(default_factory=dict)
-    control_effectiveness_summary: ControlEvidence = Field(default_factory=ControlEvidence)
+    control_effectiveness_summary: ControlEvidence = Field(
+        default_factory=ControlEvidence
+    )
 
     # Evidence Summary
     total_evidence_artifacts: int = Field(ge=0)
@@ -319,9 +327,7 @@ class EvidenceCollector:
             return "general"
 
     @beartype
-    async def _store_evidence_item(
-        self, evidence_item: EvidenceItem
-    ) -> EvidenceItem:
+    async def _store_evidence_item(self, evidence_item: EvidenceItem) -> EvidenceItem:
         """Store evidence item securely."""
         # Create file for evidence content
         file_name = f"{evidence_item.evidence_id}_{evidence_item.evidence_type}.json"
@@ -475,7 +481,9 @@ class EvidenceCollector:
         pass
 
     @beartype
-    async def add_artifact_to_collection(self, collection_id: UUID, artifact_id: UUID) -> Result[None, str]:
+    async def add_artifact_to_collection(
+        self, collection_id: UUID, artifact_id: UUID
+    ) -> Result[None, str]:
         """Add an evidence artifact to a collection."""
         try:
             # In a real implementation, this would update the database

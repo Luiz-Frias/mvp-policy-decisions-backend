@@ -5,17 +5,17 @@ with proper validation, caching, and error handling.
 """
 
 from collections.abc import AsyncGenerator
+from typing import Union
 from uuid import UUID, uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, status, Response
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
-from typing import Union
 
+from pd_prime_demo.api.response_patterns import ErrorResponse, handle_result
 from pd_prime_demo.core.result_types import Err
-from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -82,7 +82,7 @@ async def list_policies(
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Union[PolicyListResponse, ErrorResponse]:
+) -> PolicyListResponse | ErrorResponse:
     """List policies with pagination and filtering.
 
     Args:
@@ -137,7 +137,11 @@ async def list_policies(
             offset=0,
         )
 
-        total = len(count_result.ok_value) if count_result.is_ok() and count_result.ok_value is not None else 0
+        total = (
+            len(count_result.ok_value)
+            if count_result.is_ok() and count_result.ok_value is not None
+            else 0
+        )
 
         list_response = PolicyListResponse(
             items=policies,
@@ -161,7 +165,7 @@ async def create_policy(
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Union[Policy, ErrorResponse]:
+) -> Policy | ErrorResponse:
     """Create a new insurance policy.
 
     Args:
@@ -197,7 +201,9 @@ async def create_policy(
             result = await service.create(policy_data, customer_id)
 
             if isinstance(result, Err):
-                return handle_result(result, response, success_status=status.HTTP_201_CREATED)
+                return handle_result(
+                    result, response, success_status=status.HTTP_201_CREATED
+                )
 
             policy = result.ok_value
 
@@ -211,7 +217,11 @@ async def create_policy(
         return policy
 
     except Exception as e:
-        return handle_result(Err(f"Failed to create policy: {str(e)}"), response, success_status=status.HTTP_201_CREATED)
+        return handle_result(
+            Err(f"Failed to create policy: {str(e)}"),
+            response,
+            success_status=status.HTTP_201_CREATED,
+        )
 
 
 @router.get("/{policy_id}")
@@ -222,7 +232,7 @@ async def get_policy(
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Union[Policy, ErrorResponse]:
+) -> Policy | ErrorResponse:
     """Retrieve a specific policy by ID.
 
     Args:
@@ -284,7 +294,7 @@ async def update_policy(
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Union[Policy, ErrorResponse]:
+) -> Policy | ErrorResponse:
     """Update an existing policy.
 
     Args:
@@ -342,7 +352,7 @@ async def delete_policy(
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Union[None, ErrorResponse]:
+) -> None | ErrorResponse:
     """Delete a policy (soft delete by setting status to CANCELLED).
 
     Args:

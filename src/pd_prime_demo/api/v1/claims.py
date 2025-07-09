@@ -7,17 +7,17 @@ with proper validation, state transitions, and audit logging.
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Union
 from uuid import UUID, uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, status, Response
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from redis.asyncio import Redis
-from typing import Union
 
+from pd_prime_demo.api.response_patterns import ErrorResponse, handle_result
 from pd_prime_demo.core.result_types import Err
-from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -279,7 +279,7 @@ async def list_claims(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[ClaimListResponse, ErrorResponse]:
+) -> ClaimListResponse | ErrorResponse:
     """List claims with pagination and filtering.
 
     Args:
@@ -360,7 +360,11 @@ async def list_claims(
         offset=0,
     )
 
-    total = len(count_result.ok_value) if count_result.is_ok() and count_result.ok_value is not None else 0
+    total = (
+        len(count_result.ok_value)
+        if count_result.is_ok() and count_result.ok_value is not None
+        else 0
+    )
 
     list_response = ClaimListResponse(
         items=claims, total=total, skip=pagination.skip, limit=pagination.limit
@@ -380,7 +384,7 @@ async def create_claim(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Claim, ErrorResponse]:
+) -> Claim | ErrorResponse:
     """Create a new insurance claim.
 
     Args:
@@ -424,7 +428,9 @@ async def create_claim(
         result = await service.create(service_claim_data, claim_data.policy_id)
 
         if isinstance(result, Err):
-            return handle_result(result, response, success_status=status.HTTP_201_CREATED)
+            return handle_result(
+                result, response, success_status=status.HTTP_201_CREATED
+            )
 
         claim_model = result.ok_value
 
@@ -462,7 +468,11 @@ async def create_claim(
         return claim
 
     except Exception as e:
-        return handle_result(Err(f"Failed to create claim: {str(e)}"), response, success_status=status.HTTP_201_CREATED)
+        return handle_result(
+            Err(f"Failed to create claim: {str(e)}"),
+            response,
+            success_status=status.HTTP_201_CREATED,
+        )
 
 
 @router.get("/{claim_id}")
@@ -473,7 +483,7 @@ async def get_claim(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Claim, ErrorResponse]:
+) -> Claim | ErrorResponse:
     """Retrieve a specific claim by ID.
 
     Args:
@@ -556,7 +566,7 @@ async def update_claim(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Claim, ErrorResponse]:
+) -> Claim | ErrorResponse:
     """Update an existing claim.
 
     Args:
@@ -613,7 +623,9 @@ async def update_claim(
 
         claim_model = status_result.ok_value
         if not claim_model:
-            return handle_result(Err(f"Claim {claim_id} not found after status update"), response)
+            return handle_result(
+                Err(f"Claim {claim_id} not found after status update"), response
+            )
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -659,7 +671,7 @@ async def update_claim_status(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Claim, ErrorResponse]:
+) -> Claim | ErrorResponse:
     """Update claim status with audit trail.
 
     Args:
@@ -745,7 +757,7 @@ async def delete_claim(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[None, ErrorResponse]:
+) -> None | ErrorResponse:
     """Delete a claim (only allowed for DRAFT status).
 
     Args:

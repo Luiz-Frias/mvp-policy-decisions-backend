@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
-from pydantic import Field, ConfigDict
+from pydantic import ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
@@ -13,15 +13,13 @@ from ..core.auth.sso_base import SSOUserInfo
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.base import BaseModelConfig
-from ..models.user import UserBase, UserCreate, UserUpdate
-from ..models.admin import AdminUser
 
 
 class AdditionalAttributes(BaseModelConfig):
     """Structured additional attributes for provisioning."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     employee_id: str | None = None
     division: str | None = None
     location: str | None = None
@@ -36,19 +34,21 @@ class AdditionalAttributes(BaseModelConfig):
 
 class ProvisioningCustomFields(BaseModelConfig):
     """Structured custom fields for provisioning conditions."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     department: str | None = None
     employee_type: str | None = None
     cost_center: str | None = None
     manager_email: str | None = None
-    additional_attributes: AdditionalAttributes = Field(default_factory=AdditionalAttributes)
+    additional_attributes: AdditionalAttributes = Field(
+        default_factory=AdditionalAttributes
+    )
 
 
 class ProvisioningConditions(BaseModelConfig):
     """Structured provisioning rule conditions."""
-    
+
     email_domains: list[str] | None = None
     email_patterns: list[str] | None = None
     required_groups: list[str] | None = None
@@ -60,7 +60,7 @@ class ProvisioningConditions(BaseModelConfig):
 
 class ProvisioningActions(BaseModelConfig):
     """Structured provisioning rule actions."""
-    
+
     role: str | None = None
     groups: list[str] | None = None
     auto_create: bool | None = None
@@ -70,9 +70,9 @@ class ProvisioningActions(BaseModelConfig):
 
 class ProvisioningRuleUpdate(BaseModelConfig):
     """Model for updating provisioning rules."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     rule_name: str | None = None
     conditions: ProvisioningConditions | None = None
     actions: ProvisioningActions | None = None
@@ -82,9 +82,9 @@ class ProvisioningRuleUpdate(BaseModelConfig):
 
 class CustomAttributes(BaseModelConfig):
     """Structured custom attributes for SSO user info."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     preferred_username: str | None = None
     given_name: str | None = None
     family_name: str | None = None
@@ -105,9 +105,9 @@ class CustomAttributes(BaseModelConfig):
 
 class ProvisioningTestUserData(BaseModelConfig):
     """Model for test user data in provisioning rules."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     sub: str = "test-user-123"
     email: str = "test@example.com"
     email_verified: bool = True
@@ -119,9 +119,9 @@ class ProvisioningTestUserData(BaseModelConfig):
 
 class ProvisioningTestResult(BaseModelConfig):
     """Result of provisioning rule test."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     rule_name: str
     conditions_met: bool
     actions: ProvisioningActions
@@ -362,8 +362,12 @@ class UserProvisioningService:
 
             # Validate updates if conditions or actions are being changed
             if updates.conditions or updates.actions:
-                new_conditions = updates.conditions or ProvisioningConditions(**existing["conditions"])
-                new_actions = updates.actions or ProvisioningActions(**existing["actions"])
+                new_conditions = updates.conditions or ProvisioningConditions(
+                    **existing["conditions"]
+                )
+                new_actions = updates.actions or ProvisioningActions(
+                    **existing["actions"]
+                )
 
                 validation_result = await self._validate_rule(
                     new_conditions, new_actions
@@ -373,16 +377,28 @@ class UserProvisioningService:
 
             # Build update query
             update_fields: list[str] = []
-            update_values: list[str | int | bool | dict[str, Any] | UUID | datetime | None] = []
+            update_values: list[
+                str | int | bool | dict[str, Any] | UUID | datetime | None
+            ] = []
 
             # Map update fields from model using structured field mapping
             update_data = updates.model_dump(exclude_unset=True)
-            
+
             for field, value in update_data.items():
-                if field in ["rule_name", "conditions", "actions", "priority", "is_enabled"]:
+                if field in [
+                    "rule_name",
+                    "conditions",
+                    "actions",
+                    "priority",
+                    "is_enabled",
+                ]:
                     update_fields.append(f"{field} = ${len(update_values) + 2}")
                     if field in ["conditions", "actions"] and value is not None:
-                        update_values.append(value.model_dump() if hasattr(value, 'model_dump') else value)
+                        update_values.append(
+                            value.model_dump()
+                            if hasattr(value, "model_dump")
+                            else value
+                        )
                     else:
                         update_values.append(value)
 
@@ -504,12 +520,16 @@ class UserProvisioningService:
             test_result = ProvisioningTestResult(
                 rule_name=rule_row["rule_name"],
                 conditions_met=conditions_met,
-                actions=ProvisioningActions(**rule_row["actions"]) if conditions_met else ProvisioningActions(),
+                actions=(
+                    ProvisioningActions(**rule_row["actions"])
+                    if conditions_met
+                    else ProvisioningActions()
+                ),
                 test_data=test_user_data,
                 priority=rule_row["priority"],
-                is_enabled=rule_row["is_enabled"]
+                is_enabled=rule_row["is_enabled"],
             )
-            
+
             return Ok(test_result)
 
         except Exception as e:
@@ -537,13 +557,13 @@ class UserProvisioningService:
                 rules = []
                 for rule_data in cached_rules:
                     rule = ProvisioningRule(
-                        id=rule_data['id'],
-                        provider_id=rule_data['provider_id'],
-                        rule_name=rule_data['rule_name'],
-                        conditions=ProvisioningConditions(**rule_data['conditions']),
-                        actions=ProvisioningActions(**rule_data['actions']),
-                        priority=rule_data['priority'],
-                        is_enabled=rule_data['is_enabled']
+                        id=rule_data["id"],
+                        provider_id=rule_data["provider_id"],
+                        rule_name=rule_data["rule_name"],
+                        conditions=ProvisioningConditions(**rule_data["conditions"]),
+                        actions=ProvisioningActions(**rule_data["actions"]),
+                        priority=rule_data["priority"],
+                        is_enabled=rule_data["is_enabled"],
                     )
                     rules.append(rule)
                 return Ok(rules)
@@ -562,13 +582,13 @@ class UserProvisioningService:
             rule_objects = []
             for rule_data in rules_data:
                 rule = ProvisioningRule(
-                    id=rule_data['id'],
-                    provider_id=rule_data['provider_id'],
-                    rule_name=rule_data['rule_name'],
-                    conditions=ProvisioningConditions(**rule_data['conditions']),
-                    actions=ProvisioningActions(**rule_data['actions']),
-                    priority=rule_data['priority'],
-                    is_enabled=rule_data['is_enabled']
+                    id=rule_data["id"],
+                    provider_id=rule_data["provider_id"],
+                    rule_name=rule_data["rule_name"],
+                    conditions=ProvisioningConditions(**rule_data["conditions"]),
+                    actions=ProvisioningActions(**rule_data["actions"]),
+                    priority=rule_data["priority"],
+                    is_enabled=rule_data["is_enabled"],
                 )
                 rule_objects.append(rule)
 
@@ -612,6 +632,7 @@ class UserProvisioningService:
             # Email pattern conditions
             if conditions.email_patterns:
                 import re
+
                 patterns = conditions.email_patterns
                 if not any(re.match(pattern, sso_info.email) for pattern in patterns):
                     return False
@@ -643,7 +664,9 @@ class UserProvisioningService:
 
             # Custom field conditions
             if conditions.custom_fields:
-                custom_fields_data = conditions.custom_fields.model_dump(exclude_unset=True)
+                custom_fields_data = conditions.custom_fields.model_dump(
+                    exclude_unset=True
+                )
                 for field, expected_value in custom_fields_data.items():
                     if field == "additional_attributes":
                         # Handle additional attributes structured model
@@ -683,11 +706,9 @@ class UserProvisioningService:
         if actions.role:
             valid_roles = ["agent", "underwriter", "admin", "system"]
             if actions.role not in valid_roles:
-                return Err(
-                    f"Invalid role: {actions.role}. Valid roles: {valid_roles}"
-                )
+                return Err(f"Invalid role: {actions.role}. Valid roles: {valid_roles}")
 
         # Validate groups if specified (groups is already typed as list[str] | None)
         # Type checking ensures groups is a list when not None
-        
+
         return Ok(True)

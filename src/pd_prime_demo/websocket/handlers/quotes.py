@@ -8,15 +8,13 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..message_models import (
-    WebSocketMessageData,
-    create_websocket_message_data,
-)
-
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...services.quote_service import QuoteService
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
+from ..message_models import (
+    create_websocket_message_data,
+)
 
 
 class QuoteUpdateData(BaseModel):
@@ -77,7 +75,9 @@ class QuoteWebSocketHandler:
         self._recent_updates: dict[str, datetime] = {}
 
     @beartype
-    async def handle_quote_subscribe(self, connection_id: str, quote_id: UUID) -> Result[None, str]:
+    async def handle_quote_subscribe(
+        self, connection_id: str, quote_id: UUID
+    ) -> Result[None, str]:
         """Subscribe to real-time quote updates with explicit validation."""
         # Validate quote exists and user has access
         quote_result = await self._quote_service.get_quote(quote_id)
@@ -143,7 +143,9 @@ class QuoteWebSocketHandler:
         return Ok(None)
 
     @beartype
-    async def handle_quote_unsubscribe(self, connection_id: str, quote_id: UUID) -> Result[None, str]:
+    async def handle_quote_unsubscribe(
+        self, connection_id: str, quote_id: UUID
+    ) -> Result[None, str]:
         """Unsubscribe from quote updates."""
         room_id = f"quote:{quote_id}"
 
@@ -183,7 +185,9 @@ class QuoteWebSocketHandler:
                 data=create_websocket_message_data(
                     quote_id=quote_id,
                     connection_id=connection_id,
-                    payload={"active_editors": len(self._active_quote_sessions[quote_id])},
+                    payload={
+                        "active_editors": len(self._active_quote_sessions[quote_id])
+                    },
                 ).model_dump(),
             )
             await self._manager.send_to_room(room_id, leave_msg)

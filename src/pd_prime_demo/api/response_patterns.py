@@ -1,13 +1,14 @@
 """Elite API response patterns following Result[T,E] + HTTP semantics."""
 
-from typing import Any, Generic, TypeVar, Union, cast
+from typing import Generic, TypeVar, Union, cast
+
+from beartype import beartype
 from fastapi import Response
 from pydantic import BaseModel, ConfigDict, Field
-from beartype import beartype
 
 from pd_prime_demo.core.result_types import Result
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @beartype
@@ -22,13 +23,23 @@ class ErrorDetails(BaseModel):
         validate_default=True,
     )
 
-    error_code: str | None = Field(default=None, description="Machine-readable error code")
-    field_errors: dict[str, str] | None = Field(default=None, description="Field-specific validation errors")
-    validation_errors: list[str] | None = Field(default=None, description="General validation error messages")
-    context: dict[str, str | int | bool | float | None] | None = Field(default=None, description="Additional error context")
+    error_code: str | None = Field(
+        default=None, description="Machine-readable error code"
+    )
+    field_errors: dict[str, str] | None = Field(
+        default=None, description="Field-specific validation errors"
+    )
+    validation_errors: list[str] | None = Field(
+        default=None, description="General validation error messages"
+    )
+    context: dict[str, str | int | bool | float | None] | None = Field(
+        default=None, description="Additional error context"
+    )
     request_id: str | None = Field(default=None, description="Request ID for debugging")
     timestamp: str | None = Field(default=None, description="Error timestamp")
-    suggestion: str | None = Field(default=None, description="Suggested fix for the error")
+    suggestion: str | None = Field(
+        default=None, description="Suggested fix for the error"
+    )
 
 
 @beartype
@@ -45,9 +56,15 @@ class ValidationErrorDetails(BaseModel):
 
     field: str = Field(..., description="Field name that failed validation")
     message: str = Field(..., description="Human-readable error message")
-    rejected_value: str | int | float | bool | None = Field(default=None, description="The value that was rejected")
-    constraint: str | None = Field(default=None, description="Constraint that was violated")
-    location: list[str] | None = Field(default=None, description="Path to the field in nested objects")
+    rejected_value: str | int | float | bool | None = Field(
+        default=None, description="The value that was rejected"
+    )
+    constraint: str | None = Field(
+        default=None, description="Constraint that was violated"
+    )
+    location: list[str] | None = Field(
+        default=None, description="Path to the field in nested objects"
+    )
 
 
 @beartype
@@ -62,13 +79,27 @@ class StatusDetails(BaseModel):
         validate_default=True,
     )
 
-    status_code: str | None = Field(default=None, description="Machine-readable status code")
-    substatus: str | None = Field(default=None, description="Detailed substatus information")
-    progress: int | None = Field(default=None, description="Progress percentage (0-100)")
-    completion_time: str | None = Field(default=None, description="Estimated completion time")
-    affected_resources: list[str] | None = Field(default=None, description="List of affected resource IDs")
-    metrics: dict[str, str | int | bool | float | None] | None = Field(default=None, description="Status metrics")
-    warnings: list[str] | None = Field(default=None, description="Non-critical warnings")
+    status_code: str | None = Field(
+        default=None, description="Machine-readable status code"
+    )
+    substatus: str | None = Field(
+        default=None, description="Detailed substatus information"
+    )
+    progress: int | None = Field(
+        default=None, description="Progress percentage (0-100)"
+    )
+    completion_time: str | None = Field(
+        default=None, description="Estimated completion time"
+    )
+    affected_resources: list[str] | None = Field(
+        default=None, description="List of affected resource IDs"
+    )
+    metrics: dict[str, str | int | bool | float | None] | None = Field(
+        default=None, description="Status metrics"
+    )
+    warnings: list[str] | None = Field(
+        default=None, description="Non-critical warnings"
+    )
     next_action: str | None = Field(default=None, description="Suggested next action")
 
 
@@ -84,15 +115,25 @@ class HealthMetrics(BaseModel):
         validate_default=True,
     )
 
-    cpu_usage_percent: float | None = Field(default=None, description="CPU usage percentage")
+    cpu_usage_percent: float | None = Field(
+        default=None, description="CPU usage percentage"
+    )
     memory_usage_mb: int | None = Field(default=None, description="Memory usage in MB")
-    disk_usage_percent: float | None = Field(default=None, description="Disk usage percentage")
-    connection_count: int | None = Field(default=None, description="Active connection count")
+    disk_usage_percent: float | None = Field(
+        default=None, description="Disk usage percentage"
+    )
+    connection_count: int | None = Field(
+        default=None, description="Active connection count"
+    )
     request_count: int | None = Field(default=None, description="Request count")
     error_count: int | None = Field(default=None, description="Error count")
-    uptime_seconds: float | None = Field(default=None, description="Component uptime in seconds")
+    uptime_seconds: float | None = Field(
+        default=None, description="Component uptime in seconds"
+    )
     version: str | None = Field(default=None, description="Component version")
-    custom_metrics: dict[str, str | int | bool | float | None] | None = Field(default=None, description="Custom component metrics")
+    custom_metrics: dict[str, str | int | bool | float | None] | None = Field(
+        default=None, description="Custom component metrics"
+    )
 
 
 @beartype
@@ -109,8 +150,12 @@ class ErrorResponse(BaseModel):
 
     success: bool = Field(default=False, description="Always false for error responses")
     error: str = Field(..., description="Human-readable error message")
-    error_code: str | None = Field(default=None, description="Machine-readable error code")
-    details: ErrorDetails | None = Field(default=None, description="Structured error details")
+    error_code: str | None = Field(
+        default=None, description="Machine-readable error code"
+    )
+    details: ErrorDetails | None = Field(
+        default=None, description="Structured error details"
+    )
 
 
 @beartype
@@ -146,31 +191,56 @@ class APIResponseHandler:
         error_lower = error.lower()
 
         # Resource not found
-        if any(phrase in error_lower for phrase in ["not found", "does not exist", "missing"]):
+        if any(
+            phrase in error_lower
+            for phrase in ["not found", "does not exist", "missing"]
+        ):
             return 404
 
         # Authorization failures
-        if any(phrase in error_lower for phrase in ["unauthorized", "not authorized", "access denied"]):
+        if any(
+            phrase in error_lower
+            for phrase in ["unauthorized", "not authorized", "access denied"]
+        ):
             return 401
 
         # Permission failures
-        if any(phrase in error_lower for phrase in ["forbidden", "insufficient permissions", "not allowed"]):
+        if any(
+            phrase in error_lower
+            for phrase in ["forbidden", "insufficient permissions", "not allowed"]
+        ):
             return 403
 
         # Validation failures
-        if any(phrase in error_lower for phrase in [
-            "validation", "invalid", "malformed", "bad request", "required field"
-        ]):
+        if any(
+            phrase in error_lower
+            for phrase in [
+                "validation",
+                "invalid",
+                "malformed",
+                "bad request",
+                "required field",
+            ]
+        ):
             return 400
 
         # Conflict states
-        if any(phrase in error_lower for phrase in [
-            "already exists", "conflict", "duplicate", "concurrent modification"
-        ]):
+        if any(
+            phrase in error_lower
+            for phrase in [
+                "already exists",
+                "conflict",
+                "duplicate",
+                "concurrent modification",
+            ]
+        ):
             return 409
 
         # Rate limiting
-        if any(phrase in error_lower for phrase in ["rate limit", "too many requests", "throttled"]):
+        if any(
+            phrase in error_lower
+            for phrase in ["rate limit", "too many requests", "throttled"]
+        ):
             return 429
 
         # Default to 422 for business logic errors
@@ -179,10 +249,8 @@ class APIResponseHandler:
     @staticmethod
     @beartype
     def from_result(
-        result: Result[T, str],
-        response: Response,
-        success_status: int = 200
-    ) -> Union[T, ErrorResponse]:
+        result: Result[T, str], response: Response, success_status: int = 200
+    ) -> T | ErrorResponse:
         """Convert Result[T,E] to HTTP response with proper status codes.
 
         Args:
@@ -204,10 +272,8 @@ class APIResponseHandler:
     @staticmethod
     @beartype
     def from_result_wrapped(
-        result: Result[T, str],
-        response: Response,
-        success_status: int = 200
-    ) -> Union[SuccessResponse[T], ErrorResponse]:
+        result: Result[T, str], response: Response, success_status: int = 200
+    ) -> SuccessResponse[T] | ErrorResponse:
         """Convert Result[T,E] to wrapped response format.
 
         Args:
@@ -229,6 +295,7 @@ class APIResponseHandler:
 
 # Convenience type aliases for common response patterns
 # These are generic aliases that need to be parameterized when used
+
 
 @beartype
 class PaginationInfo(BaseModel):
@@ -268,30 +335,37 @@ class ApiMetadata(BaseModel):
     request_id: str | None = Field(default=None, description="Request ID for tracing")
     timestamp: str | None = Field(default=None, description="Response timestamp")
     api_version: str | None = Field(default=None, description="API version")
-    response_time_ms: float | None = Field(default=None, description="Response time in milliseconds")
-    rate_limit_remaining: int | None = Field(default=None, description="Remaining rate limit")
-    rate_limit_reset: str | None = Field(default=None, description="Rate limit reset time")
-    warnings: list[str] | None = Field(default=None, description="Non-critical warnings")
+    response_time_ms: float | None = Field(
+        default=None, description="Response time in milliseconds"
+    )
+    rate_limit_remaining: int | None = Field(
+        default=None, description="Remaining rate limit"
+    )
+    rate_limit_reset: str | None = Field(
+        default=None, description="Rate limit reset time"
+    )
+    warnings: list[str] | None = Field(
+        default=None, description="Non-critical warnings"
+    )
     cache_status: str | None = Field(default=None, description="Cache hit/miss status")
 
 
 # Convenience functions for common patterns
 @beartype
 def handle_result(
-    result: Result[T, str],
-    response: Response,
-    success_status: int = 200
-) -> Union[T, ErrorResponse]:
+    result: Result[T, str], response: Response, success_status: int = 200
+) -> T | ErrorResponse:
     """Convenience function for standard result handling."""
     # Type assertion to satisfy mypy - we know T won't be ErrorResponse here
-    return APIResponseHandler.from_result(cast(Result[Union[T, ErrorResponse], str], result), response, success_status)
+    return APIResponseHandler.from_result(
+        cast(Result[Union[T, ErrorResponse], str], result), response, success_status
+    )
+
 
 @beartype
 def handle_result_wrapped(
-    result: Result[T, str],
-    response: Response,
-    success_status: int = 200
-) -> Union[SuccessResponse[T], ErrorResponse]:
+    result: Result[T, str], response: Response, success_status: int = 200
+) -> SuccessResponse[T] | ErrorResponse:
     """Convenience function for wrapped result handling."""
     return APIResponseHandler.from_result_wrapped(result, response, success_status)
 
@@ -304,7 +378,7 @@ def create_error_details(
     context: dict[str, str | int | bool | float | None] | None = None,
     request_id: str | None = None,
     timestamp: str | None = None,
-    suggestion: str | None = None
+    suggestion: str | None = None,
 ) -> ErrorDetails:
     """Create structured error details."""
     return ErrorDetails(
@@ -314,7 +388,7 @@ def create_error_details(
         context=context,
         request_id=request_id,
         timestamp=timestamp,
-        suggestion=suggestion
+        suggestion=suggestion,
     )
 
 
@@ -327,7 +401,7 @@ def create_status_details(
     affected_resources: list[str] | None = None,
     metrics: dict[str, str | int | bool | float | None] | None = None,
     warnings: list[str] | None = None,
-    next_action: str | None = None
+    next_action: str | None = None,
 ) -> StatusDetails:
     """Create structured status details."""
     return StatusDetails(
@@ -338,7 +412,7 @@ def create_status_details(
         affected_resources=affected_resources,
         metrics=metrics,
         warnings=warnings,
-        next_action=next_action
+        next_action=next_action,
     )
 
 
@@ -352,7 +426,7 @@ def create_health_metrics(
     error_count: int | None = None,
     uptime_seconds: float | None = None,
     version: str | None = None,
-    custom_metrics: dict[str, str | int | bool | float | None] | None = None
+    custom_metrics: dict[str, str | int | bool | float | None] | None = None,
 ) -> HealthMetrics:
     """Create structured health metrics."""
     return HealthMetrics(
@@ -364,16 +438,13 @@ def create_health_metrics(
         error_count=error_count,
         uptime_seconds=uptime_seconds,
         version=version,
-        custom_metrics=custom_metrics
+        custom_metrics=custom_metrics,
     )
 
 
 @beartype
 def create_pagination_info(
-    page: int,
-    limit: int,
-    total: int,
-    first_page: int = 1
+    page: int, limit: int, total: int, first_page: int = 1
 ) -> PaginationInfo:
     """Create pagination information with calculated fields."""
     total_pages = (total + limit - 1) // limit if total > 0 else 0
@@ -381,7 +452,7 @@ def create_pagination_info(
     last_page = max(total_pages, 1)
     prev_page = page - 1 if page > first_page else None
     next_page = page + 1 if has_more else None
-    
+
     return PaginationInfo(
         page=page,
         limit=limit,
@@ -391,7 +462,7 @@ def create_pagination_info(
         first_page=first_page,
         last_page=last_page,
         prev_page=prev_page,
-        next_page=next_page
+        next_page=next_page,
     )
 
 
@@ -404,7 +475,7 @@ def create_api_metadata(
     rate_limit_remaining: int | None = None,
     rate_limit_reset: str | None = None,
     warnings: list[str] | None = None,
-    cache_status: str | None = None
+    cache_status: str | None = None,
 ) -> ApiMetadata:
     """Create API metadata."""
     return ApiMetadata(
@@ -415,5 +486,5 @@ def create_api_metadata(
         rate_limit_remaining=rate_limit_remaining,
         rate_limit_reset=rate_limit_reset,
         warnings=warnings,
-        cache_status=cache_status
+        cache_status=cache_status,
     )

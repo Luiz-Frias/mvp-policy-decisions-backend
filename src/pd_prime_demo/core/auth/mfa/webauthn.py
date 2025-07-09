@@ -1,7 +1,7 @@
 """WebAuthn/FIDO2 provider implementation."""
 
 from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from beartype import beartype
@@ -21,14 +21,17 @@ else:
     COSEAlgorithmIdentifier = dict[str, Any]
     UserVerificationRequirement = str
 
+
 # Define mock classes first
 class _MockPublicKeyCredentialDescriptor:
     def __init__(self, id: str, type: str) -> None:
         self.id = id
         self.type = type
 
+
 class _MockPublicKeyCredentialType:
     PUBLIC_KEY = "public-key"
+
 
 try:
     from webauthn import (
@@ -110,12 +113,12 @@ except ImportError:
     globals()["PublicKeyCredentialType"] = _MockPublicKeyCredentialType
 
 
+from pydantic import BaseModel, ConfigDict
+
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.config import Settings
 from .models import WebAuthnCredential
-from pydantic import BaseModel, ConfigDict, Field
-from beartype import beartype
 
 
 @beartype
@@ -336,7 +339,7 @@ class WebAuthnProvider:
                 authenticator_selection=options.authenticator_selection,
                 attestation=options.attestation,
             )
-            
+
             # Convert to dict for JSON serialization
             options_dict = options_result.model_dump()
 
@@ -353,7 +356,9 @@ class WebAuthnProvider:
             return Err(f"Failed to generate registration options: {str(e)}")
 
     @beartype
-    def verify_registration(self, user_id: UUID, credential_response: dict[str, Any]) -> Result[WebAuthnCredential, str]:
+    def verify_registration(
+        self, user_id: UUID, credential_response: dict[str, Any]
+    ) -> Result[WebAuthnCredential, str]:
         """Verify WebAuthn registration response.
 
         Args:
@@ -446,7 +451,7 @@ class WebAuthnProvider:
                 ],
                 user_verification=options.user_verification,
             )
-            
+
             # Convert to dict for JSON serialization
             options_dict = options_result.model_dump()
 
@@ -535,7 +540,7 @@ class WebAuthnProvider:
         # Store with expiration time
         self._challenge_store[key] = WebAuthnChallenge(
             challenge=challenge,
-            expires_at=(datetime.now() + timedelta(minutes=5)).isoformat()
+            expires_at=(datetime.now() + timedelta(minutes=5)).isoformat(),
         )
 
     @beartype
@@ -553,6 +558,7 @@ class WebAuthnProvider:
 
         # Check if expired
         from datetime import datetime
+
         try:
             expires_at = datetime.fromisoformat(stored.expires_at)
             if datetime.now() > expires_at:

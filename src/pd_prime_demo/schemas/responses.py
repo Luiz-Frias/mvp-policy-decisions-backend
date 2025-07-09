@@ -1,17 +1,23 @@
 """Common response schemas for API endpoints."""
 
+from datetime import datetime
 from typing import Generic, TypeVar
 from uuid import UUID
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+
 from beartype import beartype
+from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.api.response_patterns import (
-    ErrorResponse, SuccessResponse, ErrorDetails, ValidationErrorDetails, 
-    StatusDetails, HealthMetrics, PaginationInfo, ApiMetadata
+    ApiMetadata,
+    ErrorDetails,
+    ErrorResponse,
+    HealthMetrics,
+    PaginationInfo,
+    StatusDetails,
+    ValidationErrorDetails,
 )
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @beartype
@@ -79,7 +85,9 @@ class StatusResponse(BaseModel):
 
     status: str = Field(..., description="Current status")
     message: str = Field(..., description="Status description")
-    details: StatusDetails | None = Field(default=None, description="Structured status details")
+    details: StatusDetails | None = Field(
+        default=None, description="Structured status details"
+    )
 
 
 @beartype
@@ -112,7 +120,7 @@ StatusResult = StatusResponse | ErrorResponse
 @beartype
 class ValidationErrorResponse(BaseModel):
     """Response model for validation errors."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -120,17 +128,21 @@ class ValidationErrorResponse(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
-    success: bool = Field(default=False, description="Always false for validation errors")
+
+    success: bool = Field(
+        default=False, description="Always false for validation errors"
+    )
     error: str = Field(..., description="Main validation error message")
-    validation_errors: list[ValidationErrorDetails] = Field(..., description="Field-specific validation errors")
+    validation_errors: list[ValidationErrorDetails] = Field(
+        ..., description="Field-specific validation errors"
+    )
     request_id: str | None = Field(default=None, description="Request ID for debugging")
 
 
 @beartype
 class HealthCheckDetailsResponse(BaseModel):
     """Response model for health check details."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -138,19 +150,25 @@ class HealthCheckDetailsResponse(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     component: str = Field(..., description="Component name")
     status: str = Field(..., description="Health status (healthy/degraded/unhealthy)")
-    response_time_ms: float | None = Field(default=None, description="Response time in milliseconds")
+    response_time_ms: float | None = Field(
+        default=None, description="Response time in milliseconds"
+    )
     last_check: datetime = Field(..., description="Last health check timestamp")
-    error_message: str | None = Field(default=None, description="Error message if unhealthy")
-    metrics: HealthMetrics | None = Field(default=None, description="Structured health metrics")
+    error_message: str | None = Field(
+        default=None, description="Error message if unhealthy"
+    )
+    metrics: HealthMetrics | None = Field(
+        default=None, description="Structured health metrics"
+    )
 
 
 @beartype
 class ApiInfoResponse(BaseModel):
     """Response model for API information."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -158,7 +176,7 @@ class ApiInfoResponse(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     name: str = Field(..., description="API name")
     version: str = Field(..., description="API version")
     description: str = Field(..., description="API description")
@@ -216,8 +234,12 @@ class EnhancedErrorResponse(BaseModel):
 
     success: bool = Field(default=False, description="Always false for error responses")
     error: str = Field(..., description="Human-readable error message")
-    error_code: str | None = Field(default=None, description="Machine-readable error code")
-    details: ErrorDetails | None = Field(default=None, description="Structured error details")
+    error_code: str | None = Field(
+        default=None, description="Machine-readable error code"
+    )
+    details: ErrorDetails | None = Field(
+        default=None, description="Structured error details"
+    )
     metadata: ApiMetadata | None = Field(default=None, description="Response metadata")
 
 

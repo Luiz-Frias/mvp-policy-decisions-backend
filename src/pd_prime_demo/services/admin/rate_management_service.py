@@ -22,9 +22,9 @@ from ..rating.rate_tables import RateTableService
 
 class RateVersionResponse(BaseModelConfig):
     """Rate version response model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     version_id: UUID
     version_number: int
     status: str
@@ -93,7 +93,7 @@ class RateManagementService:
                 status="pending_approval",
                 approval_workflow_id=workflow_result.value,
                 effective_date=effective_date,
-                notes=notes
+                notes=notes,
             )
         )
 
@@ -189,7 +189,9 @@ class RateManagementService:
         return Ok(True)
 
     @beartype
-    async def get_rate_comparison(self, version_id_1: UUID, version_id_2: UUID) -> Result[dict[str, Any], str]:
+    async def get_rate_comparison(
+        self, version_id_1: UUID, version_id_2: UUID
+    ) -> Result[dict[str, Any], str]:
         """Compare two rate table versions with impact analysis."""
         comparison_result = await self._rate_table_service.compare_rate_versions(
             version_id_1, version_id_2
@@ -322,7 +324,9 @@ class RateManagementService:
             return Err(f"Analytics generation failed: {str(e)}")
 
     @beartype
-    async def get_pending_approvals(self, admin_user_id: UUID) -> Result[list[dict[str, Any]], str]:
+    async def get_pending_approvals(
+        self, admin_user_id: UUID
+    ) -> Result[list[dict[str, Any]], str]:
         """Get pending rate approvals for admin user."""
         query = """
             SELECT

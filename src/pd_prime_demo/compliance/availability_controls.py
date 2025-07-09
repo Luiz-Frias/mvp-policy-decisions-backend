@@ -10,16 +10,16 @@ This module implements comprehensive availability controls including:
 
 from datetime import datetime, timedelta, timezone
 from statistics import mean
-from typing import Any
 
 import psutil
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
-from decimal import Decimal
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.compliance import AvailabilityMetrics, BackupValidation, PerformanceBaseline
-from pd_prime_demo.schemas.common import ControlEvidence, EvidenceContent, SystemDataMetrics
+from pd_prime_demo.schemas.common import (
+    EvidenceContent,
+    SystemDataMetrics,
+)
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -134,7 +134,7 @@ class BackupStatus(BaseModel):
 
 class TrendAnalysisResult(BaseModel):
     """Performance trend analysis result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -142,7 +142,7 @@ class TrendAnalysisResult(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     analysis_period_hours: int = Field(ge=1)
     degrading_trends: list[str] = Field(default_factory=list)
     overall_trend: str = Field(...)
@@ -154,7 +154,7 @@ class TrendAnalysisResult(BaseModel):
 
 class CapacityAnalysisResult(BaseModel):
     """System capacity analysis result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -162,7 +162,7 @@ class CapacityAnalysisResult(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     current_load_percentage: float = Field(ge=0.0, le=100.0)
     capacity_threshold: float = Field(ge=0.0, le=100.0)
     projected_monthly_growth: float = Field(ge=0.0)
@@ -173,7 +173,7 @@ class CapacityAnalysisResult(BaseModel):
 
 class RecoveryTestResult(BaseModel):
     """Recovery procedure test result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -181,7 +181,7 @@ class RecoveryTestResult(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     success: bool = Field(...)
     total_duration_minutes: float = Field(ge=0.0)
     rto_met: bool = Field(...)
@@ -191,7 +191,7 @@ class RecoveryTestResult(BaseModel):
 
 class DisasterRecoveryPlanCheck(BaseModel):
     """Disaster recovery plan validation result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -199,7 +199,7 @@ class DisasterRecoveryPlanCheck(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     current: bool = Field(...)
     last_updated: datetime = Field(...)
     days_since_update: int = Field(ge=0)
@@ -211,7 +211,7 @@ class DisasterRecoveryPlanCheck(BaseModel):
 
 class BackupSecurityCheck(BaseModel):
     """Backup security measures check result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -219,7 +219,7 @@ class BackupSecurityCheck(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     encrypted: bool = Field(...)
     encryption_algorithm: str = Field(...)
     offsite_storage: bool = Field(...)
@@ -231,7 +231,7 @@ class BackupSecurityCheck(BaseModel):
 
 class FailoverTestResult(BaseModel):
     """Failover mechanism test result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -239,7 +239,7 @@ class FailoverTestResult(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     all_systems_functional: bool = Field(...)
     failed_systems: list[str] = Field(default_factory=list)
     max_failover_time_seconds: int = Field(ge=0)
@@ -249,7 +249,7 @@ class FailoverTestResult(BaseModel):
 
 class LoadBalancerHealthCheck(BaseModel):
     """Load balancer health check result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -257,7 +257,7 @@ class LoadBalancerHealthCheck(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     healthy: bool = Field(...)
     total_servers: int = Field(ge=0)
     healthy_servers: int = Field(ge=0)
@@ -267,7 +267,7 @@ class LoadBalancerHealthCheck(BaseModel):
 
 class DatabaseFailoverTest(BaseModel):
     """Database failover test result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -275,7 +275,7 @@ class DatabaseFailoverTest(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     successful: bool = Field(...)
     failover_time_seconds: int = Field(ge=0)
     data_loss: bool = Field(...)
@@ -288,7 +288,7 @@ class DatabaseFailoverTest(BaseModel):
 
 class ControlResult(BaseModel):
     """Individual control execution result summary."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -296,7 +296,7 @@ class ControlResult(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     control_id: str = Field(...)
     status: str = Field(...)
     result: bool = Field(...)
@@ -305,7 +305,7 @@ class ControlResult(BaseModel):
 
 class AvailabilityDashboard(BaseModel):
     """Availability dashboard data structure."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -313,7 +313,7 @@ class AvailabilityDashboard(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     availability_score: float = Field(ge=0.0, le=100.0)
     uptime_percentage: float = Field(ge=0.0, le=100.0)
     sla_compliance: bool = Field(...)
@@ -330,7 +330,7 @@ class AvailabilityDashboard(BaseModel):
 
 class AlertingTestResult(BaseModel):
     """Alerting system test result."""
-    
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
@@ -338,7 +338,7 @@ class AlertingTestResult(BaseModel):
         str_strip_whitespace=True,
         validate_default=True,
     )
-    
+
     functional: bool = Field(...)
     test_alerts_sent: int = Field(ge=0)
     successful_deliveries: int = Field(ge=0)
@@ -376,19 +376,28 @@ class AvailabilityControlManager:
         self._database = get_database()
 
     @beartype
-    async def execute_uptime_monitoring_control(self, control_id: str = "AVL-001") -> ControlResult:
+    async def execute_uptime_monitoring_control(
+        self, control_id: str = "AVL-001"
+    ) -> ControlResult:
         """Execute uptime monitoring and SLA compliance control."""
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence_data: list[EvidenceContent] = []  # Will contain structured evidence
+            evidence_data: list[EvidenceContent] = (
+                []
+            )  # Will contain structured evidence
 
             # Get uptime metrics
             uptime_metrics = await self._calculate_uptime_metrics()
-            evidence_data.append(EvidenceContent(
-                system_data=uptime_metrics.model_dump(),
-                collection_metadata={"evidence_type": "uptime_metrics", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=uptime_metrics.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "uptime_metrics",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not uptime_metrics.meets_sla():
                 findings.append(
@@ -397,10 +406,17 @@ class AvailabilityControlManager:
 
             # Check for recent incidents
             recent_incidents = await self._get_recent_incidents()
-            evidence_data.append(EvidenceContent(
-                system_data={"incidents": [inc.model_dump() for inc in recent_incidents]},
-                collection_metadata={"evidence_type": "recent_incidents", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data={
+                        "incidents": [inc.model_dump() for inc in recent_incidents]
+                    },
+                    collection_metadata={
+                        "evidence_type": "recent_incidents",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             critical_incidents = [
                 inc for inc in recent_incidents if inc.severity == "critical"
@@ -412,20 +428,30 @@ class AvailabilityControlManager:
 
             # Check monitoring system health
             monitoring_health = await self._check_monitoring_systems()
-            evidence_data.append(EvidenceContent(
-                system_data=monitoring_health.model_dump(),
-                collection_metadata={"evidence_type": "monitoring_health", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=monitoring_health.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "monitoring_health",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if monitoring_health.error_rate_percent > 1.0:
                 findings.append("Monitoring system error rate exceeds threshold")
 
             # Check alerting system
             alerting_check = await self._test_alerting_system()
-            evidence_data.append(EvidenceContent(
-                system_data=alerting_check.model_dump(),
-                collection_metadata={"evidence_type": "alerting_system", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=alerting_check.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "alerting_system",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not alerting_check.functional:
                 findings.append("Alerting system not functioning properly")
@@ -537,7 +563,7 @@ class AvailabilityControlManager:
             security_events_count=2,
             backup_status="operational",
             last_backup_time=datetime.now(timezone.utc) - timedelta(hours=6),
-            sync_status="synchronized"
+            sync_status="synchronized",
         )
 
     @beartype
@@ -557,7 +583,9 @@ class AvailabilityControlManager:
         )
 
     @beartype
-    async def execute_performance_monitoring_control(self, control_id: str = "AVL-002") -> ControlResult:
+    async def execute_performance_monitoring_control(
+        self, control_id: str = "AVL-002"
+    ) -> ControlResult:
         """Execute performance monitoring control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -566,10 +594,15 @@ class AvailabilityControlManager:
 
             # Get current performance metrics
             performance_metrics = await self._collect_performance_metrics()
-            evidence_data.append(EvidenceContent(
-                system_data=performance_metrics.model_dump(),
-                collection_metadata={"evidence_type": "performance_metrics", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=performance_metrics.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "performance_metrics",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not performance_metrics.is_healthy():
                 findings.append("Performance metrics outside acceptable thresholds")
@@ -591,10 +624,15 @@ class AvailabilityControlManager:
 
             # Check performance trends
             trend_analysis = await self._analyze_performance_trends()
-            evidence_data.append(EvidenceContent(
-                system_data=trend_analysis.model_dump(),
-                collection_metadata={"evidence_type": "trend_analysis", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=trend_analysis.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "trend_analysis",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if trend_analysis.degrading_trends:
                 findings.extend(
@@ -606,10 +644,15 @@ class AvailabilityControlManager:
 
             # Check capacity planning
             capacity_analysis = await self._analyze_capacity()
-            evidence_data.append(EvidenceContent(
-                system_data=capacity_analysis.model_dump(),
-                collection_metadata={"evidence_type": "capacity_analysis", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=capacity_analysis.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "capacity_analysis",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if capacity_analysis.capacity_warnings:
                 findings.extend(capacity_analysis.capacity_warnings)
@@ -710,7 +753,9 @@ class AvailabilityControlManager:
         )
 
     @beartype
-    async def execute_backup_recovery_control(self, control_id: str = "AVL-003") -> ControlResult:
+    async def execute_backup_recovery_control(
+        self, control_id: str = "AVL-003"
+    ) -> ControlResult:
         """Execute backup and disaster recovery control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -719,10 +764,15 @@ class AvailabilityControlManager:
 
             # Check backup status
             backup_status = await self._check_backup_status()
-            evidence_data.append(EvidenceContent(
-                system_data=backup_status.model_dump(),
-                collection_metadata={"evidence_type": "backup_status", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=backup_status.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "backup_status",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not backup_status.is_compliant():
                 findings.append("Backup system does not meet compliance requirements")
@@ -738,30 +788,45 @@ class AvailabilityControlManager:
 
             # Test recovery procedures
             recovery_test = await self._test_recovery_procedures()
-            evidence_data.append(EvidenceContent(
-                system_data=recovery_test.model_dump(),
-                collection_metadata={"evidence_type": "recovery_test", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=recovery_test.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "recovery_test",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not recovery_test.success:
                 findings.append("Recovery procedure test failed")
 
             # Check disaster recovery plan
             dr_plan_check = await self._validate_disaster_recovery_plan()
-            evidence_data.append(EvidenceContent(
-                system_data=dr_plan_check.model_dump(),
-                collection_metadata={"evidence_type": "dr_plan", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=dr_plan_check.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "dr_plan",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not dr_plan_check.current:
                 findings.append("Disaster recovery plan needs updating")
 
             # Check backup retention and encryption
             backup_security = await self._check_backup_security()
-            evidence_data.append(EvidenceContent(
-                system_data=backup_security.model_dump(),
-                collection_metadata={"evidence_type": "backup_security", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=backup_security.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "backup_security",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not backup_security.encrypted:
                 findings.append("Backup data is not encrypted")
@@ -814,7 +879,11 @@ class AvailabilityControlManager:
     async def _test_recovery_procedures(self) -> RecoveryTestResult:
         """Test disaster recovery procedures."""
         # Simulated recovery test
-        scenarios_tested = ["database_recovery", "application_recovery", "configuration_recovery"]
+        scenarios_tested = [
+            "database_recovery",
+            "application_recovery",
+            "configuration_recovery",
+        ]
         total_duration = 70.0  # minutes
         test_date = datetime.now(timezone.utc)
 
@@ -856,7 +925,9 @@ class AvailabilityControlManager:
         )
 
     @beartype
-    async def execute_failover_control(self, control_id: str = "AVL-004") -> ControlResult:
+    async def execute_failover_control(
+        self, control_id: str = "AVL-004"
+    ) -> ControlResult:
         """Execute automated failover control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -865,30 +936,45 @@ class AvailabilityControlManager:
 
             # Test failover mechanisms
             failover_test = await self._test_failover_mechanisms()
-            evidence_data.append(EvidenceContent(
-                system_data=failover_test.model_dump(),
-                collection_metadata={"evidence_type": "failover_test", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=failover_test.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "failover_test",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not failover_test.all_systems_functional:
                 findings.extend(failover_test.failed_systems)
 
             # Check load balancer health
             lb_health = await self._check_load_balancer_health()
-            evidence_data.append(EvidenceContent(
-                system_data=lb_health.model_dump(),
-                collection_metadata={"evidence_type": "load_balancer", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=lb_health.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "load_balancer",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not lb_health.healthy:
                 findings.append("Load balancer health check failed")
 
             # Test database failover
             db_failover = await self._test_database_failover()
-            evidence_data.append(EvidenceContent(
-                system_data=db_failover.model_dump(),
-                collection_metadata={"evidence_type": "database_failover", "timestamp": start_time.isoformat()}
-            ))
+            evidence_data.append(
+                EvidenceContent(
+                    system_data=db_failover.model_dump(),
+                    collection_metadata={
+                        "evidence_type": "database_failover",
+                        "timestamp": start_time.isoformat(),
+                    },
+                )
+            )
 
             if not db_failover.successful:
                 findings.append("Database failover test failed")
@@ -980,7 +1066,8 @@ class AvailabilityControlManager:
         # Calculate availability metrics
         total_controls = len(results)
         passing_controls = sum(
-            1 for r in results
+            1
+            for r in results
             if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
         )
         availability_score = (
@@ -995,19 +1082,23 @@ class AvailabilityControlManager:
         control_results = []
         for r in results:
             if r.is_ok() and (unwrapped := r.unwrap()) is not None:
-                control_results.append(ControlResult(
-                    control_id=unwrapped.control_id,
-                    status=unwrapped.status.value,
-                    result=unwrapped.result,
-                    findings_count=len(unwrapped.findings),
-                ))
+                control_results.append(
+                    ControlResult(
+                        control_id=unwrapped.control_id,
+                        status=unwrapped.status.value,
+                        result=unwrapped.result,
+                        findings_count=len(unwrapped.findings),
+                    )
+                )
             else:
-                control_results.append(ControlResult(
-                    control_id="unknown",
-                    status="error",
-                    result=False,
-                    findings_count=1,
-                ))
+                control_results.append(
+                    ControlResult(
+                        control_id="unknown",
+                        status="error",
+                        result=False,
+                        findings_count=1,
+                    )
+                )
 
         return AvailabilityDashboard(
             availability_score=availability_score,

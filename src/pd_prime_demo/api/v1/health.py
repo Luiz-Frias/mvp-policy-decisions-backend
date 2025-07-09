@@ -703,12 +703,16 @@ async def check_database_health(
                 message=message,
                 details=DatabaseHealthDetails(
                     version="PostgreSQL",
-                    pool_stats=DatabasePoolStats(
-                        size=pool_stats["size"] if pool_stats else None,
-                        available=pool_stats["free_size"] if pool_stats else None,
-                        in_use=None,
-                        waiting=None,
-                    ) if pool_stats else None,
+                    pool_stats=(
+                        DatabasePoolStats(
+                            size=pool_stats["size"] if pool_stats else None,
+                            available=pool_stats["free_size"] if pool_stats else None,
+                            in_use=None,
+                            waiting=None,
+                        )
+                        if pool_stats
+                        else None
+                    ),
                 ),
             ),
             response_time,
@@ -765,7 +769,11 @@ async def check_redis_health(
         # Get Redis info
         info = await redis.info()
         memory_used_mb = round(float(info.get("used_memory", 0)) / (1024 * 1024), 2)
-        connected_clients = int(info.get("connected_clients", 0)) if info.get("connected_clients") is not None else 0
+        connected_clients = (
+            int(info.get("connected_clients", 0))
+            if info.get("connected_clients") is not None
+            else 0
+        )
 
         return (
             HealthStatus(

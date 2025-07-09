@@ -8,11 +8,12 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
-
 # WebSocket-specific models to replace dict usage
+
 
 class MessagePriorityLevel(str, Enum):
     """Message priority levels for WebSocket message handling."""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -32,7 +33,9 @@ class MessagePriorityHandling(BaseModel):
 
     level: MessagePriorityLevel = Field(..., description="Priority level")
     queue_size: int = Field(..., ge=1, le=10000, description="Maximum queue size")
-    processing_rate: float = Field(..., ge=0.1, le=1000.0, description="Messages per second")
+    processing_rate: float = Field(
+        ..., ge=0.1, le=1000.0, description="Messages per second"
+    )
     drop_count: int = Field(default=0, ge=0, description="Number of dropped messages")
 
 
@@ -85,9 +88,15 @@ class WebSocketMessageData(BaseModel):
     severity: str | None = Field(default=None, description="Alert severity")
 
     # Connection management
-    member_count: int | None = Field(default=None, ge=0, description="Room member count")
-    connection_limits: dict[str, int] | None = Field(default=None, description="Connection limits")
-    capabilities: dict[str, bool] | None = Field(default=None, description="Connection capabilities")
+    member_count: int | None = Field(
+        default=None, ge=0, description="Room member count"
+    )
+    connection_limits: dict[str, int] | None = Field(
+        default=None, description="Connection limits"
+    )
+    capabilities: dict[str, bool] | None = Field(
+        default=None, description="Connection capabilities"
+    )
 
     # Binary transfer
     file_id: UUID | None = Field(default=None, description="File identifier")
@@ -120,20 +129,32 @@ class ConnectionCapabilities(BaseModel):
 
     # Core WebSocket capabilities
     rooms: bool = Field(default=True, description="Room subscription support")
-    message_sequencing: bool = Field(default=True, description="Message sequencing support")
+    message_sequencing: bool = Field(
+        default=True, description="Message sequencing support"
+    )
     binary_messages: bool = Field(default=True, description="Binary message support")
-    message_priorities: bool = Field(default=True, description="Message priority support")
-    backpressure_detection: bool = Field(default=True, description="Backpressure detection")
+    message_priorities: bool = Field(
+        default=True, description="Message priority support"
+    )
+    backpressure_detection: bool = Field(
+        default=True, description="Backpressure detection"
+    )
 
     # Advanced features
-    collaborative_editing: bool = Field(default=False, description="Collaborative editing support")
+    collaborative_editing: bool = Field(
+        default=False, description="Collaborative editing support"
+    )
     real_time_analytics: bool = Field(default=False, description="Real-time analytics")
     file_transfer: bool = Field(default=False, description="File transfer support")
     compression: bool = Field(default=False, description="Message compression")
 
     # Protocol features
-    heartbeat_interval: int = Field(default=30, ge=5, le=300, description="Heartbeat interval (seconds)")
-    max_message_size: int = Field(default=1024*1024, ge=1024, description="Max message size (bytes)")
+    heartbeat_interval: int = Field(
+        default=30, ge=5, le=300, description="Heartbeat interval (seconds)"
+    )
+    max_message_size: int = Field(
+        default=1024 * 1024, ge=1024, description="Max message size (bytes)"
+    )
     protocol_version: str = Field(default="1.0", description="Protocol version")
 
     def supports_feature(self, feature: str) -> bool:
@@ -153,28 +174,54 @@ class BackpressureMetrics(BaseModel):
     )
 
     # Queue depth metrics by priority
-    critical_queue_depth: int = Field(default=0, ge=0, description="Critical priority queue depth")
-    high_queue_depth: int = Field(default=0, ge=0, description="High priority queue depth")
-    normal_queue_depth: int = Field(default=0, ge=0, description="Normal priority queue depth")
-    low_queue_depth: int = Field(default=0, ge=0, description="Low priority queue depth")
+    critical_queue_depth: int = Field(
+        default=0, ge=0, description="Critical priority queue depth"
+    )
+    high_queue_depth: int = Field(
+        default=0, ge=0, description="High priority queue depth"
+    )
+    normal_queue_depth: int = Field(
+        default=0, ge=0, description="Normal priority queue depth"
+    )
+    low_queue_depth: int = Field(
+        default=0, ge=0, description="Low priority queue depth"
+    )
 
     # Processing rates by priority (messages per second)
-    critical_processing_rate: float = Field(default=0.0, ge=0.0, description="Critical priority processing rate")
-    high_processing_rate: float = Field(default=0.0, ge=0.0, description="High priority processing rate")
-    normal_processing_rate: float = Field(default=0.0, ge=0.0, description="Normal priority processing rate")
-    low_processing_rate: float = Field(default=0.0, ge=0.0, description="Low priority processing rate")
+    critical_processing_rate: float = Field(
+        default=0.0, ge=0.0, description="Critical priority processing rate"
+    )
+    high_processing_rate: float = Field(
+        default=0.0, ge=0.0, description="High priority processing rate"
+    )
+    normal_processing_rate: float = Field(
+        default=0.0, ge=0.0, description="Normal priority processing rate"
+    )
+    low_processing_rate: float = Field(
+        default=0.0, ge=0.0, description="Low priority processing rate"
+    )
 
     # Drop counts by priority
-    critical_drop_count: int = Field(default=0, ge=0, description="Critical priority drop count")
-    high_drop_count: int = Field(default=0, ge=0, description="High priority drop count")
-    normal_drop_count: int = Field(default=0, ge=0, description="Normal priority drop count")
+    critical_drop_count: int = Field(
+        default=0, ge=0, description="Critical priority drop count"
+    )
+    high_drop_count: int = Field(
+        default=0, ge=0, description="High priority drop count"
+    )
+    normal_drop_count: int = Field(
+        default=0, ge=0, description="Normal priority drop count"
+    )
     low_drop_count: int = Field(default=0, ge=0, description="Low priority drop count")
 
     # Overall metrics
     total_queue_depth: int = Field(default=0, ge=0, description="Total queue depth")
-    overall_processing_rate: float = Field(default=0.0, ge=0.0, description="Overall processing rate")
+    overall_processing_rate: float = Field(
+        default=0.0, ge=0.0, description="Overall processing rate"
+    )
     total_drop_count: int = Field(default=0, ge=0, description="Total drop count")
-    backpressure_level: float = Field(default=0.0, ge=0.0, le=1.0, description="Backpressure level (0-1)")
+    backpressure_level: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Backpressure level (0-1)"
+    )
 
     def get_queue_depth_by_priority(self, priority: MessagePriorityLevel) -> int:
         """Get queue depth for a specific priority level."""
@@ -203,6 +250,7 @@ class BackpressureMetrics(BaseModel):
 
 class ConnectionState(str, Enum):
     """Connection state enumeration."""
+
     CONNECTING = "connecting"
     CONNECTED = "connected"
     AUTHENTICATED = "authenticated"
@@ -226,7 +274,9 @@ class WebSocketConnectionMetadata(BaseModel):
     )
 
     # Connection identity
-    connection_id: str = Field(..., min_length=1, max_length=100, description="Connection identifier")
+    connection_id: str = Field(
+        ..., min_length=1, max_length=100, description="Connection identifier"
+    )
     user_id: UUID | None = Field(default=None, description="User identifier")
 
     # Connection details
@@ -234,26 +284,42 @@ class WebSocketConnectionMetadata(BaseModel):
     user_agent: str | None = Field(default=None, description="Client user agent")
 
     # Timestamps
-    connected_at: datetime = Field(default_factory=datetime.now, description="Connection timestamp")
-    last_activity: datetime = Field(default_factory=datetime.now, description="Last activity timestamp")
+    connected_at: datetime = Field(
+        default_factory=datetime.now, description="Connection timestamp"
+    )
+    last_activity: datetime = Field(
+        default_factory=datetime.now, description="Last activity timestamp"
+    )
 
     # Connection state
-    state: ConnectionState = Field(default=ConnectionState.CONNECTING, description="Connection state")
+    state: ConnectionState = Field(
+        default=ConnectionState.CONNECTING, description="Connection state"
+    )
     protocol_version: str = Field(default="1.0", description="Protocol version")
 
     # Capabilities and configuration
-    capabilities: ConnectionCapabilities = Field(default_factory=ConnectionCapabilities, description="Client capabilities")
+    capabilities: ConnectionCapabilities = Field(
+        default_factory=ConnectionCapabilities, description="Client capabilities"
+    )
 
     # Performance metrics
-    rate_limit_remaining: int = Field(default=1000, ge=0, description="Remaining rate limit")
-    backpressure_level: float = Field(default=0.0, ge=0.0, le=1.0, description="Backpressure level")
+    rate_limit_remaining: int = Field(
+        default=1000, ge=0, description="Remaining rate limit"
+    )
+    backpressure_level: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Backpressure level"
+    )
 
     # Room subscriptions
-    subscribed_rooms: set[str] = Field(default_factory=set, description="Subscribed rooms")
+    subscribed_rooms: set[str] = Field(
+        default_factory=set, description="Subscribed rooms"
+    )
 
     # Statistics
     messages_sent: int = Field(default=0, ge=0, description="Messages sent count")
-    messages_received: int = Field(default=0, ge=0, description="Messages received count")
+    messages_received: int = Field(
+        default=0, ge=0, description="Messages received count"
+    )
     bytes_sent: int = Field(default=0, ge=0, description="Bytes sent")
     bytes_received: int = Field(default=0, ge=0, description="Bytes received")
 
@@ -313,7 +379,9 @@ class QuoteMessage(BaseModel, MessageValidationMixin):
     action: str = Field(
         ..., pattern="^(subscribe|unsubscribe|update|edit|status_change)$"
     )
-    data: WebSocketMessageData = Field(default_factory=WebSocketMessageData, description="Structured message data")
+    data: WebSocketMessageData = Field(
+        default_factory=WebSocketMessageData, description="Structured message data"
+    )
 
     @validator("data")
     @classmethod
@@ -325,11 +393,15 @@ class QuoteMessage(BaseModel, MessageValidationMixin):
 
         if action == "edit":
             if not v.field or v.value is None:
-                raise ValueError("Field 'field' and 'value' are required for edit action")
+                raise ValueError(
+                    "Field 'field' and 'value' are required for edit action"
+                )
 
         elif action == "status_change":
             if not v.old_status or not v.new_status:
-                raise ValueError("Fields 'old_status' and 'new_status' are required for status_change action")
+                raise ValueError(
+                    "Fields 'old_status' and 'new_status' are required for status_change action"
+                )
 
         return v
 
@@ -347,7 +419,9 @@ class RoomMessage(BaseModel, MessageValidationMixin):
 
     room_id: str = Field(..., min_length=1, max_length=200, pattern="^[a-zA-Z0-9:_-]+$")
     action: str = Field(..., pattern="^(join|leave|message|event)$")
-    data: WebSocketMessageData = Field(default_factory=WebSocketMessageData, description="Structured message data")
+    data: WebSocketMessageData = Field(
+        default_factory=WebSocketMessageData, description="Structured message data"
+    )
     permissions: list[str] | None = Field(
         default=None, description="Required permissions"
     )
@@ -385,7 +459,9 @@ class AnalyticsMessage(BaseModel, MessageValidationMixin):
         ..., pattern="^(conversion|performance|user_activity|system_health)$"
     )
     action: str = Field(..., pattern="^(start|stop|update|filter)$")
-    config: WebSocketMessageData = Field(default_factory=WebSocketMessageData, description="Dashboard configuration")
+    config: WebSocketMessageData = Field(
+        default_factory=WebSocketMessageData, description="Dashboard configuration"
+    )
 
     @validator("config")
     @classmethod
@@ -439,7 +515,9 @@ class AdminMessage(BaseModel, MessageValidationMixin):
         ...,
         pattern="^(start_monitoring|stop_monitoring|user_activity|performance|system_health)$",
     )
-    config: WebSocketMessageData = Field(default_factory=WebSocketMessageData, description="Admin configuration")
+    config: WebSocketMessageData = Field(
+        default_factory=WebSocketMessageData, description="Admin configuration"
+    )
     permissions: list[str] = Field(default_factory=list)
 
     @validator("permissions")
@@ -597,7 +675,9 @@ def create_backpressure_metrics(
         high_queue_depth=queue_depths.get(MessagePriorityLevel.HIGH, 0),
         normal_queue_depth=queue_depths.get(MessagePriorityLevel.NORMAL, 0),
         low_queue_depth=queue_depths.get(MessagePriorityLevel.LOW, 0),
-        critical_processing_rate=processing_rates.get(MessagePriorityLevel.CRITICAL, 0.0),
+        critical_processing_rate=processing_rates.get(
+            MessagePriorityLevel.CRITICAL, 0.0
+        ),
         high_processing_rate=processing_rates.get(MessagePriorityLevel.HIGH, 0.0),
         normal_processing_rate=processing_rates.get(MessagePriorityLevel.NORMAL, 0.0),
         low_processing_rate=processing_rates.get(MessagePriorityLevel.LOW, 0.0),

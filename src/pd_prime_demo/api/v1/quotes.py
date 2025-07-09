@@ -2,16 +2,17 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Union
 
-from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse, APIResponseHandler
+from pd_prime_demo.api.response_patterns import (
+    APIResponseHandler,
+    ErrorResponse,
+)
 
 from ...models.quote import (
     Quote,
@@ -28,7 +29,6 @@ from ...schemas.quote import (
     QuoteSearchResponse,
     QuoteUpdateRequest,
     WizardSessionResponse,
-    WizardStepResponse,
 )
 from ...services.performance_monitor import performance_tracker
 from ...services.quote_service import QuoteService
@@ -69,11 +69,17 @@ def _convert_quote_to_response(quote: Quote) -> QuoteResponse:
         total_surcharge_amount=quote.total_surcharge_amount,
         rating_factors=quote.rating_factors,
         rating_tier=quote.rating_tier,
-        ai_risk_score=Decimal(str(quote.ai_risk_score)) if quote.ai_risk_score is not None else None,
+        ai_risk_score=(
+            Decimal(str(quote.ai_risk_score))
+            if quote.ai_risk_score is not None
+            else None
+        ),
         ai_risk_factors=quote.ai_risk_factors,
         expires_at=quote.expires_at,
         is_expired=quote.expires_at < datetime.now(timezone.utc),
-        days_until_expiration=max(0, (quote.expires_at - datetime.now(timezone.utc)).days),
+        days_until_expiration=max(
+            0, (quote.expires_at - datetime.now(timezone.utc)).days
+        ),
         can_be_bound=quote.status == QuoteStatus.QUOTED,
         version=quote.version,
         created_at=quote.created_at,
@@ -81,7 +87,9 @@ def _convert_quote_to_response(quote: Quote) -> QuoteResponse:
     )
 
 
-def _handle_service_error(error: str, response: Response, success_status: int = 200) -> ErrorResponse:
+def _handle_service_error(
+    error: str, response: Response, success_status: int = 200
+) -> ErrorResponse:
     """Handle service layer errors by mapping to appropriate HTTP status."""
     response.status_code = APIResponseHandler.map_error_to_status(error)
     return ErrorResponse(error=error)
@@ -90,7 +98,7 @@ def _handle_service_error(error: str, response: Response, success_status: int = 
 def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionResponse:
     """Convert WizardState to WizardSessionResponse."""
     # Convert dict data to WizardStepData
-    from ...schemas.quote import WizardStepData, ValidationErrors, FieldError
+    from ...schemas.quote import FieldError, ValidationErrors, WizardStepData
 
     # Create WizardStepData with default values for missing fields
     # This is a simplified conversion - in production, you'd want proper mapping
@@ -99,17 +107,17 @@ def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionRespon
     # Convert validation errors from dict to ValidationErrors
     field_errors = []
     for field, errors in state.validation_errors.items():
-        field_errors.append(FieldError(
-            field_name=field,
-            error_messages=errors,
-            error_code=None,
-            suggested_fix=None
-        ))
+        field_errors.append(
+            FieldError(
+                field_name=field,
+                error_messages=errors,
+                error_code=None,
+                suggested_fix=None,
+            )
+        )
 
     validation_errors = ValidationErrors(
-        field_errors=field_errors,
-        form_errors=[],
-        warning_messages=[]
+        field_errors=field_errors, form_errors=[], warning_messages=[]
     )
 
     return WizardSessionResponse(
@@ -123,7 +131,9 @@ def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionRespon
         last_updated=state.last_updated,
         expires_at=state.expires_at,
         is_complete=state.is_complete,
-        completion_percentage=int(len(state.completed_steps) * 100 / 10),  # Assuming 10 steps total
+        completion_percentage=int(
+            len(state.completed_steps) * 100 / 10
+        ),  # Assuming 10 steps total
     )
 
 
@@ -135,7 +145,7 @@ async def create_quote(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Union[QuoteResponse, ErrorResponse]:
+) -> QuoteResponse | ErrorResponse:
     """Create a new insurance quote."""
     # Convert request to domain model
     quote_create = QuoteCreate(**quote_data.model_dump())
@@ -168,7 +178,7 @@ async def get_quote(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Union[QuoteResponse, ErrorResponse]:
+) -> QuoteResponse | ErrorResponse:
     """Get quote by ID."""
     result = await quote_service.get_quote(quote_id)
 
@@ -201,7 +211,7 @@ async def update_quote(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Union[QuoteResponse, ErrorResponse]:
+) -> QuoteResponse | ErrorResponse:
     """Update an existing quote."""
     # Convert request to domain model
     quote_update = QuoteUpdate(**update_data.model_dump(exclude_unset=True))
@@ -229,7 +239,7 @@ async def calculate_quote(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Union[QuoteResponse, ErrorResponse]:
+) -> QuoteResponse | ErrorResponse:
     """Calculate or recalculate quote pricing."""
     result = await quote_service.calculate_quote(quote_id)
 
@@ -253,7 +263,7 @@ async def convert_to_policy(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User = Depends(get_current_user),
-) -> Union[QuoteConversionResponse, ErrorResponse]:
+) -> QuoteConversionResponse | ErrorResponse:
     """Convert quote to policy."""
     result = await quote_service.convert_to_policy(
         quote_id, conversion_request, current_user.id
@@ -283,7 +293,7 @@ async def search_quotes(
     offset: int = Query(0, ge=0),
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Union[QuoteSearchResponse, ErrorResponse]:
+) -> QuoteSearchResponse | ErrorResponse:
     """Search quotes with filters."""
     # If user is logged in, only show their quotes
     if current_user and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
@@ -326,7 +336,7 @@ async def start_wizard_session(
     response: Response,
     initial_data: dict[str, Any] | None = None,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardSessionResponse, ErrorResponse]:
+) -> WizardSessionResponse | ErrorResponse:
     """Start a new quote wizard session."""
     result = await wizard_service.start_session(initial_data)
 
@@ -348,7 +358,7 @@ async def get_wizard_session(
     session_id: UUID,
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardSessionResponse, ErrorResponse]:
+) -> WizardSessionResponse | ErrorResponse:
     """Get wizard session state."""
     result = await wizard_service.get_session(session_id)
 
@@ -371,7 +381,7 @@ async def update_wizard_step(
     step_data: dict[str, Any],
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardSessionResponse, ErrorResponse]:
+) -> WizardSessionResponse | ErrorResponse:
     """Update current wizard step with data."""
     result = await wizard_service.update_step(session_id, step_data)
 
@@ -393,7 +403,7 @@ async def next_wizard_step(
     session_id: UUID,
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardSessionResponse, ErrorResponse]:
+) -> WizardSessionResponse | ErrorResponse:
     """Move to next step in wizard."""
     result = await wizard_service.next_step(session_id)
 
@@ -415,7 +425,7 @@ async def previous_wizard_step(
     session_id: UUID,
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardSessionResponse, ErrorResponse]:
+) -> WizardSessionResponse | ErrorResponse:
     """Move to previous step in wizard."""
     result = await wizard_service.previous_step(session_id)
 
@@ -431,16 +441,14 @@ async def previous_wizard_step(
     return _convert_wizard_state_to_response(wizard_state)
 
 
-@router.post(
-    "/wizard/{session_id}/jump/{step_id}"
-)
+@router.post("/wizard/{session_id}/jump/{step_id}")
 @beartype
 async def jump_to_wizard_step(
     session_id: UUID,
     step_id: str,
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardSessionResponse, ErrorResponse]:
+) -> WizardSessionResponse | ErrorResponse:
     """Jump to a specific wizard step."""
     result = await wizard_service.jump_to_step(session_id, step_id)
 
@@ -482,7 +490,7 @@ async def complete_wizard_session(
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> Union[WizardCompletionResponse, ErrorResponse]:
+) -> WizardCompletionResponse | ErrorResponse:
     """Complete wizard session and create quote."""
     # Complete wizard
     result = await wizard_service.complete_session(session_id)
@@ -525,7 +533,7 @@ async def complete_wizard_session(
 async def get_all_wizard_steps(
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[list[Any], ErrorResponse]:
+) -> list[Any] | ErrorResponse:
     """Get all wizard steps configuration."""
     result = await wizard_service.get_all_steps()
 
@@ -563,7 +571,7 @@ async def extend_wizard_session(
     response: Response,
     additional_minutes: int = Query(30, ge=1, le=120),
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[WizardExtensionResponse, ErrorResponse]:
+) -> WizardExtensionResponse | ErrorResponse:
     """Extend wizard session expiration."""
     result = await wizard_service.extend_session(session_id, additional_minutes)
 
@@ -574,7 +582,9 @@ async def extend_wizard_session(
 
     # Type narrowing - this should never be None due to service logic
     if state is None:
-        return _handle_service_error("Internal server error: session state is None", response)
+        return _handle_service_error(
+            "Internal server error: session state is None", response
+        )
 
     # Return success
     response.status_code = 200
@@ -602,16 +612,14 @@ class StepIntelligenceResponse(BaseModel):
     generated_at: datetime = Field(..., description="Generation timestamp")
 
 
-@router.get(
-    "/wizard/{session_id}/intelligence/{step_id}"
-)
+@router.get("/wizard/{session_id}/intelligence/{step_id}")
 @beartype
 async def get_step_business_intelligence(
     session_id: UUID,
     step_id: str,
     response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> Union[StepIntelligenceResponse, ErrorResponse]:
+) -> StepIntelligenceResponse | ErrorResponse:
     """Get business intelligence for a specific wizard step."""
     result = await wizard_service.get_business_intelligence_for_step(
         session_id, step_id

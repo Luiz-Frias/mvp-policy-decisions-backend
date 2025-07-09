@@ -37,7 +37,7 @@ def demo_audit_log_entry():
     """Demonstrate structured audit log entry instead of dict."""
     print("📋 AUDIT LOG ENTRY DEMO")
     print("=" * 50)
-    
+
     # Before: dict[str, Any] with no validation
     # audit_data = {
     #     "event_type": "authentication",
@@ -48,7 +48,7 @@ def demo_audit_log_entry():
     #     "request_method": "POST",
     #     "response_status": 200
     # }
-    
+
     # After: Structured Pydantic model with validation
     audit_entry = create_audit_log_entry(
         event_type="authentication",
@@ -61,7 +61,7 @@ def demo_audit_log_entry():
         compliance_tags=["security", "authentication"],
         control_references=["SEC-001", "SEC-002"],
     )
-    
+
     print(f"✅ Created audit entry: {audit_entry.action}")
     print(f"   Risk Level: {audit_entry.risk_level}")
     print(f"   Compliance Tags: {audit_entry.compliance_tags}")
@@ -73,7 +73,7 @@ def demo_control_test_result():
     """Demonstrate structured control test result instead of dict."""
     print("🔍 CONTROL TEST RESULT DEMO")
     print("=" * 50)
-    
+
     # Before: Nested dicts with no type safety
     # test_result = {
     #     "test_result": "effective",
@@ -86,7 +86,7 @@ def demo_control_test_result():
     #     "evidence_collected": ["Configuration scan", "Manual review"],
     #     "execution_time_ms": 2500
     # }
-    
+
     # After: Structured models with validation
     finding = ControlTestFinding(
         control_id="SEC-001",
@@ -97,7 +97,7 @@ def demo_control_test_result():
         likelihood="unlikely",
         remediation_required=False,
     )
-    
+
     test_result = create_control_test_result(
         control_id="SEC-001",
         test_name="Data Encryption at Rest Verification",
@@ -112,7 +112,7 @@ def demo_control_test_result():
         conclusion="Control is operating effectively with minor improvements needed",
         execution_time_ms=2500,
     )
-    
+
     print(f"✅ Created test result: {test_result.test_name}")
     print(f"   Result: {test_result.test_result}")
     print(f"   Effectiveness: {test_result.effectiveness_score}%")
@@ -125,7 +125,7 @@ def demo_availability_metrics():
     """Demonstrate structured availability metrics instead of dict."""
     print("📊 AVAILABILITY METRICS DEMO")
     print("=" * 50)
-    
+
     # Before: Dict with mixed types and no validation
     # metrics = {
     #     "uptime_percentage": 99.95,
@@ -134,7 +134,7 @@ def demo_availability_metrics():
     #     "response_time_p99": 125.5,
     #     "cpu_usage_percentage": 65.2
     # }
-    
+
     # After: Structured model with precise types and validation
     metrics = AvailabilityMetrics(
         uptime_percentage=Decimal("99.95"),
@@ -157,7 +157,7 @@ def demo_availability_metrics():
         measurement_period_end=datetime.now(timezone.utc),
         measurement_period_hours=24,
     )
-    
+
     print(f"✅ Created availability metrics")
     print(f"   Uptime: {metrics.uptime_percentage}%")
     print(f"   SLA Compliance: {metrics.sla_compliance}")
@@ -170,7 +170,7 @@ def demo_security_assessment():
     """Demonstrate structured security assessment instead of dict."""
     print("🔒 SECURITY ASSESSMENT DEMO")
     print("=" * 50)
-    
+
     # Before: Complex nested dict structure
     # assessment = {
     #     "vulnerabilities": [
@@ -184,7 +184,7 @@ def demo_security_assessment():
     #     "overall_risk_level": "medium",
     #     "compliance_status": "non_compliant"
     # }
-    
+
     # After: Structured models with validation
     vulnerability = VulnerabilityFinding(
         vulnerability_id="CVE-2024-1234",
@@ -198,7 +198,7 @@ def demo_security_assessment():
         patch_available=True,
         patch_version="0.104.1",
     )
-    
+
     assessment = SecurityAssessment(
         assessment_type="vulnerability_scan",
         conducted_by="security_team",
@@ -215,7 +215,7 @@ def demo_security_assessment():
         remediation_timeline="30 days",
         priority_actions=["Upgrade FastAPI", "Review security configuration"],
     )
-    
+
     print(f"✅ Created security assessment")
     print(f"   Risk Level: {assessment.overall_risk_level}")
     print(f"   Compliance: {assessment.compliance_status}")
@@ -228,7 +228,7 @@ def demo_evidence_collection():
     """Demonstrate structured evidence collection instead of dict."""
     print("📄 EVIDENCE COLLECTION DEMO")
     print("=" * 50)
-    
+
     # Before: Dict with no structure or validation
     # evidence = {
     #     "evidence_type": "control_testing",
@@ -237,7 +237,7 @@ def demo_evidence_collection():
     #     "reliability": "high",
     #     "storage_location": "evidence_vault"
     # }
-    
+
     # After: Structured evidence model
     evidence = create_evidence_item(
         evidence_type="control_testing",
@@ -257,7 +257,7 @@ def demo_evidence_collection():
         collector="compliance_system",
         approval_status="approved",
     )
-    
+
     print(f"✅ Created evidence item: {evidence.title}")
     print(f"   Type: {evidence.evidence_type}")
     print(f"   Reliability: {evidence.reliability}")
@@ -270,7 +270,7 @@ def demo_compliance_report():
     """Demonstrate structured compliance report instead of dict."""
     print("📋 COMPLIANCE REPORT DEMO")
     print("=" * 50)
-    
+
     # Before: Complex nested dict structure
     # report = {
     #     "overall_compliance_status": "compliant",
@@ -278,7 +278,7 @@ def demo_compliance_report():
     #     "findings_by_severity": {"high": 0, "medium": 2, "low": 5},
     #     "trust_service_criteria": ["security", "availability"]
     # }
-    
+
     # After: Structured report model
     report = ComplianceReport(
         report_type="soc2_type_ii",
@@ -305,7 +305,7 @@ def demo_compliance_report():
         distribution_list=["management", "audit_committee"],
         confidentiality_level="confidential",
     )
-    
+
     print(f"✅ Created compliance report: {report.report_title}")
     print(f"   Status: {report.overall_compliance_status}")
     print(f"   Score: {report.overall_compliance_score}%")
@@ -321,14 +321,14 @@ def main():
     print("This demo shows how Pydantic models replace dict[str, Any] usage")
     print("throughout the compliance layer with type safety and validation.")
     print()
-    
+
     demo_audit_log_entry()
     demo_control_test_result()
     demo_availability_metrics()
     demo_security_assessment()
     demo_evidence_collection()
     demo_compliance_report()
-    
+
     print("✅ ALL DEMOS COMPLETED SUCCESSFULLY!")
     print("=" * 60)
     print("Benefits of structured models:")

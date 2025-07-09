@@ -4,20 +4,18 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
-from typing import Union
 
-from ....core.result_types import Result
 from ....models.admin import AdminUser
-from ....models.quote import Quote, QuoteOverrideRequest
+from ....models.quote import QuoteOverrideRequest
 from ....schemas.quote import QuoteResponse
 from ....services.quote_service import QuoteService
 from ...dependencies import get_current_admin_user, get_quote_service
-from ...response_patterns import handle_result, ErrorResponse
+from ...response_patterns import ErrorResponse
 
 router = APIRouter()
 
@@ -42,7 +40,7 @@ async def admin_search_quotes(
     # Dependencies
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """Search quotes with admin privileges."""
     filters = {
         "status": status,
@@ -68,7 +66,7 @@ async def admin_search_quotes(
     # Ensure we return a valid list, not None
     value = result.unwrap()
     # Convert Quote objects to dict format for JSON response
-    return [quote.model_dump() if hasattr(quote, 'model_dump') else quote for quote in value]  # type: ignore[misc]
+    return [quote.model_dump() if hasattr(quote, "model_dump") else quote for quote in value]  # type: ignore[misc]
 
 
 @router.post("/{quote_id}/override")
@@ -79,7 +77,7 @@ async def override_quote(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Override quote pricing or terms."""
     # Check permission
     if "quote:override" not in admin_user.effective_permissions:
@@ -100,7 +98,7 @@ async def override_quote(
     # Ensure we return a valid quote, not None
     value = result.unwrap()
     # Convert Quote object to dict format for JSON response
-    return value.model_dump() if hasattr(value, 'model_dump') else dict(value)
+    return value.model_dump() if hasattr(value, "model_dump") else dict(value)
 
 
 @router.post("/bulk/{operation}")
@@ -112,13 +110,15 @@ async def bulk_quote_operation(
     parameters: dict[str, Any] | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Perform bulk operations on quotes."""
     # Validate operation
     allowed_operations = ["expire", "extend", "recalculate", "export"]
     if operation not in allowed_operations:
         response.status_code = 400
-        return ErrorResponse(error=f"Invalid operation. Allowed: {', '.join(allowed_operations)}")
+        return ErrorResponse(
+            error=f"Invalid operation. Allowed: {', '.join(allowed_operations)}"
+        )
 
     # Check permissions
     required_permission = f"quote:bulk_{operation}"
@@ -128,7 +128,12 @@ async def bulk_quote_operation(
 
     # Process in batches
     batch_size = 50
-    results: dict[str, Any] = {"total": len(quote_ids), "successful": 0, "failed": 0, "errors": []}
+    results: dict[str, Any] = {
+        "total": len(quote_ids),
+        "successful": 0,
+        "failed": 0,
+        "errors": [],
+    }
 
     for i in range(0, len(quote_ids), batch_size):
         batch = quote_ids[i : i + batch_size]
@@ -199,7 +204,7 @@ async def get_quote_analytics(
     group_by: str = Query("day", regex="^(hour|day|week|month)$"),
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get quote analytics for dashboards."""
     result = await quote_service.get_quote_analytics(
         date_from,
@@ -226,7 +231,7 @@ async def export_quotes(
     created_before: datetime | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Export quotes in various formats."""
     # Check permission
     if "quote:export" not in admin_user.effective_permissions:
@@ -313,8 +318,13 @@ async def export_quotes(
         try:
             import openpyxl  # type: ignore[import-untyped]
             import pandas as pd  # type: ignore[import-untyped]
-            from openpyxl.styles import Font, PatternFill  # type: ignore[import-untyped]
-            from openpyxl.utils.dataframe import dataframe_to_rows  # type: ignore[import-untyped]
+            from openpyxl.styles import (  # type: ignore[import-untyped]
+                Font,
+                PatternFill,
+            )
+            from openpyxl.utils.dataframe import (
+                dataframe_to_rows,  # type: ignore[import-untyped]
+            )
 
         except ImportError:
             # Graceful fallback if Excel libraries not available
@@ -407,7 +417,7 @@ async def get_pending_approvals(
     response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """Get quotes pending admin approval."""
     # Check permission
     if "quote:approve" not in admin_user.effective_permissions:
@@ -441,7 +451,7 @@ async def process_approval(
     notes: str | None = None,
     quote_service: QuoteService = Depends(get_quote_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Approve or reject a quote approval request."""
     if action not in ["approve", "reject"]:
         response.status_code = 400

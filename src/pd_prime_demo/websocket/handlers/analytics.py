@@ -8,15 +8,13 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..message_models import (
-    WebSocketMessageData,
-    create_websocket_message_data,
-)
-
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
+from ..message_models import (
+    create_websocket_message_data,
+)
 
 # Additional Pydantic models to replace dict usage
 
@@ -174,7 +172,9 @@ class AnalyticsWebSocketHandler:
         self._cache_ttl = 5  # seconds
 
     @beartype
-    async def start_analytics_stream(self, connection_id: str, config: DashboardConfig) -> Result[None, str]:
+    async def start_analytics_stream(
+        self, connection_id: str, config: DashboardConfig
+    ) -> Result[None, str]:
         """Start streaming analytics data to connection with explicit validation."""
         # Validate connection
         if connection_id not in self._manager._connections:
@@ -253,7 +253,9 @@ class AnalyticsWebSocketHandler:
         return Ok(None)
 
     @beartype
-    async def stop_analytics_stream(self, connection_id: str, dashboard_type: str) -> Result[None, str]:
+    async def stop_analytics_stream(
+        self, connection_id: str, dashboard_type: str
+    ) -> Result[None, str]:
         """Stop streaming analytics data."""
         task_key = f"{connection_id}:{dashboard_type}"
 
@@ -337,7 +339,9 @@ class AnalyticsWebSocketHandler:
             await self._manager.send_personal_message(connection_id, error_msg)
 
     @beartype
-    async def _get_dashboard_data(self, config: DashboardConfig) -> Result[dict[str, Any], str]:
+    async def _get_dashboard_data(
+        self, config: DashboardConfig
+    ) -> Result[dict[str, Any], str]:
         """Get dashboard data based on configuration."""
         # Check cache first
         cache_key = f"{config.dashboard_type}:{config.time_range_hours}"
@@ -636,7 +640,9 @@ class AnalyticsWebSocketHandler:
         }
 
     @beartype
-    async def broadcast_event(self, event_type: str, data: dict[str, Any]) -> Result[int, str]:
+    async def broadcast_event(
+        self, event_type: str, data: dict[str, Any]
+    ) -> Result[int, str]:
         """Broadcast analytics event to relevant dashboard subscribers."""
         # Determine which dashboards care about this event
         affected_dashboards = []

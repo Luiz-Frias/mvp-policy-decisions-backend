@@ -9,8 +9,10 @@ This guide documents the comprehensive Pydantic models created to replace `dict[
 ### Core Infrastructure Models
 
 #### 1. `AuditLogEntry`
+
 **Purpose**: Structured audit log entry replacing dict usage in audit logging.
 **Key Features**:
+
 - Comprehensive user context tracking
 - Risk assessment integration
 - Compliance metadata
@@ -29,8 +31,10 @@ audit_entry = AuditLogEntry(
 ```
 
 #### 2. `ControlTestResult`
+
 **Purpose**: Comprehensive control test result replacing dict usage in control testing.
 **Key Features**:
+
 - Structured test findings
 - Evidence quality assessment
 - Effectiveness scoring
@@ -51,16 +55,20 @@ test_result = ControlTestResult(
 ### Trust Service Criteria Models
 
 #### 3. `SecurityControlConfig`
+
 **Purpose**: Configuration for security controls replacing dict usage.
 **Key Features**:
+
 - Encryption settings
 - TLS configuration
 - Monitoring controls
 - Compliance framework mapping
 
 #### 4. `AvailabilityMetrics`
+
 **Purpose**: Availability metrics replacing dict usage in availability controls.
 **Key Features**:
+
 - Precise uptime tracking with Decimal precision
 - SLA compliance monitoring
 - Performance metrics integration
@@ -76,16 +84,20 @@ metrics = AvailabilityMetrics(
 ```
 
 #### 5. `PrivacyControlSettings`
+
 **Purpose**: Privacy control settings replacing dict usage.
 **Key Features**:
+
 - GDPR/CCPA compliance configuration
 - Data subject rights management
 - Consent management settings
 - International transfer controls
 
 #### 6. `ConfidentialitySettings`
+
 **Purpose**: Confidentiality control settings replacing dict usage.
 **Key Features**:
+
 - Data classification schemes
 - Access control models
 - DLP configuration
@@ -94,24 +106,30 @@ metrics = AvailabilityMetrics(
 ### Assessment and Reporting Models
 
 #### 7. `SecurityAssessment`
+
 **Purpose**: Security assessment results replacing dict usage.
 **Key Features**:
+
 - Vulnerability tracking
 - Risk scoring
 - Compliance status
 - Remediation planning
 
 #### 8. `ComplianceReport`
+
 **Purpose**: Comprehensive compliance report structure.
 **Key Features**:
+
 - Multi-criteria assessment
 - Findings aggregation
 - Recommendation tracking
 - Version control
 
 #### 9. `EvidenceItem` & `EvidenceCollection`
+
 **Purpose**: Evidence collection and management.
 **Key Features**:
+
 - Chain of custody tracking
 - Integrity verification
 - Quality assessment
@@ -120,24 +138,30 @@ metrics = AvailabilityMetrics(
 ### Specialized Models
 
 #### 10. `ConsentManagementRecord`
+
 **Purpose**: Consent management record replacing dict usage.
 **Key Features**:
+
 - Consent lifecycle tracking
 - Withdrawal management
 - Legal basis documentation
 - Audit trail
 
 #### 11. `DataSubjectRightsRequest`
+
 **Purpose**: Data subject rights request management.
 **Key Features**:
+
 - Request type classification
 - Identity verification
 - Processing timeline
 - Response tracking
 
 #### 12. `AccessControlMatrixResult`
+
 **Purpose**: Access control matrix assessment.
 **Key Features**:
+
 - Permission compliance tracking
 - Violation analysis
 - Least privilege verification
@@ -146,26 +170,31 @@ metrics = AvailabilityMetrics(
 ## Key Benefits
 
 ### 1. Type Safety
+
 - **Before**: `dict[str, Any]` with no validation
 - **After**: Strongly typed models with beartype decorators
 - **Result**: Catch errors at development time, not runtime
 
 ### 2. Immutability
+
 - **Before**: Mutable dictionaries that could be modified
 - **After**: `frozen=True` Pydantic models
 - **Result**: Audit trail integrity and thread safety
 
 ### 3. Validation
+
 - **Before**: No validation of data structure
 - **After**: Pydantic validation with constraints
 - **Result**: Guaranteed data quality and compliance
 
 ### 4. Documentation
+
 - **Before**: Unclear data structure expectations
 - **After**: Self-documenting models with field descriptions
 - **Result**: Clear API contracts and easier onboarding
 
 ### 5. IDE Support
+
 - **Before**: No autocomplete or type hints
 - **After**: Full IDE support with type hints
 - **Result**: Improved developer experience
@@ -232,6 +261,7 @@ evidence = create_evidence_item(
 ## Migration Strategy
 
 ### Phase 1: Replace Evidence Collections
+
 Replace all `dict[str, Any]` evidence collections in control executions:
 
 ```python
@@ -243,7 +273,7 @@ evidence = {
     }
 }
 
-# After  
+# After
 evidence = DataClassificationResult(
     coverage_percentage=95.2,
     unclassified_elements=8,
@@ -252,6 +282,7 @@ evidence = DataClassificationResult(
 ```
 
 ### Phase 2: Replace Control Results
+
 Update control execution results to use structured models:
 
 ```python
@@ -267,6 +298,7 @@ execution = ControlExecution(
 ```
 
 ### Phase 3: Replace Dashboard Data
+
 Update dashboard endpoints to use structured models:
 
 ```python
@@ -288,17 +320,20 @@ dashboard_data = SecurityAssessment(
 ## Validation Features
 
 ### Field Validation
+
 - **String length limits**: Prevent buffer overflow attacks
 - **Numeric ranges**: Ensure percentages are 0-100
 - **Date validation**: Ensure end dates are after start dates
 - **Format validation**: IP addresses, UUIDs, etc.
 
 ### Business Logic Validation
+
 - **SLA compliance**: Automatic calculation based on uptime
 - **Risk scoring**: Consistent risk level assignment
 - **Retention periods**: Validate against regulatory requirements
 
 ### Cross-Field Validation
+
 - **Period validation**: End dates must be after start dates
 - **Compliance thresholds**: Automatic status calculation
 - **Evidence quality**: Consistency checks across evidence items
@@ -312,6 +347,7 @@ python examples/compliance_models_demo.py
 ```
 
 This demonstrates:
+
 - Model creation and validation
 - Type safety benefits
 - Immutability features
@@ -320,21 +356,25 @@ This demonstrates:
 ## Integration Points
 
 ### Audit Logger
+
 - Replace `dict[str, Any]` audit records with `AuditLogEntry`
 - Structured security alerts and compliance metadata
 - Immutable audit trail with integrity verification
 
 ### Control Testing Framework
+
 - Replace test result dictionaries with `ControlTestResult`
 - Structured findings with `ControlTestFinding`
 - Evidence quality assessment with `EvidenceItem`
 
 ### Compliance Dashboard
+
 - Replace dashboard data dicts with assessment models
 - Structured metrics with validation
 - Consistent reporting formats
 
 ### Evidence Collector
+
 - Replace evidence dictionaries with `EvidenceItem`
 - Chain of custody tracking
 - Integrity verification and retention management
@@ -344,6 +384,7 @@ This demonstrates:
 These compliance models provide a robust foundation for SOC 2 compliance data management. They eliminate the risks associated with `dict[str, Any]` usage while providing type safety, validation, and immutability required for audit trail integrity.
 
 The models are designed to be:
+
 - **Comprehensive**: Cover all compliance data structures
 - **Extensible**: Easy to add new fields and validation rules
 - **Performant**: Efficient serialization and validation

@@ -8,12 +8,11 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Err
 
 from ....models.admin import AdminUser, Permission
 from ....services.admin.sso_admin_service import SSOAdminService
 from ...dependencies import get_current_admin_user, get_sso_admin_service
-from ...response_patterns import handle_result, ErrorResponse
+from ...response_patterns import ErrorResponse
 
 router = APIRouter(prefix="/admin/sso", tags=["admin-sso"])
 
@@ -100,7 +99,7 @@ async def create_sso_provider(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Create new SSO provider configuration.
 
     Requires: admin:write permission
@@ -119,7 +118,11 @@ async def create_sso_provider(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower() or "already exists" in error_msg.lower()
+            else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -137,7 +140,7 @@ async def list_sso_providers(
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """List all SSO provider configurations.
 
     Requires: admin:read permission
@@ -163,7 +166,7 @@ async def get_sso_provider(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get SSO provider configuration details.
 
     Requires: admin:read permission
@@ -190,7 +193,7 @@ async def update_sso_provider(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Update SSO provider configuration.
 
     Requires: admin:write permission
@@ -220,7 +223,7 @@ async def test_sso_provider(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Test SSO provider connection.
 
     Requires: admin:write permission
@@ -247,7 +250,7 @@ async def create_group_mapping(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Create SSO group to role mapping.
 
     Requires: admin:write permission
@@ -266,7 +269,11 @@ async def create_group_mapping(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower() or "already exists" in error_msg.lower()
+            else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -283,7 +290,7 @@ async def list_group_mappings(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """List group mappings for a provider.
 
     Requires: admin:read permission
@@ -312,7 +319,7 @@ async def list_provisioning_rules(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """List user provisioning rules for a provider.
 
     Requires: admin:read permission
@@ -342,7 +349,7 @@ async def get_sso_analytics(
     date_to: datetime = Query(..., description="End date"),
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get SSO usage analytics.
 
     Requires: analytics:read permission
@@ -368,7 +375,7 @@ async def delete_sso_provider(
     response: Response,
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Delete SSO provider configuration.
 
     Requires: admin:delete permission
@@ -396,7 +403,7 @@ async def get_sso_activity_logs(
     provider_id: UUID | None = Query(None, description="Filter by provider"),
     sso_service: SSOAdminService = Depends(get_sso_admin_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get SSO administrative activity logs.
 
     Requires: audit:read permission

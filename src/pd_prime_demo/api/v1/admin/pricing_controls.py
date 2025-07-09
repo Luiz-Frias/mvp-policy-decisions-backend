@@ -14,7 +14,7 @@ from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
 from ....services.admin.pricing_override_service import PricingOverrideService
 from ...dependencies import get_cache, get_current_admin_user, get_database
-from ...response_patterns import handle_result, ErrorResponse
+from ...response_patterns import ErrorResponse
 
 router = APIRouter(prefix="/admin/pricing", tags=["admin-pricing"])
 
@@ -103,7 +103,7 @@ async def create_pricing_override(
     response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Create pricing override for quote.
 
     Requires 'quote:override' permission.
@@ -139,7 +139,7 @@ async def apply_manual_discount(
     response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, bool], ErrorResponse]:
+) -> dict[str, bool] | ErrorResponse:
     """Apply manual discount to quote.
 
     Requires 'quote:discount' permission.
@@ -171,7 +171,7 @@ async def create_special_pricing_rule(
     response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Create special pricing rule.
 
     Requires 'pricing:rule:create' permission.
@@ -191,7 +191,11 @@ async def create_special_pricing_rule(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower() or "already exists" in error_msg.lower()
+            else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -204,7 +208,7 @@ async def get_pending_overrides(
     response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """Get pending pricing overrides for approval.
 
     Requires 'pricing:override:approve' permission.
@@ -231,7 +235,7 @@ async def approve_pricing_override(
     response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, bool], ErrorResponse]:
+) -> dict[str, bool] | ErrorResponse:
     """Approve a pending pricing override.
 
     Requires 'pricing:override:approve' permission.
@@ -262,7 +266,7 @@ async def reject_pricing_override(
     response: Response,
     pricing_service: PricingOverrideService = Depends(get_pricing_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, bool], ErrorResponse]:
+) -> dict[str, bool] | ErrorResponse:
     """Reject a pending pricing override.
 
     Requires 'pricing:override:approve' permission.

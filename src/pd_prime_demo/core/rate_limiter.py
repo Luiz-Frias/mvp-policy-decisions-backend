@@ -2,7 +2,8 @@
 
 import time
 from collections import deque
-from typing import Any, Awaitable, Callable
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 from attrs import define, field, frozen
 from beartype import beartype
@@ -286,7 +287,11 @@ class RateLimiter:
                 }
                 for tracker in self.clients.values()
             ],
-            key=lambda x: int(x["requests_minute"]) if isinstance(x["requests_minute"], (int, str)) else 0,
+            key=lambda x: (
+                int(x["requests_minute"])
+                if isinstance(x["requests_minute"], (int, str))
+                else 0
+            ),
             reverse=True,
         )[:10]
 
@@ -311,7 +316,9 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         self.enabled = enabled
         self.rate_limiter = RateLimiter(self.config) if enabled else None
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Apply rate limiting to incoming requests."""
         if not self.enabled or self.rate_limiter is None:
             return await call_next(request)

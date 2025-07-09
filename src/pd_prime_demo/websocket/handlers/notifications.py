@@ -8,15 +8,13 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..message_models import (
-    WebSocketMessageData,
-    create_websocket_message_data,
-)
-
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
+from ..message_models import (
+    create_websocket_message_data,
+)
 
 
 class NotificationConfig(BaseModel):
@@ -211,7 +209,8 @@ class NotificationHandler:
                     ),
                     "data": notification.data,
                     "icon": notification.icon or self._get_alert_icon(alert.severity),
-                    "sound": notification.sound or self._get_alert_sound(alert.severity),
+                    "sound": notification.sound
+                    or self._get_alert_sound(alert.severity),
                     "timestamp": datetime.now().isoformat(),
                 },
             ).model_dump(),

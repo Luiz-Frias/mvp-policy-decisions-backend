@@ -188,7 +188,9 @@ class AzureADSSOProvider(OIDCProvider):
                         f"Failed to fetch user info: HTTP {response.status_code}"
                     )
 
-            user_data = response.json()  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
+            user_data = (
+                response.json()
+            )  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
 
             # Get user groups if permission granted
             groups: list[str] = []
@@ -260,7 +262,9 @@ class AzureADSSOProvider(OIDCProvider):
                     )
                     return Err(f"Token refresh failed: {error_msg}")
 
-            return Ok(response.json())  # SYSTEM_BOUNDARY - Azure AD API response parsing
+            return Ok(
+                response.json()
+            )  # SYSTEM_BOUNDARY - Azure AD API response parsing
 
         except httpx.TimeoutException:
             return Err("Token refresh request timed out")
@@ -322,7 +326,9 @@ class AzureADSSOProvider(OIDCProvider):
                 if response.status_code != 200:
                     return Err(f"Failed to fetch groups: HTTP {response.status_code}")
 
-            data = response.json()  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
+            data = (
+                response.json()
+            )  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
             groups: list[str] = []
 
             for group in data.get("value", []):
@@ -369,7 +375,9 @@ class AzureADSSOProvider(OIDCProvider):
                         f"Failed to fetch tenant info: HTTP {response.status_code}"
                     )
 
-            data = response.json()  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
+            data = (
+                response.json()
+            )  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
             if data.get("value"):
                 return Ok(data["value"][0])
             else:

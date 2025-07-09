@@ -17,7 +17,7 @@ from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
 from ....services.admin.rate_management_service import RateManagementService
 from ...dependencies import get_cache, get_current_admin_user, get_database
-from ...response_patterns import handle_result, ErrorResponse
+from ...response_patterns import ErrorResponse
 
 router = APIRouter(prefix="/admin/rate-management", tags=["admin-rate-management"])
 
@@ -115,7 +115,7 @@ async def create_rate_table_version(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Create new rate table version requiring approval.
 
     Requires 'rate:write' permission.
@@ -140,7 +140,11 @@ async def create_rate_table_version(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() or "already exists" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower() or "already exists" in error_msg.lower()
+            else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -155,7 +159,7 @@ async def approve_rate_version(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, bool], ErrorResponse]:
+) -> dict[str, bool] | ErrorResponse:
     """Approve rate table version.
 
     Requires 'rate:approve' permission.
@@ -189,7 +193,7 @@ async def reject_rate_version(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, bool], ErrorResponse]:
+) -> dict[str, bool] | ErrorResponse:
     """Reject rate table version.
 
     Requires 'rate:approve' permission.
@@ -222,7 +226,7 @@ async def compare_rate_versions(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Compare two rate table versions with impact analysis.
 
     Requires 'rate:read' permission.
@@ -250,7 +254,7 @@ async def create_ab_test(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Schedule A/B test between rate versions.
 
     Requires 'rate:ab_test' permission.
@@ -272,7 +276,11 @@ async def create_ab_test(
 
     if result.is_err():
         error_msg = result.unwrap_err()
-        response.status_code = 400 if "invalid" in error_msg.lower() or "conflict" in error_msg.lower() else 500
+        response.status_code = (
+            400
+            if "invalid" in error_msg.lower() or "conflict" in error_msg.lower()
+            else 500
+        )
         return ErrorResponse(error=error_msg)
 
     response.status_code = 201
@@ -288,7 +296,7 @@ async def get_rate_analytics(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get comprehensive rate analytics for admin dashboards.
 
     Requires 'rate:analytics' permission.
@@ -315,7 +323,7 @@ async def get_pending_approvals(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """Get pending rate approvals for current admin user.
 
     Requires 'rate:approve' permission.
@@ -347,7 +355,7 @@ async def list_rate_table_versions(
     include_inactive: bool = False,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[list[dict[str, Any]], ErrorResponse]:
+) -> list[dict[str, Any]] | ErrorResponse:
     """List all versions of a rate table.
 
     Requires 'rate:read' permission.
@@ -406,7 +414,7 @@ async def get_active_rates(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Get currently active rates for state and product.
 
     Requires 'rate:read' permission.
@@ -455,7 +463,7 @@ async def rate_management_health(
     response: Response,
     rate_service: RateManagementService = Depends(get_rate_management_service),
     admin_user: AdminUser = Depends(get_current_admin_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """Health check for rate management system.
 
     Requires 'rate:read' permission.

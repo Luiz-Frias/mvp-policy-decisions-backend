@@ -343,7 +343,9 @@ class ControlExecutionDetails(BaseModel):
     automated: bool = Field(default=True, description="Automated execution flag")
     criteria: str = Field(..., min_length=1, description="Trust service criteria")
     findings: list[str] = Field(default_factory=list, description="Execution findings")
-    remediation_actions: list[str] = Field(default_factory=list, description="Remediation actions")
+    remediation_actions: list[str] = Field(
+        default_factory=list, description="Remediation actions"
+    )
 
 
 class SystemDataEvidence(BaseModel):
@@ -357,18 +359,28 @@ class SystemDataEvidence(BaseModel):
         validate_default=True,
     )
 
-    cpu_usage_percent: float | None = Field(None, ge=0.0, le=100.0, description="CPU usage")
-    memory_usage_mb: float | None = Field(None, ge=0.0, description="Memory usage in MB")
-    disk_usage_percent: float | None = Field(None, ge=0.0, le=100.0, description="Disk usage")
+    cpu_usage_percent: float | None = Field(
+        None, ge=0.0, le=100.0, description="CPU usage"
+    )
+    memory_usage_mb: float | None = Field(
+        None, ge=0.0, description="Memory usage in MB"
+    )
+    disk_usage_percent: float | None = Field(
+        None, ge=0.0, le=100.0, description="Disk usage"
+    )
     active_connections: int | None = Field(None, ge=0, description="Active connections")
     error_count: int | None = Field(None, ge=0, description="Error count")
-    response_time_ms: float | None = Field(None, ge=0.0, description="Response time in ms")
+    response_time_ms: float | None = Field(
+        None, ge=0.0, description="Response time in ms"
+    )
     uptime_seconds: int | None = Field(None, ge=0, description="Uptime in seconds")
     security_events: int | None = Field(None, ge=0, description="Security events count")
     backup_status: str | None = Field(None, description="Backup status")
     encryption_status: str | None = Field(None, description="Encryption status")
     access_control_status: str | None = Field(None, description="Access control status")
-    audit_log_entries: int | None = Field(None, ge=0, description="Audit log entries count")
+    audit_log_entries: int | None = Field(
+        None, ge=0, description="Audit log entries count"
+    )
 
 
 class CollectionMetadata(BaseModel):
@@ -382,15 +394,23 @@ class CollectionMetadata(BaseModel):
         validate_default=True,
     )
 
-    collector_id: str = Field(..., min_length=1, description="Evidence collector identifier")
+    collector_id: str = Field(
+        ..., min_length=1, description="Evidence collector identifier"
+    )
     collection_timestamp: datetime = Field(..., description="Collection timestamp")
     collection_method: str = Field(..., min_length=1, description="Collection method")
-    automated_collection: bool = Field(default=True, description="Automated collection flag")
+    automated_collection: bool = Field(
+        default=True, description="Automated collection flag"
+    )
     data_source: str = Field(..., min_length=1, description="Data source identifier")
-    collection_duration_ms: int = Field(..., ge=0, description="Collection duration in ms")
+    collection_duration_ms: int = Field(
+        ..., ge=0, description="Collection duration in ms"
+    )
     data_completeness: bool = Field(default=True, description="Data completeness flag")
     validation_passed: bool = Field(default=True, description="Validation status")
-    retention_period_days: int = Field(default=2555, ge=1, description="Retention period in days")
+    retention_period_days: int = Field(
+        default=2555, ge=1, description="Retention period in days"
+    )
 
 
 class AdditionalEvidenceContext(BaseModel):
@@ -409,9 +429,13 @@ class AdditionalEvidenceContext(BaseModel):
     risk_assessment: str | None = Field(None, description="Risk assessment level")
     compliance_framework: str | None = Field(None, description="Compliance framework")
     testing_approach: str | None = Field(None, description="Testing approach used")
-    evidence_reliability: str = Field(default="high", description="Evidence reliability rating")
+    evidence_reliability: str = Field(
+        default="high", description="Evidence reliability rating"
+    )
     reviewer_notes: str | None = Field(None, description="Reviewer notes")
-    quality_score: float | None = Field(None, ge=0.0, le=100.0, description="Quality score")
+    quality_score: float | None = Field(
+        None, ge=0.0, le=100.0, description="Quality score"
+    )
     remediation_priority: str | None = Field(None, description="Remediation priority")
     stakeholder_impact: str | None = Field(None, description="Stakeholder impact")
 
@@ -495,12 +519,8 @@ class MetricsCollection(BaseModel):
     evidence_artifacts_count: int = Field(
         ..., ge=0, description="Total evidence artifacts"
     )
-    last_assessment_date: datetime = Field(
-        ..., description="Last assessment timestamp"
-    )
-    next_assessment_due: datetime = Field(
-        ..., description="Next assessment due date"
-    )
+    last_assessment_date: datetime = Field(..., description="Last assessment timestamp")
+    next_assessment_due: datetime = Field(..., description="Next assessment due date")
     high_risk_findings: int = Field(..., ge=0, description="High risk findings count")
     medium_risk_findings: int = Field(
         ..., ge=0, description="Medium risk findings count"
@@ -538,9 +558,7 @@ class ControlEvidence(BaseModel):
     criteria: str = Field(
         ..., min_length=1, max_length=50, description="Trust service criteria"
     )
-    automated: bool = Field(
-        default=True, description="Whether control is automated"
-    )
+    automated: bool = Field(default=True, description="Whether control is automated")
     remediation_required: bool = Field(
         default=False, description="Whether remediation is required"
     )
@@ -579,9 +597,7 @@ class ComplianceFinding(BaseModel):
     recommendation: str = Field(
         ..., min_length=1, max_length=1000, description="Recommendation"
     )
-    risk_level: str = Field(
-        ..., min_length=1, max_length=20, description="Risk level"
-    )
+    risk_level: str = Field(..., min_length=1, max_length=20, description="Risk level")
     detected_at: datetime = Field(..., description="Detection timestamp")
     remediation_deadline: datetime | None = Field(
         None, description="Remediation deadline"
@@ -589,9 +605,7 @@ class ComplianceFinding(BaseModel):
     status: str = Field(
         default="open", min_length=1, max_length=20, description="Finding status"
     )
-    assigned_to: str | None = Field(
-        None, max_length=100, description="Assigned person"
-    )
+    assigned_to: str | None = Field(None, max_length=100, description="Assigned person")
     estimated_effort: str | None = Field(
         None, max_length=50, description="Estimated effort"
     )
@@ -641,9 +655,7 @@ class ComplianceRecommendation(BaseModel):
     implementation_notes: str | None = Field(
         None, max_length=1000, description="Implementation notes"
     )
-    dependencies: list[str] = Field(
-        default_factory=list, description="Dependencies"
-    )
+    dependencies: list[str] = Field(default_factory=list, description="Dependencies")
     status: str = Field(
         default="pending", min_length=1, max_length=20, description="Status"
     )
@@ -676,15 +688,11 @@ class ManagementResponse(BaseModel):
     agreed_action: str = Field(
         ..., min_length=1, max_length=1000, description="Agreed action"
     )
-    target_date: datetime | None = Field(
-        None, description="Target completion date"
-    )
+    target_date: datetime | None = Field(None, description="Target completion date")
     assigned_owner: str | None = Field(
         None, max_length=100, description="Assigned owner"
     )
-    risk_acceptance: bool = Field(
-        default=False, description="Risk acceptance flag"
-    )
+    risk_acceptance: bool = Field(default=False, description="Risk acceptance flag")
     alternative_controls: list[str] = Field(
         default_factory=list, description="Alternative controls"
     )
@@ -750,18 +758,14 @@ class SystemDataMetrics(BaseModel):
     cpu_usage_percent: float = Field(
         ..., ge=0.0, le=100.0, description="CPU usage percentage"
     )
-    memory_usage_mb: float = Field(
-        ..., ge=0.0, description="Memory usage in MB"
-    )
+    memory_usage_mb: float = Field(..., ge=0.0, description="Memory usage in MB")
     disk_usage_percent: float = Field(
         ..., ge=0.0, le=100.0, description="Disk usage percentage"
     )
     network_throughput_mbps: float = Field(
         ..., ge=0.0, description="Network throughput in Mbps"
     )
-    active_connections: int = Field(
-        ..., ge=0, description="Active connections count"
-    )
+    active_connections: int = Field(..., ge=0, description="Active connections count")
     error_rate_percent: float = Field(
         ..., ge=0.0, le=100.0, description="Error rate percentage"
     )
@@ -771,15 +775,11 @@ class SystemDataMetrics(BaseModel):
     uptime_percent: float = Field(
         ..., ge=0.0, le=100.0, description="System uptime percentage"
     )
-    security_events_count: int = Field(
-        ..., ge=0, description="Security events count"
-    )
+    security_events_count: int = Field(..., ge=0, description="Security events count")
     backup_status: str = Field(
         ..., min_length=1, max_length=20, description="Backup status"
     )
-    last_backup_time: datetime = Field(
-        ..., description="Last backup timestamp"
-    )
+    last_backup_time: datetime = Field(..., description="Last backup timestamp")
     sync_status: str = Field(
         ..., min_length=1, max_length=20, description="Synchronization status"
     )

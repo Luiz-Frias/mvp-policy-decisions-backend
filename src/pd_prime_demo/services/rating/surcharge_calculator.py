@@ -16,7 +16,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 # Project
 from pd_prime_demo.models.quote import DriverInfo, VehicleInfo
-from pd_prime_demo.schemas.rating import SurchargeFactors, SurchargeCalculation
+from pd_prime_demo.schemas.rating import SurchargeFactors
 
 getcontext().prec = 10
 
@@ -55,11 +55,9 @@ class SurchargeCalculator:
         total_surcharge_amount = Decimal("0")
 
         calculator = SurchargeCalculator()
-        
+
         # DUI/SR-22 surcharges
-        dui_result = calculator._calculate_dui_surcharges(
-            drivers, state, base_premium
-        )
+        dui_result = calculator._calculate_dui_surcharges(drivers, state, base_premium)
         if dui_result.is_err():
             return Err(f"DUI surcharge calculation failed: {dui_result.unwrap_err()}")
 
@@ -516,7 +514,11 @@ class SurchargeCalculator:
     ) -> dict[str, Any]:
         """Format surcharges into a summary report."""
         by_type: dict[str, dict[str, Any]] = {}
-        by_severity: dict[str, list[dict[str, Any]]] = {"high": [], "medium": [], "low": []}
+        by_severity: dict[str, list[dict[str, Any]]] = {
+            "high": [],
+            "medium": [],
+            "low": [],
+        }
 
         for surcharge in surcharges:
             surcharge_type = surcharge["type"]

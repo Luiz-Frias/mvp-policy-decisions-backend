@@ -184,7 +184,9 @@ class QuoteWizardService:
         }
 
     @beartype
-    async def start_session(self, initial_data: dict[str, Any] | None = None) -> Result[WizardState, str]:
+    async def start_session(
+        self, initial_data: dict[str, Any] | None = None
+    ) -> Result[WizardState, str]:
         """Start a new wizard session."""
         session_id = uuid4()
         now = datetime.now()
@@ -202,7 +204,9 @@ class QuoteWizardService:
 
         # Calculate initial completion
         completion_percentage = self._calculate_completion(state)
-        state = state.model_copy(update={'completion_percentage': completion_percentage})
+        state = state.model_copy(
+            update={"completion_percentage": completion_percentage}
+        )
 
         # Save to cache
         cache_key = f"{self._cache_prefix}{session_id}"
@@ -237,7 +241,9 @@ class QuoteWizardService:
             return Err(f"Failed to deserialize session: {str(e)}")
 
     @beartype
-    async def update_step(self, session_id: UUID, step_data: dict[str, Any]) -> Result[WizardState, str]:
+    async def update_step(
+        self, session_id: UUID, step_data: dict[str, Any]
+    ) -> Result[WizardState, str]:
         """Update current step with data."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -256,7 +262,9 @@ class QuoteWizardService:
         # Validate step data
         validation = self._validate_step_data(current_step, step_data)
         if not validation.is_valid:
-            updated_state = state.model_copy(update={'validation_errors': validation.errors})
+            updated_state = state.model_copy(
+                update={"validation_errors": validation.errors}
+            )
             # Still save state with errors
             await self._save_state(updated_state)
             return Err("Validation failed")
@@ -274,13 +282,15 @@ class QuoteWizardService:
         completion_percentage = self._calculate_completion(state)
 
         # Create updated state
-        state = state.model_copy(update={
-            'validation_errors': {},
-            'data': updated_data,
-            'last_updated': datetime.now(),
-            'completed_steps': updated_completed_steps,
-            'completion_percentage': completion_percentage
-        })
+        state = state.model_copy(
+            update={
+                "validation_errors": {},
+                "data": updated_data,
+                "last_updated": datetime.now(),
+                "completed_steps": updated_completed_steps,
+                "completion_percentage": completion_percentage,
+            }
+        )
 
         # Save state
         await self._save_state(state)
@@ -312,16 +322,17 @@ class QuoteWizardService:
         next_step_id = self._determine_next_step(current_step, state.data)
         if not next_step_id:
             # Wizard complete
-            state = state.model_copy(update={
-                'is_complete': True,
-                'completion_percentage': 100,
-                'last_updated': datetime.now()
-            })
+            state = state.model_copy(
+                update={
+                    "is_complete": True,
+                    "completion_percentage": 100,
+                    "last_updated": datetime.now(),
+                }
+            )
         else:
-            state = state.model_copy(update={
-                'current_step': next_step_id,
-                'last_updated': datetime.now()
-            })
+            state = state.model_copy(
+                update={"current_step": next_step_id, "last_updated": datetime.now()}
+            )
         await self._save_state(state)
 
         return Ok(state)
@@ -343,17 +354,21 @@ class QuoteWizardService:
         if not current_step or not current_step.previous_step:
             return Err("No previous step available")
 
-        state = state.model_copy(update={
-            'current_step': current_step.previous_step,
-            'last_updated': datetime.now()
-        })
+        state = state.model_copy(
+            update={
+                "current_step": current_step.previous_step,
+                "last_updated": datetime.now(),
+            }
+        )
 
         await self._save_state(state)
 
         return Ok(state)
 
     @beartype
-    async def jump_to_step(self, session_id: UUID, step_id: str) -> Result[WizardState, str]:
+    async def jump_to_step(
+        self, session_id: UUID, step_id: str
+    ) -> Result[WizardState, str]:
         """Jump to a specific step (if allowed)."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -374,10 +389,9 @@ class QuoteWizardService:
             if not self._can_access_step(step_id, state.completed_steps):
                 return Err("Cannot jump to uncompleted step")
 
-        state = state.model_copy(update={
-            'current_step': step_id,
-            'last_updated': datetime.now()
-        })
+        state = state.model_copy(
+            update={"current_step": step_id, "last_updated": datetime.now()}
+        )
 
         await self._save_state(state)
 
@@ -431,10 +445,15 @@ class QuoteWizardService:
             step_validation = self._validate_step_data(step, step_data)
 
             if not step_validation.is_valid:
-                validation = validation.model_copy(update={
-                    'is_valid': False,
-                    'errors': {**validation.errors, step_id: step_validation.errors}
-                })
+                validation = validation.model_copy(
+                    update={
+                        "is_valid": False,
+                        "errors": {
+                            **validation.errors,
+                            step_id: step_validation.errors,
+                        },
+                    }
+                )
 
         return Ok(validation)
 
@@ -460,10 +479,9 @@ class QuoteWizardService:
             return Err("Session data is not valid")
 
         # Mark as complete
-        state = state.model_copy(update={
-            'is_complete': True,
-            'completion_percentage': 100
-        })
+        state = state.model_copy(
+            update={"is_complete": True, "completion_percentage": 100}
+        )
         await self._save_state(state)
 
         # Return collected data
@@ -477,7 +495,9 @@ class QuoteWizardService:
         )
 
     @beartype
-    async def extend_session(self, session_id: UUID, additional_minutes: int = 30) -> Result[WizardState, str]:
+    async def extend_session(
+        self, session_id: UUID, additional_minutes: int = 30
+    ) -> Result[WizardState, str]:
         """Extend session expiration time."""
         # Get session
         session_result = await self.get_session(session_id)
@@ -489,10 +509,12 @@ class QuoteWizardService:
             return Err("Session not found or expired")
 
         # Extend expiration
-        state = state.model_copy(update={
-            'expires_at': datetime.now() + timedelta(minutes=additional_minutes),
-            'last_updated': datetime.now()
-        })
+        state = state.model_copy(
+            update={
+                "expires_at": datetime.now() + timedelta(minutes=additional_minutes),
+                "last_updated": datetime.now(),
+            }
+        )
 
         # Update TTL in cache
         new_ttl = additional_minutes * 60
@@ -541,9 +563,9 @@ class QuoteWizardService:
 
             if field_errors:
                 errors[field] = field_errors
-                validation = validation.model_copy(update={'is_valid': False})
+                validation = validation.model_copy(update={"is_valid": False})
 
-        return validation.model_copy(update={'errors': errors})
+        return validation.model_copy(update={"errors": errors})
 
     @beartype
     def _apply_validation_rule(

@@ -122,7 +122,9 @@ class RatingEngine:
                 "territory_factor": lambda: self._get_territory_factor(
                     state, vehicle_info.garage_zip
                 ),
-                "driver_factors": lambda: self._calculate_driver_factors(drivers, state),
+                "driver_factors": lambda: self._calculate_driver_factors(
+                    drivers, state
+                ),
                 "vehicle_factor": lambda: self._calculate_vehicle_factor(vehicle_info),
             }
 
@@ -258,8 +260,14 @@ class RatingEngine:
                 ),
                 "final_premium": float(final_premium),
                 "factors": {k: float(v) for k, v in validated_factors.items()},
-                "factor_impacts": {impact.factor_name: float(impact.impact_amount) for impact in factor_impacts},
-                "coverage_premiums": {k: float(v) for k, v in (base_premiums.items() if base_premiums else [])},
+                "factor_impacts": {
+                    impact.factor_name: float(impact.impact_amount)
+                    for impact in factor_impacts
+                },
+                "coverage_premiums": {
+                    k: float(v)
+                    for k, v in (base_premiums.items() if base_premiums else [])
+                },
                 "ai_risk_score": ai_risk_score,
                 "business_rule_validation": business_rule_report,
                 "performance_metrics": {
@@ -307,7 +315,9 @@ class RatingEngine:
 
             if rate_result.is_ok():
                 rates_dict = rate_result.unwrap()
-                base_rates[coverage_type] = rates_dict.get(coverage_type, Decimal("0.35"))
+                base_rates[coverage_type] = rates_dict.get(
+                    coverage_type, Decimal("0.35")
+                )
             else:
                 # Use default rates if not found
                 default_rates = {
@@ -520,7 +530,9 @@ class RatingEngine:
 
         stacked_discounts = stacked_result.unwrap()
         # Convert StackedDiscounts to expected format - convert Discount objects to dicts
-        discount_dicts = [discount.model_dump() for discount in stacked_discounts.applied_discounts]
+        discount_dicts = [
+            discount.model_dump() for discount in stacked_discounts.applied_discounts
+        ]
         return Ok((discount_dicts, stacked_discounts.total_discount_amount))
 
     @beartype
@@ -609,7 +621,9 @@ class RatingEngine:
         }
 
     @beartype
-    async def warm_caches(self, states: list[str] | None = None) -> Result[dict[str, Any], str]:
+    async def warm_caches(
+        self, states: list[str] | None = None
+    ) -> Result[dict[str, Any], str]:
         """Warm caches for optimal performance.
 
         Args:
@@ -648,7 +662,9 @@ class RatingEngine:
             return Err(f"Cache warming failed: {str(e)}")
 
     @beartype
-    async def validate_rating_accuracy(self, test_cases: list[dict[str, Any]]) -> Result[dict[str, Any], str]:
+    async def validate_rating_accuracy(
+        self, test_cases: list[dict[str, Any]]
+    ) -> Result[dict[str, Any], str]:
         """Validate rating accuracy with test cases.
 
         Args:

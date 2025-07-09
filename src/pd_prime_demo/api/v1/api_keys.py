@@ -1,22 +1,21 @@
 """API key management endpoints."""
 
 from datetime import datetime
-from typing import Any, Union
-from uuid import UUID, uuid4
+from typing import Union
+from uuid import UUID
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
 from ...core.auth.oauth2 import APIKeyManager
 from ...core.cache import Cache
 from ...core.database import Database
-from ...core.result_types import Err
 from ...schemas.auth import CurrentUser
 from ..dependencies import get_current_user, get_db_connection, get_redis
-from ..response_patterns import handle_result, ErrorResponse, APIResponseHandler
+from ..response_patterns import APIResponseHandler, ErrorResponse
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 
@@ -80,7 +79,9 @@ class APIKeyCreateResponse(BaseModel):
     note: str
 
 
-def _handle_service_error(error: str, response: Response, success_status: int = 200) -> ErrorResponse:
+def _handle_service_error(
+    error: str, response: Response, success_status: int = 200
+) -> ErrorResponse:
     """Handle service layer errors by mapping to appropriate HTTP status."""
     response.status_code = APIResponseHandler.map_error_to_status(error)
     return ErrorResponse(error=error)
@@ -139,7 +140,7 @@ async def create_api_key(
     response: Response,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> Union[APIKeyCreateResponse, ErrorResponse]:
+) -> APIKeyCreateResponse | ErrorResponse:
     """Create a new API key.
 
     The API key will be associated with the current user's OAuth2 client.
@@ -159,9 +160,7 @@ async def create_api_key(
     # Check if user has permission to create API keys
     if "api:write" not in current_user.scopes:
         response.status_code = 403
-        return ErrorResponse(
-            error="Insufficient permissions to create API keys"
-        )
+        return ErrorResponse(error="Insufficient permissions to create API keys")
 
     # Use client_id from current user's OAuth2 token
     client_id = current_user.client_id
@@ -202,7 +201,7 @@ async def list_api_keys(
     active_only: bool = Query(True, description="Show only active keys"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> Union[list[APIKeyResponse], ErrorResponse]:
+) -> list[APIKeyResponse] | ErrorResponse:
     """List API keys for the current user.
 
     Args:
@@ -233,13 +232,31 @@ async def list_api_keys(
         for key_data in key_list:
             keys.append(
                 APIKeyResponse(
-                    id=UUID(key_data["id"]) if isinstance(key_data["id"], str) else key_data["id"],
+                    id=(
+                        UUID(key_data["id"])
+                        if isinstance(key_data["id"], str)
+                        else key_data["id"]
+                    ),
                     name=str(key_data["name"]),
                     scopes=list(key_data["scopes"]) if key_data["scopes"] else [],
-                    expires_at=datetime.fromisoformat(key_data["expires_at"]) if key_data.get("expires_at") and isinstance(key_data["expires_at"], str) else key_data.get("expires_at"),
+                    expires_at=(
+                        datetime.fromisoformat(key_data["expires_at"])
+                        if key_data.get("expires_at")
+                        and isinstance(key_data["expires_at"], str)
+                        else key_data.get("expires_at")
+                    ),
                     rate_limit_per_minute=int(key_data["rate_limit_per_minute"]),
-                    created_at=datetime.fromisoformat(key_data["created_at"]) if isinstance(key_data["created_at"], str) else key_data["created_at"],
-                    last_used_at=datetime.fromisoformat(key_data["last_used_at"]) if key_data.get("last_used_at") and isinstance(key_data["last_used_at"], str) else key_data.get("last_used_at"),
+                    created_at=(
+                        datetime.fromisoformat(key_data["created_at"])
+                        if isinstance(key_data["created_at"], str)
+                        else key_data["created_at"]
+                    ),
+                    last_used_at=(
+                        datetime.fromisoformat(key_data["last_used_at"])
+                        if key_data.get("last_used_at")
+                        and isinstance(key_data["last_used_at"], str)
+                        else key_data.get("last_used_at")
+                    ),
                     active=bool(key_data["active"]),
                 )
             )
@@ -257,7 +274,7 @@ async def revoke_api_key(
     reason: str = Query(..., description="Reason for revocation"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> Union[APIKeyRevokeResponse, ErrorResponse]:
+) -> APIKeyRevokeResponse | ErrorResponse:
     """Revoke an API key.
 
     Args:
@@ -274,9 +291,7 @@ async def revoke_api_key(
     """
     if "api:write" not in current_user.scopes:
         response.status_code = 403
-        return ErrorResponse(
-            error="Insufficient permissions to revoke API keys"
-        )
+        return ErrorResponse(error="Insufficient permissions to revoke API keys")
 
     # Verify key belongs to user's client
     ownership_result = await api_key_manager.verify_key_ownership(
@@ -302,7 +317,7 @@ async def rotate_api_key(
     response: Response,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> Union[APIKeyCreateResponse, ErrorResponse]:
+) -> APIKeyCreateResponse | ErrorResponse:
     """Rotate an API key.
 
     This will revoke the old key and create a new one with the same settings.
@@ -320,9 +335,7 @@ async def rotate_api_key(
     """
     if "api:write" not in current_user.scopes:
         response.status_code = 403
-        return ErrorResponse(
-            error="Insufficient permissions to rotate API keys"
-        )
+        return ErrorResponse(error="Insufficient permissions to rotate API keys")
 
     # Verify key belongs to user's client
     ownership_result = await api_key_manager.verify_key_ownership(
@@ -361,7 +374,7 @@ async def get_api_key_usage(
     days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> Union[APIKeyUsageResponse, ErrorResponse]:
+) -> APIKeyUsageResponse | ErrorResponse:
     """Get usage statistics for an API key.
 
     Args:

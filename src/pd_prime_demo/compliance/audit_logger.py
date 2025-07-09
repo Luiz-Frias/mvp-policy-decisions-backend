@@ -15,8 +15,8 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.compliance import AuditLogEntry, AuditTrailSummary
-from pd_prime_demo.schemas.common import EvidenceContent, MetadataItem
+from pd_prime_demo.schemas.common import EvidenceContent
+from pd_prime_demo.schemas.compliance import AuditLogEntry
 
 from ..core.database import get_database
 
@@ -128,6 +128,49 @@ class ComplianceEvent(BaseModel):
     @beartype
     def to_audit_log_entry(self) -> AuditLogEntry:
         """Convert to structured audit log entry."""
+        # Import here to avoid circular imports
+        from pd_prime_demo.schemas.compliance import RequestBodyData, SecurityAlerts, StateData
+        
+        # Convert event_data to RequestBodyData if present
+        request_body = None
+        if self.event_data:
+            request_body = RequestBodyData(
+                endpoint=self.request_path,
+                method=self.request_method,
+                payload_size=len(str(self.event_data).encode('utf-8')) if self.event_data else 0,
+                content_type="application/json"
+            )
+        
+        # Convert before_state to StateData if present
+        before_state = None
+        if self.before_state:
+            before_state = StateData(
+                resource_type=self.resource_type,
+                resource_id=self.resource_id,
+                properties=[],
+                metadata=[]
+            )
+        
+        # Convert after_state to StateData if present
+        after_state = None
+        if self.after_state:
+            after_state = StateData(
+                resource_type=self.resource_type,
+                resource_id=self.resource_id,
+                properties=[],
+                metadata=[]
+            )
+        
+        # Create security alerts
+        security_alerts = SecurityAlerts(
+            alerts=[],
+            total_alerts=0,
+            critical_count=0,
+            high_count=0,
+            medium_count=0,
+            low_count=0
+        )
+        
         return AuditLogEntry(
             event_type=self.event_type.value,
             action=self.action,
@@ -139,18 +182,18 @@ class ComplianceEvent(BaseModel):
             resource_id=self.resource_id,
             request_method=self.request_method,
             request_path=self.request_path,
-            request_body=self.event_data.model_dump() if self.event_data else {},
-            before_state=self.before_state.model_dump() if self.before_state else None,
-            after_state=self.after_state.model_dump() if self.after_state else None,
+            request_body=request_body,
             response_status=self.response_status,
-            risk_level=self.risk_level.value,
+            risk_level=self.risk_level,
             risk_score=self.risk_score,
             control_references=self.control_references,
             compliance_tags=self.compliance_tags,
             evidence_references=self.evidence_references,
             processing_time_ms=self.processing_time_ms,
             error_details=self.error_details,
-            timestamp=self.timestamp,
+            security_alerts=security_alerts,
+            before_state=before_state,
+            after_state=after_state,
         )
 
 
@@ -214,11 +257,13 @@ class AuditLogger:
             json.dumps(audit_record["request_body"]),
             audit_record["response_status"],
             audit_record["risk_score"],
-            json.dumps({
-                "control_references": audit_record["control_references"],
-                "compliance_tags": audit_record["compliance_tags"],
-                "evidence_references": audit_record["evidence_references"],
-            }),
+            json.dumps(
+                {
+                    "control_references": audit_record["control_references"],
+                    "compliance_tags": audit_record["compliance_tags"],
+                    "evidence_references": audit_record["evidence_references"],
+                }
+            ),
             audit_record["timestamp"],
         )
 
@@ -248,11 +293,13 @@ class AuditLogger:
                     json.dumps(audit_record["request_body"]),
                     audit_record["response_status"],
                     audit_record["risk_score"],
-                    json.dumps({
-                        "control_references": audit_record["control_references"],
-                        "compliance_tags": audit_record["compliance_tags"],
-                        "evidence_references": audit_record["evidence_references"],
-                    }),
+                    json.dumps(
+                        {
+                            "control_references": audit_record["control_references"],
+                            "compliance_tags": audit_record["compliance_tags"],
+                            "evidence_references": audit_record["evidence_references"],
+                        }
+                    ),
                     audit_record["timestamp"],
                 ]
             )
@@ -305,7 +352,8 @@ class AuditLogger:
             risk_score=0.8 if not success else 0.1,
             compliance_tags=["authentication", "security"],
             control_references=["SEC-001", "SEC-002"],
-            event_data=metadata or EvidenceContent(
+            event_data=metadata
+            or EvidenceContent(
                 collection_metadata={"success": success, "event_type": "authentication"}
             ),
         )
@@ -333,9 +381,8 @@ class AuditLogger:
             risk_score=0.3,
             compliance_tags=["data_access", "confidentiality"],
             control_references=["CONF-001"],
-            event_data=metadata or EvidenceContent(
-                collection_metadata={"event_type": "data_access"}
-            ),
+            event_data=metadata
+            or EvidenceContent(collection_metadata={"event_type": "data_access"}),
         )
         return await self.log_event(event)
 
@@ -360,13 +407,15 @@ class AuditLogger:
                     "findings": execution.findings,
                     "evidence_collected": execution.evidence_collected,
                 },
-                collection_metadata={"event_type": "control_execution"}
+                collection_metadata={"event_type": "control_execution"},
             ),
         )
         return await self.log_event(event)
 
     @beartype
-    async def log_control_event(self, action: str, control_id: str, metadata: EvidenceContent | None = None) -> Result[None, str]:
+    async def log_control_event(
+        self, action: str, control_id: str, metadata: EvidenceContent | None = None
+    ) -> Result[None, str]:
         """Log general control-related event."""
         event = ComplianceEvent(
             event_type=AuditEventType.CONTROL_EXECUTION,
@@ -377,7 +426,8 @@ class AuditLogger:
             risk_score=0.1,
             compliance_tags=["control_management"],
             control_references=[control_id],
-            event_data=metadata or EvidenceContent(
+            event_data=metadata
+            or EvidenceContent(
                 collection_metadata={"event_type": "control_management"}
             ),
         )
@@ -385,7 +435,11 @@ class AuditLogger:
 
     @beartype
     async def log_encryption_event(
-        self, action: str, data_type: str, encryption_algorithm: str, metadata: EvidenceContent | None = None
+        self,
+        action: str,
+        data_type: str,
+        encryption_algorithm: str,
+        metadata: EvidenceContent | None = None,
     ) -> Result[None, str]:
         """Log encryption operation."""
         event = ComplianceEvent(
@@ -396,19 +450,24 @@ class AuditLogger:
             risk_score=0.2,
             compliance_tags=["encryption", "security"],
             control_references=["SEC-001"],
-            event_data=metadata or EvidenceContent(
+            event_data=metadata
+            or EvidenceContent(
                 system_data={
                     "data_type": data_type,
                     "algorithm": encryption_algorithm,
                 },
-                collection_metadata={"event_type": "encryption"}
+                collection_metadata={"event_type": "encryption"},
             ),
         )
         return await self.log_event(event)
 
     @beartype
     async def log_privacy_event(
-        self, user_id: UUID | None, action: str, data_type: str, metadata: EvidenceContent | None = None
+        self,
+        user_id: UUID | None,
+        action: str,
+        data_type: str,
+        metadata: EvidenceContent | None = None,
     ) -> Result[None, str]:
         """Log privacy-related event."""
         event = ComplianceEvent(
@@ -420,15 +479,18 @@ class AuditLogger:
             risk_score=0.6,
             compliance_tags=["privacy", "gdpr", "ccpa"],
             control_references=["PRIV-001"],
-            event_data=metadata or EvidenceContent(
+            event_data=metadata
+            or EvidenceContent(
                 system_data={"data_type": data_type},
-                collection_metadata={"event_type": "privacy"}
+                collection_metadata={"event_type": "privacy"},
             ),
         )
         return await self.log_event(event)
 
     @beartype
-    async def log_error(self, message: str, metadata: EvidenceContent | None = None) -> Result[None, str]:
+    async def log_error(
+        self, message: str, metadata: EvidenceContent | None = None
+    ) -> Result[None, str]:
         """Log system error for compliance monitoring."""
         event = ComplianceEvent(
             event_type=AuditEventType.SECURITY_INCIDENT,
@@ -437,7 +499,8 @@ class AuditLogger:
             risk_score=0.4,
             compliance_tags=["error", "incident"],
             error_details=message,
-            event_data=metadata or EvidenceContent(
+            event_data=metadata
+            or EvidenceContent(
                 collection_metadata={"error_message": message, "event_type": "error"}
             ),
         )
@@ -512,10 +575,33 @@ class AuditLogger:
                 request_body = {}
                 if record.get("request_body"):
                     request_body = json.loads(record["request_body"])
-                
+
                 security_alerts = {}
                 if record.get("security_alerts"):
                     security_alerts = json.loads(record["security_alerts"])
+
+                # Import here to avoid circular imports
+                from pd_prime_demo.schemas.compliance import RequestBodyData, SecurityAlerts, StateData
+                
+                # Convert request_body dict to RequestBodyData if present
+                request_body_data = None
+                if request_body:
+                    request_body_data = RequestBodyData(
+                        endpoint=record.get("request_path"),
+                        method=record.get("request_method"),
+                        payload_size=len(str(request_body).encode('utf-8')) if request_body else 0,
+                        content_type="application/json"
+                    )
+                
+                # Create security alerts from parsed data
+                security_alerts_data = SecurityAlerts(
+                    alerts=[],
+                    total_alerts=0,
+                    critical_count=0,
+                    high_count=0,
+                    medium_count=0,
+                    low_count=0
+                )
                 
                 # Create structured audit log entry
                 audit_entry = AuditLogEntry(
@@ -530,19 +616,19 @@ class AuditLogger:
                     resource_id=record.get("resource_id"),
                     request_method=record.get("request_method"),
                     request_path=record.get("request_path"),
-                    request_body=request_body,
+                    request_body=request_body_data,
                     response_status=record.get("response_status"),
                     risk_score=record.get("risk_score", 0.0),
                     control_references=security_alerts.get("control_references", []),
                     compliance_tags=security_alerts.get("compliance_tags", []),
                     evidence_references=security_alerts.get("evidence_references", []),
-                    security_alerts=security_alerts,
+                    security_alerts=security_alerts_data,
                 )
                 audit_records.append(audit_entry)
 
             return audit_records
 
-        except Exception as e:
+        except Exception:
             return []
 
     async def __aenter__(self) -> "AuditLogger":

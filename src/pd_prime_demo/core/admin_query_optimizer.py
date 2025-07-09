@@ -248,7 +248,9 @@ class AdminQueryOptimizer:
 
                         # Get row count
                         # Use identifier quoting to prevent SQL injection
-                        from asyncpg.sql import Identifier  # type: ignore[import-untyped]
+                        from asyncpg.sql import (
+                            Identifier,  # type: ignore[import-untyped]
+                        )
 
                         row_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM $1", Identifier(view_name)
@@ -370,9 +372,15 @@ class AdminQueryOptimizer:
 
                 # Convert to dictionaries
                 metrics_data = {
-                    "daily_metrics": [dict(row) for row in daily_metrics],  # SYSTEM_BOUNDARY - Database query result
-                    "user_activity": [dict(row) for row in user_activity],  # SYSTEM_BOUNDARY - Database query result
-                    "system_health": dict(system_health) if system_health else {},  # SYSTEM_BOUNDARY - Database query result
+                    "daily_metrics": [
+                        dict(row) for row in daily_metrics
+                    ],  # SYSTEM_BOUNDARY - Database query result
+                    "user_activity": [
+                        dict(row) for row in user_activity
+                    ],  # SYSTEM_BOUNDARY - Database query result
+                    "system_health": (
+                        dict(system_health) if system_health else {}
+                    ),  # SYSTEM_BOUNDARY - Database query result
                     "cache_timestamp": datetime.utcnow(),
                 }
 
@@ -382,12 +390,14 @@ class AdminQueryOptimizer:
                         cache_key, metrics_data, ttl_seconds=cache_ttl_seconds
                     )
 
-                return Ok(AdminMetrics(
-                    daily_metrics=metrics_data["daily_metrics"],  # type: ignore
-                    user_activity=metrics_data["user_activity"],  # type: ignore
-                    system_health=metrics_data["system_health"],  # type: ignore
-                    cache_timestamp=metrics_data["cache_timestamp"],  # type: ignore
-                ))
+                return Ok(
+                    AdminMetrics(
+                        daily_metrics=metrics_data["daily_metrics"],  # type: ignore
+                        user_activity=metrics_data["user_activity"],  # type: ignore
+                        system_health=metrics_data["system_health"],  # type: ignore
+                        cache_timestamp=metrics_data["cache_timestamp"],  # type: ignore
+                    )
+                )
 
         except Exception as e:
             return Err(f"Failed to fetch admin metrics: {str(e)}")
@@ -489,7 +499,9 @@ class AdminQueryOptimizer:
         try:
             async with self._db.acquire_admin() as conn:
                 results = await conn.fetch(query, start_date, end_date)
-                return Ok([dict(row) for row in results])  # SYSTEM_BOUNDARY - Database query result
+                return Ok(
+                    [dict(row) for row in results]
+                )  # SYSTEM_BOUNDARY - Database query result
 
         except Exception as e:
             return Err(f"Failed to generate report: {str(e)}")

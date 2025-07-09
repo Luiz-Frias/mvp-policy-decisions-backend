@@ -1,6 +1,6 @@
 """Authentication endpoints including SSO support."""
 
-from typing import Any, Union
+from typing import Union
 from uuid import uuid4
 
 import asyncpg
@@ -10,13 +10,12 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.auth.sso_manager import SSOManager
-from ...core.cache import get_cache, Cache
-from ...core.database import get_db_session, Database
+from ...core.cache import Cache, get_cache
+from ...core.database import Database
 from ...core.result_types import Err
-from ...core.security import get_security, Security
-from ..dependencies import get_sso_manager, get_db_connection
-from ..response_patterns import handle_result, ErrorResponse
-from typing import Union
+from ...core.security import Security, get_security
+from ..dependencies import get_db_connection, get_sso_manager
+from ..response_patterns import ErrorResponse, handle_result
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -37,7 +36,9 @@ class UserInfo(BaseModel):
     first_name: str = Field(..., description="First name")
     last_name: str = Field(..., description="Last name")
     role: str = Field(..., description="User role")
-    sso_provider: str | None = Field(default=None, description="SSO provider if applicable")
+    sso_provider: str | None = Field(
+        default=None, description="SSO provider if applicable"
+    )
 
 
 class LoginRequest(BaseModel):
@@ -94,7 +95,7 @@ async def login(
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
     response: Response = Depends(lambda: Response()),
-) -> Union[LoginResponse, ErrorResponse]:
+) -> LoginResponse | ErrorResponse:
     """Login with email and password.
 
     This endpoint is for traditional email/password authentication.
@@ -111,8 +112,10 @@ async def login(
     # Check if user is SSO-only
     if user["password_hash"].startswith("sso:"):
         return handle_result(
-            Err("This account uses SSO authentication. Please use the SSO login option."),
-            response
+            Err(
+                "This account uses SSO authentication. Please use the SSO login option."
+            ),
+            response,
         )
 
     # Verify password
@@ -220,7 +223,7 @@ async def sso_login_init(
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_cache),
     response: Response = Depends(lambda: Response()),
-) -> Union[SSOLoginInitResponse, ErrorResponse]:
+) -> SSOLoginInitResponse | ErrorResponse:
     """Initiate SSO login flow.
 
     This endpoint generates the authorization URL for the SSO provider
@@ -229,8 +232,10 @@ async def sso_login_init(
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
         return handle_result(
-            Err(f"SSO provider '{provider}' not found. Available providers: {sso_manager.list_providers()}"),
-            response
+            Err(
+                f"SSO provider '{provider}' not found. Available providers: {sso_manager.list_providers()}"
+            ),
+            response,
         )
 
     # Generate state for CSRF protection
@@ -262,7 +267,7 @@ async def sso_login_init(
     if isinstance(auth_url_result, Err):
         return handle_result(
             Err(f"Failed to generate authorization URL: {auth_url_result.error}"),
-            response
+            response,
         )
 
     return SSOLoginInitResponse(authorization_url=auth_url_result.value, state=state)
@@ -282,7 +287,7 @@ async def sso_callback(
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
     response: Response = Depends(lambda: Response()),
-) -> Union[LoginResponse, RedirectResponse, ErrorResponse]:
+) -> LoginResponse | RedirectResponse | ErrorResponse:
     """Handle SSO callback after user authentication.
 
     This endpoint is called by the SSO provider after the user
@@ -292,32 +297,29 @@ async def sso_callback(
     # Check for errors from provider
     if error:
         return handle_result(
-            Err(f"SSO authentication failed: {error} - {error_description or 'No details provided'}"),
-            response
+            Err(
+                f"SSO authentication failed: {error} - {error_description or 'No details provided'}"
+            ),
+            response,
         )
 
     # Validate state
     state_data = await cache.get(f"sso:state:{state}")
     if not state_data or state_data.get("provider") != provider:
         return handle_result(
-            Err("Invalid state parameter. Please try logging in again."),
-            response
+            Err("Invalid state parameter. Please try logging in again."), response
         )
 
     # Get SSO provider
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
-        return handle_result(
-            Err(f"SSO provider '{provider}' not found"),
-            response
-        )
+        return handle_result(Err(f"SSO provider '{provider}' not found"), response)
 
     # Exchange code for tokens
     token_result = await sso_provider.exchange_code_for_token(code, state)
     if isinstance(token_result, Err):
         return handle_result(
-            Err(f"Failed to exchange code for token: {token_result.error}"),
-            response
+            Err(f"Failed to exchange code for token: {token_result.error}"), response
         )
 
     tokens = token_result.value
@@ -326,8 +328,7 @@ async def sso_callback(
     user_info_result = await sso_provider.get_user_info(tokens["access_token"])
     if isinstance(user_info_result, Err):
         return handle_result(
-            Err(f"Failed to get user info: {user_info_result.error}"),
-            response
+            Err(f"Failed to get user info: {user_info_result.error}"), response
         )
 
     sso_user_info = user_info_result.value
@@ -423,7 +424,7 @@ async def logout(
     db: asyncpg.Connection = Depends(get_db_connection),
     cache: Cache = Depends(get_cache),
     response: Response = Depends(lambda: Response()),
-) -> Union[LogoutResponse, ErrorResponse]:
+) -> LogoutResponse | ErrorResponse:
     """Logout and invalidate session.
 
     This endpoint invalidates the user's session and optionally
@@ -442,10 +443,7 @@ async def logout(
     )
 
     if not session:
-        return handle_result(
-            Err("Session not found or already invalidated"),
-            response
-        )
+        return handle_result(Err("Session not found or already invalidated"), response)
 
     # Revoke session
     await db.execute(

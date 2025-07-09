@@ -27,7 +27,6 @@ from ..models.quote import (
     QuoteUpdate,
     VehicleInfo,
 )
-from ..schemas.rating import PerformanceMetrics
 from .performance_monitor import performance_monitor
 
 # Optional imports for production features
@@ -1221,7 +1220,7 @@ class QuoteService:
 
         try:
             # Use the WebSocket message structure directly
-            from ..websocket.manager import WebSocketMessage, MessageType
+            from ..websocket.manager import MessageType, WebSocketMessage
 
             # Send update to quote-specific room
             room_id = f"quote:{quote.id}"

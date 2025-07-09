@@ -5,17 +5,21 @@ with proper validation, caching, and error handling.
 """
 
 import json
+from typing import Union
 from uuid import UUID
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, status, Response
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
-from typing import Union
 
+from pd_prime_demo.api.response_patterns import (
+    APIResponseHandler,
+    ErrorResponse,
+    handle_result,
+)
 from pd_prime_demo.core.result_types import Err
-from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse, APIResponseHandler
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -82,7 +86,7 @@ async def list_customers(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[CustomerListResponse, ErrorResponse]:
+) -> CustomerListResponse | ErrorResponse:
     """List customers with pagination and filtering.
 
     Args:
@@ -186,7 +190,7 @@ async def create_customer(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Customer, ErrorResponse]:
+) -> Customer | ErrorResponse:
     """Create a new customer.
 
     Args:
@@ -245,7 +249,7 @@ async def get_customer(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Customer, ErrorResponse]:
+) -> Customer | ErrorResponse:
     """Get customer by ID.
 
     Args:
@@ -305,7 +309,7 @@ async def update_customer(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[Customer, ErrorResponse]:
+) -> Customer | ErrorResponse:
     """Update customer information.
 
     Args:
@@ -365,7 +369,7 @@ async def delete_customer(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[None, ErrorResponse]:
+) -> None | ErrorResponse:
     """Delete customer account.
 
     Args:
@@ -419,7 +423,7 @@ async def get_customer_policies(
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Union[list[PolicySummary], ErrorResponse]:
+) -> list[PolicySummary] | ErrorResponse:
     """Get all policies for a specific customer.
 
     Args:
@@ -469,7 +473,9 @@ async def get_customer_policies(
 
     # Type narrowing - policies should not be None if is_ok() is True
     if policies is None:
-        return handle_result(Err("Internal server error: policies result is None"), response)
+        return handle_result(
+            Err("Internal server error: policies result is None"), response
+        )
 
     # Cache the result for 300 seconds (5 minutes)
     await redis.setex(

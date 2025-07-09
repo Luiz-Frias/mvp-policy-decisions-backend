@@ -672,7 +672,11 @@ class RatingBusinessRules:
         self, violations: list[BusinessRuleViolation]
     ) -> dict[str, Any]:
         """Format violations into a comprehensive report."""
-        by_severity: dict[str, list[dict[str, Any]]] = {"error": [], "warning": [], "info": []}
+        by_severity: dict[str, list[dict[str, Any]]] = {
+            "error": [],
+            "warning": [],
+            "info": [],
+        }
 
         for violation in violations:
             by_severity[violation.severity].append(violation.to_dict())

@@ -7,7 +7,8 @@ from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Any, Awaitable
+from typing import Any
+from collections.abc import Awaitable
 
 from attrs import field, frozen
 from beartype import beartype

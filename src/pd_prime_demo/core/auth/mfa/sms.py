@@ -4,18 +4,16 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from beartype import beartype
 from cryptography.fernet import Fernet
+from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
 from .models import SMSVerification
-from pydantic import BaseModel, ConfigDict, Field
-from beartype import beartype
 
 
 @beartype
@@ -213,7 +211,9 @@ class SMSProvider:
             return Err(f"Failed to send SMS verification: {str(e)}")
 
     @beartype
-    async def verify_code(self, verification_id: str, code: str, user_id: str) -> Result[bool, str]:
+    async def verify_code(
+        self, verification_id: str, code: str, user_id: str
+    ) -> Result[bool, str]:
         """Verify SMS code with attempt tracking.
 
         Args:
@@ -292,7 +292,9 @@ class SMSProvider:
             return Err(f"Failed to decrypt phone number: {str(e)}")
 
     @beartype
-    async def _check_sim_swap_risk(self, phone_number: str) -> Result[SIMSwapCheckResult, str]:
+    async def _check_sim_swap_risk(
+        self, phone_number: str
+    ) -> Result[SIMSwapCheckResult, str]:
         """Check for SIM swap risk indicators.
 
         In production, this would integrate with carrier APIs.
@@ -377,7 +379,9 @@ class SMSProvider:
         return hashlib.sha256((code + self._settings.secret_key).encode()).hexdigest()
 
     @beartype
-    async def _send_sms(self, phone_number: str, code: str, purpose: str) -> Result[str, str]:
+    async def _send_sms(
+        self, phone_number: str, code: str, purpose: str
+    ) -> Result[str, str]:
         """Send SMS via provider (Twilio/AWS SNS).
 
         This is a mock implementation. In production, integrate with real SMS provider.

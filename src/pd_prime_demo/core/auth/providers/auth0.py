@@ -421,7 +421,12 @@ class Auth0SSOProvider(OIDCProvider):
                     timeout=30.0,
                 )
 
-            return Ok({"success": response.status_code == 201, "status_code": response.status_code})
+            return Ok(
+                {
+                    "success": response.status_code == 201,
+                    "status_code": response.status_code,
+                }
+            )
 
         except Exception as e:
             return Err(f"Failed to link accounts: {str(e)}")

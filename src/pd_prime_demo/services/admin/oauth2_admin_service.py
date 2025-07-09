@@ -18,9 +18,9 @@ from ...models.base import BaseModelConfig
 
 class OAuth2ClientUpdate(BaseModelConfig):
     """OAuth2 client update model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     client_name: str | None = None
     description: str | None = None
     allowed_scopes: list[str] | None = None
@@ -33,9 +33,9 @@ class OAuth2ClientUpdate(BaseModelConfig):
 
 class OAuth2ClientResponse(BaseModelConfig):
     """OAuth2 client response model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     id: UUID
     client_id: str
     client_name: str
@@ -53,9 +53,9 @@ class OAuth2ClientResponse(BaseModelConfig):
 
 class OAuth2Analytics(BaseModelConfig):
     """OAuth2 client analytics model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     client_id: str
     client_name: str
     token_statistics: dict[str, int]
@@ -67,9 +67,9 @@ class OAuth2Analytics(BaseModelConfig):
 
 class OAuth2ClientDetails(BaseModelConfig):
     """OAuth2 client details model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     id: UUID
     client_id: str
     client_name: str
@@ -230,7 +230,7 @@ class OAuth2AdminService:
                 refresh_token_lifetime=refresh_token_lifetime,
                 is_active=True,
                 created_at=datetime.utcnow(),
-                client_secret=client_secret
+                client_secret=client_secret,
             )
 
             return Ok(result)
@@ -281,7 +281,7 @@ class OAuth2AdminService:
 
             # Convert update model to dict
             update_dict = updates.model_dump(exclude_unset=True)
-            
+
             for field, value in update_dict.items():
                 if field in allowed_fields:
                     param_count += 1
@@ -306,9 +306,7 @@ class OAuth2AdminService:
             if updates.allowed_scopes:
                 from ...core.auth.oauth2.scopes import SCOPES
 
-                invalid_scopes = [
-                    s for s in updates.allowed_scopes if s not in SCOPES
-                ]
+                invalid_scopes = [s for s in updates.allowed_scopes if s not in SCOPES]
                 if invalid_scopes:
                     return Err(f"Invalid scopes: {invalid_scopes}")
 
@@ -513,15 +511,13 @@ class OAuth2AdminService:
                 token_statistics=dict(token_stats) if token_stats else {},
                 scope_usage=[dict(row) for row in scope_usage],
                 usage_timeline=[dict(row) for row in usage_timeline],
-                active_tokens_timeline=[
-                    dict(row) for row in active_tokens_timeline
-                ],
+                active_tokens_timeline=[dict(row) for row in active_tokens_timeline],
                 period={
                     "from": date_from.isoformat(),
                     "to": date_to.isoformat(),
-                }
+                },
             )
-            
+
             return Ok(analytics)
 
         except Exception as e:
@@ -713,7 +709,7 @@ class OAuth2AdminService:
                 updated_at=client["updated_at"],
                 created_by=client["created_by"],
                 updated_by=client["updated_by"],
-                token_statistics=dict(token_counts) if token_counts else {}
+                token_statistics=dict(token_counts) if token_counts else {},
             )
 
             return Ok(client_details)

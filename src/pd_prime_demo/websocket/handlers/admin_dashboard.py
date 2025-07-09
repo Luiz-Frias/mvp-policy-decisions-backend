@@ -8,16 +8,14 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..message_models import (
-    WebSocketMessageData,
-    create_websocket_message_data,
-)
-
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
+from ..message_models import (
+    create_websocket_message_data,
+)
 
 
 class SystemMetrics(BaseModel):
@@ -482,12 +480,19 @@ class AdminDashboardHandler:
             return Ok(
                 {
                     "connected_clients": info.get("connected_clients", 0),
-                    "used_memory_mb": float(memory_info.get("used_memory", 0)) / (1024 * 1024),
+                    "used_memory_mb": float(memory_info.get("used_memory", 0))
+                    / (1024 * 1024),
                     "hit_rate": float(info.get("keyspace_hits", 0))
                     / max(
-                        float(info.get("keyspace_hits", 0)) + float(info.get("keyspace_misses", 0)), 1
+                        float(info.get("keyspace_hits", 0))
+                        + float(info.get("keyspace_misses", 0)),
+                        1,
                     ),
-                    "total_keys": await redis_client.dbsize() if hasattr(redis_client, 'dbsize') else 0,
+                    "total_keys": (
+                        await redis_client.dbsize()
+                        if hasattr(redis_client, "dbsize")
+                        else 0
+                    ),
                     "status": "healthy",
                 }
             )
@@ -539,7 +544,9 @@ class AdminDashboardHandler:
             return Err(f"Error stats error: {str(e)}")
 
     @beartype
-    async def _get_recent_user_activity(self, filters: dict[str, Any]) -> Result[list[dict[str, Any]], str]:
+    async def _get_recent_user_activity(
+        self, filters: dict[str, Any]
+    ) -> Result[list[dict[str, Any]], str]:
         """Get recent user activity events."""
         try:
             # Build query with filters
@@ -630,7 +637,9 @@ class AdminDashboardHandler:
             return Err(f"Failed to get activity updates: {str(e)}")
 
     @beartype
-    async def _collect_performance_metrics(self, metrics: list[str]) -> Result[dict[str, Any], str]:
+    async def _collect_performance_metrics(
+        self, metrics: list[str]
+    ) -> Result[dict[str, Any], str]:
         """Collect requested performance metrics."""
         try:
             data: dict[str, Any] = {}

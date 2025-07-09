@@ -17,9 +17,9 @@ from ...models.base import BaseModelConfig
 
 class PricingOverrideResponse(BaseModelConfig):
     """Pricing override response model."""
-    
+
     model_config = ConfigDict(frozen=True, extra="forbid")
-    
+
     id: UUID
     quote_id: UUID
     admin_user_id: UUID
@@ -429,16 +429,16 @@ class PricingOverrideService:
             overrides = []
             for row in rows:
                 override = PricingOverrideResponse(
-                    id=row['id'],
-                    quote_id=row['quote_id'],
-                    admin_user_id=row['admin_user_id'],
-                    override_type=row['override_type'],
-                    original_amount=row['original_amount'],
-                    new_amount=row['new_amount'],
-                    adjustment_percentage=row['adjustment_percentage'],
-                    reason=row['reason'],
-                    status='pending',
-                    created_at=row['created_at']
+                    id=row["id"],
+                    quote_id=row["quote_id"],
+                    admin_user_id=row["admin_user_id"],
+                    override_type=row["override_type"],
+                    original_amount=row["original_amount"],
+                    new_amount=row["new_amount"],
+                    adjustment_percentage=row["adjustment_percentage"],
+                    reason=row["reason"],
+                    status="pending",
+                    created_at=row["created_at"],
                 )
                 overrides.append(override)
             return Ok(overrides)

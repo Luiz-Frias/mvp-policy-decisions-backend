@@ -5,17 +5,6 @@ from collections import deque
 from datetime import datetime
 from enum import Enum
 from typing import Any, TypedDict
-from .message_models import (
-    WebSocketMessageData,
-    ConnectionCapabilities,
-    BackpressureMetrics,
-    WebSocketConnectionMetadata,
-    ConnectionState as ModelConnectionState,
-    create_websocket_message_data,
-    create_connection_capabilities,
-    create_backpressure_metrics,
-    create_connection_metadata,
-)
 from uuid import UUID
 
 from beartype import beartype
@@ -26,11 +15,22 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
+from .message_models import (
+    BackpressureMetrics,
+    ConnectionCapabilities,
+)
+from .message_models import (
+    WebSocketConnectionMetadata,
+    create_connection_capabilities,
+    create_connection_metadata,
+    create_websocket_message_data,
+)
 from .monitoring import WebSocketMonitor
 
 
 class RateLimiterState(TypedDict):
     """Type for rate limiter state."""
+
     tokens: int
     last_refill: datetime
 
@@ -200,7 +200,9 @@ class ConnectionMetadata(BaseModel):
     last_activity: datetime = Field(default_factory=datetime.now)
     state: ConnectionState = Field(default=ConnectionState.CONNECTING)
     protocol_version: str = Field(default="1.0")
-    client_capabilities: ConnectionCapabilities = Field(default_factory=ConnectionCapabilities)
+    client_capabilities: ConnectionCapabilities = Field(
+        default_factory=ConnectionCapabilities
+    )
     rate_limit_remaining: int = Field(default=1000)
     backpressure_level: float = Field(default=0.0, ge=0.0, le=1.0)
 
@@ -574,7 +576,9 @@ class ConnectionManager:
                     connection_id=connection_id,
                     status="disconnecting",
                     error=reason,
-                    payload={"final_sequence": self._message_sequences.get(connection_id, 0)},
+                    payload={
+                        "final_sequence": self._message_sequences.get(connection_id, 0)
+                    },
                 ).model_dump(),
                 priority=MessagePriority.HIGH,
             )
@@ -624,7 +628,9 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def subscribe_to_room(self, connection_id: str, room_id: str) -> Result[None, str]:
+    async def subscribe_to_room(
+        self, connection_id: str, room_id: str
+    ) -> Result[None, str]:
         """Subscribe a connection to a room with explicit permission validation."""
         if connection_id not in self._connections:
             return Err(
@@ -699,7 +705,9 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def unsubscribe_from_room(self, connection_id: str, room_id: str) -> Result[None, str]:
+    async def unsubscribe_from_room(
+        self, connection_id: str, room_id: str
+    ) -> Result[None, str]:
         """Unsubscribe a connection from a room."""
         if connection_id not in self._connections:
             return Err(
@@ -758,7 +766,9 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def _send_message_direct(self, connection_id: str, message: WebSocketMessage) -> Result[None, str]:
+    async def _send_message_direct(
+        self, connection_id: str, message: WebSocketMessage
+    ) -> Result[None, str]:
         """Send message directly to WebSocket (internal use)."""
         if connection_id not in self._connections:
             return Err(f"Connection {connection_id} not found")
@@ -805,7 +815,9 @@ class ConnectionManager:
             )
 
     @beartype
-    async def send_to_user(self, user_id: UUID, message: WebSocketMessage) -> Result[int, str]:
+    async def send_to_user(
+        self, user_id: UUID, message: WebSocketMessage
+    ) -> Result[int, str]:
         """Send a message to all connections of a user. Returns number of successful sends."""
         if user_id not in self._user_connections:
             return Ok(0)  # No connections for user
@@ -870,7 +882,9 @@ class ConnectionManager:
         return Ok(successful_sends)
 
     @beartype
-    async def handle_message(self, connection_id: str, raw_message: dict[str, Any]) -> Result[None, str]:
+    async def handle_message(
+        self, connection_id: str, raw_message: dict[str, Any]
+    ) -> Result[None, str]:
         """Handle incoming WebSocket message with explicit validation."""
         # Validate connection exists
         if connection_id not in self._connections:
@@ -1087,7 +1101,9 @@ class ConnectionManager:
         return Ok(None)
 
     @beartype
-    async def _validate_room_access(self, user_id: UUID, room_id: str) -> Result[None, str]:
+    async def _validate_room_access(
+        self, user_id: UUID, room_id: str
+    ) -> Result[None, str]:
         """Validate user has permission to access a specific room."""
         # Room access patterns:
         # - quote:{quote_id} - user must own quote or be assigned agent
@@ -1124,7 +1140,9 @@ class ConnectionManager:
             return Err(f"Failed to update room cache: {str(e)}")
 
     @beartype
-    async def _store_connection(self, metadata: WebSocketConnectionMetadata) -> Result[None, str]:
+    async def _store_connection(
+        self, metadata: WebSocketConnectionMetadata
+    ) -> Result[None, str]:
         """Store connection info in database."""
         try:
             await self._db.execute(
@@ -1272,7 +1290,8 @@ class ConnectionManager:
                 time_passed * self._rate_limit_config["tokens_per_second"]
             )
             limiter["tokens"] = min(
-                limiter["tokens"] + tokens_to_add, int(self._rate_limit_config["max_tokens"])
+                limiter["tokens"] + tokens_to_add,
+                int(self._rate_limit_config["max_tokens"]),
             )
             limiter["last_refill"] = now
 

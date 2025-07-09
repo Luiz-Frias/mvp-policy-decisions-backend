@@ -1,6 +1,6 @@
 """OAuth2 authorization endpoints."""
 
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
@@ -8,16 +8,13 @@ from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict
 
-from pd_prime_demo.core.result_types import Err
 
 from ...core.auth.oauth2 import OAuth2Server
-from ...core.auth.oauth2.server import OAuth2Error
 from ...core.cache import Cache
 from ...core.config import Settings, get_settings
 from ...core.database import Database
 from ..dependencies import get_db_connection, get_redis
-from ..response_patterns import handle_result, ErrorResponse
-from typing import Union
+from ..response_patterns import ErrorResponse
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 
@@ -139,7 +136,7 @@ async def authorize(
     # Build success redirect
     response_data = result.ok_value
     if not response_data:
-        error_params = f"error=server_error&error_description=Invalid response data"
+        error_params = "error=server_error&error_description=Invalid response data"
         if state:
             error_params += f"&state={state}"
         separator = "&" if "?" in redirect_uri else "?"
@@ -181,7 +178,7 @@ async def token(
     code_verifier: str | None = Form(None),
     oauth2_server: OAuth2Server = Depends(get_oauth2_server),
     response: Response = Depends(lambda: Response()),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> dict[str, Any] | ErrorResponse:
     """OAuth2 token endpoint.
 
     This endpoint handles all OAuth2 token requests including:
@@ -219,7 +216,7 @@ async def token(
             return ErrorResponse(
                 error="rate_limit_exceeded",
                 error_code="rate_limit_exceeded",
-                details={"error_description": rate_limit_result.err_value}
+                details={"error_description": rate_limit_result.err_value},
             )
 
     result = await oauth2_server.token(
@@ -238,10 +235,7 @@ async def token(
     if result.is_err():
         error_str = result.unwrap_err()
         response.status_code = 400
-        return ErrorResponse(
-            error=error_str,
-            error_code="invalid_request"
-        )
+        return ErrorResponse(error=error_str, error_code="invalid_request")
 
     assert result.ok_value is not None
     return result.ok_value

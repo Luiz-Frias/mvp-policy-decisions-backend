@@ -18,7 +18,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
-from ...schemas.rating import RateTableData, RateTableValidation
+from ...schemas.rating import RateTableData
 
 
 @beartype

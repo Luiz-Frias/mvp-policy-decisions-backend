@@ -41,7 +41,9 @@ class OAuth2Middleware(BaseHTTPMiddleware):
         }
 
     @beartype
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Process request through OAuth2 validation.
 
         Args:
@@ -66,13 +68,11 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                     return result
             else:
                 # Middleware returns Response directly for errors
-                error = ErrorResponse(
-                    error="Authorization required"
-                )
+                error = ErrorResponse(error="Authorization required")
                 return JSONResponse(
                     status_code=HTTP_401_UNAUTHORIZED,
                     content=error.model_dump(),
-                    headers={"WWW-Authenticate": "Bearer"}
+                    headers={"WWW-Authenticate": "Bearer"},
                 )
         else:
             # Validate OAuth2 token
@@ -88,13 +88,11 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                     return result
             else:
                 # Middleware returns Response directly for errors
-                error = ErrorResponse(
-                    error="Invalid authentication scheme"
-                )
+                error = ErrorResponse(error="Invalid authentication scheme")
                 return JSONResponse(
                     status_code=HTTP_401_UNAUTHORIZED,
                     content=error.model_dump(),
-                    headers={"WWW-Authenticate": "Bearer"}
+                    headers={"WWW-Authenticate": "Bearer"},
                 )
 
         # Process request
@@ -102,7 +100,9 @@ class OAuth2Middleware(BaseHTTPMiddleware):
         return response
 
     @beartype
-    async def _validate_oauth2_token(self, request: Request, token: str) -> Response | None:
+    async def _validate_oauth2_token(
+        self, request: Request, token: str
+    ) -> Response | None:
         """Validate OAuth2 JWT token with enhanced security checks.
 
         Args:
@@ -127,12 +127,9 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                 revoked = await redis.get(f"revoked_token:{jti}")
                 if revoked:
                     # Middleware returns Response directly for errors
-                    error = ErrorResponse(
-                        error="Token has been revoked"
-                    )
+                    error = ErrorResponse(error="Token has been revoked")
                     return JSONResponse(
-                        status_code=HTTP_401_UNAUTHORIZED,
-                        content=error.model_dump()
+                        status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
                     )
 
             # Enhanced client validation with certificate support
@@ -169,8 +166,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                         error=f"Insufficient scope. Required: {required_scope}"
                     )
                     return JSONResponse(
-                        status_code=HTTP_403_FORBIDDEN,
-                        content=error.model_dump()
+                        status_code=HTTP_403_FORBIDDEN, content=error.model_dump()
                     )
 
             # Success - token is valid
@@ -178,25 +174,21 @@ class OAuth2Middleware(BaseHTTPMiddleware):
 
         except jwt.ExpiredSignatureError:
             # Middleware returns Response directly for errors
-            error = ErrorResponse(
-                error="Token has expired"
-            )
+            error = ErrorResponse(error="Token has expired")
             return JSONResponse(
-                status_code=HTTP_401_UNAUTHORIZED,
-                content=error.model_dump()
+                status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
             )
         except jwt.JWTError:
             # Middleware returns Response directly for errors
-            error = ErrorResponse(
-                error="Invalid token"
-            )
+            error = ErrorResponse(error="Invalid token")
             return JSONResponse(
-                status_code=HTTP_401_UNAUTHORIZED,
-                content=error.model_dump()
+                status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
             )
 
     @beartype
-    async def _validate_api_key(self, request: Request, api_key: str) -> Response | None:
+    async def _validate_api_key(
+        self, request: Request, api_key: str
+    ) -> Response | None:
         """Validate API key.
 
         Args:
@@ -237,8 +229,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                     error=result.err_value or "API key validation failed"
                 )
                 return JSONResponse(
-                    status_code=HTTP_401_UNAUTHORIZED,
-                    content=error.model_dump()
+                    status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
                 )
 
             # Store API key info in request state
@@ -252,12 +243,9 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                 }
             else:
                 # Middleware returns Response directly for errors
-                error = ErrorResponse(
-                    error="Invalid API key validation result"
-                )
+                error = ErrorResponse(error="Invalid API key validation result")
                 return JSONResponse(
-                    status_code=HTTP_401_UNAUTHORIZED,
-                    content=error.model_dump()
+                    status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
                 )
 
             # Success - API key is valid
@@ -352,8 +340,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                         error=f"Invalid client certificate: {result.err_value}"
                     )
                     return JSONResponse(
-                        status_code=HTTP_401_UNAUTHORIZED,
-                        content=error.model_dump()
+                        status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
                     )
 
                 # Store certificate info in request state
@@ -366,12 +353,9 @@ class OAuth2Middleware(BaseHTTPMiddleware):
                     }
                 else:
                     # Middleware returns Response directly for errors
-                    error = ErrorResponse(
-                        error="Invalid certificate validation result"
-                    )
+                    error = ErrorResponse(error="Invalid certificate validation result")
                     return JSONResponse(
-                        status_code=HTTP_401_UNAUTHORIZED,
-                        content=error.model_dump()
+                        status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
                     )
 
                 # Success - certificate is valid
@@ -379,10 +363,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
 
         except Exception as e:
             # Middleware returns Response directly for errors
-            error = ErrorResponse(
-                error=f"Certificate validation failed: {str(e)}"
-            )
+            error = ErrorResponse(error=f"Certificate validation failed: {str(e)}")
             return JSONResponse(
-                status_code=HTTP_401_UNAUTHORIZED,
-                content=error.model_dump()
+                status_code=HTTP_401_UNAUTHORIZED, content=error.model_dump()
             )

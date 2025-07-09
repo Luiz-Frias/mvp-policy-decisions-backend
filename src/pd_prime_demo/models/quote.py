@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from beartype import beartype
 from pydantic import Field, computed_field, field_validator, model_validator

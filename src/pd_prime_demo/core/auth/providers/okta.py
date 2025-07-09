@@ -137,7 +137,9 @@ class OktaSSOProvider(OIDCProvider):
                 )
 
                 if response.status_code != 200:
-                    error_data = response.json()  # SYSTEM_BOUNDARY - Okta API error response parsing
+                    error_data = (
+                        response.json()
+                    )  # SYSTEM_BOUNDARY - Okta API error response parsing
                     error_msg = error_data.get(
                         "error_description", error_data.get("error", "Unknown error")
                     )
@@ -253,7 +255,9 @@ class OktaSSOProvider(OIDCProvider):
                 )
 
                 if response.status_code != 200:
-                    error_data = response.json()  # SYSTEM_BOUNDARY - Okta API error response parsing
+                    error_data = (
+                        response.json()
+                    )  # SYSTEM_BOUNDARY - Okta API error response parsing
                     error_msg = error_data.get(
                         "error_description", error_data.get("error", "Unknown error")
                     )
@@ -313,7 +317,9 @@ class OktaSSOProvider(OIDCProvider):
         self,
         token: str,
         token_type: str = "access_token",
-    ) -> Result[dict[str, Any], str]:  # SYSTEM_BOUNDARY - Okta API introspection response
+    ) -> Result[
+        dict[str, Any], str
+    ]:  # SYSTEM_BOUNDARY - Okta API introspection response
         """Introspect Okta token to check its validity and metadata.
 
         Args:
@@ -343,7 +349,9 @@ class OktaSSOProvider(OIDCProvider):
                         f"Token introspection failed: HTTP {response.status_code}"
                     )
 
-            introspection_data = response.json()  # SYSTEM_BOUNDARY - Okta API response parsing
+            introspection_data = (
+                response.json()
+            )  # SYSTEM_BOUNDARY - Okta API response parsing
 
             if not introspection_data.get("active", False):
                 return Err("Token is not active")

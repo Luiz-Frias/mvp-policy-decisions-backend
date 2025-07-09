@@ -26,7 +26,9 @@ class EnhancedSAMLProvider(SAMLProvider):
         x509_cert: str,
         scopes: list[str] | None = None,
         sp_entity_id: str | None = None,
-        attribute_mappings: dict[str, str] | None = None,  # SYSTEM_BOUNDARY - SAML attribute mapping configuration
+        attribute_mappings: (
+            dict[str, str] | None
+        ) = None,  # SYSTEM_BOUNDARY - SAML attribute mapping configuration
     ) -> None:
         """Initialize enhanced SAML provider.
 
@@ -161,10 +163,14 @@ class EnhancedSAMLProvider(SAMLProvider):
         try:
             import json
 
-            assertion_data = json.loads(access_token)  # SYSTEM_BOUNDARY - SAML assertion parsing
+            assertion_data = json.loads(
+                access_token
+            )  # SYSTEM_BOUNDARY - SAML assertion parsing
 
             # Extract user attributes from assertion
-            attributes = assertion_data.get("attributes", {})  # SYSTEM_BOUNDARY - SAML attribute extraction
+            attributes = assertion_data.get(
+                "attributes", {}
+            )  # SYSTEM_BOUNDARY - SAML attribute extraction
 
             # Map SAML attributes to user fields
             user_data = {}  # SYSTEM_BOUNDARY - SAML to user data mapping

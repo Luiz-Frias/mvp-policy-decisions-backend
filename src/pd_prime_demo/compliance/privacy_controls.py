@@ -10,9 +10,8 @@ This module implements comprehensive privacy controls including:
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import cast
 from enum import Enum
-from typing import Any
+from typing import cast
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -215,7 +214,9 @@ class PrivacyControlManager:
         self._database = get_database()
 
     @beartype
-    async def execute_gdpr_compliance_control(self, control_id: str = "PRIV-001") -> ControlResult:
+    async def execute_gdpr_compliance_control(
+        self, control_id: str = "PRIV-001"
+    ) -> ControlResult:
         """Execute GDPR compliance control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -501,7 +502,9 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def execute_consent_management_control(self, control_id: str = "PRIV-002") -> ControlResult:
+    async def execute_consent_management_control(
+        self, control_id: str = "PRIV-002"
+    ) -> ControlResult:
         """Execute consent management control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -697,7 +700,9 @@ class PrivacyControlManager:
         return consent_analysis
 
     @beartype
-    async def execute_data_subject_rights_control(self, control_id: str = "PRIV-003") -> ControlResult:
+    async def execute_data_subject_rights_control(
+        self, control_id: str = "PRIV-003"
+    ) -> ControlResult:
         """Execute data subject rights management control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -799,7 +804,8 @@ class PrivacyControlManager:
             [
                 req
                 for req in requests_last_30_days
-                if (datetime.now(timezone.utc) - cast(datetime, req["submitted"])).days > 30
+                if (datetime.now(timezone.utc) - cast(datetime, req["submitted"])).days
+                > 30
                 and req["status"] != "completed"
             ]
         )
@@ -947,7 +953,9 @@ class PrivacyControlManager:
         }
 
     @beartype
-    async def execute_ccpa_compliance_control(self, control_id: str = "PRIV-004") -> ControlResult:
+    async def execute_ccpa_compliance_control(
+        self, control_id: str = "PRIV-004"
+    ) -> ControlResult:
         """Execute CCPA compliance control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -1153,7 +1161,8 @@ class PrivacyControlManager:
         # Calculate privacy metrics
         total_controls = len(results)
         passing_controls = sum(
-            1 for r in results
+            1
+            for r in results
             if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
         )
         privacy_score = (
@@ -1174,8 +1183,12 @@ class PrivacyControlManager:
 
         return {
             "privacy_score": privacy_score,
-            "gdpr_compliant": gdpr_result.is_ok() and (gdpr_unwrapped := gdpr_result.unwrap()) is not None and gdpr_unwrapped.result,
-            "ccpa_compliant": ccpa_result.is_ok() and (ccpa_unwrapped := ccpa_result.unwrap()) is not None and ccpa_unwrapped.result,
+            "gdpr_compliant": gdpr_result.is_ok()
+            and (gdpr_unwrapped := gdpr_result.unwrap()) is not None
+            and gdpr_unwrapped.result,
+            "ccpa_compliant": ccpa_result.is_ok()
+            and (ccpa_unwrapped := ccpa_result.unwrap()) is not None
+            and ccpa_unwrapped.result,
             "consent_management_score": consent_evidence.get(
                 "consent_collection", {}
             ).get("consent_clarity_score", 0),
@@ -1196,12 +1209,20 @@ class PrivacyControlManager:
                 "compliant" if privacy_score >= 95 else "non_compliant"
             ),
             "control_results": [
-                (lambda unwrapped: {
-                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
-                    "status": unwrapped.status.value if unwrapped is not None else "error",
-                    "result": unwrapped.result if unwrapped is not None else False,
-                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
-                })(r.unwrap() if r.is_ok() else None)
+                (
+                    lambda unwrapped: {
+                        "control_id": (
+                            unwrapped.control_id if unwrapped is not None else "unknown"
+                        ),
+                        "status": (
+                            unwrapped.status.value if unwrapped is not None else "error"
+                        ),
+                        "result": unwrapped.result if unwrapped is not None else False,
+                        "findings_count": (
+                            len(unwrapped.findings) if unwrapped is not None else 1
+                        ),
+                    }
+                )(r.unwrap() if r.is_ok() else None)
                 for r in results
             ],
         }

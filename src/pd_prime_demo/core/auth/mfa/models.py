@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
 from uuid import UUID
 
 from beartype import beartype
@@ -171,7 +170,9 @@ class WebAuthnChallenge(BaseModel):
     rp_id: str  # Relying party ID
     rp_name: str  # Relying party name
     timeout: int = 60000  # milliseconds
-    authenticator_selection: AuthenticatorSelection = Field(default_factory=AuthenticatorSelection)
+    authenticator_selection: AuthenticatorSelection = Field(
+        default_factory=AuthenticatorSelection
+    )
     attestation: str = "none"
     extensions: WebAuthnExtensions = Field(default_factory=WebAuthnExtensions)
 
@@ -395,10 +396,14 @@ class BiometricCaptureSettings(BaseModel):
     )
 
     min_quality: int = Field(..., ge=0, le=100, description="Minimum quality score")
-    capture_timeout: int = Field(..., ge=1, le=120, description="Capture timeout in seconds")
+    capture_timeout: int = Field(
+        ..., ge=1, le=120, description="Capture timeout in seconds"
+    )
     # Optional features that may be enabled
     finger_detect: bool = Field(default=False, description="Enable finger detection")
-    anti_spoofing: bool = Field(default=False, description="Enable anti-spoofing measures")
+    anti_spoofing: bool = Field(
+        default=False, description="Enable anti-spoofing measures"
+    )
     face_detect: bool = Field(default=False, description="Enable face detection")
     liveness_required: bool = Field(default=False, description="Require liveness check")
     pose_variation: bool = Field(default=False, description="Allow pose variation")

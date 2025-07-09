@@ -11,7 +11,6 @@ This module implements comprehensive confidentiality controls including:
 
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
@@ -347,7 +346,9 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_data_classification_control(self, control_id: str = "CONF-001") -> ControlResult:
+    async def execute_data_classification_control(
+        self, control_id: str = "CONF-001"
+    ) -> ControlResult:
         """Execute data classification and labeling control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -519,7 +520,9 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_access_control_matrix(self, control_id: str = "CONF-002") -> ControlResult:
+    async def execute_access_control_matrix(
+        self, control_id: str = "CONF-002"
+    ) -> ControlResult:
         """Execute access control matrix verification."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -713,7 +716,9 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_data_loss_prevention(self, control_id: str = "CONF-003") -> ControlResult:
+    async def execute_data_loss_prevention(
+        self, control_id: str = "CONF-003"
+    ) -> ControlResult:
         """Execute data loss prevention (DLP) control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -890,7 +895,9 @@ class ConfidentialityControlManager:
         }
 
     @beartype
-    async def execute_confidential_data_handling(self, control_id: str = "CONF-004") -> ControlResult:
+    async def execute_confidential_data_handling(
+        self, control_id: str = "CONF-004"
+    ) -> ControlResult:
         """Execute confidential data handling procedures control."""
         try:
             start_time = datetime.now(timezone.utc)
@@ -1082,10 +1089,13 @@ class ConfidentialityControlManager:
             {"technique": "pseudonymization", "implemented": True, "effectiveness": 78},
         ]
 
-        implemented_techs = [tech for tech in anonymization_techniques if tech["implemented"]]
+        implemented_techs = [
+            tech for tech in anonymization_techniques if tech["implemented"]
+        ]
         avg_effectiveness = (
             sum(float(tech["effectiveness"]) for tech in implemented_techs) / len(implemented_techs)  # type: ignore
-            if implemented_techs else 0.0
+            if implemented_techs
+            else 0.0
         )
 
         return {
@@ -1119,7 +1129,8 @@ class ConfidentialityControlManager:
         # Calculate confidentiality metrics
         total_controls = len(results)
         passing_controls = sum(
-            1 for r in results
+            1
+            for r in results
             if r.is_ok() and (unwrapped := r.unwrap()) is not None and unwrapped.result
         )
         confidentiality_score = (
@@ -1170,12 +1181,20 @@ class ConfidentialityControlManager:
                 "compliant" if confidentiality_score >= 95 else "non_compliant"
             ),
             "control_results": [
-                (lambda unwrapped: {
-                    "control_id": unwrapped.control_id if unwrapped is not None else "unknown",
-                    "status": unwrapped.status.value if unwrapped is not None else "error",
-                    "result": unwrapped.result if unwrapped is not None else False,
-                    "findings_count": len(unwrapped.findings) if unwrapped is not None else 1,
-                })(r.unwrap() if r.is_ok() else None)
+                (
+                    lambda unwrapped: {
+                        "control_id": (
+                            unwrapped.control_id if unwrapped is not None else "unknown"
+                        ),
+                        "status": (
+                            unwrapped.status.value if unwrapped is not None else "error"
+                        ),
+                        "result": unwrapped.result if unwrapped is not None else False,
+                        "findings_count": (
+                            len(unwrapped.findings) if unwrapped is not None else 1
+                        ),
+                    }
+                )(r.unwrap() if r.is_ok() else None)
                 for r in results
             ],
         }
