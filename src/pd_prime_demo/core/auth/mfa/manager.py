@@ -23,6 +23,7 @@ from .models import (
     MFAVerificationResult,
     RiskAssessment,
     TOTPSetupData,
+    TOTPSetupCache,
 )
 from .risk_engine import RiskEngine
 from .sms import SMSProvider
@@ -135,12 +136,13 @@ class MFAManager:
             encrypted_secret = encrypt_result.value
 
             # Store encrypted secret temporarily (user must verify to activate)
+            totp_cache = TOTPSetupCache(
+                secret_encrypted=encrypted_secret,
+                backup_codes=setup_data.backup_codes
+            )
             await self._cache.set(
                 f"totp_setup:{user_id}",
-                {
-                    "secret_encrypted": encrypted_secret,
-                    "backup_codes": setup_data.backup_codes,
-                },
+                totp_cache.model_dump(),
                 ttl=1800,  # 30 minutes to complete setup
             )
 
@@ -162,13 +164,16 @@ class MFAManager:
         """
         try:
             # Get setup data
-            setup_data = await self._cache.get(f"totp_setup:{user_id}")
-            if not setup_data:
+            setup_data_dict = await self._cache.get(f"totp_setup:{user_id}")
+            if not setup_data_dict:
                 return Err("TOTP setup not found or expired")
+
+            # Reconstruct setup data from dict
+            setup_data = TOTPSetupCache(**setup_data_dict)
 
             # Verify code
             verify_result = self._totp_provider.verify_code(
-                setup_data["secret_encrypted"], code
+                setup_data.secret_encrypted, code
             )
             if isinstance(verify_result, Err):
                 return verify_result
@@ -178,7 +183,7 @@ class MFAManager:
 
             # Encrypt recovery codes
             encrypted_codes = [
-                self._encrypt_recovery_code(code) for code in setup_data["backup_codes"]
+                self._encrypt_recovery_code(code) for code in setup_data.backup_codes
             ]
 
             # Update database
@@ -196,7 +201,7 @@ class MFAManager:
                 """,
                 user_id,
                 True,
-                setup_data["secret_encrypted"],
+                setup_data.secret_encrypted,
                 encrypted_codes,
                 datetime.now(timezone.utc),
                 datetime.now(timezone.utc),

@@ -8,6 +8,11 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..message_models import (
+    WebSocketMessageData,
+    create_websocket_message_data,
+)
+
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
@@ -183,10 +188,10 @@ class AnalyticsWebSocketHandler:
         if not metadata or not metadata.user_id:
             error_msg = WebSocketMessage(
                 type=MessageType.ANALYTICS_ERROR,
-                data={
-                    "error": "Authentication required for analytics access",
-                    "dashboard_type": config.dashboard_type,
-                },
+                data=create_websocket_message_data(
+                    error="Authentication required for analytics access",
+                    dashboard_type=config.dashboard_type,
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, error_msg)
             return Err("User authentication required for analytics access")
@@ -197,10 +202,10 @@ class AnalyticsWebSocketHandler:
             if permission_check.is_err():
                 error_msg = WebSocketMessage(
                     type=MessageType.ANALYTICS_ERROR,
-                    data={
-                        "error": "Insufficient permissions for admin dashboard",
-                        "required_permission": "analytics:admin",
-                    },
+                    data=create_websocket_message_data(
+                        error="Insufficient permissions for admin dashboard",
+                        payload={"required_permission": "analytics:admin"},
+                    ).model_dump(),
                 )
                 await self._manager.send_personal_message(connection_id, error_msg)
                 return permission_check
@@ -233,11 +238,15 @@ class AnalyticsWebSocketHandler:
         if initial_data.is_ok():
             initial_msg = WebSocketMessage(
                 type=MessageType.ANALYTICS_DATA,
-                data={
-                    "dashboard": config.dashboard_type,
-                    "metrics": initial_data.unwrap(),
-                    "config": config.model_dump(),
-                },
+                data=create_websocket_message_data(
+                    dashboard_type=config.dashboard_type,
+                    metrics=initial_data.unwrap().get("metrics", []),
+                    payload={
+                        "dashboard": config.dashboard_type,
+                        "metrics": initial_data.unwrap(),
+                        "config": config.model_dump(),
+                    },
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, initial_msg)
 
@@ -283,10 +292,10 @@ class AnalyticsWebSocketHandler:
                 if data_result.is_err():
                     error_msg = WebSocketMessage(
                         type=MessageType.ANALYTICS_ERROR,
-                        data={
-                            "error": f"Failed to fetch analytics data: {data_result.unwrap_err()}",
-                            "dashboard": config.dashboard_type,
-                        },
+                        data=create_websocket_message_data(
+                            error=f"Failed to fetch analytics data: {data_result.unwrap_err()}",
+                            dashboard_type=config.dashboard_type,
+                        ).model_dump(),
                     )
                     await self._manager.send_personal_message(connection_id, error_msg)
                     continue
@@ -294,11 +303,15 @@ class AnalyticsWebSocketHandler:
                 # Send update
                 update_msg = WebSocketMessage(
                     type=MessageType.ANALYTICS_UPDATE,
-                    data={
-                        "dashboard": config.dashboard_type,
-                        "metrics": data_result.unwrap(),
-                        "incremental": True,  # Indicates this is an update, not full refresh
-                    },
+                    data=create_websocket_message_data(
+                        dashboard_type=config.dashboard_type,
+                        metrics=data_result.unwrap().get("metrics", []),
+                        payload={
+                            "dashboard": config.dashboard_type,
+                            "metrics": data_result.unwrap(),
+                            "incremental": True,  # Indicates this is an update, not full refresh
+                        },
+                    ).model_dump(),
                 )
 
                 send_result = await self._manager.send_personal_message(
@@ -315,11 +328,11 @@ class AnalyticsWebSocketHandler:
             # Unexpected error
             error_msg = WebSocketMessage(
                 type=MessageType.ANALYTICS_ERROR,
-                data={
-                    "error": f"Analytics stream error: {str(e)}",
-                    "dashboard": config.dashboard_type,
-                    "fatal": True,
-                },
+                data=create_websocket_message_data(
+                    error=f"Analytics stream error: {str(e)}",
+                    dashboard_type=config.dashboard_type,
+                    payload={"fatal": True},
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, error_msg)
 
@@ -640,11 +653,14 @@ class AnalyticsWebSocketHandler:
         # Broadcast to relevant rooms
         event_msg = WebSocketMessage(
             type=MessageType.ANALYTICS_EVENT,
-            data={
-                "event_type": event_type,
-                "event_data": data,
-                "timestamp": datetime.now().isoformat(),
-            },
+            data=create_websocket_message_data(
+                event=event_type,
+                payload={
+                    "event_type": event_type,
+                    "event_data": data,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            ).model_dump(),
         )
 
         send_results = []
@@ -675,13 +691,15 @@ class AnalyticsWebSocketHandler:
 
         alert_msg = WebSocketMessage(
             type=MessageType.ANALYTICS_ALERT,
-            data={
-                "alert_type": alert_type,
-                "message": message,
-                "severity": severity,
-                "data": data or {},
-                "timestamp": datetime.now().isoformat(),
-            },
+            data=create_websocket_message_data(
+                alert_type=alert_type,
+                severity=severity,
+                payload={
+                    "message": message,
+                    "data": data or {},
+                    "timestamp": datetime.now().isoformat(),
+                },
+            ).model_dump(),
         )
 
         # Send to admin room

@@ -12,6 +12,25 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
+
+
+class OAuth2ClientResponse(BaseModelConfig):
+    """OAuth2 client response model."""
+    
+    id: UUID
+    client_id: str
+    client_name: str
+    client_type: str
+    description: str | None
+    allowed_grant_types: list[str]
+    allowed_scopes: list[str]
+    redirect_uris: list[str]
+    token_lifetime: int
+    refresh_token_lifetime: int
+    is_active: bool
+    created_at: datetime
+    client_secret: str | None = None  # Only returned on creation
 
 
 class OAuth2AdminService:
@@ -40,7 +59,7 @@ class OAuth2AdminService:
         description: str | None = None,
         token_lifetime: int = 3600,  # 1 hour default
         refresh_token_lifetime: int = 86400 * 7,  # 1 week default
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[OAuth2ClientResponse, str]:
         """Create new OAuth2 client application.
 
         Args:
@@ -143,23 +162,21 @@ class OAuth2AdminService:
                 {"client_name": client_name, "client_type": client_type},
             )
 
-            result = {
-                "id": oauth2_client_id,
-                "client_id": client_id,
-                "client_name": client_name,
-                "client_type": client_type,
-                "allowed_scopes": allowed_scopes,
-                "allowed_grant_types": allowed_grant_types,
-                "redirect_uris": redirect_uris,
-                "token_lifetime": token_lifetime,
-                "refresh_token_lifetime": refresh_token_lifetime,
-            }
-
-            if client_secret:
-                result["client_secret"] = client_secret
-                result["note"] = (
-                    "Store client_secret securely. It cannot be retrieved later."
-                )
+            result = OAuth2ClientResponse(
+                id=oauth2_client_id,
+                client_id=client_id,
+                client_name=client_name,
+                client_type=client_type,
+                description=description,
+                allowed_scopes=allowed_scopes,
+                allowed_grant_types=allowed_grant_types,
+                redirect_uris=redirect_uris,
+                token_lifetime=token_lifetime,
+                refresh_token_lifetime=refresh_token_lifetime,
+                is_active=True,
+                created_at=datetime.utcnow(),
+                client_secret=client_secret
+            )
 
             return Ok(result)
 

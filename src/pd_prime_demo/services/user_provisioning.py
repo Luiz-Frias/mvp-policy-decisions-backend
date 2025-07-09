@@ -12,6 +12,29 @@ from ..core.auth.sso_base import SSOUserInfo
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.base import BaseModelConfig
+from ..models.user import UserBase, UserCreate, UserUpdate
+
+
+class ProvisioningConditions(BaseModelConfig):
+    """Structured provisioning rule conditions."""
+    
+    email_domains: list[str] | None = None
+    email_patterns: list[str] | None = None
+    required_groups: list[str] | None = None
+    excluded_groups: list[str] | None = None
+    providers: list[str] | None = None
+    email_verified: bool | None = None
+    custom_fields: dict[str, Any] | None = None
+
+
+class ProvisioningActions(BaseModelConfig):
+    """Structured provisioning rule actions."""
+    
+    role: str | None = None
+    groups: list[str] | None = None
+    auto_create: bool | None = None
+    warnings: list[str] | None = None
+    terminal: bool | None = None
 
 
 class ProvisioningRule(BaseModelConfig):
@@ -20,8 +43,8 @@ class ProvisioningRule(BaseModelConfig):
     id: UUID
     provider_id: UUID
     rule_name: str
-    conditions: dict[str, Any]
-    actions: dict[str, Any]
+    conditions: ProvisioningConditions
+    actions: ProvisioningActions
     priority: int
     is_enabled: bool
 
@@ -97,20 +120,20 @@ class UserProvisioningService:
                     # Apply rule actions
                     actions = rule.actions
 
-                    if "role" in actions:
-                        default_role = actions["role"]
+                    if actions.role:
+                        default_role = actions.role
 
-                    if "groups" in actions:
-                        assigned_groups.extend(actions["groups"])
+                    if actions.groups:
+                        assigned_groups.extend(actions.groups)
 
-                    if "auto_create" in actions:
-                        auto_create = actions["auto_create"]
+                    if actions.auto_create is not None:
+                        auto_create = actions.auto_create
 
-                    if "warnings" in actions:
-                        warnings.extend(actions["warnings"])
+                    if actions.warnings:
+                        warnings.extend(actions.warnings)
 
                     # Check if rule is terminal (stops further processing)
-                    if actions.get("terminal", False):
+                    if actions.terminal:
                         break
 
             # Check auto-create permission
@@ -150,8 +173,8 @@ class UserProvisioningService:
         self,
         provider_id: UUID,
         rule_name: str,
-        conditions: dict[str, Any],
-        actions: dict[str, Any],
+        conditions: ProvisioningConditions,
+        actions: ProvisioningActions,
         priority: int = 0,
         is_enabled: bool = True,
         created_by: UUID | None = None,
@@ -203,8 +226,8 @@ class UserProvisioningService:
                 rule_id,
                 provider_id,
                 rule_name,
-                conditions,
-                actions,
+                conditions.model_dump(),
+                actions.model_dump(),
                 priority,
                 is_enabled,
                 created_by,
@@ -246,8 +269,11 @@ class UserProvisioningService:
 
             # Validate updates if conditions or actions are being changed
             if "conditions" in updates or "actions" in updates:
-                new_conditions = updates.get("conditions", existing["conditions"])
-                new_actions = updates.get("actions", existing["actions"])
+                new_conditions_dict = updates.get("conditions", existing["conditions"])
+                new_actions_dict = updates.get("actions", existing["actions"])
+                
+                new_conditions = ProvisioningConditions(**new_conditions_dict)
+                new_actions = ProvisioningActions(**new_actions_dict)
 
                 validation_result = await self._validate_rule(
                     new_conditions, new_actions
@@ -380,8 +406,9 @@ class UserProvisioningService:
             )
 
             # Evaluate conditions
+            conditions = ProvisioningConditions(**rule_row["conditions"])
             conditions_met = await self._evaluate_conditions(
-                rule_row["conditions"], test_sso_info, "test"
+                conditions, test_sso_info, "test"
             )
 
             return Ok(
@@ -417,7 +444,19 @@ class UserProvisioningService:
             cached_rules = await self._cache.get(cache_key)
 
             if cached_rules:
-                return Ok([ProvisioningRule(**rule) for rule in cached_rules])
+                rules = []
+                for rule_data in cached_rules:
+                    rule = ProvisioningRule(
+                        id=rule_data['id'],
+                        provider_id=rule_data['provider_id'],
+                        rule_name=rule_data['rule_name'],
+                        conditions=ProvisioningConditions(**rule_data['conditions']),
+                        actions=ProvisioningActions(**rule_data['actions']),
+                        priority=rule_data['priority'],
+                        is_enabled=rule_data['is_enabled']
+                    )
+                    rules.append(rule)
+                return Ok(rules)
 
             # Fetch from database
             rules = await self._db.fetch(
@@ -430,7 +469,18 @@ class UserProvisioningService:
                 provider_id,
             )
 
-            rule_objects = [ProvisioningRule(**dict(rule)) for rule in rules]
+            rule_objects = []
+            for rule_data in rules:
+                rule = ProvisioningRule(
+                    id=rule_data['id'],
+                    provider_id=rule_data['provider_id'],
+                    rule_name=rule_data['rule_name'],
+                    conditions=ProvisioningConditions(**rule_data['conditions']),
+                    actions=ProvisioningActions(**rule_data['actions']),
+                    priority=rule_data['priority'],
+                    is_enabled=rule_data['is_enabled']
+                )
+                rule_objects.append(rule)
 
             # Cache for 5 minutes
             await self._cache.set(
@@ -445,7 +495,7 @@ class UserProvisioningService:
     @beartype
     async def _evaluate_conditions(
         self,
-        conditions: dict[str, Any],
+        conditions: ProvisioningConditions,
         sso_info: SSOUserInfo,
         provider_name: str,
     ) -> bool:
@@ -460,16 +510,9 @@ class UserProvisioningService:
             True if conditions are met, False otherwise
         """
         try:
-            # If no conditions, rule always applies
-            if not conditions:
-                return True
-
             # Email domain conditions
-            if "email_domains" in conditions:
-                allowed_domains = conditions["email_domains"]
-                if isinstance(allowed_domains, str):
-                    allowed_domains = [allowed_domains]
-
+            if conditions.email_domains:
+                allowed_domains = conditions.email_domains
                 user_domain = (
                     sso_info.email.split("@")[-1] if "@" in sso_info.email else ""
                 )
@@ -477,49 +520,40 @@ class UserProvisioningService:
                     return False
 
             # Email pattern conditions
-            if "email_patterns" in conditions:
+            if conditions.email_patterns:
                 import re
-
-                patterns = conditions["email_patterns"]
-                if isinstance(patterns, str):
-                    patterns = [patterns]
-
+                patterns = conditions.email_patterns
                 if not any(re.match(pattern, sso_info.email) for pattern in patterns):
                     return False
 
             # Group membership conditions
-            if "required_groups" in conditions:
-                required = set(conditions["required_groups"])
+            if conditions.required_groups:
+                required = set(conditions.required_groups)
                 user_groups = set(sso_info.groups)
                 if not required.issubset(user_groups):
                     return False
 
             # Group exclusion conditions
-            if "excluded_groups" in conditions:
-                excluded = set(conditions["excluded_groups"])
+            if conditions.excluded_groups:
+                excluded = set(conditions.excluded_groups)
                 user_groups = set(sso_info.groups)
                 if excluded.intersection(user_groups):
                     return False
 
             # Provider conditions
-            if "providers" in conditions:
-                allowed_providers = conditions["providers"]
-                if isinstance(allowed_providers, str):
-                    allowed_providers = [allowed_providers]
-
+            if conditions.providers:
+                allowed_providers = conditions.providers
                 if provider_name not in allowed_providers:
                     return False
 
             # Email verification condition
-            if "email_verified" in conditions:
-                required_verified = conditions["email_verified"]
-                if sso_info.email_verified != required_verified:
+            if conditions.email_verified is not None:
+                if sso_info.email_verified != conditions.email_verified:
                     return False
 
             # Custom field conditions
-            if "custom_fields" in conditions:
-                custom_conditions = conditions["custom_fields"]
-                for field, expected_value in custom_conditions.items():
+            if conditions.custom_fields:
+                for field, expected_value in conditions.custom_fields.items():
                     actual_value = sso_info.raw_claims.get(field)
                     if actual_value != expected_value:
                         return False
@@ -533,8 +567,8 @@ class UserProvisioningService:
     @beartype
     async def _validate_rule(
         self,
-        conditions: dict[str, Any],
-        actions: dict[str, Any],
+        conditions: ProvisioningConditions,
+        actions: ProvisioningActions,
     ) -> Result[bool, str]:
         """Validate rule conditions and actions.
 
@@ -545,39 +579,17 @@ class UserProvisioningService:
         Returns:
             Result indicating valid or error with details
         """
-        # Validate conditions structure
-        valid_condition_keys = {
-            "email_domains",
-            "email_patterns",
-            "required_groups",
-            "excluded_groups",
-            "providers",
-            "email_verified",
-            "custom_fields",
-        }
-
-        for key in conditions.keys():
-            if key not in valid_condition_keys:
-                return Err(f"Invalid condition key: {key}")
-
-        # Validate actions structure
-        valid_action_keys = {"role", "groups", "auto_create", "warnings", "terminal"}
-
-        for key in actions.keys():
-            if key not in valid_action_keys:
-                return Err(f"Invalid action key: {key}")
-
         # Validate role if specified
-        if "role" in actions:
+        if actions.role:
             valid_roles = ["agent", "underwriter", "admin", "system"]
-            if actions["role"] not in valid_roles:
+            if actions.role not in valid_roles:
                 return Err(
-                    f"Invalid role: {actions['role']}. Valid roles: {valid_roles}"
+                    f"Invalid role: {actions.role}. Valid roles: {valid_roles}"
                 )
 
         # Validate groups if specified
-        if "groups" in actions:
-            if not isinstance(actions["groups"], list):
+        if actions.groups:
+            if not isinstance(actions.groups, list):
                 return Err("Groups must be a list")
 
         return Ok(True)

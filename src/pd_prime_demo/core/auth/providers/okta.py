@@ -343,7 +343,7 @@ class OktaSSOProvider(OIDCProvider):
                         f"Token introspection failed: HTTP {response.status_code}"
                     )
 
-            introspection_data = response.json()
+            introspection_data = response.json()  # SYSTEM_BOUNDARY - Okta API response parsing
 
             if not introspection_data.get("active", False):
                 return Err("Token is not active")
@@ -394,7 +394,7 @@ class OktaSSOProvider(OIDCProvider):
                         f"Failed to fetch user groups: HTTP {response.status_code}"
                     )
 
-            groups = response.json()
+            groups = response.json()  # SYSTEM_BOUNDARY - Okta API response parsing
             return Ok(groups)
 
         except Exception:

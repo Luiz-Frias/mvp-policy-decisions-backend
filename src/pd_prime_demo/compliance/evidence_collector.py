@@ -16,6 +16,8 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.compliance import EvidenceItem, EvidenceCollection
+from pd_prime_demo.schemas.common import EvidenceContent
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -242,44 +244,49 @@ class EvidenceCollector:
         execution_result: Any,
         period_start: datetime,
         period_end: datetime,
-    ) -> Result[EvidenceArtifact, str]:
+    ) -> Result[EvidenceItem, str]:
         """Collect evidence from control execution."""
         try:
-            evidence_content = {
-                "control_execution": {
+            # Create structured evidence content
+            evidence_content = EvidenceContent(
+                control_execution={
                     "control_id": control_id,
                     "execution_id": str(execution_result.execution_id),
                     "timestamp": execution_result.timestamp.isoformat(),
                     "status": execution_result.status.value,
                     "result": execution_result.result,
                     "findings": execution_result.findings,
-                    "evidence_collected": execution_result.evidence_collected,
                     "execution_time_ms": execution_result.execution_time_ms,
                 },
-                "collection_metadata": {
+                collection_metadata={
                     "collection_method": "automated_control_execution",
                     "data_integrity_verified": True,
                     "collection_tool": "soc2_compliance_framework",
+                    "collection_timestamp": datetime.now(timezone.utc),
                 },
-            }
+                verification_status="verified",
+            )
 
             # Determine trust service criteria based on control ID
             criteria = self._map_control_to_criteria(control_id)
 
-            artifact = EvidenceArtifact(
-                evidence_type=EvidenceType.CONTROL_EXECUTION,
+            # Create evidence item using the proper model
+            evidence_item = EvidenceItem(
+                evidence_type=EvidenceType.CONTROL_EXECUTION.value,
                 title=f"Control {control_id} Execution Evidence",
                 description=f"Automated evidence collection for control {control_id} execution",
                 control_id=control_id,
                 trust_service_criteria=criteria,
-                content=evidence_content,
-                period_start=period_start,
-                period_end=period_end,
-                source_system="compliance_framework",
+                data_source="compliance_framework",
+                collection_method="automated_control_execution",
+                evidence_data=evidence_content.model_dump(),
+                evidence_period_start=period_start,
+                evidence_period_end=period_end,
+                collector="system",
             )
 
-            # Store evidence artifact
-            stored_artifact = await self._store_evidence_artifact(artifact)
+            # Store evidence item
+            stored_item = await self._store_evidence_item(evidence_item)
 
             # Log evidence collection
             await self._audit_logger.log_privacy_event(
@@ -290,7 +297,7 @@ class EvidenceCollector:
                 control_id=control_id,
             )
 
-            return Ok(stored_artifact)
+            return Ok(stored_item)
 
         except Exception as e:
             return Err(f"Failed to collect control evidence: {str(e)}")
@@ -312,42 +319,40 @@ class EvidenceCollector:
             return "general"
 
     @beartype
-    async def _store_evidence_artifact(
-        self, artifact: EvidenceArtifact
-    ) -> EvidenceArtifact:
-        """Store evidence artifact securely."""
+    async def _store_evidence_item(
+        self, evidence_item: EvidenceItem
+    ) -> EvidenceItem:
+        """Store evidence item securely."""
         # Create file for evidence content
-        file_name = f"{artifact.artifact_id}_{artifact.evidence_type.value}.json"
+        file_name = f"{evidence_item.evidence_id}_{evidence_item.evidence_type}.json"
         file_path = self._evidence_storage_path / file_name
 
         # Write evidence content to file
-        evidence_json = json.dumps(artifact.content, indent=2, default=str)
+        evidence_json = json.dumps(evidence_item.evidence_data, indent=2, default=str)
         file_content_bytes = evidence_json.encode("utf-8")
 
         with open(file_path, "w") as f:
             f.write(evidence_json)
 
         # Calculate file hash and size
-        file_hash = artifact.calculate_file_hash(file_content_bytes)
-        file_size = len(file_content_bytes)
+        file_hash = hashlib.sha256(file_content_bytes).hexdigest()
 
-        # Update artifact with file information
-        updated_artifact = artifact.model_copy(
+        # Update evidence item with file information
+        updated_item = evidence_item.model_copy(
             update={
-                "file_path": str(file_path),
-                "file_hash": file_hash,
-                "file_size_bytes": file_size,
+                "storage_location": str(file_path),
+                "integrity_hash": file_hash,
             }
         )
 
-        # Store artifact metadata in database (simulated)
-        await self._store_artifact_metadata(updated_artifact)
+        # Store evidence metadata in database (simulated)
+        await self._store_evidence_metadata(updated_item)
 
-        return updated_artifact
+        return updated_item
 
     @beartype
-    async def _store_artifact_metadata(self, artifact: EvidenceArtifact) -> None:
-        """Store artifact metadata in database."""
+    async def _store_evidence_metadata(self, evidence_item: EvidenceItem) -> None:
+        """Store evidence metadata in database."""
         # In a real implementation, this would store in the database
         # For now, we'll simulate successful storage
         pass
@@ -361,36 +366,41 @@ class EvidenceCollector:
         period_start: datetime,
         period_end: datetime,
         control_id: str | None = None,
-    ) -> Result[EvidenceArtifact, str]:
+    ) -> Result[EvidenceItem, str]:
         """Collect evidence from system data."""
         try:
-            evidence_content = {
-                "system_data": system_data,
-                "collection_metadata": {
+            # Create structured evidence content
+            evidence_content = EvidenceContent(
+                system_data=system_data,
+                collection_metadata={
                     "collection_method": "automated_system_query",
                     "data_integrity_verified": True,
-                    "collection_timestamp": datetime.now(timezone.utc).isoformat(),
+                    "collection_timestamp": datetime.now(timezone.utc),
                     "data_source_authenticated": True,
                 },
-            }
+                verification_status="verified",
+            )
 
             criteria = self._map_evidence_type_to_criteria(evidence_type)
 
-            artifact = EvidenceArtifact(
-                evidence_type=evidence_type,
+            # Create evidence item using the proper model
+            evidence_item = EvidenceItem(
+                evidence_type=evidence_type.value,
                 title=title,
                 description=f"Automated system evidence collection: {title}",
                 control_id=control_id,
                 trust_service_criteria=criteria,
-                content=evidence_content,
-                period_start=period_start,
-                period_end=period_end,
-                source_system="system_automated_collection",
+                data_source="system_automated_collection",
+                collection_method="automated_system_query",
+                evidence_data=evidence_content.model_dump(),
+                evidence_period_start=period_start,
+                evidence_period_end=period_end,
+                collector="system",
             )
 
-            stored_artifact = await self._store_evidence_artifact(artifact)
+            stored_item = await self._store_evidence_item(evidence_item)
 
-            return Ok(stored_artifact)
+            return Ok(stored_item)
 
         except Exception as e:
             return Err(f"Failed to collect system evidence: {str(e)}")
@@ -581,7 +591,7 @@ class EvidenceCollector:
     ) -> dict[str, Any]:
         """Collect and analyze compliance data for reporting."""
         # Simulated compliance data collection and analysis
-        return {
+        return {  # SYSTEM_BOUNDARY - Aggregated system data
             "overall_score": 94.2,
             "criteria_scores": {
                 "security": 96.5,
@@ -675,7 +685,7 @@ class EvidenceCollector:
             # In a real implementation, this would query the database
             # For now, return simulated summary
 
-            summary = {
+            summary = {  # SYSTEM_BOUNDARY - Aggregated system data
                 "period": {
                     "start": period_start.isoformat(),
                     "end": period_end.isoformat(),

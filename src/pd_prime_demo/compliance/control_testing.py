@@ -15,6 +15,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.compliance import ControlTestResult, ControlTestFinding
 
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import (
@@ -104,7 +105,7 @@ class ControlTest(BaseModel):
 
     # Results
     test_result: TestResult | None = Field(default=None)
-    deficiencies: list[dict[str, Any]] = Field(default_factory=list)
+    deficiencies: list[ControlTestFinding] = Field(default_factory=list)
     exceptions_noted: list[dict[str, Any]] = Field(default_factory=list)
     evidence_obtained: list[str] = Field(default_factory=list)
 
@@ -488,11 +489,14 @@ class ControlTestingFramework:
             else:
                 test_result = TestResult.INEFFECTIVE
                 deficiencies = [
-                    {
-                        "type": DeficiencyType.OPERATING_DEFICIENCY.value,
-                        "description": finding,
-                        "severity": "medium",
-                    }
+                    ControlTestFinding(
+                        control_id=test_definition.control_id,
+                        finding_type=DeficiencyType.OPERATING_DEFICIENCY.value,
+                        severity="medium",
+                        description=finding,
+                        impact="Control effectiveness compromised",
+                        likelihood="possible",
+                    )
                     for finding in (execution.findings or [])
                 ]
                 exceptions = []
@@ -500,11 +504,14 @@ class ControlTestingFramework:
         else:
             test_result = TestResult.INCONCLUSIVE
             deficiencies = [
-                {
-                    "type": DeficiencyType.CONTROL_GAP.value,
-                    "description": "Control execution failed",
-                    "severity": "high",
-                }
+                ControlTestFinding(
+                    control_id=test_definition.control_id,
+                    finding_type=DeficiencyType.CONTROL_GAP.value,
+                    severity="high",
+                    description="Control execution failed",
+                    impact="Unable to verify control effectiveness",
+                    likelihood="certain",
+                )
             ]
             exceptions = []
             conclusion = "Unable to complete control testing"
@@ -564,11 +571,14 @@ class ControlTestingFramework:
             return {
                 "test_result": TestResult.DEFICIENT,
                 "deficiencies": [
-                    {
-                        "type": DeficiencyType.OPERATING_DEFICIENCY.value,
-                        "description": "Monitoring gaps identified during test period",
-                        "severity": "medium",
-                    }
+                    ControlTestFinding(
+                        control_id=test_definition.control_id,
+                        finding_type=DeficiencyType.OPERATING_DEFICIENCY.value,
+                        severity="medium",
+                        description="Monitoring gaps identified during test period",
+                        impact="Reduced monitoring effectiveness",
+                        likelihood="possible",
+                    )
                 ],
                 "exceptions_noted": [],
                 "evidence_obtained": ["Monitoring gap analysis", "Alert failure logs"],
@@ -619,11 +629,14 @@ class ControlTestingFramework:
             return {
                 "test_result": TestResult.DEFICIENT,
                 "deficiencies": [
-                    {
-                        "type": DeficiencyType.OPERATING_DEFICIENCY.value,
-                        "description": f"Found {errors_found} errors in {sample_size} samples ({error_rate:.1f}% error rate)",
-                        "severity": severity,
-                    }
+                    ControlTestFinding(
+                        control_id=test_definition.control_id,
+                        finding_type=DeficiencyType.OPERATING_DEFICIENCY.value,
+                        severity=severity,
+                        description=f"Found {errors_found} errors in {sample_size} samples ({error_rate:.1f}% error rate)",
+                        impact="Data integrity risk",
+                        likelihood="possible",
+                    )
                 ],
                 "exceptions_noted": [
                     {
@@ -678,11 +691,14 @@ class ControlTestingFramework:
             return {
                 "test_result": TestResult.DEFICIENT,
                 "deficiencies": [
-                    {
-                        "type": DeficiencyType.DESIGN_DEFICIENCY.value,
-                        "description": f"Found {non_compliant_items} non-compliant configuration items",
-                        "severity": "medium",
-                    }
+                    ControlTestFinding(
+                        control_id=test_definition.control_id,
+                        finding_type=DeficiencyType.DESIGN_DEFICIENCY.value,
+                        severity="medium",
+                        description=f"Found {non_compliant_items} non-compliant configuration items",
+                        impact="Control design effectiveness compromised",
+                        likelihood="possible",
+                    )
                 ],
                 "exceptions_noted": [],
                 "evidence_obtained": [
@@ -728,11 +744,14 @@ class ControlTestingFramework:
             return {
                 "test_result": TestResult.DEFICIENT,
                 "deficiencies": [
-                    {
-                        "type": DeficiencyType.OPERATING_DEFICIENCY.value,
-                        "description": "Inquiry responses indicate gaps in control operation",
-                        "severity": "medium",
-                    }
+                    ControlTestFinding(
+                        control_id=test_definition.control_id,
+                        finding_type=DeficiencyType.OPERATING_DEFICIENCY.value,
+                        severity="medium",
+                        description="Inquiry responses indicate gaps in control operation",
+                        impact="Control operation effectiveness compromised",
+                        likelihood="possible",
+                    )
                 ],
                 "exceptions_noted": [],
                 "evidence_obtained": [

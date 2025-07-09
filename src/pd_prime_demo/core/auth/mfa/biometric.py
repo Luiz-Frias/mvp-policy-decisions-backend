@@ -13,6 +13,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.config import Settings
+from .models import BiometricCaptureSettings
 
 
 class BiometricProvider:
@@ -339,31 +340,38 @@ class BiometricProvider:
         )
 
     @beartype
-    def _get_capture_settings(self, biometric_type: str) -> dict[str, Any]:
+    def _get_capture_settings(self, biometric_type: str) -> BiometricCaptureSettings:
         """Get recommended capture settings for biometric type."""
-        settings = {
-            "fingerprint": {
-                "min_quality": 80,
-                "capture_timeout": 30,
-                "finger_detect": True,
-                "anti_spoofing": True,
-            },
-            "face": {
-                "min_quality": 85,
-                "capture_timeout": 20,
-                "face_detect": True,
-                "liveness_required": True,
-                "pose_variation": False,
-            },
-            "voice": {
-                "min_duration": 3,
-                "max_duration": 10,
-                "sample_rate": 16000,
-                "noise_reduction": True,
-            },
-        }
-
-        return settings.get(biometric_type, {})
+        if biometric_type == "fingerprint":
+            return BiometricCaptureSettings(
+                min_quality=80,
+                capture_timeout=30,
+                finger_detect=True,
+                anti_spoofing=True,
+            )
+        elif biometric_type == "face":
+            return BiometricCaptureSettings(
+                min_quality=85,
+                capture_timeout=20,
+                face_detect=True,
+                liveness_required=True,
+                pose_variation=False,
+            )
+        elif biometric_type == "voice":
+            return BiometricCaptureSettings(
+                min_quality=70,
+                capture_timeout=15,
+                min_duration=3,
+                max_duration=10,
+                sample_rate=16000,
+                noise_reduction=True,
+            )
+        else:
+            # Return default settings
+            return BiometricCaptureSettings(
+                min_quality=75,
+                capture_timeout=30,
+            )
 
     @beartype
     async def _check_liveness(self, biometric_type: str, liveness_data: dict[str, Any]) -> Result[bool, str]:

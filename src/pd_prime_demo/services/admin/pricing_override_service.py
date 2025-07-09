@@ -11,6 +11,25 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
+
+
+class PricingOverrideResponse(BaseModelConfig):
+    """Pricing override response model."""
+    
+    id: UUID
+    quote_id: UUID
+    admin_user_id: UUID
+    override_type: str
+    original_amount: Decimal
+    new_amount: Decimal
+    adjustment_percentage: Decimal
+    reason: str
+    status: str
+    created_at: datetime
+    approved_at: datetime | None = None
+    approved_by: UUID | None = None
+    approval_notes: str | None = None
 
 
 class PricingOverrideService:
@@ -371,7 +390,7 @@ class PricingOverrideService:
     async def get_pending_overrides(
         self,
         admin_user_id: UUID,
-    ) -> Result[list[dict[str, Any]], str]:
+    ) -> Result[list[PricingOverrideResponse], str]:
         """Get pending pricing overrides for approval.
 
         Args:
@@ -404,7 +423,21 @@ class PricingOverrideService:
                 max_approval_limit,
             )
 
-            overrides = [dict(row) for row in rows]
+            overrides = []
+            for row in rows:
+                override = PricingOverrideResponse(
+                    id=row['id'],
+                    quote_id=row['quote_id'],
+                    admin_user_id=row['admin_user_id'],
+                    override_type=row['override_type'],
+                    original_amount=row['original_amount'],
+                    new_amount=row['new_amount'],
+                    adjustment_percentage=row['adjustment_percentage'],
+                    reason=row['reason'],
+                    status='pending',
+                    created_at=row['created_at']
+                )
+                overrides.append(override)
             return Ok(overrides)
 
         except Exception as e:

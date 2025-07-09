@@ -18,6 +18,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 from ...core.cache import Cache
 from ...core.database import Database
 from ...models.base import BaseModelConfig
+from ...schemas.rating import RateTableData, RateTableValidation
 
 
 @beartype
@@ -27,7 +28,7 @@ class RateTableVersion(BaseModelConfig):
     id: UUID = Field(default_factory=uuid4)
     table_name: str = Field(..., min_length=1, max_length=100)
     version_number: int = Field(..., ge=1)
-    rate_data: dict[str, Any] = Field(...)
+    rate_data: RateTableData = Field(...)
     effective_date: date = Field(...)
     expiration_date: date | None = Field(None)
     status: str = Field(

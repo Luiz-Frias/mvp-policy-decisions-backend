@@ -15,6 +15,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.compliance import AuditLogEntry
 
 from ..core.database import get_database
 
@@ -124,30 +125,30 @@ class ComplianceEvent(BaseModel):
     evidence_references: list[str] = Field(default_factory=list)
 
     @beartype
-    def to_audit_record(self) -> dict[str, Any]:
-        """Convert to database audit record format."""
-        return {
-            "id": self.event_id,
-            "user_id": self.user_id,
-            "ip_address": self.ip_address,
-            "user_agent": self.user_agent,
-            "session_id": self.session_id,
-            "action": self.action,
-            "resource_type": self.resource_type,
-            "resource_id": self.resource_id,
-            "request_method": self.request_method,
-            "request_path": self.request_path,
-            "request_body": self.event_data,
-            "response_status": self.response_status,
-            "risk_score": self.risk_score,
-            "security_alerts": {
-                "risk_level": self.risk_level.value,
-                "control_references": self.control_references,
-                "compliance_tags": self.compliance_tags,
-                "evidence_references": self.evidence_references,
-            },
-            "created_at": self.timestamp,
-        }
+    def to_audit_log_entry(self) -> AuditLogEntry:
+        """Convert to structured audit log entry."""
+        return AuditLogEntry(
+            event_type=self.event_type.value,
+            action=self.action,
+            user_id=self.user_id,
+            session_id=self.session_id,
+            ip_address=self.ip_address,
+            user_agent=self.user_agent,
+            resource_type=self.resource_type,
+            resource_id=self.resource_id,
+            request_method=self.request_method,
+            request_path=self.request_path,
+            request_body=self.event_data,
+            response_status=self.response_status,
+            risk_level=self.risk_level.value,
+            risk_score=self.risk_score,
+            control_references=self.control_references,
+            compliance_tags=self.compliance_tags,
+            evidence_references=self.evidence_references,
+            processing_time_ms=self.processing_time_ms,
+            error_details=self.error_details,
+            timestamp=self.timestamp,
+        )
 
 
 class AuditLogger:
@@ -180,7 +181,8 @@ class AuditLogger:
     @beartype
     async def _write_event_to_database(self, event: ComplianceEvent) -> None:
         """Write single event to database."""
-        audit_record = event.to_audit_record()
+        audit_entry = event.to_audit_log_entry()
+        audit_record = audit_entry.model_dump()
 
         query = """
             INSERT INTO audit_logs (
@@ -196,7 +198,7 @@ class AuditLogger:
 
         await self._database.execute(
             query,
-            audit_record["id"],
+            audit_record["log_id"],
             audit_record["user_id"],
             audit_record["ip_address"],
             audit_record["user_agent"],
@@ -209,8 +211,12 @@ class AuditLogger:
             json.dumps(audit_record["request_body"]),
             audit_record["response_status"],
             audit_record["risk_score"],
-            json.dumps(audit_record["security_alerts"]),
-            audit_record["created_at"],
+            json.dumps({
+                "control_references": audit_record["control_references"],
+                "compliance_tags": audit_record["compliance_tags"],
+                "evidence_references": audit_record["evidence_references"],
+            }),
+            audit_record["timestamp"],
         )
 
     @beartype
@@ -222,10 +228,11 @@ class AuditLogger:
         # Batch insert for efficiency
         values = []
         for event in self._pending_events:
-            audit_record = event.to_audit_record()
+            audit_entry = event.to_audit_log_entry()
+            audit_record = audit_entry.model_dump()
             values.extend(
                 [
-                    audit_record["id"],
+                    audit_record["log_id"],
                     audit_record["user_id"],
                     audit_record["ip_address"],
                     audit_record["user_agent"],
@@ -238,8 +245,12 @@ class AuditLogger:
                     json.dumps(audit_record["request_body"]),
                     audit_record["response_status"],
                     audit_record["risk_score"],
-                    json.dumps(audit_record["security_alerts"]),
-                    audit_record["created_at"],
+                    json.dumps({
+                        "control_references": audit_record["control_references"],
+                        "compliance_tags": audit_record["compliance_tags"],
+                        "evidence_references": audit_record["evidence_references"],
+                    }),
+                    audit_record["timestamp"],
                 ]
             )
 

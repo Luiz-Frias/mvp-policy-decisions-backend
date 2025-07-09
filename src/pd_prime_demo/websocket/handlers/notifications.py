@@ -8,6 +8,11 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..message_models import (
+    WebSocketMessageData,
+    create_websocket_message_data,
+)
+
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
@@ -119,22 +124,24 @@ class NotificationHandler:
         # Build notification message
         notification_msg = WebSocketMessage(
             type=MessageType.NOTIFICATION_RECEIVED,
-            data={
-                "id": str(notification_id),
-                "notification_type": config.notification_type,
-                "priority": config.priority,
-                "title": notification.title,
-                "message": notification.message,
-                "data": notification.data,
-                "icon": notification.icon,
-                "sound": notification.sound,
-                "action_url": config.action_url,
-                "requires_acknowledgment": config.requires_acknowledgment,
-                "expires_at": (
-                    config.expires_at.isoformat() if config.expires_at else None
-                ),
-                "delivered_at": datetime.now().isoformat(),
-            },
+            data=create_websocket_message_data(
+                notification_id=notification_id,
+                payload={
+                    "notification_type": config.notification_type,
+                    "priority": config.priority,
+                    "title": notification.title,
+                    "message": notification.message,
+                    "data": notification.data,
+                    "icon": notification.icon,
+                    "sound": notification.sound,
+                    "action_url": config.action_url,
+                    "requires_acknowledgment": config.requires_acknowledgment,
+                    "expires_at": (
+                        config.expires_at.isoformat() if config.expires_at else None
+                    ),
+                    "delivered_at": datetime.now().isoformat(),
+                },
+            ).model_dump(),
         )
 
         # Send to user
@@ -188,24 +195,26 @@ class NotificationHandler:
         # Build alert message
         alert_msg = WebSocketMessage(
             type=MessageType.SYSTEM_ALERT,
-            data={
-                "alert_id": alert_id,
-                "alert_type": alert.alert_type,
-                "severity": alert.severity,
-                "title": notification.title,
-                "message": notification.message,
-                "affected_systems": alert.affected_systems,
-                "requires_action": alert.requires_action,
-                "estimated_resolution": (
-                    alert.estimated_resolution.isoformat()
-                    if alert.estimated_resolution
-                    else None
-                ),
-                "data": notification.data,
-                "icon": notification.icon or self._get_alert_icon(alert.severity),
-                "sound": notification.sound or self._get_alert_sound(alert.severity),
-                "timestamp": datetime.now().isoformat(),
-            },
+            data=create_websocket_message_data(
+                alert_type=alert.alert_type,
+                severity=alert.severity,
+                payload={
+                    "alert_id": alert_id,
+                    "title": notification.title,
+                    "message": notification.message,
+                    "affected_systems": alert.affected_systems,
+                    "requires_action": alert.requires_action,
+                    "estimated_resolution": (
+                        alert.estimated_resolution.isoformat()
+                        if alert.estimated_resolution
+                        else None
+                    ),
+                    "data": notification.data,
+                    "icon": notification.icon or self._get_alert_icon(alert.severity),
+                    "sound": notification.sound or self._get_alert_sound(alert.severity),
+                    "timestamp": datetime.now().isoformat(),
+                },
+            ).model_dump(),
         )
 
         # Determine target users
@@ -340,10 +349,10 @@ class NotificationHandler:
         # Send acknowledgment confirmation
         confirm_msg = WebSocketMessage(
             type=MessageType.NOTIFICATION_RECEIVED,
-            data={
-                "notification_id": str(notification_id),
-                "acknowledged_at": datetime.now().isoformat(),
-            },
+            data=create_websocket_message_data(
+                notification_id=notification_id,
+                payload={"acknowledged_at": datetime.now().isoformat()},
+            ).model_dump(),
         )
 
         await self._manager.send_personal_message(connection_id, confirm_msg)
@@ -561,11 +570,13 @@ class NotificationHandler:
             # Send resolution notification
             resolution_msg = WebSocketMessage(
                 type=MessageType.SYSTEM_ALERT,
-                data={
-                    "alert_id": alert_id,
-                    "alert_type": alert.alert_type,
-                    "resolved_at": datetime.now().isoformat(),
-                },
+                data=create_websocket_message_data(
+                    alert_type=alert.alert_type,
+                    payload={
+                        "alert_id": alert_id,
+                        "resolved_at": datetime.now().isoformat(),
+                    },
+                ).model_dump(),
             )
 
             await self._manager.broadcast(resolution_msg)

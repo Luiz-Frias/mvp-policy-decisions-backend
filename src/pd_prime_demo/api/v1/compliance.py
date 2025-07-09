@@ -130,6 +130,143 @@ class TestPlanRequest(BaseModel):
     criteria: list[str] = Field(...)
 
 
+# Response models for dashboard endpoints
+class SecurityDashboardResponse(BaseModel):
+    """Security dashboard response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    security_score: float = Field(ge=0.0, le=100.0)
+    # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
+    data: dict[str, Any] = Field(...)
+
+
+class AvailabilityDashboardResponse(BaseModel):
+    """Availability dashboard response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    availability_score: float = Field(ge=0.0, le=100.0)
+    # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
+    data: dict[str, Any] = Field(...)
+
+
+class ProcessingIntegrityDashboardResponse(BaseModel):
+    """Processing integrity dashboard response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    integrity_score: float = Field(ge=0.0, le=100.0)
+    # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
+    data: dict[str, Any] = Field(...)
+
+
+class ConfidentialityDashboardResponse(BaseModel):
+    """Confidentiality dashboard response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    confidentiality_score: float = Field(ge=0.0, le=100.0)
+    # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
+    data: dict[str, Any] = Field(...)
+
+
+class PrivacyDashboardResponse(BaseModel):
+    """Privacy dashboard response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    privacy_score: float = Field(ge=0.0, le=100.0)
+    # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
+    data: dict[str, Any] = Field(...)
+
+
+class ControlListResponse(BaseModel):
+    """Control list response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    total_controls: int = Field(ge=0)
+    criteria_filter: str | None = Field(...)
+    # SYSTEM_BOUNDARY - control metadata aggregated from framework
+    controls: list[dict[str, Any]] = Field(...)
+
+
+class ControlStatusResponse(BaseModel):
+    """Control status response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    control_id: str = Field(...)
+    status: str = Field(...)
+    last_checked: str = Field(...)
+
+
+class EvidenceSummaryResponse(BaseModel):
+    """Evidence summary response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    # SYSTEM_BOUNDARY - evidence summary data aggregated from collector
+    summary: dict[str, Any] = Field(...)
+
+
+class ComplianceReportResponse(BaseModel):
+    """Compliance report response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    report_id: str = Field(...)
+    title: str = Field(...)
+    report_type: str = Field(...)
+    generated_at: str = Field(...)
+    overall_compliance_score: float = Field(ge=0.0, le=100.0)
+    # SYSTEM_BOUNDARY - TSC scores aggregated from multiple managers
+    trust_service_criteria_scores: dict[str, float] = Field(...)
+    total_evidence_artifacts: int = Field(ge=0)
+    findings_count: int = Field(ge=0)
+    recommendations_count: int = Field(ge=0)
+    # SYSTEM_BOUNDARY - assessment period data
+    assessment_period: dict[str, str] = Field(...)
+
+
+class TestingDashboardResponse(BaseModel):
+    """Testing dashboard response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    # SYSTEM_BOUNDARY - testing dashboard data aggregated from framework
+    dashboard: dict[str, Any] = Field(...)
+
+
+class TestPlanResponse(BaseModel):
+    """Test plan response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    plan_id: str = Field(...)
+    plan_name: str = Field(...)
+    description: str = Field(...)
+    created_at: str = Field(...)
+    # SYSTEM_BOUNDARY - assessment period data
+    assessment_period: dict[str, str] = Field(...)
+    criteria: list[str] = Field(...)
+    total_tests: int = Field(ge=0)
+    status: str = Field(...)
+
+
+class ExecutionSummaryResponse(BaseModel):
+    """Execution summary response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    # SYSTEM_BOUNDARY - execution summary data aggregated from multiple executions
+    execution_summary: dict[str, Any] = Field(...)
+    criteria_filter: str | None = Field(...)
+    execution_timestamp: str = Field(...)
+    # SYSTEM_BOUNDARY - execution results aggregated from framework
+    executions: list[dict[str, Any]] = Field(...)
+
+
+class AuditTrailResponse(BaseModel):
+    """Audit trail response model."""
+    
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    total_records: int = Field(ge=0)
+    # SYSTEM_BOUNDARY - filter parameters
+    filters: dict[str, Any] = Field(...)
+    # SYSTEM_BOUNDARY - audit records aggregated from logger
+    audit_records: list[dict[str, Any]] = Field(...)
+
+
 @router.get("/overview", response_model=ComplianceOverviewResponse)
 @beartype
 async def get_compliance_overview(
@@ -188,13 +325,13 @@ async def get_compliance_overview(
         return handle_result(Err(f"Failed to get compliance overview: {str(e)}"), response)
 
 
-@router.get("/controls")
+@router.get("/controls", response_model=ControlListResponse)
 @beartype
 async def list_controls(
     response: Response,
     criteria: str | None = Query(None, description="Filter by trust service criteria"),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[ControlListResponse, ErrorResponse]:
     """List all SOC 2 controls with optional filtering."""
     try:
         if criteria:
@@ -206,23 +343,25 @@ async def list_controls(
         else:
             controls = SOC2_CORE_CONTROLS
 
-        return {
-            "total_controls": len(controls),
-            "criteria_filter": criteria,
-            "controls": [
-                {
-                    "control_id": control.control_id,
-                    "name": control.name,
-                    "description": control.description,
-                    "criteria": control.criteria.value,
-                    "control_type": control.control_type.value,
-                    "risk_level": control.risk_level,
-                    "frequency": control.frequency,
-                    "automated": control.automated,
-                }
-                for control in controls
-            ],
-        }
+        controls_data = [
+            {
+                "control_id": control.control_id,
+                "name": control.name,
+                "description": control.description,
+                "criteria": control.criteria.value,
+                "control_type": control.control_type.value,
+                "risk_level": control.risk_level,
+                "frequency": control.frequency,
+                "automated": control.automated,
+            }
+            for control in controls
+        ]
+
+        return ControlListResponse(
+            total_controls=len(controls),
+            criteria_filter=criteria,
+            controls=controls_data
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to list controls: {str(e)}"), response)
@@ -268,13 +407,13 @@ async def execute_control(
         return handle_result(Err(f"Failed to execute control: {str(e)}"), response)
 
 
-@router.get("/controls/{control_id}/status")
+@router.get("/controls/{control_id}/status", response_model=ControlStatusResponse)
 @beartype
 async def get_control_status(
     control_id: str,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[ControlStatusResponse, ErrorResponse]:
     """Get the current status of a specific control."""
     try:
         status_result = control_framework.get_control_status(control_id)
@@ -288,95 +427,109 @@ async def get_control_status(
         if control_status is None:
             return handle_result(Err("Internal server error: control status is None"), response)
 
-        # Return the formatted response directly
-        return {
-            "control_id": control_id,
-            "status": control_status.value,
-            "last_checked": datetime.now(timezone.utc).isoformat(),
-        }
+        return ControlStatusResponse(
+            control_id=control_id,
+            status=control_status.value,
+            last_checked=datetime.now(timezone.utc).isoformat()
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get control status: {str(e)}"), response)
 
 
-@router.get("/dashboards/security")
+@router.get("/dashboards/security", response_model=SecurityDashboardResponse)
 @beartype
 async def get_security_dashboard(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[SecurityDashboardResponse, ErrorResponse]:
     """Get security controls dashboard."""
     try:
         dashboard = await security_manager.get_security_dashboard()
-        return dashboard
+        return SecurityDashboardResponse(
+            security_score=dashboard.get("security_score", 0.0),
+            data=dashboard
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get security dashboard: {str(e)}"), response)
 
 
-@router.get("/dashboards/availability")
+@router.get("/dashboards/availability", response_model=AvailabilityDashboardResponse)
 @beartype
 async def get_availability_dashboard(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[AvailabilityDashboardResponse, ErrorResponse]:
     """Get availability controls dashboard."""
     try:
         dashboard = await availability_manager.get_availability_dashboard()
-        return dashboard
+        return AvailabilityDashboardResponse(
+            availability_score=dashboard.get("availability_score", 0.0),
+            data=dashboard
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get availability dashboard: {str(e)}"), response)
 
 
-@router.get("/dashboards/processing-integrity")
+@router.get("/dashboards/processing-integrity", response_model=ProcessingIntegrityDashboardResponse)
 @beartype
 async def get_processing_integrity_dashboard(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[ProcessingIntegrityDashboardResponse, ErrorResponse]:
     """Get processing integrity controls dashboard."""
     try:
         dashboard = (
             await processing_integrity_manager.get_processing_integrity_dashboard()
         )
-        return dashboard
+        return ProcessingIntegrityDashboardResponse(
+            integrity_score=dashboard.get("integrity_score", 0.0),
+            data=dashboard
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get processing integrity dashboard: {str(e)}"), response)
 
 
-@router.get("/dashboards/confidentiality")
+@router.get("/dashboards/confidentiality", response_model=ConfidentialityDashboardResponse)
 @beartype
 async def get_confidentiality_dashboard(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[ConfidentialityDashboardResponse, ErrorResponse]:
     """Get confidentiality controls dashboard."""
     try:
         dashboard = await confidentiality_manager.get_confidentiality_dashboard()
-        return dashboard
+        return ConfidentialityDashboardResponse(
+            confidentiality_score=dashboard.get("confidentiality_score", 0.0),
+            data=dashboard
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get confidentiality dashboard: {str(e)}"), response)
 
 
-@router.get("/dashboards/privacy")
+@router.get("/dashboards/privacy", response_model=PrivacyDashboardResponse)
 @beartype
 async def get_privacy_dashboard(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[PrivacyDashboardResponse, ErrorResponse]:
     """Get privacy controls dashboard."""
     try:
         dashboard = await privacy_manager.get_privacy_dashboard()
-        return dashboard
+        return PrivacyDashboardResponse(
+            privacy_score=dashboard.get("privacy_score", 0.0),
+            data=dashboard
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get privacy dashboard: {str(e)}"), response)
 
 
-@router.get("/evidence/summary")
+@router.get("/evidence/summary", response_model=EvidenceSummaryResponse)
 @beartype
 async def get_evidence_summary(
     response: Response,
@@ -387,7 +540,7 @@ async def get_evidence_summary(
         default=None, description="End date for evidence summary"
     ),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[EvidenceSummaryResponse, ErrorResponse]:
     """Get evidence collection summary."""
     try:
         # Default to last 30 days if no period specified
@@ -407,20 +560,19 @@ async def get_evidence_summary(
         if summary is None:
             return handle_result(Err("Evidence summary returned None"), response)
 
-        # Return the summary directly (it's already a dict)
-        return summary
+        return EvidenceSummaryResponse(summary=summary)
 
     except Exception as e:
         return handle_result(Err(f"Failed to get evidence summary: {str(e)}"), response)
 
 
-@router.post("/reports/generate")
+@router.post("/reports/generate", response_model=ComplianceReportResponse)
 @beartype
 async def generate_compliance_report(
     request: ComplianceReportRequest,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[ComplianceReportResponse, ErrorResponse]:
     """Generate a comprehensive compliance report."""
     try:
         # Generate compliance report
@@ -442,51 +594,48 @@ async def generate_compliance_report(
         if report is None:
             return handle_result(Err("Internal server error: compliance report is None"), response)
 
-        # Create the response dict from the domain model
-        report_response = {
-            "report_id": str(report.report_id),
-            "title": report.title,
-            "report_type": report.report_type,
-            "generated_at": report.generated_at.isoformat(),
-            "overall_compliance_score": report.overall_compliance_score,
-            "trust_service_criteria_scores": report.trust_service_criteria_scores,
-            "total_evidence_artifacts": report.total_evidence_artifacts,
-            "findings_count": len(report.findings),
-            "recommendations_count": len(report.recommendations),
-            "assessment_period": {
+        return ComplianceReportResponse(
+            report_id=str(report.report_id),
+            title=report.title,
+            report_type=report.report_type,
+            generated_at=report.generated_at.isoformat(),
+            overall_compliance_score=report.overall_compliance_score,
+            trust_service_criteria_scores=report.trust_service_criteria_scores,
+            total_evidence_artifacts=report.total_evidence_artifacts,
+            findings_count=len(report.findings),
+            recommendations_count=len(report.recommendations),
+            assessment_period={
                 "start": report.assessment_period_start.isoformat(),
                 "end": report.assessment_period_end.isoformat(),
-            },
-        }
-
-        return report_response
+            }
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to generate compliance report: {str(e)}"), response)
 
 
-@router.get("/testing/dashboard")
+@router.get("/testing/dashboard", response_model=TestingDashboardResponse)
 @beartype
 async def get_testing_dashboard(
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[TestingDashboardResponse, ErrorResponse]:
     """Get control testing dashboard."""
     try:
         dashboard = await testing_framework.get_testing_dashboard()
-        return dashboard
+        return TestingDashboardResponse(dashboard=dashboard)
 
     except Exception as e:
         return handle_result(Err(f"Failed to get testing dashboard: {str(e)}"), response)
 
 
-@router.post("/testing/plans")
+@router.post("/testing/plans", response_model=TestPlanResponse)
 @beartype
 async def create_test_plan(
     request: TestPlanRequest,
     response: Response,
     current_user: dict[str, Any] = Depends(get_current_user)
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[TestPlanResponse, ErrorResponse]:
     """Create a new control testing plan."""
     try:
         # Convert criteria strings to enums
@@ -515,28 +664,25 @@ async def create_test_plan(
         if plan is None:
             return handle_result(Err("Internal server error: test plan is None"), response)
 
-        # Create the response dict from the domain model
-        plan_response = {
-            "plan_id": str(plan.plan_id),
-            "plan_name": plan.plan_name,
-            "description": plan.description,
-            "created_at": plan.created_at.isoformat(),
-            "assessment_period": {
+        return TestPlanResponse(
+            plan_id=str(plan.plan_id),
+            plan_name=plan.plan_name,
+            description=plan.description,
+            created_at=plan.created_at.isoformat(),
+            assessment_period={
                 "start": plan.assessment_period_start.isoformat(),
                 "end": plan.assessment_period_end.isoformat(),
             },
-            "criteria": [c.value for c in plan.trust_service_criteria],
-            "total_tests": plan.total_tests,
-            "status": plan.status,
-        }
-
-        return plan_response
+            criteria=[c.value for c in plan.trust_service_criteria],
+            total_tests=plan.total_tests,
+            status=plan.status
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to create test plan: {str(e)}"), response)
 
 
-@router.post("/testing/execute-all")
+@router.post("/testing/execute-all", response_model=ExecutionSummaryResponse)
 @beartype
 async def execute_all_controls(
     response: Response,
@@ -544,7 +690,7 @@ async def execute_all_controls(
         None, description="Execute controls for specific criteria only"
     ),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[ExecutionSummaryResponse, ErrorResponse]:
     """Execute all controls or controls for specific criteria."""
     try:
         criteria_enum = None
@@ -570,39 +716,40 @@ async def execute_all_controls(
         successful_executions = sum(1 for exec in executions if exec.result)
         failed_executions = total_executions - successful_executions
 
-        # Create the response dict
-        executions_response = {
-            "execution_summary": {
-                "total_executions": total_executions,
-                "successful_executions": successful_executions,
-                "failed_executions": failed_executions,
-                "success_rate": (
-                    (successful_executions / total_executions) * 100
-                    if total_executions > 0
-                    else 0
-                ),
-            },
-            "criteria_filter": criteria,
-            "execution_timestamp": datetime.now(timezone.utc).isoformat(),
-            "executions": [
-                {
-                    "execution_id": str(exec.execution_id),
-                    "control_id": exec.control_id,
-                    "result": exec.result,
-                    "findings_count": len(exec.findings),
-                    "execution_time_ms": exec.execution_time_ms,
-                }
-                for exec in executions
-            ],
+        execution_summary = {
+            "total_executions": total_executions,
+            "successful_executions": successful_executions,
+            "failed_executions": failed_executions,
+            "success_rate": (
+                (successful_executions / total_executions) * 100
+                if total_executions > 0
+                else 0
+            ),
         }
 
-        return executions_response
+        executions_data = [
+            {
+                "execution_id": str(exec.execution_id),
+                "control_id": exec.control_id,
+                "result": exec.result,
+                "findings_count": len(exec.findings),
+                "execution_time_ms": exec.execution_time_ms,
+            }
+            for exec in executions
+        ]
+
+        return ExecutionSummaryResponse(
+            execution_summary=execution_summary,
+            criteria_filter=criteria,
+            execution_timestamp=datetime.now(timezone.utc).isoformat(),
+            executions=executions_data
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to execute all controls: {str(e)}"), response)
 
 
-@router.get("/audit-trail")
+@router.get("/audit-trail", response_model=AuditTrailResponse)
 @beartype
 async def get_audit_trail(
     response: Response,
@@ -611,7 +758,7 @@ async def get_audit_trail(
     control_id: str | None = Query(None, description="Filter by control ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> Union[dict[str, Any], ErrorResponse]:
+) -> Union[AuditTrailResponse, ErrorResponse]:
     """Get compliance audit trail."""
     try:
         from ...compliance.audit_logger import get_audit_logger
@@ -628,16 +775,18 @@ async def get_audit_trail(
 
         audit_records = trail_result.ok_value  # type: ignore[attr-defined]
 
-        return {
-            "total_records": len(audit_records),
-            "filters": {
-                "start_date": start_date.isoformat() if start_date else None,
-                "end_date": end_date.isoformat() if end_date else None,
-                "control_id": control_id,
-                "limit": limit,
-            },
-            "audit_records": audit_records,
+        filters = {
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+            "control_id": control_id,
+            "limit": limit,
         }
+
+        return AuditTrailResponse(
+            total_records=len(audit_records),
+            filters=filters,
+            audit_records=audit_records
+        )
 
     except Exception as e:
         return handle_result(Err(f"Failed to get audit trail: {str(e)}"), response)

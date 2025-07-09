@@ -16,6 +16,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 # Project
 from pd_prime_demo.models.quote import DriverInfo, VehicleInfo
+from pd_prime_demo.schemas.rating import SurchargeFactors, SurchargeCalculation
 
 getcontext().prec = 10
 
@@ -23,6 +24,10 @@ getcontext().prec = 10
 @beartype
 class SurchargeCalculator:
     """Calculate and apply surcharges for high-risk factors."""
+
+    def __init__(self, surcharge_factors: SurchargeFactors | None = None):
+        """Initialize calculator with surcharge factors."""
+        self.surcharge_factors = surcharge_factors or SurchargeFactors()
 
     @beartype
     @staticmethod
@@ -49,8 +54,10 @@ class SurchargeCalculator:
         surcharges: list[dict[str, Any]] = []
         total_surcharge_amount = Decimal("0")
 
+        calculator = SurchargeCalculator()
+        
         # DUI/SR-22 surcharges
-        dui_result = SurchargeCalculator._calculate_dui_surcharges(
+        dui_result = calculator._calculate_dui_surcharges(
             drivers, state, base_premium
         )
         if dui_result.is_err():
@@ -61,7 +68,7 @@ class SurchargeCalculator:
         total_surcharge_amount += dui_amount
 
         # High-risk driver surcharges
-        risk_result = SurchargeCalculator._calculate_high_risk_surcharges(
+        risk_result = calculator._calculate_high_risk_surcharges(
             drivers, state, base_premium
         )
         if risk_result.is_err():
@@ -74,7 +81,7 @@ class SurchargeCalculator:
         total_surcharge_amount += risk_amount
 
         # Young driver surcharges
-        young_result = SurchargeCalculator._calculate_young_driver_surcharges(
+        young_result = calculator._calculate_young_driver_surcharges(
             drivers, state, base_premium
         )
         if young_result.is_err():
@@ -87,7 +94,7 @@ class SurchargeCalculator:
         total_surcharge_amount += young_amount
 
         # Inexperienced driver surcharges
-        exp_result = SurchargeCalculator._calculate_inexperienced_driver_surcharges(
+        exp_result = calculator._calculate_inexperienced_driver_surcharges(
             drivers, state, base_premium
         )
         if exp_result.is_err():
@@ -100,7 +107,7 @@ class SurchargeCalculator:
         total_surcharge_amount += exp_amount
 
         # Lapse in coverage surcharge
-        lapse_result = SurchargeCalculator._calculate_coverage_lapse_surcharge(
+        lapse_result = calculator._calculate_coverage_lapse_surcharge(
             drivers, state, base_premium
         )
         if lapse_result.is_err():
@@ -114,7 +121,7 @@ class SurchargeCalculator:
 
         # Vehicle-based surcharges
         if vehicle_info:
-            vehicle_result = SurchargeCalculator._calculate_vehicle_surcharges(
+            vehicle_result = calculator._calculate_vehicle_surcharges(
                 vehicle_info, state, base_premium
             )
             if vehicle_result.is_err():
@@ -127,7 +134,7 @@ class SurchargeCalculator:
             total_surcharge_amount += vehicle_amount
 
         # Apply state-specific surcharge caps
-        capped_result = SurchargeCalculator._apply_state_surcharge_caps(
+        capped_result = calculator._apply_state_surcharge_caps(
             surcharges, total_surcharge_amount, state, base_premium
         )
         if capped_result.is_err():
@@ -138,8 +145,8 @@ class SurchargeCalculator:
         return Ok((capped_surcharges, capped_amount.quantize(Decimal("0.01"))))
 
     @beartype
-    @staticmethod
     def _calculate_dui_surcharges(
+        self,
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
@@ -152,11 +159,11 @@ class SurchargeCalculator:
             if driver.dui_convictions > 0:
                 # DUI surcharge rates by number of convictions
                 if driver.dui_convictions == 1:
-                    surcharge_rate = Decimal("0.50")  # 50% surcharge
+                    surcharge_rate = self.surcharge_factors.dui_first_offense
                 elif driver.dui_convictions == 2:
-                    surcharge_rate = Decimal("0.75")  # 75% surcharge
+                    surcharge_rate = self.surcharge_factors.dui_second_offense
                 else:
-                    surcharge_rate = Decimal("1.00")  # 100% surcharge
+                    surcharge_rate = self.surcharge_factors.dui_multiple_offense
 
                 surcharge_amount = base_premium * surcharge_rate
 
@@ -175,7 +182,7 @@ class SurchargeCalculator:
                 total_amount += surcharge_amount
 
                 # SR-22 filing fee (flat fee, not percentage based)
-                sr22_fee = Decimal("25.00")  # Standard SR-22 filing fee
+                sr22_fee = self.surcharge_factors.sr22_filing_fee
                 surcharges.append(
                     {
                         "type": "sr22_filing",
@@ -194,8 +201,8 @@ class SurchargeCalculator:
         return Ok((surcharges, total_amount))
 
     @beartype
-    @staticmethod
     def _calculate_high_risk_surcharges(
+        self,
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
@@ -211,13 +218,13 @@ class SurchargeCalculator:
             )
 
             if risk_score >= 8:  # Very high risk
-                surcharge_rate = Decimal("0.40")  # 40% surcharge
+                surcharge_rate = self.surcharge_factors.high_risk_very_high
                 risk_level = "very_high"
             elif risk_score >= 5:  # High risk
-                surcharge_rate = Decimal("0.25")  # 25% surcharge
+                surcharge_rate = self.surcharge_factors.high_risk_high
                 risk_level = "high"
             elif risk_score >= 3:  # Moderate risk
-                surcharge_rate = Decimal("0.15")  # 15% surcharge
+                surcharge_rate = self.surcharge_factors.high_risk_moderate
                 risk_level = "moderate"
             else:
                 continue  # No surcharge for low risk
@@ -242,8 +249,8 @@ class SurchargeCalculator:
         return Ok((surcharges, total_amount))
 
     @beartype
-    @staticmethod
     def _calculate_young_driver_surcharges(
+        self,
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
@@ -268,13 +275,13 @@ class SurchargeCalculator:
             if driver.age < age_limit:
                 # Surcharge based on how young
                 if driver.age < 18:
-                    surcharge_rate = Decimal("0.50")  # 50% for very young
+                    surcharge_rate = self.surcharge_factors.young_driver_under_18
                 elif driver.age < 21:
-                    surcharge_rate = Decimal("0.35")  # 35% for under 21
+                    surcharge_rate = self.surcharge_factors.young_driver_under_21
                 elif driver.age < 23:
-                    surcharge_rate = Decimal("0.20")  # 20% for under 23
+                    surcharge_rate = self.surcharge_factors.young_driver_under_23
                 else:
-                    surcharge_rate = Decimal("0.10")  # 10% for under 25
+                    surcharge_rate = self.surcharge_factors.young_driver_under_25
 
                 surcharge_amount = base_premium * surcharge_rate
 
@@ -295,8 +302,8 @@ class SurchargeCalculator:
         return Ok((surcharges, total_amount))
 
     @beartype
-    @staticmethod
     def _calculate_inexperienced_driver_surcharges(
+        self,
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
@@ -309,11 +316,11 @@ class SurchargeCalculator:
             if driver.years_licensed < 3:
                 # Surcharge based on experience level
                 if driver.years_licensed < 1:
-                    surcharge_rate = Decimal("0.30")  # 30% for brand new
+                    surcharge_rate = self.surcharge_factors.inexperienced_under_1_year
                 elif driver.years_licensed < 2:
-                    surcharge_rate = Decimal("0.20")  # 20% for 1 year
+                    surcharge_rate = self.surcharge_factors.inexperienced_under_2_years
                 else:
-                    surcharge_rate = Decimal("0.10")  # 10% for 2 years
+                    surcharge_rate = self.surcharge_factors.inexperienced_under_3_years
 
                 surcharge_amount = base_premium * surcharge_rate
 
@@ -334,8 +341,8 @@ class SurchargeCalculator:
         return Ok((surcharges, total_amount))
 
     @beartype
-    @staticmethod
     def _calculate_coverage_lapse_surcharge(
+        self,
         drivers: list[DriverInfo],
         state: str,
         base_premium: Decimal,
@@ -358,13 +365,13 @@ class SurchargeCalculator:
             )
 
             if max_lapse_days > 90:
-                surcharge_rate = Decimal("0.25")  # 25% for >90 days
+                surcharge_rate = self.surcharge_factors.lapse_over_90_days
             elif max_lapse_days > 30:
-                surcharge_rate = Decimal("0.15")  # 15% for 31-90 days
+                surcharge_rate = self.surcharge_factors.lapse_31_90_days
             elif max_lapse_days > 7:
-                surcharge_rate = Decimal("0.10")  # 10% for 8-30 days
+                surcharge_rate = self.surcharge_factors.lapse_8_30_days
             else:
-                surcharge_rate = Decimal("0.05")  # 5% for 1-7 days
+                surcharge_rate = self.surcharge_factors.lapse_1_7_days
 
             surcharge_amount = base_premium * surcharge_rate
 
@@ -385,8 +392,8 @@ class SurchargeCalculator:
         return Ok((surcharges, total_amount))
 
     @beartype
-    @staticmethod
     def _calculate_vehicle_surcharges(
+        self,
         vehicle_info: VehicleInfo,
         state: str,
         base_premium: Decimal,
@@ -400,7 +407,7 @@ class SurchargeCalculator:
             "sports",
             "luxury",
         ]:
-            surcharge_rate = Decimal("0.20")  # 20% for sports/luxury
+            surcharge_rate = self.surcharge_factors.vehicle_sports_luxury
             surcharge_amount = base_premium * surcharge_rate
 
             surcharges.append(
@@ -422,7 +429,7 @@ class SurchargeCalculator:
             hasattr(vehicle_info, "usage_type")
             and vehicle_info.usage_type == "commercial"
         ):
-            surcharge_rate = Decimal("0.30")  # 30% for commercial use
+            surcharge_rate = self.surcharge_factors.vehicle_commercial_use
             surcharge_amount = base_premium * surcharge_rate
 
             surcharges.append(
@@ -441,7 +448,7 @@ class SurchargeCalculator:
 
         # Modified vehicle surcharge
         if hasattr(vehicle_info, "is_modified") and vehicle_info.is_modified:
-            surcharge_rate = Decimal("0.15")  # 15% for modifications
+            surcharge_rate = self.surcharge_factors.vehicle_modifications
             surcharge_amount = base_premium * surcharge_rate
 
             surcharges.append(
@@ -461,8 +468,8 @@ class SurchargeCalculator:
         return Ok((surcharges, total_amount))
 
     @beartype
-    @staticmethod
     def _apply_state_surcharge_caps(
+        self,
         surcharges: list[dict[str, Any]],
         total_amount: Decimal,
         state: str,
@@ -470,14 +477,8 @@ class SurchargeCalculator:
     ) -> Result[tuple[list[dict[str, Any]], Decimal], str]:
         """Apply state-specific surcharge caps."""
         # State-specific maximum surcharge percentages
-        state_caps = {
-            "CA": Decimal("1.50"),  # 150% max surcharge in California
-            "TX": Decimal("2.00"),  # 200% max surcharge in Texas
-            "NY": Decimal("1.75"),  # 175% max surcharge in New York
-            "FL": Decimal("2.50"),  # 250% max surcharge in Florida (hurricanes)
-            "MI": Decimal("1.50"),  # 150% max surcharge in Michigan
-            "PA": Decimal("1.75"),  # 175% max surcharge in Pennsylvania
-        }
+        default_factors = SurchargeFactors()
+        state_caps = default_factors.get_state_caps()
 
         max_surcharge_rate = state_caps.get(state, Decimal("2.00"))
         max_surcharge_amount = base_premium * max_surcharge_rate

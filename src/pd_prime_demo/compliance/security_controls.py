@@ -11,6 +11,7 @@ This module implements comprehensive security controls including:
 import base64
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
 from beartype import beartype
 from cryptography.fernet import Fernet
@@ -19,6 +20,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.compliance import SecurityControlConfig, SecurityAssessment, VulnerabilityFinding
+from pd_prime_demo.schemas.common import ControlEvidence
 
 from ..core.config import get_settings
 from .audit_logger import AuditLogger, get_audit_logger
@@ -140,12 +143,9 @@ class SecurityControlManager:
         try:
             start_time = datetime.now(timezone.utc)
             findings = []
-            evidence = {}
 
             # Check encryption configuration
             encryption_config = EncryptionConfig()
-            evidence["encryption_config"] = encryption_config.model_dump()
-
             if not encryption_config.is_compliant():
                 findings.append(
                     "Encryption configuration does not meet SOC 2 requirements"
@@ -153,11 +153,12 @@ class SecurityControlManager:
 
             # Test encryption/decryption operations
             test_data = "SOC 2 compliance test data with sensitive information"
+            encryption_test_result = {"test_successful": False}
             try:
                 encrypted_data = self._fernet.encrypt(test_data.encode())
                 decrypted_data = self._fernet.decrypt(encrypted_data).decode()
 
-                evidence["encryption_test"] = {
+                encryption_test_result = {
                     "algorithm": "AES-256",
                     "test_successful": decrypted_data == test_data,
                     "encrypted_length": len(encrypted_data),
@@ -170,16 +171,31 @@ class SecurityControlManager:
             except Exception as e:
                 findings.append(f"Encryption operation failed: {str(e)}")
 
-            # Check key management
-            evidence["key_management"] = {
-                "key_derivation": "PBKDF2-SHA256",
-                "key_size_bits": 256,
-                "iterations": 100000,
-                "salt_used": True,
-            }
-
             # Simulate database encryption scan
-            evidence["data_scan"] = await self._scan_database_encryption()
+            data_scan_result = await self._scan_database_encryption()
+
+            # Create structured evidence
+            evidence = ControlEvidence(
+                control_id=control_id,
+                execution_id=str(uuid4()),
+                timestamp=start_time,
+                status="completed",
+                result=len(findings) == 0,
+                findings=findings,
+                evidence_items=[
+                    "encryption_config",
+                    "encryption_test",
+                    "key_management",
+                    "data_scan",
+                ],
+                execution_time_ms=0,  # Will be updated later
+                criteria="security",
+                remediation_actions=[
+                    "Upgrade encryption to AES-256-GCM",
+                    "Implement proper key rotation",
+                    "Enable database-level encryption",
+                ] if findings else [],
+            )
 
             # Log encryption event
             await self._audit_logger.log_encryption_event(
@@ -191,6 +207,9 @@ class SecurityControlManager:
 
             end_time = datetime.now(timezone.utc)
             execution_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # Update evidence with execution time
+            evidence = evidence.model_copy(update={"execution_time_ms": execution_time_ms})
 
             execution = ControlExecution(
                 control_id=control_id,

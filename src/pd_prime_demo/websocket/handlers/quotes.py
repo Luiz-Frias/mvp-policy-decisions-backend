@@ -8,6 +8,11 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..message_models import (
+    WebSocketMessageData,
+    create_websocket_message_data,
+)
+
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...services.quote_service import QuoteService
@@ -79,10 +84,10 @@ class QuoteWebSocketHandler:
         if quote_result.is_err():
             error_msg = WebSocketMessage(
                 type=MessageType.SUBSCRIPTION_ERROR,
-                data={
-                    "error": f"Cannot subscribe to quote {quote_id}: {quote_result.unwrap_err()}",
-                    "quote_id": str(quote_id),
-                },
+                data=create_websocket_message_data(
+                    error=f"Cannot subscribe to quote {quote_id}: {quote_result.unwrap_err()}",
+                    quote_id=quote_id,
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, error_msg)
             return Err(f"Quote subscription failed: {quote_result.unwrap_err()}")
@@ -91,10 +96,10 @@ class QuoteWebSocketHandler:
         if not quote:
             error_msg = WebSocketMessage(
                 type=MessageType.SUBSCRIPTION_ERROR,
-                data={
-                    "error": f"Quote {quote_id} not found",
-                    "quote_id": str(quote_id),
-                },
+                data=create_websocket_message_data(
+                    error=f"Quote {quote_id} not found",
+                    quote_id=quote_id,
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, error_msg)
             return Err(f"Quote {quote_id} not found")
@@ -113,22 +118,25 @@ class QuoteWebSocketHandler:
         # Send current quote state
         state_msg = WebSocketMessage(
             type=MessageType.QUOTE_STATE,
-            data={
-                "quote": quote.model_dump(mode="json"),
-                "active_editors": len(self._active_quote_sessions[quote_id]),
-                "your_connection_id": connection_id,
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                payload={
+                    "quote": quote.model_dump(mode="json"),
+                    "active_editors": len(self._active_quote_sessions[quote_id]),
+                    "your_connection_id": connection_id,
+                },
+            ).model_dump(),
         )
         await self._manager.send_personal_message(connection_id, state_msg)
 
         # Notify others of new editor
         join_msg = WebSocketMessage(
             type=MessageType.ROOM_EVENT,
-            data={
-                "quote_id": str(quote_id),
-                "connection_id": connection_id,
-                "active_editors": len(self._active_quote_sessions[quote_id]),
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                connection_id=connection_id,
+                payload={"active_editors": len(self._active_quote_sessions[quote_id])},
+            ).model_dump(),
         )
         await self._manager.send_to_room(room_id, join_msg, exclude=[connection_id])
 
@@ -156,10 +164,10 @@ class QuoteWebSocketHandler:
             # Notify about lock release
             unlock_msg = WebSocketMessage(
                 type=MessageType.FIELD_UNLOCKED,
-                data={
-                    "quote_id": str(quote_id),
-                    "field": field.split(":", 1)[1],
-                },
+                data=create_websocket_message_data(
+                    quote_id=quote_id,
+                    field=field.split(":", 1)[1],
+                ).model_dump(),
             )
             await self._manager.send_to_room(room_id, unlock_msg)
 
@@ -172,11 +180,11 @@ class QuoteWebSocketHandler:
         if quote_id in self._active_quote_sessions:
             leave_msg = WebSocketMessage(
                 type=MessageType.ROOM_EVENT,
-                data={
-                    "quote_id": str(quote_id),
-                    "connection_id": connection_id,
-                    "active_editors": len(self._active_quote_sessions[quote_id]),
-                },
+                data=create_websocket_message_data(
+                    quote_id=quote_id,
+                    connection_id=connection_id,
+                    payload={"active_editors": len(self._active_quote_sessions[quote_id])},
+                ).model_dump(),
             )
             await self._manager.send_to_room(room_id, leave_msg)
 
@@ -208,10 +216,10 @@ class QuoteWebSocketHandler:
 
         message = WebSocketMessage(
             type=MessageType.QUOTE_UPDATE,
-            data={
-                "quote_id": str(quote_id),
-                "update": update_data.model_dump(exclude_none=True),
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                payload={"update": update_data.model_dump(exclude_none=True)},
+            ).model_dump(),
         )
 
         return await self._manager.send_to_room(room_id, message)
@@ -233,11 +241,11 @@ class QuoteWebSocketHandler:
             lock_owner = self._field_locks[field_key]
             error_msg = WebSocketMessage(
                 type=MessageType.EDIT_REJECTED,
-                data={
-                    "error": f"Field '{field}' is currently being edited by another user",
-                    "field": field,
-                    "locked_by": lock_owner,
-                },
+                data=create_websocket_message_data(
+                    error=f"Field '{field}' is currently being edited by another user",
+                    field=field,
+                    payload={"locked_by": lock_owner},
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, error_msg)
             return Err(f"Field {field} is locked by connection {lock_owner}")
@@ -251,11 +259,11 @@ class QuoteWebSocketHandler:
         self._field_locks[field_key] = connection_id
         lock_msg = WebSocketMessage(
             type=MessageType.FIELD_LOCKED,
-            data={
-                "quote_id": str(quote_id),
-                "field": field,
-                "locked_by": connection_id,
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                field=field,
+                payload={"locked_by": connection_id},
+            ).model_dump(),
         )
         room_id = f"quote:{quote_id}"
         await self._manager.send_to_room(room_id, lock_msg, exclude=[connection_id])
@@ -298,13 +306,15 @@ class QuoteWebSocketHandler:
 
         progress_msg = WebSocketMessage(
             type=MessageType.CALCULATION_PROGRESS,
-            data={
-                "quote_id": str(quote_id),
-                "progress": progress,
-                "stage": stage,
-                "details": details or {},
-                "completed": progress >= 100,
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                payload={
+                    "progress": progress,
+                    "stage": stage,
+                    "details": details or {},
+                    "completed": progress >= 100,
+                },
+            ).model_dump(),
         )
 
         return await self._manager.send_to_room(room_id, progress_msg)
@@ -322,13 +332,15 @@ class QuoteWebSocketHandler:
 
         status_msg = WebSocketMessage(
             type=MessageType.QUOTE_STATUS_CHANGED,
-            data={
-                "quote_id": str(quote_id),
-                "old_status": old_status,
-                "new_status": new_status,
-                "reason": reason,
-                "timestamp": datetime.now().isoformat(),
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                old_status=old_status,
+                new_status=new_status,
+                payload={
+                    "reason": reason,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            ).model_dump(),
         )
 
         return await self._manager.send_to_room(room_id, status_msg)
@@ -348,13 +360,13 @@ class QuoteWebSocketHandler:
 
         focus_msg = WebSocketMessage(
             type=MessageType.FIELD_FOCUS,
-            data={
-                "quote_id": str(quote_id),
-                "field": field,
-                "focused": focused,
-                "user_id": user_id,
-                "connection_id": connection_id,
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                field=field,
+                user_id=metadata.user_id if metadata else None,
+                connection_id=connection_id,
+                payload={"focused": focused, "user_id": user_id},
+            ).model_dump(),
         )
 
         # Broadcast to others
@@ -380,13 +392,13 @@ class QuoteWebSocketHandler:
 
         cursor_msg = WebSocketMessage(
             type=MessageType.CURSOR_POSITION,
-            data={
-                "quote_id": str(quote_id),
-                "field": field,
-                "position": position,
-                "user_id": user_id,
-                "connection_id": connection_id,
-            },
+            data=create_websocket_message_data(
+                quote_id=quote_id,
+                field=field,
+                user_id=metadata.user_id if metadata else None,
+                connection_id=connection_id,
+                payload={"position": position, "user_id": user_id},
+            ).model_dump(),
         )
 
         # Broadcast to others (high frequency, exclude sender)
@@ -410,10 +422,10 @@ class QuoteWebSocketHandler:
 
             unlock_msg = WebSocketMessage(
                 type=MessageType.FIELD_UNLOCKED,
-                data={
-                    "quote_id": quote_id,
-                    "field": field,
-                },
+                data=create_websocket_message_data(
+                    quote_id=UUID(quote_id),
+                    field=field,
+                ).model_dump(),
             )
             await self._manager.send_to_room(room_id, unlock_msg)
 
@@ -433,11 +445,11 @@ class QuoteWebSocketHandler:
 
             unlock_msg = WebSocketMessage(
                 type=MessageType.FIELD_UNLOCKED,
-                data={
-                    "quote_id": quote_id,
-                    "field": field,
-                    "reason": "connection_lost",
-                },
+                data=create_websocket_message_data(
+                    quote_id=UUID(quote_id),
+                    field=field,
+                    payload={"reason": "connection_lost"},
+                ).model_dump(),
             )
             room_id = f"quote:{quote_id}"
             await self._manager.send_to_room(room_id, unlock_msg)

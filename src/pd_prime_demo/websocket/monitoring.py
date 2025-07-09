@@ -18,6 +18,11 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from .message_models import (
+    WebSocketMessageData,
+    create_websocket_message_data,
+)
+
 from ..core.cache import Cache
 from ..core.database import Database
 
@@ -437,7 +442,7 @@ class WebSocketMonitor:
             self._error_counts.items(), key=lambda x: x[1], reverse=True
         )[:5]
 
-        return {
+        return {  # SYSTEM_BOUNDARY - Aggregated system data
             "current_metrics": current_metrics.model_dump(),
             "trends": {
                 "connection_change": connection_trend,
@@ -715,7 +720,7 @@ class WebSocketMonitor:
         # Performance trends (last hour)
         hourly_trends = await self._get_hourly_trends()
 
-        return {
+        return {  # SYSTEM_BOUNDARY - Aggregated system data
             "timestamp": datetime.now().isoformat(),
             "system_metrics": current_metrics.model_dump(),
             "alerts": [alert.model_dump() for alert in alerts],

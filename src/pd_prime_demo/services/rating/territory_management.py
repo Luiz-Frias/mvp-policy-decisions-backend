@@ -14,6 +14,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...schemas.rating import TerritoryRates, TerritoryRiskFactors
 
 
 @beartype
@@ -26,7 +27,7 @@ class TerritoryDefinition:
         state: str,
         zip_codes: list[str],
         base_factor: float,
-        risk_factors: dict[str, float],
+        risk_factors: dict[str, float] | TerritoryRiskFactors,
         description: str,
     ):
         """Initialize territory definition.
@@ -43,7 +44,7 @@ class TerritoryDefinition:
         self.state = state
         self.zip_codes = zip_codes
         self.base_factor = base_factor
-        self.risk_factors = risk_factors
+        self.risk_factors = risk_factors  # TODO: Convert to TerritoryRiskFactors model
         self.description = description
 
     @beartype

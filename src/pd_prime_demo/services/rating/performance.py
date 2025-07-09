@@ -11,6 +11,7 @@ from typing import Any
 from beartype import beartype
 
 from ...core.result_types import Err, Ok, Result
+from ...schemas.rating import PerformanceMetrics, PerformanceThresholds
 
 
 class RatingPerformanceOptimizer:
@@ -33,6 +34,7 @@ class RatingPerformanceOptimizer:
         self._cache_size = cache_size
         self._cache_ttl = 3600  # 1 hour TTL for cached calculations
         self._performance_metrics: dict[str, list[float]] = {}
+        self._performance_thresholds = PerformanceThresholds()
         self._monitoring_tokens: dict[str, float] = {}  # For tracking calculation times
 
     @beartype
@@ -278,7 +280,7 @@ class RatingPerformanceOptimizer:
             return Err(f"Pipeline optimization failed: {str(e)}")
 
     @beartype
-    def get_performance_metrics(self) -> dict[str, dict[str, float]]:
+    def get_performance_metrics(self) -> dict[str, PerformanceMetrics]:
         """Get performance metrics for monitoring.
 
         Returns:
@@ -287,17 +289,18 @@ class RatingPerformanceOptimizer:
         metrics = {}
         for operation, timings in self._performance_metrics.items():
             if timings:
-                metrics[operation] = {
-                    "count": len(timings),
-                    "avg_ms": sum(timings) / len(timings),
-                    "min_ms": min(timings),
-                    "max_ms": max(timings),
-                    "p95_ms": (
+                metrics[operation] = PerformanceMetrics(
+                    operation_name=operation,
+                    count=len(timings),
+                    avg_ms=sum(timings) / len(timings),
+                    min_ms=min(timings),
+                    max_ms=max(timings),
+                    p95_ms=(
                         sorted(timings)[int(len(timings) * 0.95)]
                         if len(timings) > 20
                         else max(timings)
                     ),
-                }
+                )
         return metrics
 
     @beartype
@@ -697,7 +700,7 @@ class RatingPerformanceOptimizer:
         violations = sum(1 for t in recent_timings if t > target_ms)
         violation_rate = violations / len(recent_timings)
 
-        return violation_rate < 0.05  # Less than 5% violations
+        return violation_rate < self._performance_thresholds.max_violation_rate
 
     @beartype
     async def optimize_slow_calculations(self) -> Result[list[str], str]:

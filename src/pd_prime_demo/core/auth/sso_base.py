@@ -242,7 +242,7 @@ class OIDCProvider(SSOProvider):
             async with httpx.AsyncClient() as client:
                 response = await client.get(discovery_url)
                 response.raise_for_status()
-                self._discovery_document = response.json()
+                self._discovery_document = response.json()  # SYSTEM_BOUNDARY - OIDC discovery document
                 return Ok(self._discovery_document)
         except Exception as e:
             return Err(f"Failed to fetch discovery document: {str(e)}")

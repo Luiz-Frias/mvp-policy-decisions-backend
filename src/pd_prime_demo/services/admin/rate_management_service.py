@@ -15,7 +15,19 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
+from ...models.base import BaseModelConfig
 from ..rating.rate_tables import RateTableService
+
+
+class RateVersionResponse(BaseModelConfig):
+    """Rate version response model."""
+    
+    version_id: UUID
+    version_number: int
+    status: str
+    approval_workflow_id: UUID | None = None
+    effective_date: date
+    notes: str | None = None
 
 
 @beartype
@@ -36,7 +48,7 @@ class RateManagementService:
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[RateVersionResponse, str]:
         """Create new version of rate table requiring approval."""
         # Validate admin permissions
         has_permission = await self._check_permission(admin_user_id, "rate:write")
@@ -72,13 +84,14 @@ class RateManagementService:
         )
 
         return Ok(
-            {
-                "version_id": version.id,
-                "version_number": version.version_number,
-                "status": "pending_approval",
-                "approval_workflow_id": workflow_result.value,
-                "effective_date": effective_date,
-            }
+            RateVersionResponse(
+                version_id=version.id,
+                version_number=version.version_number,
+                status="pending_approval",
+                approval_workflow_id=workflow_result.value,
+                effective_date=effective_date,
+                notes=notes
+            )
         )
 
     @beartype

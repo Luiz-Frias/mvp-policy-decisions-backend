@@ -1,12 +1,17 @@
 """Common response schemas for API endpoints."""
 
-from typing import Any
+from typing import Generic, TypeVar
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 from beartype import beartype
 
-from pd_prime_demo.api.response_patterns import ErrorResponse, SuccessResponse, ErrorDetails, ValidationErrorDetails
+from pd_prime_demo.api.response_patterns import (
+    ErrorResponse, SuccessResponse, ErrorDetails, ValidationErrorDetails, 
+    StatusDetails, HealthMetrics, PaginationInfo, ApiMetadata
+)
+
+T = TypeVar('T')
 
 
 @beartype
@@ -74,11 +79,11 @@ class StatusResponse(BaseModel):
 
     status: str = Field(..., description="Current status")
     message: str = Field(..., description="Status description")
-    details: dict[str, str | int | bool | float | list[str] | None] | None = Field(default=None, description="Additional status details")
+    details: StatusDetails | None = Field(default=None, description="Structured status details")
 
 
 @beartype
-class ListResponse(BaseModel):
+class ListResponse(BaseModel, Generic[T]):
     """Standard response for list operations with pagination."""
 
     model_config = ConfigDict(
@@ -89,7 +94,7 @@ class ListResponse(BaseModel):
         validate_default=True,
     )
 
-    items: list[Any] = Field(..., description="List of items")
+    items: list[T] = Field(..., description="List of items")
     total: int = Field(..., description="Total number of items")
     page: int = Field(default=1, description="Current page number")
     limit: int = Field(default=50, description="Items per page")
@@ -101,7 +106,7 @@ CreatedResult = CreatedResponse | ErrorResponse
 UpdatedResult = UpdatedResponse | ErrorResponse
 DeletedResult = DeletedResponse | ErrorResponse
 StatusResult = StatusResponse | ErrorResponse
-ListResult = ListResponse | ErrorResponse
+# Note: ListResult should be parameterized when used, e.g., ListResult[CustomerResponse]
 
 
 @beartype
@@ -139,7 +144,7 @@ class HealthCheckDetailsResponse(BaseModel):
     response_time_ms: float | None = Field(default=None, description="Response time in milliseconds")
     last_check: datetime = Field(..., description="Last health check timestamp")
     error_message: str | None = Field(default=None, description="Error message if unhealthy")
-    metrics: dict[str, Any] | None = Field(default=None, description="Additional metrics")
+    metrics: HealthMetrics | None = Field(default=None, description="Structured health metrics")
 
 
 @beartype
@@ -163,7 +168,62 @@ class ApiInfoResponse(BaseModel):
     uptime_seconds: float = Field(..., description="API uptime in seconds")
 
 
+@beartype
+class EnhancedListResponse(BaseModel, Generic[T]):
+    """Enhanced list response with structured pagination and metadata."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    items: list[T] = Field(..., description="List of items")
+    pagination: PaginationInfo = Field(..., description="Pagination information")
+    metadata: ApiMetadata | None = Field(default=None, description="Response metadata")
+
+
+@beartype
+class EnhancedSuccessResponse(BaseModel, Generic[T]):
+    """Enhanced success response with metadata."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    success: bool = Field(default=True, description="Always true for success responses")
+    data: T = Field(..., description="Response payload")
+    metadata: ApiMetadata | None = Field(default=None, description="Response metadata")
+
+
+@beartype
+class EnhancedErrorResponse(BaseModel):
+    """Enhanced error response with metadata."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    success: bool = Field(default=False, description="Always false for error responses")
+    error: str = Field(..., description="Human-readable error message")
+    error_code: str | None = Field(default=None, description="Machine-readable error code")
+    details: ErrorDetails | None = Field(default=None, description="Structured error details")
+    metadata: ApiMetadata | None = Field(default=None, description="Response metadata")
+
+
 # Additional type aliases for the new response models
 ValidationErrorResult = ValidationErrorResponse | ErrorResponse
 HealthCheckDetailsResult = HealthCheckDetailsResponse | ErrorResponse
 ApiInfoResult = ApiInfoResponse | ErrorResponse
+EnhancedListResult = EnhancedListResponse[T] | EnhancedErrorResponse
+EnhancedSuccessResult = EnhancedSuccessResponse[T] | EnhancedErrorResponse

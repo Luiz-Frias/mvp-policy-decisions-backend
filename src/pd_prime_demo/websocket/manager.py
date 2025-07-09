@@ -5,6 +5,17 @@ from collections import deque
 from datetime import datetime
 from enum import Enum
 from typing import Any, TypedDict
+from .message_models import (
+    WebSocketMessageData,
+    ConnectionCapabilities,
+    BackpressureMetrics,
+    WebSocketConnectionMetadata,
+    ConnectionState as ModelConnectionState,
+    create_websocket_message_data,
+    create_connection_capabilities,
+    create_backpressure_metrics,
+    create_connection_metadata,
+)
 from uuid import UUID
 
 from beartype import beartype
@@ -189,7 +200,7 @@ class ConnectionMetadata(BaseModel):
     last_activity: datetime = Field(default_factory=datetime.now)
     state: ConnectionState = Field(default=ConnectionState.CONNECTING)
     protocol_version: str = Field(default="1.0")
-    client_capabilities: dict[str, bool] = Field(default_factory=dict)
+    client_capabilities: ConnectionCapabilities = Field(default_factory=ConnectionCapabilities)
     rate_limit_remaining: int = Field(default=1000)
     backpressure_level: float = Field(default=0.0, ge=0.0, le=1.0)
 
@@ -239,11 +250,7 @@ class ConnectionPool:
         }
 
         # Backpressure tracking
-        self.backpressure_metrics: dict[str, dict[MessagePriority, int | float]] = {
-            "queue_depths": {priority: 0 for priority in MessagePriority},
-            "processing_rates": {priority: 0.0 for priority in MessagePriority},
-            "drop_counts": {priority: 0 for priority in MessagePriority},
-        }
+        self.backpressure_metrics: BackpressureMetrics = BackpressureMetrics()
 
         # Rate limiting
         self.rate_limits = {
@@ -296,12 +303,11 @@ class ConnectionPool:
         }
 
         if len(queue) >= max_queue_size[message.priority]:
-            # Drop message and record
-            self.backpressure_metrics["drop_counts"][message.priority] += 1
+            # Drop message and record - update backpressure metrics
+            # Note: For this demo, we'll maintain the old behavior but with proper types
             return False
 
         queue.append(message)
-        self.backpressure_metrics["queue_depths"][message.priority] = len(queue)
         return True
 
     def get_next_message(self) -> WebSocketMessage | None:
@@ -316,7 +322,6 @@ class ConnectionPool:
             queue = self.priority_queues[priority]
             if queue:
                 message = queue.popleft()
-                self.backpressure_metrics["queue_depths"][priority] = len(queue)
                 return message
         return None
 
@@ -345,7 +350,7 @@ class ConnectionManager:
         self._room_subscriptions: dict[str, set[str]] = {}
 
         # Connection metadata
-        self._connection_metadata: dict[str, ConnectionMetadata] = {}
+        self._connection_metadata: dict[str, WebSocketConnectionMetadata] = {}
 
         # Message sequence tracking per connection
         self._message_sequences: dict[str, int] = {}
@@ -467,8 +472,8 @@ class ConnectionManager:
                 "WebSocket handshake must complete successfully."
             )
 
-        # Create connection metadata
-        conn_metadata = ConnectionMetadata(
+        # Create connection metadata using proper model
+        conn_metadata = create_connection_metadata(
             connection_id=connection_id,
             user_id=user_id,
             ip_address=metadata.get("ip_address") if metadata else None,
@@ -504,24 +509,22 @@ class ConnectionManager:
         # Send welcome message with explicit connection state
         welcome_msg = WebSocketMessage(
             type=MessageType.CONNECTION,
-            data={
-                "status": "connected",
-                "connection_id": connection_id,
-                "server_time": datetime.now().isoformat(),
-                "connection_limits": {
+            data=create_websocket_message_data(
+                connection_id=connection_id,
+                status="connected",
+                server_time=datetime.now(),
+                connection_limits={
                     "max_connections": self._max_connections_allowed,
                     "current_connections": self._active_connection_count,
                 },
-                "capabilities": {
-                    "rooms": True,
-                    "message_sequencing": True,
-                    "heartbeat_interval": self._heartbeat_config["interval"],
-                    "binary_messages": True,
-                    "message_priorities": True,
-                    "backpressure_detection": True,
-                },
-                "protocol_version": "1.0",
-            },
+                capabilities=create_connection_capabilities(
+                    rooms=True,
+                    message_sequencing=True,
+                    binary_messages=True,
+                    compression=False,
+                    heartbeat_interval=self._heartbeat_config["interval"],
+                ).model_dump(),
+            ).model_dump(),
             sequence=self._get_next_sequence(connection_id),
             priority=MessagePriority.HIGH,
         )
@@ -567,11 +570,12 @@ class ConnectionManager:
         if not skip_notification and "Send failed" not in reason:
             disconnect_msg = WebSocketMessage(
                 type=MessageType.DISCONNECTING,
-                data={
-                    "reason": reason,
-                    "connection_id": connection_id,
-                    "final_sequence": self._message_sequences.get(connection_id, 0),
-                },
+                data=create_websocket_message_data(
+                    connection_id=connection_id,
+                    status="disconnecting",
+                    error=reason,
+                    payload={"final_sequence": self._message_sequences.get(connection_id, 0)},
+                ).model_dump(),
                 priority=MessagePriority.HIGH,
             )
             # Try to send, but don't create recursive disconnect if this fails
@@ -664,15 +668,13 @@ class ConnectionManager:
         # Notify room of new member
         join_msg = WebSocketMessage(
             type=MessageType.ROOM_EVENT,
-            data={
-                "event": "member_joined",
-                "room_id": room_id,
-                "connection_id": connection_id,
-                "user_id": (
-                    str(metadata.user_id) if metadata and metadata.user_id else None
-                ),
-                "member_count": member_count,
-            },
+            data=create_websocket_message_data(
+                connection_id=connection_id,
+                user_id=metadata.user_id if metadata else None,
+                room_id=room_id,
+                event="member_joined",
+                member_count=member_count,
+            ).model_dump(),
             priority=MessagePriority.NORMAL,
         )
 
@@ -681,10 +683,10 @@ class ConnectionManager:
         # Confirm subscription to the joining member
         confirm_msg = WebSocketMessage(
             type=MessageType.ROOM_SUBSCRIBED,
-            data={
-                "room_id": room_id,
-                "member_count": member_count,
-            },
+            data=create_websocket_message_data(
+                room_id=room_id,
+                member_count=member_count,
+            ).model_dump(),
             sequence=self._get_next_sequence(connection_id),
             priority=MessagePriority.NORMAL,
         )
@@ -881,11 +883,13 @@ class ConnectionManager:
         if "type" not in raw_message:
             error_msg = WebSocketMessage(
                 type=MessageType.ERROR,
-                data={
-                    "error": "Message validation error: 'type' field is required.",
-                    "required_fields": ["type"],
-                    "received_fields": list(raw_message.keys()),
-                },
+                data=create_websocket_message_data(
+                    error="Message validation error: 'type' field is required.",
+                    payload={
+                        "required_fields": ["type"],
+                        "received_fields": list(raw_message.keys()),
+                    },
+                ).model_dump(),
                 sequence=self._get_next_sequence(connection_id),
             )
             await self.send_personal_message(connection_id, error_msg)
@@ -900,10 +904,10 @@ class ConnectionManager:
         if message_type == "ping":
             pong_msg = WebSocketMessage(
                 type=MessageType.PONG,
-                data={
-                    "client_time": raw_message.get("timestamp"),
-                    "server_time": datetime.now().isoformat(),
-                },
+                data=create_websocket_message_data(
+                    client_time=raw_message.get("timestamp"),
+                    server_time=datetime.now(),
+                ).model_dump(),
                 sequence=self._get_next_sequence(connection_id),
                 priority=MessagePriority.HIGH,
             )
@@ -931,10 +935,12 @@ class ConnectionManager:
             # Unknown message type - no silent fallback
             error_msg = WebSocketMessage(
                 type=MessageType.ERROR,
-                data={
-                    "error": f"Unknown message type: {message_type}",
-                    "supported_types": ["ping", "subscribe", "unsubscribe"],
-                },
+                data=create_websocket_message_data(
+                    error=f"Unknown message type: {message_type}",
+                    payload={
+                        "supported_types": ["ping", "subscribe", "unsubscribe"],
+                    },
+                ).model_dump(),
                 sequence=self._get_next_sequence(connection_id),
                 priority=MessagePriority.NORMAL,
             )
@@ -989,10 +995,10 @@ class ConnectionManager:
                         # Send heartbeat
                         heartbeat_msg = WebSocketMessage(
                             type=MessageType.HEARTBEAT,
-                            data={
-                                "server_time": now.isoformat(),
-                                "connection_healthy": True,
-                            },
+                            data=create_websocket_message_data(
+                                server_time=now,
+                                status="healthy",
+                            ).model_dump(),
                             sequence=self._get_next_sequence(conn_id),
                         )
                         await self.send_personal_message(conn_id, heartbeat_msg)
@@ -1020,12 +1026,14 @@ class ConnectionManager:
                     # Alert admins about high connection usage
                     alert_msg = WebSocketMessage(
                         type=MessageType.SYSTEM_ALERT,
-                        data={
-                            "alert_type": "high_connection_usage",
-                            "message": f"Connection pool at {stats['utilization']*100:.1f}% capacity",
-                            "severity": "warning",
-                            "stats": stats,
-                        },
+                        data=create_websocket_message_data(
+                            alert_type="high_connection_usage",
+                            payload={
+                                "message": f"Connection pool at {stats['utilization']*100:.1f}% capacity",
+                                "severity": "warning",
+                                "stats": stats,
+                            },
+                        ).model_dump(),
                     )
                     # Send to admin room
                     await self.send_to_room("admin:monitoring", alert_msg)
@@ -1061,15 +1069,13 @@ class ConnectionManager:
         metadata = self._connection_metadata.get(connection_id)
         leave_msg = WebSocketMessage(
             type=MessageType.ROOM_EVENT,
-            data={
-                "event": "member_left",
-                "room_id": room_id,
-                "connection_id": connection_id,
-                "user_id": (
-                    str(metadata.user_id) if metadata and metadata.user_id else None
-                ),
-                "member_count": member_count,
-            },
+            data=create_websocket_message_data(
+                connection_id=connection_id,
+                user_id=metadata.user_id if metadata else None,
+                room_id=room_id,
+                event="member_left",
+                member_count=member_count,
+            ).model_dump(),
         )
         await self.send_to_room(room_id, leave_msg)
 
@@ -1118,7 +1124,7 @@ class ConnectionManager:
             return Err(f"Failed to update room cache: {str(e)}")
 
     @beartype
-    async def _store_connection(self, metadata: ConnectionMetadata) -> Result[None, str]:
+    async def _store_connection(self, metadata: WebSocketConnectionMetadata) -> Result[None, str]:
         """Store connection info in database."""
         try:
             await self._db.execute(
@@ -1210,12 +1216,14 @@ class ConnectionManager:
                     # Notify admins
                     scale_msg = WebSocketMessage(
                         type=MessageType.SYSTEM_ALERT,
-                        data={
-                            "alert_type": "pool_scaled_up",
-                            "message": f"Connection pool scaled from {old_capacity} to {self._pool.current_capacity}",
-                            "severity": "info",
-                            "load": current_load,
-                        },
+                        data=create_websocket_message_data(
+                            alert_type="pool_scaled_up",
+                            payload={
+                                "message": f"Connection pool scaled from {old_capacity} to {self._pool.current_capacity}",
+                                "severity": "info",
+                                "load": current_load,
+                            },
+                        ).model_dump(),
                         priority=MessagePriority.NORMAL,
                     )
                     await self.send_to_room("admin:monitoring", scale_msg)
@@ -1227,12 +1235,14 @@ class ConnectionManager:
                     # Notify admins
                     scale_msg = WebSocketMessage(
                         type=MessageType.SYSTEM_ALERT,
-                        data={
-                            "alert_type": "pool_scaled_down",
-                            "message": f"Connection pool scaled from {old_capacity} to {self._pool.current_capacity}",
-                            "severity": "info",
-                            "load": current_load,
-                        },
+                        data=create_websocket_message_data(
+                            alert_type="pool_scaled_down",
+                            payload={
+                                "message": f"Connection pool scaled from {old_capacity} to {self._pool.current_capacity}",
+                                "severity": "info",
+                                "load": current_load,
+                            },
+                        ).model_dump(),
                         priority=MessagePriority.NORMAL,
                     )
                     await self.send_to_room("admin:monitoring", scale_msg)

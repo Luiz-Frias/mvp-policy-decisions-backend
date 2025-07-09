@@ -370,9 +370,9 @@ class AdminQueryOptimizer:
 
                 # Convert to dictionaries
                 metrics_data = {
-                    "daily_metrics": [dict(row) for row in daily_metrics],
-                    "user_activity": [dict(row) for row in user_activity],
-                    "system_health": dict(system_health) if system_health else {},
+                    "daily_metrics": [dict(row) for row in daily_metrics],  # SYSTEM_BOUNDARY - Database query result
+                    "user_activity": [dict(row) for row in user_activity],  # SYSTEM_BOUNDARY - Database query result
+                    "system_health": dict(system_health) if system_health else {},  # SYSTEM_BOUNDARY - Database query result
                     "cache_timestamp": datetime.utcnow(),
                 }
 
@@ -489,7 +489,7 @@ class AdminQueryOptimizer:
         try:
             async with self._db.acquire_admin() as conn:
                 results = await conn.fetch(query, start_date, end_date)
-                return Ok([dict(row) for row in results])
+                return Ok([dict(row) for row in results])  # SYSTEM_BOUNDARY - Database query result
 
         except Exception as e:
             return Err(f"Failed to generate report: {str(e)}")

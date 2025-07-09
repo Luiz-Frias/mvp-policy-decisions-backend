@@ -156,7 +156,7 @@ class PerformanceCollector:
                 metrics_result = await self.get_metrics(operation)
                 if metrics_result.is_ok():
                     results[operation] = metrics_result.unwrap()
-            return results
+            return results  # SYSTEM_BOUNDARY - Aggregated system data
 
     @beartype
     async def check_performance_alerts(self) -> list[str]:

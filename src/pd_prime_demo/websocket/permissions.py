@@ -9,6 +9,11 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
+from .message_models import (
+    WebSocketMessageData,
+    create_websocket_message_data,
+)
+
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 logger = logging.getLogger(__name__)

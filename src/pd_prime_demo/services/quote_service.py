@@ -27,6 +27,7 @@ from ..models.quote import (
     QuoteUpdate,
     VehicleInfo,
 )
+from ..schemas.rating import PerformanceMetrics
 from .performance_monitor import performance_monitor
 
 # Optional imports for production features
@@ -224,7 +225,7 @@ class QuoteService:
                 "surcharges": rating_obj.surcharges,
                 "total_discount_amount": rating_obj.total_discount_amount,
                 "total_surcharge_amount": rating_obj.total_surcharge_amount,
-                "factors": rating_obj.factors,
+                "factors": rating_obj.factors,  # Already a dict from model_dump()
                 "tier": rating_obj.tier,
                 "ai_risk_score": rating_obj.ai_risk_score,
                 "ai_risk_factors": rating_obj.ai_risk_factors,

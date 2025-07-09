@@ -186,7 +186,7 @@ class PerformanceCache:
                     warmed_keys += 1
 
         warmup_time = time.time() - start_time
-        return {
+        return {  # SYSTEM_BOUNDARY - Aggregated system data
             "warmed_keys": warmed_keys,
             "warmup_time_ms": warmup_time * 1000,
             "total_scenarios": len(common_scenarios),
@@ -245,7 +245,7 @@ class PerformanceCache:
                     warmed_keys += 1
 
         warmup_time = time.time() - start_time
-        return {
+        return {  # SYSTEM_BOUNDARY - Aggregated system data
             "warmed_keys": warmed_keys,
             "warmup_time_ms": warmup_time * 1000,
             "reference_sets": len(reference_data),
@@ -351,7 +351,7 @@ async def warm_all_caches() -> dict[str, Any]:
         "warmup_successful": True,
     }
 
-    return results
+    return results  # SYSTEM_BOUNDARY - Aggregated system data
 
 
 # Rating-specific cache functions for the rating engine

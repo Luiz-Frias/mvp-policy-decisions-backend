@@ -36,6 +36,14 @@ from ..models.quote import (
     Surcharge,
     VehicleInfo,
 )
+from ..schemas.rating import (
+    RatingFactors,
+    PerformanceMetrics,
+    RiskFactorData,
+    CoverageRates,
+    TerritoryRates,
+    SurchargeFactors,
+)
 from .performance_monitor import performance_monitor
 from .rating.business_rules import RatingBusinessRules
 from .rating.performance_optimizer import RatingPerformanceOptimizer
@@ -58,7 +66,7 @@ class RatingResult(BaseModelConfig):
     surcharges: list[dict[str, Any]] = Field(default_factory=list)
     total_surcharge_amount: Decimal = Field(Decimal("0"), ge=0, decimal_places=2)
 
-    # Factors used
+    # Factors used (dict for compatibility with existing code)
     factors: dict[str, float] = Field(default_factory=dict)
     tier: str = Field(...)
 
@@ -200,10 +208,8 @@ class RatingEngine:
             if isinstance(factors, Err):
                 return factors
 
-            # Apply factors to base premium
-            factored_premium = total_base
-            for factor_name, factor_value in factors.value.items():
-                factored_premium *= Decimal(str(factor_value))
+            # Apply factors to base premium using composite calculation
+            factored_premium = total_base * Decimal(str(factors.value.calculate_composite_factor()))
 
             # Calculate discounts
             discounts = await self._calculate_discounts(
@@ -238,7 +244,7 @@ class RatingEngine:
                 total_premium = min_premium.value
 
             # Determine tier
-            tier = self._determine_tier(factors.value, total_premium)
+            tier = self._determine_tier(factors.value.model_dump(), total_premium)
 
             # AI risk assessment (if enabled and customer exists)
             ai_risk_score = None
@@ -259,7 +265,7 @@ class RatingEngine:
                     vehicle_info=vehicle_info,
                     drivers=drivers,
                     coverage_selections=coverage_selections,
-                    factors=factors.value,
+                    factors=factors.value.model_dump(),
                     base_premium=total_base,
                     total_premium=total_premium,
                     discounts=discounts.value,
@@ -299,7 +305,7 @@ class RatingEngine:
                 total_discount_amount=Decimal(str(total_discount)),
                 surcharges=[s.model_dump() for s in surcharges.value],
                 total_surcharge_amount=Decimal(str(total_surcharge)),
-                factors=factors.value,
+                factors=factors.value.model_dump(),
                 tier=tier,
                 ai_risk_score=ai_risk_score,
                 ai_risk_factors=ai_risk_factors,
@@ -317,7 +323,7 @@ class RatingEngine:
 
             # Log if slow (>50ms requirement)
             if calc_time > 50:
-                await self._log_slow_calculation(calc_time, factors.value)
+                await self._log_slow_calculation(calc_time, factors.value.model_dump())
 
             return Ok(result)
 
@@ -433,7 +439,7 @@ class RatingEngine:
         vehicle_info: VehicleInfo | None,
         drivers: list[DriverInfo],
         customer_id: UUID | None,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[RatingFactors, str]:
         """Calculate all rating factors."""
         factors = {}
 
@@ -476,7 +482,28 @@ class RatingEngine:
         if isinstance(validated_factors, Err):
             return validated_factors
 
-        return Ok(validated_factors.value)
+        validated_dict = validated_factors.value
+        
+        # Convert to RatingFactors model
+        rating_factors = RatingFactors(
+            violations=validated_dict.get("violations", 1.0),
+            accidents=validated_dict.get("accidents", 1.0),
+            experience=validated_dict.get("experience", 1.0),
+            driver_age=validated_dict.get("driver_age", 1.0),
+            low_mileage=validated_dict.get("low_mileage", 1.0),
+            high_mileage=validated_dict.get("high_mileage", 1.0),
+            territory=validated_dict.get("territory", 1.0),
+            catastrophe_risk=validated_dict.get("catastrophe_risk", 1.0),
+            vehicle_age=validated_dict.get("vehicle_age", 1.0),
+            vehicle_type=validated_dict.get("vehicle_type", 1.0),
+            credit=validated_dict.get("credit"),
+            occupation=validated_dict.get("occupation"),
+            education=validated_dict.get("education"),
+            marital_status=validated_dict.get("marital_status"),
+            gender=validated_dict.get("gender"),
+        )
+
+        return Ok(rating_factors)
 
     @beartype
     @performance_monitor("calculate_vehicle_factors")

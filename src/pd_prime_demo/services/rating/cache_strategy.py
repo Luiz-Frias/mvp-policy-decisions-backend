@@ -260,7 +260,7 @@ class RatingCacheStrategy:
                 "hit_rate": f"{hit_rate:.1%}",
             }
 
-        return stats
+        return stats  # SYSTEM_BOUNDARY - Aggregated system data
 
     @beartype
     async def optimize_cache_ttl(

@@ -15,6 +15,8 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.schemas.compliance import ControlTestResult
+from pd_prime_demo.schemas.common import ControlEvidence
 
 
 class TrustServiceCriteria(str, Enum):
@@ -78,7 +80,7 @@ class ControlExecution(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: ControlStatus = Field(...)
     result: bool = Field(...)
-    evidence_collected: dict[str, Any] = Field(default_factory=dict)
+    evidence_collected: ControlEvidence | None = Field(default=None)
     findings: list[str] = Field(default_factory=list)
     remediation_actions: list[str] = Field(default_factory=list)
     execution_time_ms: int = Field(ge=0)
@@ -154,6 +156,22 @@ class ControlFramework:
             end_time = datetime.now(timezone.utc)
             execution_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
+            # Create structured evidence from execution result
+            evidence = None
+            if execution_result.get("evidence"):
+                evidence = ControlEvidence(
+                    control_id=control_id,
+                    execution_id=str(uuid4()),
+                    timestamp=start_time,
+                    status="completed",
+                    result=execution_result["success"],
+                    findings=execution_result.get("findings", []),
+                    evidence_items=list(execution_result.get("evidence", {}).keys()),
+                    execution_time_ms=execution_time_ms,
+                    criteria=control.criteria.value,
+                    remediation_actions=execution_result.get("remediation", []),
+                )
+
             execution = ControlExecution(
                 control_id=control_id,
                 timestamp=start_time,
@@ -163,7 +181,7 @@ class ControlFramework:
                     else ControlStatus.FAILED
                 ),
                 result=execution_result["success"],
-                evidence_collected=execution_result.get("evidence", {}),
+                evidence_collected=evidence,
                 findings=execution_result.get("findings", []),
                 remediation_actions=execution_result.get("remediation", []),
                 execution_time_ms=execution_time_ms,

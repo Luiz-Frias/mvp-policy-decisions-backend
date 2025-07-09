@@ -81,6 +81,22 @@ class TOTPSetupData(BaseModel):
 
 
 @beartype
+class TOTPSetupCache(BaseModel):
+    """TOTP setup cache data for temporary storage."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    secret_encrypted: str = Field(..., description="Encrypted TOTP secret")
+    backup_codes: list[str] = Field(..., description="One-time backup codes")
+
+
+@beartype
 class WebAuthnCredential(BaseModel):
     """WebAuthn credential information."""
 
@@ -249,3 +265,30 @@ class SMSVerification(BaseModel):
     verified: bool = False
     sim_swap_check_passed: bool | None = None
     carrier_verified: bool | None = None
+
+
+@beartype
+class BiometricCaptureSettings(BaseModel):
+    """Biometric capture settings configuration."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    min_quality: int = Field(..., ge=0, le=100, description="Minimum quality score")
+    capture_timeout: int = Field(..., ge=1, le=120, description="Capture timeout in seconds")
+    # Optional features that may be enabled
+    finger_detect: bool = Field(default=False, description="Enable finger detection")
+    anti_spoofing: bool = Field(default=False, description="Enable anti-spoofing measures")
+    face_detect: bool = Field(default=False, description="Enable face detection")
+    liveness_required: bool = Field(default=False, description="Require liveness check")
+    pose_variation: bool = Field(default=False, description="Allow pose variation")
+    noise_reduction: bool = Field(default=False, description="Enable noise reduction")
+    # Voice-specific settings
+    min_duration: int | None = Field(None, description="Minimum duration in seconds")
+    max_duration: int | None = Field(None, description="Maximum duration in seconds")
+    sample_rate: int | None = Field(None, description="Audio sample rate")

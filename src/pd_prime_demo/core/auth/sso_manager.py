@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
@@ -37,6 +37,49 @@ class User(BaseModelConfig):
     is_active: bool = True
 
 
+@beartype
+class SSOProviderConfig(BaseModel):
+    """SSO provider configuration."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    provider_type: str = Field(..., description="Type of SSO provider")
+    provider_id: str = Field(..., description="Database ID of the provider")
+    client_id: str = Field(..., description="OAuth2 client ID")
+    client_secret: str = Field(..., description="OAuth2 client secret")
+    redirect_uri: str = Field(..., description="OAuth2 redirect URI")
+    # Provider-specific optional fields
+    hosted_domain: str | None = Field(None, description="Google hosted domain")
+    tenant_id: str | None = Field(None, description="Azure AD tenant ID")
+    okta_domain: str | None = Field(None, description="Okta domain")
+    authorization_server_id: str | None = Field(None, description="Okta authorization server ID")
+    auth0_domain: str | None = Field(None, description="Auth0 domain")
+    audience: str | None = Field(None, description="Auth0 audience")
+
+
+@beartype
+class AutoProvisioningConfig(BaseModel):
+    """Auto-provisioning configuration."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    auto_create_users: bool = Field(..., description="Whether to auto-create users")
+    allowed_domains: list[str] = Field(default_factory=list, description="Allowed email domains")
+    default_role: str = Field(..., description="Default role for new users")
+
+
 class SSOManager:
     """Manage SSO providers and user provisioning."""
 
@@ -54,7 +97,7 @@ class SSOManager:
         self._db = db
         self._cache = cache
         self._providers: dict[str, SSOProvider] = {}
-        self._provider_configs: dict[str, dict[str, Any]] = {}
+        self._provider_configs: dict[str, SSOProviderConfig] = {}
 
     @beartype
     async def initialize(self) -> Result[None, str]:
@@ -85,9 +128,16 @@ class SSOManager:
                 provider_type = row["provider_type"]
 
                 # Get configuration data (already contains client_id and client_secret)
-                config = row["configuration"] or {}
-                config["provider_type"] = provider_type
-                config["provider_id"] = str(row["id"])
+                config_data = row["configuration"] or {}
+                config_data["provider_type"] = provider_type
+                config_data["provider_id"] = str(row["id"])
+
+                # Create configuration model
+                try:
+                    config = SSOProviderConfig(**config_data)
+                except Exception as e:
+                    # Skip invalid configs
+                    continue
 
                 # Create provider instance based on type
                 provider_result = await self._create_provider(
@@ -100,7 +150,7 @@ class SSOManager:
 
                 self._providers[provider_name] = provider_result.value
                 self._provider_configs[provider_name] = config
-                configs[provider_name] = config
+                configs[provider_name] = config.model_dump()
 
             # Cache configurations
             await self._cache.set("sso:provider_configs", configs, ttl=3600)
@@ -115,7 +165,7 @@ class SSOManager:
         self,
         provider_name: str,
         provider_type: str,
-        config: dict[str, Any],
+        config: SSOProviderConfig,
     ) -> Result[SSOProvider, str]:
         """Create SSO provider instance.
 
@@ -128,69 +178,60 @@ class SSOManager:
             Result containing provider instance or error
         """
         try:
-            redirect_uri = config.get("redirect_uri", "")
-            if not redirect_uri:
+            if not config.redirect_uri:
                 return Err(f"Missing redirect_uri for provider {provider_name}")
 
             if provider_type == "google":
-                if not all(k in config for k in ["client_id", "client_secret"]):
+                if not all([config.client_id, config.client_secret]):
                     return Err(f"Missing required Google config for {provider_name}")
 
                 return Ok(
                     GoogleSSOProvider(
-                        client_id=config["client_id"],
-                        client_secret=config["client_secret"],
-                        redirect_uri=redirect_uri,
-                        hosted_domain=config.get("hosted_domain"),
+                        client_id=config.client_id,
+                        client_secret=config.client_secret,
+                        redirect_uri=config.redirect_uri,
+                        hosted_domain=config.hosted_domain,
                     )
                 )
 
             elif provider_type == "azure":
-                if not all(
-                    k in config for k in ["client_id", "client_secret", "tenant_id"]
-                ):
+                if not all([config.client_id, config.client_secret, config.tenant_id]):
                     return Err(f"Missing required Azure AD config for {provider_name}")
 
                 return Ok(
                     AzureADSSOProvider(
-                        client_id=config["client_id"],
-                        client_secret=config["client_secret"],
-                        redirect_uri=redirect_uri,
-                        tenant_id=config["tenant_id"],
+                        client_id=config.client_id,
+                        client_secret=config.client_secret,
+                        redirect_uri=config.redirect_uri,
+                        tenant_id=config.tenant_id,  # type: ignore  # Already checked above
                     )
                 )
 
             elif provider_type == "okta":
-                if not all(
-                    k in config for k in ["client_id", "client_secret", "okta_domain"]
-                ):
+                if not all([config.client_id, config.client_secret, config.okta_domain]):
                     return Err(f"Missing required Okta config for {provider_name}")
 
                 return Ok(
                     OktaSSOProvider(
-                        client_id=config["client_id"],
-                        client_secret=config["client_secret"],
-                        redirect_uri=redirect_uri,
-                        okta_domain=config["okta_domain"],
-                        authorization_server_id=config.get(
-                            "authorization_server_id", "default"
-                        ),
+                        client_id=config.client_id,
+                        client_secret=config.client_secret,
+                        redirect_uri=config.redirect_uri,
+                        okta_domain=config.okta_domain,  # type: ignore  # Already checked above
+                        authorization_server_id=config.authorization_server_id or "default",
                     )
                 )
 
             elif provider_type == "auth0":
-                if not all(
-                    k in config for k in ["client_id", "client_secret", "auth0_domain"]
-                ):
+                if not all([config.client_id, config.client_secret, config.auth0_domain]):
                     return Err(f"Missing required Auth0 config for {provider_name}")
 
                 return Ok(
                     Auth0SSOProvider(
-                        client_id=config["client_id"],
-                        client_secret=config["client_secret"],
-                        redirect_uri=redirect_uri,
-                        auth0_domain=config["auth0_domain"],
-                        audience=config.get("audience"),
+                        client_id=config.client_id,
+                        client_secret=config.client_secret,
+                        redirect_uri=config.redirect_uri,
+                        auth0_domain=config.auth0_domain,  # type: ignore  # Already checked above
+                        audience=config.audience,
                     )
                 )
 
@@ -274,7 +315,10 @@ class SSOManager:
                         )
                     else:
                         # Check if auto-provisioning is allowed
-                        config = self._provider_configs.get(provider_name, {})
+                        config = self._provider_configs.get(provider_name)
+                        if not config:
+                            return Err(f"Provider '{provider_name}' configuration not found")
+                        
                         auto_create = await self._check_auto_provisioning(
                             provider_name, sso_info, config
                         )
@@ -305,7 +349,7 @@ class SSOManager:
         self,
         provider_name: str,
         sso_info: SSOUserInfo,
-        config: dict[str, Any],
+        config: SSOProviderConfig,
     ) -> Result[bool, str]:
         """Check if user auto-provisioning is allowed.
 
@@ -323,7 +367,17 @@ class SSOManager:
             provider_name,
         )
 
-        if not provider_row or not provider_row["auto_create_users"]:
+        if not provider_row:
+            return Err(f"Provider '{provider_name}' not found in database.")
+
+        # Create auto-provisioning config
+        auto_provisioning = AutoProvisioningConfig(
+            auto_create_users=provider_row["auto_create_users"] or False,
+            allowed_domains=provider_row["allowed_domains"] or [],
+            default_role=provider_row["default_role"] or "agent"
+        )
+
+        if not auto_provisioning.auto_create_users:
             return Err(
                 f"User provisioning not allowed for provider '{provider_name}'. "
                 f"User email: {sso_info.email}. "
@@ -332,15 +386,14 @@ class SSOManager:
             )
 
         # Check domain restrictions
-        allowed_domains = provider_row.get("allowed_domains", [])
-        if allowed_domains:
+        if auto_provisioning.allowed_domains:
             email_domain = (
                 sso_info.email.split("@")[-1] if "@" in sso_info.email else ""
             )
-            if email_domain not in allowed_domains:
+            if email_domain not in auto_provisioning.allowed_domains:
                 return Err(
                     f"Email domain '{email_domain}' not allowed for {provider_name}. "
-                    f"Allowed domains: {', '.join(allowed_domains)}. "
+                    f"Allowed domains: {', '.join(auto_provisioning.allowed_domains)}. "
                     f"Required action: Use email from allowed domain or update domain restrictions."
                 )
 
@@ -646,8 +699,16 @@ class SSOManager:
         Args:
             configs: Provider configurations
         """
-        for provider_name, config in configs.items():
-            provider_type = config.get("provider_type", "oidc")
+        for provider_name, config_dict in configs.items():
+            provider_type = config_dict.get("provider_type", "oidc")
+            
+            # Create configuration model from dict
+            try:
+                config = SSOProviderConfig(**config_dict)
+            except Exception:
+                # Skip invalid cached config
+                continue
+            
             provider_result = await self._create_provider(
                 provider_name, provider_type, config
             )

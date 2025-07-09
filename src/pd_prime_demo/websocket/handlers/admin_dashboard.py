@@ -8,6 +8,11 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..message_models import (
+    WebSocketMessageData,
+    create_websocket_message_data,
+)
+
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
@@ -131,11 +136,14 @@ class AdminDashboardHandler:
         if initial_metrics.is_ok():
             welcome_msg = WebSocketMessage(
                 type=MessageType.SYSTEM_ALERT,
-                data={
-                    "initial_metrics": initial_metrics.unwrap(),
-                    "config": dashboard_config,
-                    "admin_user_id": str(admin_user_id),
-                },
+                data=create_websocket_message_data(
+                    user_id=admin_user_id,
+                    payload={
+                        "initial_metrics": initial_metrics.unwrap(),
+                        "config": dashboard_config,
+                        "admin_user_id": str(admin_user_id),
+                    },
+                ).model_dump(),
             )
             await self._manager.send_personal_message(connection_id, welcome_msg)
 
@@ -253,10 +261,10 @@ class AdminDashboardHandler:
                     if error_count > 3:
                         error_msg = WebSocketMessage(
                             type=MessageType.ERROR,
-                            data={
-                                "error": "Failed to collect system metrics",
-                                "consecutive_errors": error_count,
-                            },
+                            data=create_websocket_message_data(
+                                error="Failed to collect system metrics",
+                                payload={"consecutive_errors": error_count},
+                            ).model_dump(),
                         )
                         await self._manager.send_personal_message(
                             connection_id, error_msg
@@ -271,7 +279,9 @@ class AdminDashboardHandler:
                 # Send update
                 update_msg = WebSocketMessage(
                     type=MessageType.SYSTEM_ALERT,
-                    data=metrics,
+                    data=create_websocket_message_data(
+                        payload=metrics,
+                    ).model_dump(),
                 )
 
                 send_result = await self._manager.send_personal_message(
@@ -300,10 +310,12 @@ class AdminDashboardHandler:
             if recent_activities.is_ok():
                 initial_msg = WebSocketMessage(
                     type=MessageType.SYSTEM_ALERT,
-                    data={
-                        "activities": recent_activities.unwrap(),
-                        "is_initial": True,
-                    },
+                    data=create_websocket_message_data(
+                        payload={
+                            "activities": recent_activities.unwrap(),
+                            "is_initial": True,
+                        },
+                    ).model_dump(),
                 )
                 await self._manager.send_personal_message(connection_id, initial_msg)
 
@@ -320,10 +332,12 @@ class AdminDashboardHandler:
                 if new_activities.is_ok() and new_activities.unwrap():
                     activity_msg = WebSocketMessage(
                         type=MessageType.SYSTEM_ALERT,
-                        data={
-                            "activities": new_activities.unwrap(),
-                            "is_incremental": True,
-                        },
+                        data=create_websocket_message_data(
+                            payload={
+                                "activities": new_activities.unwrap(),
+                                "is_incremental": True,
+                            },
+                        ).model_dump(),
                     )
 
                     send_result = await self._manager.send_personal_message(
@@ -353,7 +367,9 @@ class AdminDashboardHandler:
                 if perf_data.is_ok():
                     perf_msg = WebSocketMessage(
                         type=MessageType.SYSTEM_ALERT,
-                        data=perf_data.unwrap(),
+                        data=create_websocket_message_data(
+                            payload=perf_data.unwrap(),
+                        ).model_dump(),
                     )
 
                     send_result = await self._manager.send_personal_message(
@@ -700,14 +716,16 @@ class AdminDashboardHandler:
 
         WebSocketMessage(
             type=MessageType.SYSTEM_ALERT,
-            data={
-                "alert_type": alert_type,
-                "message": message,
-                "severity": severity,
-                "data": data or {},
-                "timestamp": datetime.now().isoformat(),
-                "requires_action": severity in ["high", "critical"],
-            },
+            data=create_websocket_message_data(
+                alert_type=alert_type,
+                severity=severity,
+                payload={
+                    "message": message,
+                    "data": data or {},
+                    "timestamp": datetime.now().isoformat(),
+                    "requires_action": severity in ["high", "critical"],
+                },
+            ).model_dump(),
         )
 
         # Send to all admin monitoring rooms
@@ -846,11 +864,13 @@ class AdminDashboardHandler:
         """Send permission error message."""
         error_msg = WebSocketMessage(
             type=MessageType.ERROR,
-            data={
-                "error": "Insufficient permissions",
-                "required_permission": required_permission,
-                "message": f"You need '{required_permission}' permission to access this feature",
-            },
+            data=create_websocket_message_data(
+                error="Insufficient permissions",
+                payload={
+                    "required_permission": required_permission,
+                    "message": f"You need '{required_permission}' permission to access this feature",
+                },
+            ).model_dump(),
         )
         await self._manager.send_personal_message(connection_id, error_msg)
 
@@ -861,13 +881,15 @@ class AdminDashboardHandler:
         """Send circuit breaker alert."""
         alert_msg = WebSocketMessage(
             type=MessageType.SYSTEM_ALERT,
-            data={
-                "service": service,
-                "status": "open",
-                "message": f"Circuit breaker open for {service}. Too many errors detected.",
-                "reset_time": datetime.now()
-                + timedelta(seconds=self._circuit_breaker_reset_time),
-            },
+            data=create_websocket_message_data(
+                status="open",
+                payload={
+                    "service": service,
+                    "message": f"Circuit breaker open for {service}. Too many errors detected.",
+                    "reset_time": datetime.now()
+                    + timedelta(seconds=self._circuit_breaker_reset_time),
+                },
+            ).model_dump(),
         )
         await self._manager.send_personal_message(connection_id, alert_msg)
 
@@ -878,11 +900,13 @@ class AdminDashboardHandler:
         """Send streaming error message."""
         error_msg = WebSocketMessage(
             type=MessageType.ERROR,
-            data={
-                "stream_type": stream_type,
-                "error": error,
-                "fatal": True,
-                "message": f"Streaming failed for {stream_type}: {error}",
-            },
+            data=create_websocket_message_data(
+                error=error,
+                payload={
+                    "stream_type": stream_type,
+                    "fatal": True,
+                    "message": f"Streaming failed for {stream_type}: {error}",
+                },
+            ).model_dump(),
         )
         await self._manager.send_personal_message(connection_id, error_msg)

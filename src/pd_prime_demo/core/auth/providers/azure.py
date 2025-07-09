@@ -322,7 +322,7 @@ class AzureADSSOProvider(OIDCProvider):
                 if response.status_code != 200:
                     return Err(f"Failed to fetch groups: HTTP {response.status_code}")
 
-            data = response.json()
+            data = response.json()  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
             groups: list[str] = []
 
             for group in data.get("value", []):
@@ -369,7 +369,7 @@ class AzureADSSOProvider(OIDCProvider):
                         f"Failed to fetch tenant info: HTTP {response.status_code}"
                     )
 
-            data = response.json()
+            data = response.json()  # SYSTEM_BOUNDARY - Azure AD Graph API response parsing
             if data.get("value"):
                 return Ok(data["value"][0])
             else:

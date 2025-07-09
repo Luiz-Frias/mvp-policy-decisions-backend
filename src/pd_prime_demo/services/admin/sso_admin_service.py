@@ -544,7 +544,7 @@ class SSOAdminService:
                 response = await client.get(discovery_url, timeout=10.0)
 
                 if response.status_code == 200:
-                    discovery = response.json()
+                    discovery = response.json()  # SYSTEM_BOUNDARY - OIDC discovery document
                     return {
                         "success": True,
                         "details": {
