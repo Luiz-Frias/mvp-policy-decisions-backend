@@ -57,7 +57,7 @@ class UserProvisioningService:
         sso_info: SSOUserInfo,
         provider_name: str,
         provider_id: UUID,
-    ):
+    ) -> Result[ProvisioningResult, str]:
         """Evaluate provisioning rules for a user.
 
         Args:
@@ -74,7 +74,7 @@ class UserProvisioningService:
             if isinstance(rules_result, Err):
                 return rules_result
 
-            rules = rules_result.value
+            rules = rules_result.unwrap()
             applied_rules = []
             warnings = []
 
@@ -155,7 +155,7 @@ class UserProvisioningService:
         priority: int = 0,
         is_enabled: bool = True,
         created_by: UUID | None = None,
-    ):
+    ) -> Result[UUID, str]:
         """Create a new user provisioning rule.
 
         Args:
@@ -224,7 +224,7 @@ class UserProvisioningService:
         rule_id: UUID,
         updates: dict[str, Any],
         updated_by: UUID | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Update an existing provisioning rule.
 
         Args:
@@ -256,8 +256,8 @@ class UserProvisioningService:
                     return validation_result
 
             # Build update query
-            update_fields = []
-            update_values = []
+            update_fields: list[str] = []
+            update_values: list[Any] = []
 
             for field in [
                 "rule_name",
@@ -307,7 +307,7 @@ class UserProvisioningService:
         self,
         rule_id: UUID,
         deleted_by: UUID | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Delete a provisioning rule.
 
         Args:
@@ -402,7 +402,7 @@ class UserProvisioningService:
     async def _get_provisioning_rules(
         self,
         provider_id: UUID,
-    ) -> Result[dict[str, Any], str]:
+    ) -> Result[list[ProvisioningRule], str]:
         """Get provisioning rules for a provider.
 
         Args:
@@ -535,7 +535,7 @@ class UserProvisioningService:
         self,
         conditions: dict[str, Any],
         actions: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Validate rule conditions and actions.
 
         Args:

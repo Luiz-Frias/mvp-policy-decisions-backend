@@ -4,8 +4,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
+from pydantic import ConfigDict
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -19,6 +20,14 @@ from .sso_base import SSOProvider, SSOUserInfo
 
 class User(BaseModelConfig):
     """User model for SSO integration."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     id: UUID
     email: str
@@ -107,7 +116,7 @@ class SSOManager:
         provider_name: str,
         provider_type: str,
         config: dict[str, Any],
-    ):
+    ) -> Result[SSOProvider, str]:
         """Create SSO provider instance.
 
         Args:
@@ -217,7 +226,7 @@ class SSOManager:
         self,
         sso_info: SSOUserInfo,
         provider_name: str,
-    ):
+    ) -> Result[User, str]:
         """Create or update user from SSO information.
 
         Args:
@@ -297,7 +306,7 @@ class SSOManager:
         provider_name: str,
         sso_info: SSOUserInfo,
         config: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Check if user auto-provisioning is allowed.
 
         Args:

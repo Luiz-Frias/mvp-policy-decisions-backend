@@ -101,7 +101,7 @@ class SystemSettingsService:
 
             # Cache non-sensitive values only
             if not is_sensitive:
-                await self._cache.setex(cache_key, self._cache_ttl, parsed_value)
+                await self._cache.set(cache_key, parsed_value, self._cache_ttl)
 
             return Ok(parsed_value)
 
@@ -253,7 +253,7 @@ class SystemSettingsService:
 
         # Cache non-sensitive results
         if not include_sensitive and settings:
-            await self._cache.setex(cache_key, self._cache_ttl, settings)
+            await self._cache.set(cache_key, settings, self._cache_ttl)
 
         return Ok(settings)
 

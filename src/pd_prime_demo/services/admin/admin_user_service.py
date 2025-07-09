@@ -270,8 +270,8 @@ class AdminUserService:
         rows = await self._db.fetch(all_permissions_query, admin.role_id)
         permissions = [f"{row['resource']}:{row['action']}" for row in rows]
 
-        await self._cache.setex(
-            cache_key, self._cache_ttl, {"permissions": permissions}
+        await self._cache.set(
+            cache_key, {"permissions": permissions}, self._cache_ttl
         )
 
         return Ok(has_permission)
@@ -321,8 +321,8 @@ class AdminUserService:
         )
 
         # Cache result
-        await self._cache.setex(
-            cache_key, self._cache_ttl, admin.model_dump(mode="json")
+        await self._cache.set(
+            cache_key, admin.model_dump(mode="json"), self._cache_ttl
         )
 
         return Ok(admin)

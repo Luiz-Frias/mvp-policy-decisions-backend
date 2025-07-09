@@ -4,9 +4,11 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+import asyncpg
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
+from redis.asyncio import Redis
 
 from ...core.auth.oauth2 import APIKeyManager
 from ...core.cache import Cache
@@ -56,10 +58,64 @@ class APIKeyResponse(BaseModel):
     active: bool
 
 
+class APIKeyCreateResponse(BaseModel):
+    """Response model for created API key."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    id: UUID
+    api_key: str
+    name: str
+    scopes: list[str]
+    expires_at: str | None
+    rate_limit_per_minute: int
+    note: str
+
+
+class APIKeyRevokeResponse(BaseModel):
+    """Response model for API key revocation."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    message: str
+
+
+class APIKeyUsageResponse(BaseModel):
+    """Response model for API key usage statistics."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    key_id: str
+    name: str
+    client_id: str
+    created_at: datetime
+    last_used_at: datetime | None
+    total_requests: int
+    period_days: int
+
+
 @beartype
 async def get_api_key_manager(
-    db=Depends(get_db_connection),
-    redis=Depends(get_redis),
+    db: asyncpg.Connection = Depends(get_db_connection),
+    redis: Redis = Depends(get_redis),
 ) -> APIKeyManager:
     """Get API key manager instance."""
     database = Database(db)
@@ -68,13 +124,13 @@ async def get_api_key_manager(
     return APIKeyManager(database, cache)
 
 
-@router.post("/", response_model=dict[str, Any])
+@router.post("/", response_model=APIKeyCreateResponse)
 @beartype
 async def create_api_key(
     request: APIKeyCreateRequest,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> dict[str, Any]:
+) -> APIKeyCreateResponse:
     """Create a new API key.
 
     The API key will be associated with the current user's OAuth2 client.
@@ -112,7 +168,19 @@ async def create_api_key(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    key_data = result.ok_value
+    if key_data is None:
+        raise HTTPException(status_code=500, detail="Unexpected null result")
+        
+    return APIKeyCreateResponse(
+        id=key_data["id"],
+        api_key=key_data["api_key"],
+        name=key_data["name"],
+        scopes=key_data["scopes"],
+        expires_at=key_data["expires_at"],
+        rate_limit_per_minute=key_data["rate_limit_per_minute"],
+        note=key_data["note"],
+    )
 
 
 @router.get("/", response_model=list[APIKeyResponse])
@@ -147,31 +215,33 @@ async def list_api_keys(
         raise HTTPException(status_code=400, detail=result.err_value)
 
     keys = []
-    for key_data in result.ok_value:
-        keys.append(
-            APIKeyResponse(
-                id=UUID(key_data["id"]) if isinstance(key_data["id"], str) else key_data["id"],
-                name=str(key_data["name"]),
-                scopes=list(key_data["scopes"]) if key_data["scopes"] else [],
-                expires_at=datetime.fromisoformat(key_data["expires_at"]) if key_data.get("expires_at") and isinstance(key_data["expires_at"], str) else key_data.get("expires_at"),
-                rate_limit_per_minute=int(key_data["rate_limit_per_minute"]),
-                created_at=datetime.fromisoformat(key_data["created_at"]) if isinstance(key_data["created_at"], str) else key_data["created_at"],
-                last_used_at=datetime.fromisoformat(key_data["last_used_at"]) if key_data.get("last_used_at") and isinstance(key_data["last_used_at"], str) else key_data.get("last_used_at"),
-                active=bool(key_data["active"]),
+    key_list = result.ok_value
+    if key_list is not None:
+        for key_data in key_list:
+            keys.append(
+                APIKeyResponse(
+                    id=UUID(key_data["id"]) if isinstance(key_data["id"], str) else key_data["id"],
+                    name=str(key_data["name"]),
+                    scopes=list(key_data["scopes"]) if key_data["scopes"] else [],
+                    expires_at=datetime.fromisoformat(key_data["expires_at"]) if key_data.get("expires_at") and isinstance(key_data["expires_at"], str) else key_data.get("expires_at"),
+                    rate_limit_per_minute=int(key_data["rate_limit_per_minute"]),
+                    created_at=datetime.fromisoformat(key_data["created_at"]) if isinstance(key_data["created_at"], str) else key_data["created_at"],
+                    last_used_at=datetime.fromisoformat(key_data["last_used_at"]) if key_data.get("last_used_at") and isinstance(key_data["last_used_at"], str) else key_data.get("last_used_at"),
+                    active=bool(key_data["active"]),
+                )
             )
-        )
 
     return keys
 
 
-@router.delete("/{key_id}")
+@router.delete("/{key_id}", response_model=APIKeyRevokeResponse)
 @beartype
 async def revoke_api_key(
     key_id: UUID,
     reason: str = Query(..., description="Reason for revocation"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> dict[str, str]:
+) -> APIKeyRevokeResponse:
     """Revoke an API key.
 
     Args:
@@ -203,16 +273,16 @@ async def revoke_api_key(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"message": "API key revoked successfully"}
+    return APIKeyRevokeResponse(message="API key revoked successfully")
 
 
-@router.post("/{key_id}/rotate", response_model=dict[str, Any])
+@router.post("/{key_id}/rotate", response_model=APIKeyCreateResponse)
 @beartype
 async def rotate_api_key(
     key_id: UUID,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> dict[str, Any]:
+) -> APIKeyCreateResponse:
     """Rotate an API key.
 
     This will revoke the old key and create a new one with the same settings.
@@ -245,17 +315,29 @@ async def rotate_api_key(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return result.ok_value
+    key_data = result.ok_value
+    if key_data is None:
+        raise HTTPException(status_code=500, detail="Unexpected null result")
+        
+    return APIKeyCreateResponse(
+        id=key_data["id"],
+        api_key=key_data["api_key"],
+        name=key_data["name"],
+        scopes=key_data["scopes"],
+        expires_at=key_data["expires_at"],
+        rate_limit_per_minute=key_data["rate_limit_per_minute"],
+        note=key_data["note"],
+    )
 
 
-@router.get("/{key_id}/usage", response_model=dict[str, Any])
+@router.get("/{key_id}/usage", response_model=APIKeyUsageResponse)
 @beartype
 async def get_api_key_usage(
     key_id: UUID,
     days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> dict[str, Any]:
+) -> APIKeyUsageResponse:
     """Get usage statistics for an API key.
 
     Args:
@@ -282,4 +364,16 @@ async def get_api_key_usage(
     if result.is_err():
         raise HTTPException(status_code=404, detail=result.err_value)
 
-    return result.ok_value
+    stats = result.ok_value
+    if stats is None:
+        raise HTTPException(status_code=500, detail="Unexpected null result")
+        
+    return APIKeyUsageResponse(
+        key_id=stats["key_id"],
+        name=stats["name"],
+        client_id=stats["client_id"],
+        created_at=stats["created_at"],
+        last_used_at=stats["last_used_at"],
+        total_requests=stats["total_requests"],
+        period_days=stats["period_days"],
+    )

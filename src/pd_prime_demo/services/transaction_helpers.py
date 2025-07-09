@@ -81,11 +81,7 @@ async def with_transaction(
     if not config:
         config = TransactionConfig()
 
-    async with db.transaction(
-        isolation=config.isolation_level,
-        readonly=config.readonly,
-        deferrable=config.deferrable,
-    ):
+    async with db.transaction():
         try:
             result = await operation()
             if isinstance(result, Err):
@@ -225,9 +221,9 @@ async def upsert_with_conflict(
     table: str,
     insert_data: dict[str, Any],
     conflict_columns: list[str],
-    update_data: dict | None = None,
+    update_data: dict[str, Any] | None = None,
     returning_columns: list[str] | None = None,
-) -> Result[dict | None, str]:
+) -> Result[dict[str, Any] | None, str]:
     """Perform UPSERT operation with conflict handling.
 
     Args:

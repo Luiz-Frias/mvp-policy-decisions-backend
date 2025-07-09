@@ -150,10 +150,10 @@ class WebSocketPerformanceService:
         self._connection_metrics[connection_id] = metrics
 
         # Store in cache for distributed tracking
-        await self._cache.setex(
+        await self._cache.set(
             f"ws:connection:{connection_id}",
-            3600,  # 1 hour TTL
             metrics.model_dump_json(),
+            3600,  # 1 hour TTL
         )
 
     @beartype
@@ -417,8 +417,8 @@ class WebSocketPerformanceService:
 
                 # Update performance metrics in cache
                 summary = await self.get_performance_summary()
-                await self._cache.setex(
-                    "ws:performance:summary", 60, str(summary)  # 1 minute TTL
+                await self._cache.set(
+                    "ws:performance:summary", str(summary), 60  # 1 minute TTL
                 )
 
             except asyncio.CancelledError:
@@ -523,16 +523,16 @@ class WebSocketPerformanceService:
     async def _enable_connection_throttling(self) -> None:
         """Enable connection throttling to reduce load."""
         # Store throttling configuration in cache
-        await self._cache.setex("ws:throttling:enabled", 3600, "true")  # 1 hour
+        await self._cache.set("ws:throttling:enabled", "true", 3600)  # 1 hour
 
     async def _enable_message_batching(self) -> None:
         """Enable message batching to improve efficiency."""
         # Store batching configuration in cache
-        await self._cache.setex("ws:batching:enabled", 3600, "true")  # 1 hour
+        await self._cache.set("ws:batching:enabled", "true", 3600)  # 1 hour
 
     async def _suggest_room_partitioning(self, room_size: float) -> None:
         """Suggest room partitioning for large rooms."""
         # Store partitioning suggestion in cache
-        await self._cache.setex(
-            "ws:room_partitioning:suggested", 3600, f"room_size:{room_size}"  # 1 hour
+        await self._cache.set(
+            "ws:room_partitioning:suggested", f"room_size:{room_size}", 3600  # 1 hour
         )

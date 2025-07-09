@@ -22,6 +22,7 @@ from .models import (
     MFAVerificationRequest,
     MFAVerificationResult,
     RiskAssessment,
+    TOTPSetupData,
 )
 from .risk_engine import RiskEngine
 from .sms import SMSProvider
@@ -204,7 +205,7 @@ class MFAManager:
             # Clear setup data
             await self._cache.delete(f"totp_setup:{user_id}")
 
-            return Ok(True)
+            return Ok(None)
 
         except Exception as e:
             return Err(f"Failed to verify TOTP setup: {str(e)}")
@@ -255,6 +256,10 @@ class MFAManager:
 
             # Method-specific setup
             if method == MFAMethod.SMS:
+                # Check if phone is configured
+                if not config.sms_phone_encrypted:
+                    return Err("SMS phone number not configured")
+                
                 # Send SMS code
                 sms_result = await self._sms_provider.send_verification_code(
                     str(user_id), config.sms_phone_encrypted, purpose="mfa"
@@ -269,10 +274,8 @@ class MFAManager:
                 webauthn_creds = await self._get_webauthn_credentials(user_id)
 
                 # Generate authentication options
-                auth_options = (
-                    await self._webauthn_provider.generate_authentication_options(
-                        user_id, webauthn_creds
-                    )
+                auth_options = self._webauthn_provider.generate_authentication_options(
+                    user_id, webauthn_creds
                 )
                 if isinstance(auth_options, Err):
                     return auth_options

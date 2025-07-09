@@ -85,7 +85,7 @@ class WebAuthnCredential(BaseModel):
     """WebAuthn credential information."""
 
     model_config = ConfigDict(
-        frozen=True,
+        frozen=False,  # Allow mutation for counter updates
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
@@ -130,7 +130,7 @@ class MFAChallenge(BaseModel):
     """MFA challenge for verification."""
 
     model_config = ConfigDict(
-        frozen=True,
+        frozen=False,  # Allow mutation for challenge tracking
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
@@ -146,6 +146,7 @@ class MFAChallenge(BaseModel):
     attempts: int = 0
     max_attempts: int = 3
     metadata: dict[str, Any] = Field(default_factory=dict)
+    verified_at: datetime | None = None
 
 
 @beartype

@@ -3,6 +3,7 @@
 from typing import Any
 from uuid import uuid4
 
+import asyncpg
 from beartype import beartype
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
@@ -11,12 +12,31 @@ from pydantic import BaseModel, ConfigDict, Field
 from pd_prime_demo.core.result_types import Err
 
 from ...core.auth.sso_manager import SSOManager
-from ...core.cache import get_cache
-from ...core.database import get_db
-from ...core.security import get_security
-from ..dependencies import get_sso_manager
+from ...core.cache import get_cache, Cache
+from ...core.database import get_db_session, Database
+from ...core.security import get_security, Security
+from ..dependencies import get_sso_manager, get_db_connection
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+
+
+class UserInfo(BaseModel):
+    """User information model for API responses."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    id: str = Field(..., description="User ID")
+    email: str = Field(..., description="User email")
+    first_name: str = Field(..., description="First name")
+    last_name: str = Field(..., description="Last name")
+    role: str = Field(..., description="User role")
+    sso_provider: str | None = Field(default=None, description="SSO provider if applicable")
 
 
 class LoginRequest(BaseModel):
@@ -48,7 +68,7 @@ class LoginResponse(BaseModel):
     access_token: str = Field(..., description="JWT access token")
     token_type: str = Field("bearer", description="Token type")
     expires_in: int = Field(..., description="Token expiration in seconds")
-    user: dict[str, Any] = Field(..., description="User information")
+    user: UserInfo = Field(..., description="User information")
 
 
 class SSOLoginInitResponse(BaseModel):
@@ -70,8 +90,8 @@ class SSOLoginInitResponse(BaseModel):
 @beartype
 async def login(
     request: LoginRequest,
-    db=Depends(get_db),
-    security=Depends(get_security),
+    db: asyncpg.Connection = Depends(get_db_connection),
+    security: Security = Depends(get_security),
 ) -> LoginResponse:
     """Login with email and password.
 
@@ -130,13 +150,13 @@ async def login(
         access_token=token_data.access_token,
         token_type=token_data.token_type,
         expires_in=token_data.expires_in,
-        user={
-            "id": str(user["id"]),
-            "email": user["email"],
-            "first_name": user["first_name"],
-            "last_name": user["last_name"],
-            "role": user["role"],
-        },
+        user=UserInfo(
+            id=str(user["id"]),
+            email=user["email"],
+            first_name=user["first_name"],
+            last_name=user["last_name"],
+            role=user["role"],
+        ),
     )
 
 
@@ -196,7 +216,7 @@ async def sso_login_init(
     provider: str,
     redirect_uri: str | None = Query(None, description="Custom redirect URI"),
     sso_manager: SSOManager = Depends(get_sso_manager),
-    cache=Depends(get_cache),
+    cache: Cache = Depends(get_cache),
 ) -> SSOLoginInitResponse:
     """Initiate SSO login flow.
 
@@ -253,11 +273,11 @@ async def sso_callback(
     state: str = Query(..., description="State parameter"),
     error: str | None = Query(None, description="Error from provider"),
     error_description: str | None = Query(None, description="Error description"),
-    request: Request = None,
+    request: Request | None = None,
     sso_manager: SSOManager = Depends(get_sso_manager),
-    cache=Depends(get_cache),
-    db=Depends(get_db),
-    security=Depends(get_security),
+    cache: Cache = Depends(get_cache),
+    db: asyncpg.Connection = Depends(get_db_connection),
+    security: Security = Depends(get_security),
 ) -> LoginResponse | RedirectResponse:
     """Handle SSO callback after user authentication.
 
@@ -334,7 +354,7 @@ async def sso_callback(
         security.hash_password(str(session_id)),  # Hash session token
         f"sso_{provider}",
         provider,
-        request.client.host if request else None,
+        request.client.host if request and request.client else None,
         request.headers.get("user-agent") if request else None,
     )
 
@@ -365,14 +385,14 @@ async def sso_callback(
         access_token=token_data.access_token,
         token_type=token_data.token_type,
         expires_in=token_data.expires_in,
-        user={
-            "id": str(user.id),
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "role": user.role,
-            "sso_provider": provider,
-        },
+        user=UserInfo(
+            id=str(user.id),
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            role=user.role,
+            sso_provider=provider,
+        ),
     )
 
 
@@ -394,8 +414,8 @@ class LogoutResponse(BaseModel):
 @beartype
 async def logout(
     session_id: str = Query(..., description="Session ID to invalidate"),
-    db=Depends(get_db),
-    cache=Depends(get_cache),
+    db: asyncpg.Connection = Depends(get_db_connection),
+    cache: Cache = Depends(get_cache),
 ) -> LogoutResponse:
     """Logout and invalidate session.
 
@@ -432,7 +452,8 @@ async def logout(
     # If SSO session, try to revoke tokens
     if session["provider_name"]:
         # Get SSO manager
-        sso_manager = SSOManager(db, cache)
+        database = Database(db)
+        sso_manager = SSOManager(database, cache)
         await sso_manager.initialize()
 
         provider = sso_manager.get_provider(session["provider_name"])

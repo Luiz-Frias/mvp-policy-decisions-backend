@@ -4,11 +4,14 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from beartype import beartype
-from pydantic import Field, computed_field, field_validator, model_validator, ValidationInfo
+from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic.types import UUID4
+
+if TYPE_CHECKING:
+    from pydantic import ValidationInfo
 
 from .base import BaseModelConfig, IdentifiableModel, TimestampedModel
 
@@ -223,7 +226,7 @@ class OverrideData(BaseModelConfig):
 
     @field_validator("new_value")
     @classmethod
-    def validate_new_value_different(cls, v: Any, info: ValidationInfo) -> Any:
+    def validate_new_value_different(cls, v: Any, info: "ValidationInfo") -> Any:
         """Ensure new value is different from original."""
         if info.data.get("original_value") == v:
             raise ValueError("New value must be different from original value")
@@ -723,7 +726,7 @@ class DriverInfo(BaseModelConfig):
             pass
         return v
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def years_licensed(self) -> int:
         """Calculate years of driving experience."""
@@ -732,7 +735,7 @@ class DriverInfo(BaseModelConfig):
             return max(0, int(years))
         return 0
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def age(self) -> int:
         """Calculate current age in years."""
@@ -1188,13 +1191,13 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
 
         return v
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def is_expired(self) -> bool:
         """Check if quote has expired."""
         return datetime.now() > self.expires_at
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def days_until_expiration(self) -> int:
         """Calculate days until quote expires."""
@@ -1203,7 +1206,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
         delta = self.expires_at - datetime.now()
         return max(0, delta.days)
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def total_savings(self) -> Decimal:
         """Calculate total savings from discounts."""
@@ -1211,7 +1214,7 @@ class Quote(QuoteBase, IdentifiableModel, TimestampedModel):
             return abs(self.total_discount_amount)
         return Decimal("0")
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def is_convertible(self) -> bool:
         """Check if quote can be converted to policy."""
@@ -1385,7 +1388,7 @@ class QuoteConversionRequest(BaseModelConfig):
         description="Payment method: card, bank, or check",
     )
     payment_details: "PaymentDetails" = Field(
-        default_factory=lambda: PaymentDetails(),
+        default_factory=lambda: PaymentDetails(payment_type="credit_card"),
         description="Payment method specific details",
     )
     agent_id: UUID4 | None = Field(
