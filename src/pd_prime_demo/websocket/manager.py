@@ -58,6 +58,10 @@ class MessageType(str, Enum):
     START_ANALYTICS = "start_analytics"
     STOP_ANALYTICS = "stop_analytics"
     ANALYTICS_DATA = "analytics_data"
+    ANALYTICS_ERROR = "analytics_error"
+    ANALYTICS_UPDATE = "analytics_update"
+    ANALYTICS_EVENT = "analytics_event"
+    ANALYTICS_ALERT = "analytics_alert"
 
     # Notifications
     NOTIFICATION_ACKNOWLEDGE = "notification_acknowledge"

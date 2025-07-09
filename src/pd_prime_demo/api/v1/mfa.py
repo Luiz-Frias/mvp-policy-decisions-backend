@@ -1,10 +1,10 @@
 """MFA API endpoints."""
 
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.auth.mfa import MFAManager
@@ -15,7 +15,9 @@ from ...core.auth.mfa.models import (
 from ...core.cache import get_cache
 from ...core.config import get_settings
 from ...core.database import get_database
+from ...core.result_types import Err
 from ..dependencies import get_current_user
+from ..response_patterns import ErrorResponse
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 
@@ -177,19 +179,18 @@ async def get_mfa_manager() -> MFAManager:
 
 @router.get("/status", response_model=MFAStatusResponse)
 async def get_mfa_status(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> MFAStatusResponse:
+) -> Union[MFAStatusResponse, ErrorResponse]:
     """Get user's MFA status."""
     user_id = UUID(current_user["sub"])
 
     # Get MFA configuration
     config_result = await mfa_manager.get_user_mfa_config(user_id)
     if config_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve MFA configuration",
-        )
+        response.status_code = 500
+        return ErrorResponse(error=config_result.err_value or "Unknown error")
 
     config = config_result.ok_value
 
@@ -221,9 +222,10 @@ async def get_mfa_status(
 
 @router.post("/totp/setup", response_model=TOTPSetupResponse)
 async def setup_totp(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> TOTPSetupResponse:
+) -> Union[TOTPSetupResponse, ErrorResponse]:
     """Start TOTP setup process."""
     user_id = UUID(current_user["sub"])
     user_email = current_user.get("email", "user@example.com")
@@ -231,26 +233,21 @@ async def setup_totp(
     # Check if TOTP already enabled
     config_result = await mfa_manager.get_user_mfa_config(user_id)
     if config_result.is_ok() and config_result.ok_value is not None and config_result.ok_value.totp_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="TOTP already enabled for this account",
-        )
+        response.status_code = 400
+        return ErrorResponse(error="TOTP already enabled for this account")
 
     # Generate TOTP setup
     setup_result = await mfa_manager.setup_totp(user_id, user_email)
     if setup_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=setup_result.err_value
-        )
+        response.status_code = 500
+        return ErrorResponse(error=setup_result.err_value or "Unknown error")
 
     setup_data = setup_result.ok_value
     
     # Type narrowing - setup_data should not be None if is_ok() is True
     if setup_data is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error: setup data is None"
-        )
+        response.status_code = 500
+        return ErrorResponse(error="Internal server error: setup data is None")
 
     return TOTPSetupResponse(
         qr_code=setup_data.qr_code,
@@ -262,43 +259,41 @@ async def setup_totp(
 @router.post("/totp/verify-setup")
 async def verify_totp_setup(
     request: TOTPVerifyRequest,
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, str]:
+) -> Union[dict[str, str], ErrorResponse]:
     """Verify TOTP setup and activate."""
     user_id = UUID(current_user["sub"])
 
     # Verify and activate TOTP
     verify_result = await mfa_manager.verify_totp_setup(user_id, request.code)
     if verify_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=verify_result.err_value
-        )
+        response.status_code = 400
+        return ErrorResponse(error=verify_result.err_value or "Unknown error")
 
     return {"message": "TOTP successfully enabled"}
 
 
 @router.delete("/totp")
 async def disable_totp(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, str]:
+) -> Union[dict[str, str], ErrorResponse]:
     """Disable TOTP authentication."""
     user_id = UUID(current_user["sub"])
 
     # Check if user has other MFA methods enabled
     config_result = await mfa_manager.get_user_mfa_config(user_id)
     if config_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve MFA configuration",
-        )
+        response.status_code = 500
+        return ErrorResponse(error=config_result.err_value or "Unknown error")
 
     config = config_result.ok_value
     if not config or not config.totp_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="TOTP not enabled"
-        )
+        response.status_code = 400
+        return ErrorResponse(error="TOTP not enabled")
 
     # Ensure user has other MFA methods or allow disabling
     other_methods = config.webauthn_enabled or config.sms_enabled
@@ -325,9 +320,10 @@ async def disable_totp(
 @router.post("/webauthn/register/begin", response_model=WebAuthnRegistrationResponse)
 async def begin_webauthn_registration(
     request: WebAuthnRegistrationRequest,
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> WebAuthnRegistrationResponse:
+) -> Union[WebAuthnRegistrationResponse, ErrorResponse]:
     """Begin WebAuthn registration."""
     user_id = UUID(current_user["sub"])
     user_email = current_user.get("email", "user@example.com")
@@ -345,21 +341,20 @@ async def begin_webauthn_registration(
     )
 
     if options_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=options_result.err_value,
-        )
+        response.status_code = 500
+        return ErrorResponse(error=options_result.err_value or "Unknown error")
 
-    options = options_result.ok_value
+    options = options_result.unwrap()
     return WebAuthnRegistrationResponse(**options)
 
 
 @router.post("/sms/setup")
 async def setup_sms(
     request: SMSSetupRequest,
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, str | int]:
+) -> Union[dict[str, str | int], ErrorResponse]:
     """Setup SMS authentication."""
     user_id = UUID(current_user["sub"])
 
@@ -368,30 +363,29 @@ async def setup_sms(
         request.phone_number
     )
     if encrypt_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=encrypt_result.err_value
-        )
+        response.status_code = 400
+        return ErrorResponse(error=encrypt_result.err_value or "Unknown error")
 
-    encrypted_phone = encrypt_result.ok_value
+    encrypted_phone = encrypt_result.unwrap()
 
     # Send verification code
     send_result = await mfa_manager._sms_provider.send_verification_code(
         str(user_id), encrypted_phone, purpose="setup"
     )
     if send_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=send_result.err_value
-        )
+        response.status_code = 400
+        return ErrorResponse(error=send_result.err_value or "Unknown error")
 
     return {"message": "Verification code sent", "expires_in": 600}  # 10 minutes
 
 
 @router.post("/challenge", response_model=MFAChallengeResponse)
 async def create_mfa_challenge(
+    response: Response,
     preferred_method: MFAMethod | None = None,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> MFAChallengeResponse:
+) -> Union[MFAChallengeResponse, ErrorResponse]:
     """Create MFA challenge for authentication."""
     user_id = UUID(current_user["sub"])
 
@@ -401,18 +395,15 @@ async def create_mfa_challenge(
     )
 
     if challenge_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=challenge_result.err_value
-        )
+        response.status_code = 400
+        return ErrorResponse(error=challenge_result.err_value or "Unknown error")
 
     challenge = challenge_result.ok_value
     
     # Type narrowing - challenge should not be None if is_ok() is True
     if challenge is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error: challenge is None"
-        )
+        response.status_code = 500
+        return ErrorResponse(error="Internal server error: challenge is None")
 
     return MFAChallengeResponse(
         challenge_id=challenge.challenge_id,
@@ -426,41 +417,36 @@ async def create_mfa_challenge(
 async def verify_mfa_challenge(
     challenge_id: UUID,
     request: MFAVerificationRequest,
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Verify MFA challenge."""
     # Ensure challenge ID matches request
     if request.challenge_id != challenge_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Challenge ID mismatch"
-        )
+        response.status_code = 400
+        return ErrorResponse(error="Challenge ID mismatch")
 
     # Verify challenge
     verify_result = await mfa_manager.verify_mfa_challenge(request)
     if verify_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=verify_result.err_value,
-        )
+        response.status_code = 500
+        return ErrorResponse(error=verify_result.err_value or "Unknown error")
 
     result = verify_result.ok_value
     
     # Type narrowing - result should not be None if is_ok() is True
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error: verification result is None"
-        )
+        response.status_code = 500
+        return ErrorResponse(error="Internal server error: verification result is None")
 
     if not result.success:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "error": result.error_message or "Verification failed",
-                "remaining_attempts": result.remaining_attempts,
-            },
-        )
+        error_detail = {
+            "error": result.error_message or "Verification failed",
+            "remaining_attempts": result.remaining_attempts,
+        }
+        response.status_code = 401
+        return ErrorResponse(error=f"Verification failed: {error_detail}")
 
     return {
         "success": True,
@@ -470,18 +456,18 @@ async def verify_mfa_challenge(
 
 @router.post("/recovery-codes/generate")
 async def generate_recovery_codes(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Generate new recovery codes."""
     user_id = UUID(current_user["sub"])
 
     # Generate new codes
     codes_result = await mfa_manager.generate_recovery_codes(user_id)
     if codes_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=codes_result.err_value
-        )
+        response.status_code = 500
+        return ErrorResponse(error=codes_result.err_value or "Unknown error")
 
     codes = codes_result.ok_value
 
@@ -494,9 +480,10 @@ async def generate_recovery_codes(
 @router.post("/device/trust")
 async def trust_device(
     request: DeviceTrustRequest,
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Mark device as trusted."""
     user_id = UUID(current_user["sub"])
 
@@ -510,18 +497,15 @@ async def trust_device(
     )
 
     if trust_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=trust_result.err_value
-        )
+        response.status_code = 500
+        return ErrorResponse(error=trust_result.err_value or "Unknown error")
 
     device_trust = trust_result.ok_value
     
     # Type narrowing - device_trust should not be None if is_ok() is True
     if device_trust is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error: device trust is None"
-        )
+        response.status_code = 500
+        return ErrorResponse(error="Internal server error: device trust is None")
 
     return {
         "device_id": str(device_trust.device_id),
@@ -531,9 +515,10 @@ async def trust_device(
 
 @router.get("/risk-assessment")
 async def get_risk_assessment(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get current authentication risk assessment."""
     user_id = str(current_user["sub"])
 
@@ -548,11 +533,10 @@ async def get_risk_assessment(
     )
 
     if risk_result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=risk_result.error
-        )
+        response.status_code = 500
+        return ErrorResponse(error=risk_result.err_value or "Unknown error")
 
-    assessment = risk_result.value
+    assessment = risk_result.unwrap()
 
     return {
         "risk_level": assessment.risk_level.value,

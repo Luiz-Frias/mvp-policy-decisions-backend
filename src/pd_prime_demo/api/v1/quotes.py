@@ -6,10 +6,12 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Union
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
 
 from ...models.quote import (
     Quote,
@@ -119,14 +121,15 @@ def _convert_wizard_state_to_response(state: WizardState) -> WizardSessionRespon
     )
 
 
-@router.post("/", response_model=QuoteResponse)
+@router.post("/", status_code=201)
 @beartype
 async def create_quote(
     quote_data: QuoteCreateRequest,
     background_tasks: BackgroundTasks,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> QuoteResponse:
+) -> Union[QuoteResponse, ErrorResponse]:
     """Create a new insurance quote."""
     # Convert request to domain model
     quote_create = QuoteCreate(**quote_data.model_dump())
@@ -137,11 +140,11 @@ async def create_quote(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response, success_status=201)
 
     quote = result.ok_value
     if quote is None:
-        raise HTTPException(status_code=500, detail="Quote creation failed")
+        return handle_result(Err("Quote creation failed"), response, success_status=201)
 
     # Trigger async calculation if data is complete
     if quote.vehicle_info and quote.drivers and quote.coverage_selections:
@@ -150,28 +153,29 @@ async def create_quote(
     return _convert_quote_to_response(quote)
 
 
-@router.get("/{quote_id}", response_model=QuoteResponse)
+@router.get("/{quote_id}")
 @beartype
 async def get_quote(
     quote_id: UUID,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> QuoteResponse:
+) -> Union[QuoteResponse, ErrorResponse]:
     """Get quote by ID."""
     result = await quote_service.get_quote(quote_id)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     quote = result.ok_value
     if not quote:
-        raise HTTPException(status_code=404, detail="Quote not found")
+        return handle_result(Err("Quote not found"), response)
 
     # Check access permissions
     if current_user:
         # Logged in users can see their own quotes
         if quote.customer_id and quote.customer_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+            return handle_result(Err("Access denied"), response)
     else:
         # Anonymous users need session validation (future enhancement)
         pass
@@ -179,14 +183,15 @@ async def get_quote(
     return _convert_quote_to_response(quote)
 
 
-@router.put("/{quote_id}", response_model=QuoteResponse)
+@router.put("/{quote_id}")
 @beartype
 async def update_quote(
     quote_id: UUID,
     update_data: QuoteUpdateRequest,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> QuoteResponse:
+) -> Union[QuoteResponse, ErrorResponse]:
     """Update an existing quote."""
     # Convert request to domain model
     quote_update = QuoteUpdate(**update_data.model_dump(exclude_unset=True))
@@ -196,58 +201,63 @@ async def update_quote(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     quote = result.ok_value
     if quote is None:
-        raise HTTPException(status_code=404, detail="Quote not found")
+        return handle_result(Err("Quote not found"), response)
 
     return _convert_quote_to_response(quote)
 
 
-@router.post("/{quote_id}/calculate", response_model=QuoteResponse)
+@router.post("/{quote_id}/calculate")
 @beartype
 async def calculate_quote(
     quote_id: UUID,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> QuoteResponse:
+) -> Union[QuoteResponse, ErrorResponse]:
     """Calculate or recalculate quote pricing."""
     result = await quote_service.calculate_quote(quote_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     quote = result.ok_value
     if quote is None:
-        raise HTTPException(status_code=404, detail="Quote not found")
+        return handle_result(Err("Quote not found"), response)
 
     return _convert_quote_to_response(quote)
 
 
-@router.post("/{quote_id}/convert", response_model=QuoteConversionResponse)
+@router.post("/{quote_id}/convert", status_code=201)
 @beartype
 async def convert_to_policy(
     quote_id: UUID,
     conversion_request: QuoteConversionRequest,
+    response: Response,
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User = Depends(get_current_user),
-) -> QuoteConversionResponse:
+) -> Union[QuoteConversionResponse, ErrorResponse]:
     """Convert quote to policy."""
     result = await quote_service.convert_to_policy(
         quote_id, conversion_request, current_user.id
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response, success_status=201)
 
-    assert result.ok_value is not None
+    if result.ok_value is None:
+        return handle_result(Err("Policy conversion failed"), response, success_status=201)
+
     return QuoteConversionResponse(**result.ok_value)
 
 
-@router.get("/", response_model=QuoteSearchResponse)
+@router.get("/")
 @beartype
 async def search_quotes(
+    response: Response,
     customer_id: UUID | None = None,
     status: QuoteStatus | None = None,
     state: str | None = None,
@@ -257,7 +267,7 @@ async def search_quotes(
     offset: int = Query(0, ge=0),
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> QuoteSearchResponse:
+) -> Union[QuoteSearchResponse, ErrorResponse]:
     """Search quotes with filters."""
     # If user is logged in, only show their quotes
     if current_user and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
@@ -274,7 +284,7 @@ async def search_quotes(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     quotes: list[Quote] = result.ok_value or []
 
@@ -292,120 +302,126 @@ async def search_quotes(
 # Quote Wizard Endpoints
 
 
-@router.post("/wizard/start", response_model=WizardSessionResponse)
+@router.post("/wizard/start", status_code=201)
 @beartype
 async def start_wizard_session(
+    response: Response,
     initial_data: dict[str, Any] | None = None,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardSessionResponse:
+) -> Union[WizardSessionResponse, ErrorResponse]:
     """Start a new quote wizard session."""
     result = await wizard_service.start_session(initial_data)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response, success_status=201)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        raise HTTPException(status_code=404, detail="Wizard session not found")
+        return handle_result(Err("Wizard session not found"), response, success_status=201)
 
     return _convert_wizard_state_to_response(wizard_state)
 
 
-@router.get("/wizard/{session_id}", response_model=WizardSessionResponse)
+@router.get("/wizard/{session_id}")
 @beartype
 async def get_wizard_session(
     session_id: UUID,
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardSessionResponse:
+) -> Union[WizardSessionResponse, ErrorResponse]:
     """Get wizard session state."""
     result = await wizard_service.get_session(session_id)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     state = result.ok_value
     if not state:
-        raise HTTPException(status_code=404, detail="Session not found or expired")
+        return handle_result(Err("Session not found or expired"), response)
 
     return _convert_wizard_state_to_response(state)
 
 
-@router.put("/wizard/{session_id}/step", response_model=WizardSessionResponse)
+@router.put("/wizard/{session_id}/step")
 @beartype
 async def update_wizard_step(
     session_id: UUID,
     step_data: dict[str, Any],
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardSessionResponse:
+) -> Union[WizardSessionResponse, ErrorResponse]:
     """Update current wizard step with data."""
     result = await wizard_service.update_step(session_id, step_data)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        raise HTTPException(status_code=404, detail="Wizard session not found")
+        return handle_result(Err("Wizard session not found"), response)
 
     return _convert_wizard_state_to_response(wizard_state)
 
 
-@router.post("/wizard/{session_id}/next", response_model=WizardSessionResponse)
+@router.post("/wizard/{session_id}/next")
 @beartype
 async def next_wizard_step(
     session_id: UUID,
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardSessionResponse:
+) -> Union[WizardSessionResponse, ErrorResponse]:
     """Move to next step in wizard."""
     result = await wizard_service.next_step(session_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        raise HTTPException(status_code=404, detail="Wizard session not found")
+        return handle_result(Err("Wizard session not found"), response)
 
     return _convert_wizard_state_to_response(wizard_state)
 
 
-@router.post("/wizard/{session_id}/previous", response_model=WizardSessionResponse)
+@router.post("/wizard/{session_id}/previous")
 @beartype
 async def previous_wizard_step(
     session_id: UUID,
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardSessionResponse:
+) -> Union[WizardSessionResponse, ErrorResponse]:
     """Move to previous step in wizard."""
     result = await wizard_service.previous_step(session_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        raise HTTPException(status_code=404, detail="Wizard session not found")
+        return handle_result(Err("Wizard session not found"), response)
 
     return _convert_wizard_state_to_response(wizard_state)
 
 
 @router.post(
-    "/wizard/{session_id}/jump/{step_id}", response_model=WizardSessionResponse
+    "/wizard/{session_id}/jump/{step_id}"
 )
 @beartype
 async def jump_to_wizard_step(
     session_id: UUID,
     step_id: str,
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardSessionResponse:
+) -> Union[WizardSessionResponse, ErrorResponse]:
     """Jump to a specific wizard step."""
     result = await wizard_service.jump_to_step(session_id, step_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     wizard_state = result.ok_value
     if wizard_state is None:
-        raise HTTPException(status_code=404, detail="Wizard session not found")
+        return handle_result(Err("Wizard session not found"), response)
 
     return _convert_wizard_state_to_response(wizard_state)
 
@@ -427,25 +443,26 @@ class WizardCompletionResponse(BaseModel):
     status: QuoteStatus = Field(..., description="Quote status")
 
 
-@router.post("/wizard/{session_id}/complete", response_model=WizardCompletionResponse)
+@router.post("/wizard/{session_id}/complete", status_code=201)
 @beartype
 async def complete_wizard_session(
     session_id: UUID,
     background_tasks: BackgroundTasks,
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
     quote_service: QuoteService = Depends(get_quote_service),
     current_user: User | None = Depends(get_optional_user),
-) -> WizardCompletionResponse:
+) -> Union[WizardCompletionResponse, ErrorResponse]:
     """Complete wizard session and create quote."""
     # Complete wizard
     result = await wizard_service.complete_session(session_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response, success_status=201)
 
     wizard_data = result.ok_value
     if not wizard_data:
-        raise HTTPException(status_code=400, detail="Invalid wizard data")
+        return handle_result(Err("Invalid wizard data"), response, success_status=201)
 
     # Create quote from wizard data
     quote_create = QuoteCreate(**wizard_data["quote_data"])
@@ -454,11 +471,11 @@ async def complete_wizard_session(
     )
 
     if quote_result.is_err():
-        raise HTTPException(status_code=400, detail=quote_result.err_value)
+        return handle_result(quote_result, response, success_status=201)
 
     quote = quote_result.ok_value
     if not quote:
-        raise HTTPException(status_code=400, detail="Failed to create quote")
+        return handle_result(Err("Failed to create quote"), response, success_status=201)
 
     # Trigger calculation
     background_tasks.add_task(quote_service.calculate_quote, quote.id)
@@ -471,18 +488,21 @@ async def complete_wizard_session(
     )
 
 
-@router.get("/wizard/steps/all", response_model=list[WizardStepResponse])
+@router.get("/wizard/steps/all")
 @beartype
 async def get_all_wizard_steps(
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> list[Any]:
+) -> Union[list[Any], ErrorResponse]:
     """Get all wizard steps configuration."""
     result = await wizard_service.get_all_steps()
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
-    assert result.ok_value is not None
+    if result.ok_value is None:
+        return handle_result(Err("No wizard steps available"), response)
+
     return result.ok_value
 
 
@@ -502,24 +522,25 @@ class WizardExtensionResponse(BaseModel):
     extended_by_minutes: int = Field(..., description="Minutes extended")
 
 
-@router.post("/wizard/{session_id}/extend", response_model=WizardExtensionResponse)
+@router.post("/wizard/{session_id}/extend")
 @beartype
 async def extend_wizard_session(
     session_id: UUID,
+    response: Response,
     additional_minutes: int = Query(30, ge=1, le=120),
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> WizardExtensionResponse:
+) -> Union[WizardExtensionResponse, ErrorResponse]:
     """Extend wizard session expiration."""
     result = await wizard_service.extend_session(session_id, additional_minutes)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     state = result.ok_value
     
     # Type narrowing - this should never be None due to service logic
     if state is None:
-        raise HTTPException(status_code=500, detail="Internal server error: session state is None")
+        return handle_result(Err("Internal server error: session state is None"), response)
 
     return WizardExtensionResponse(
         session_id=state.session_id,
@@ -546,22 +567,22 @@ class StepIntelligenceResponse(BaseModel):
 
 
 @router.get(
-    "/wizard/{session_id}/intelligence/{step_id}",
-    response_model=StepIntelligenceResponse,
+    "/wizard/{session_id}/intelligence/{step_id}"
 )
 @beartype
 async def get_step_business_intelligence(
     session_id: UUID,
     step_id: str,
+    response: Response,
     wizard_service: QuoteWizardService = Depends(get_wizard_service),
-) -> StepIntelligenceResponse:
+) -> Union[StepIntelligenceResponse, ErrorResponse]:
     """Get business intelligence for a specific wizard step."""
     result = await wizard_service.get_business_intelligence_for_step(
         session_id, step_id
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return StepIntelligenceResponse(
         step_id=step_id,

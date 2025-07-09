@@ -5,10 +5,10 @@ including control execution, evidence collection, and compliance reporting.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Union
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...compliance import (
@@ -25,6 +25,7 @@ from ...compliance import (
 )
 from ...core.result_types import Result, Ok, Err
 from ..dependencies import get_current_user
+from ..response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/compliance", tags=["SOC 2 Compliance"])
 
@@ -132,27 +133,22 @@ class TestPlanRequest(BaseModel):
 @router.get("/overview", response_model=ComplianceOverviewResponse)
 @beartype
 async def get_compliance_overview(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> ComplianceOverviewResponse:
+) -> Union[ComplianceOverviewResponse, ErrorResponse]:
     """Get overall SOC 2 compliance overview."""
     try:
         # Get compliance metrics from the framework
         metrics_result = control_framework.generate_compliance_report()
 
         if metrics_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to generate compliance metrics: {metrics_result.err_value}",
-            )
+            return handle_result(metrics_result, response)
 
         metrics = metrics_result.ok_value
         
         # Type narrowing - metrics should not be None if is_ok() is True
         if metrics is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error: compliance metrics is None"
-            )
+            return handle_result(Err("Internal server error: compliance metrics is None"), response)
 
         # Get detailed scores by criteria
         criteria_scores = {
@@ -186,10 +182,7 @@ async def get_compliance_overview(
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get compliance overview: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get compliance overview: {str(e)}"), response)
 
 
 @router.get("/controls")
@@ -205,10 +198,7 @@ async def list_controls(
                 criteria_enum = TrustServiceCriteria(criteria)
                 controls = control_framework.get_controls_by_criteria(criteria_enum)
             except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid trust service criteria: {criteria}",
-                )
+                return handle_result(Err(f"Invalid trust service criteria: {criteria}"), response)
         else:
             controls = SOC2_CORE_CONTROLS
 
@@ -230,20 +220,17 @@ async def list_controls(
             ],
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list controls: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to list controls: {str(e)}"), response)
 
 
 @router.post("/controls/execute", response_model=ControlExecutionResponse)
 @beartype
 async def execute_control(
-    request: ControlExecutionRequest, current_user: dict[str, Any] = Depends(get_current_user)
-) -> ControlExecutionResponse:
+    request: ControlExecutionRequest, 
+    response: Response,
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> Union[ControlExecutionResponse, ErrorResponse]:
     """Execute a specific SOC 2 control."""
     try:
         # Execute the control
@@ -252,19 +239,13 @@ async def execute_control(
         )
 
         if execution_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Control execution failed: {execution_result.err_value}",
-            )
+            return handle_result(execution_result, response)
 
         execution = execution_result.ok_value
         
         # Type narrowing - execution should not be None if is_ok() is True
         if execution is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error: control execution is None"
-            )
+            return handle_result(Err("Internal server error: control execution is None"), response)
 
         return ControlExecutionResponse(
             execution_id=str(execution.execution_id),
@@ -276,38 +257,29 @@ async def execute_control(
             execution_time_ms=execution.execution_time_ms,
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to execute control: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to execute control: {str(e)}"), response)
 
 
 @router.get("/controls/{control_id}/status")
 @beartype
 async def get_control_status(
-    control_id: str, current_user: dict[str, Any] = Depends(get_current_user)
-) -> dict[str, Any]:
+    control_id: str, 
+    response: Response,
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get the current status of a specific control."""
     try:
         status_result = control_framework.get_control_status(control_id)
 
         if status_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Control not found: {status_result.err_value}",
-            )
+            return handle_result(status_result, response)
 
         control_status = status_result.ok_value
         
         # Type narrowing - control_status should not be None if is_ok() is True
         if control_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error: control status is None"
-            )
+            return handle_result(Err("Internal server error: control status is None"), response)
 
         return {
             "control_id": control_id,
@@ -315,54 +287,46 @@ async def get_control_status(
             "last_checked": datetime.now(timezone.utc).isoformat(),
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get control status: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get control status: {str(e)}"), response)
 
 
 @router.get("/dashboards/security")
 @beartype
 async def get_security_dashboard(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get security controls dashboard."""
     try:
         dashboard = await security_manager.get_security_dashboard()
         return dashboard
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get security dashboard: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get security dashboard: {str(e)}"), response)
 
 
 @router.get("/dashboards/availability")
 @beartype
 async def get_availability_dashboard(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get availability controls dashboard."""
     try:
         dashboard = await availability_manager.get_availability_dashboard()
         return dashboard
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get availability dashboard: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get availability dashboard: {str(e)}"), response)
 
 
 @router.get("/dashboards/processing-integrity")
 @beartype
 async def get_processing_integrity_dashboard(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get processing integrity controls dashboard."""
     try:
         dashboard = (
@@ -371,49 +335,43 @@ async def get_processing_integrity_dashboard(
         return dashboard
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get processing integrity dashboard: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get processing integrity dashboard: {str(e)}"), response)
 
 
 @router.get("/dashboards/confidentiality")
 @beartype
 async def get_confidentiality_dashboard(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get confidentiality controls dashboard."""
     try:
         dashboard = await confidentiality_manager.get_confidentiality_dashboard()
         return dashboard
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get confidentiality dashboard: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get confidentiality dashboard: {str(e)}"), response)
 
 
 @router.get("/dashboards/privacy")
 @beartype
 async def get_privacy_dashboard(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get privacy controls dashboard."""
     try:
         dashboard = await privacy_manager.get_privacy_dashboard()
         return dashboard
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get privacy dashboard: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get privacy dashboard: {str(e)}"), response)
 
 
 @router.get("/evidence/summary")
 @beartype
 async def get_evidence_summary(
+    response: Response,
     period_start: datetime | None = Query(
         default=None, description="Start date for evidence summary"
     ),
@@ -421,7 +379,7 @@ async def get_evidence_summary(
         default=None, description="End date for evidence summary"
     ),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get evidence collection summary."""
     try:
         # Default to last 30 days if no period specified
@@ -435,33 +393,24 @@ async def get_evidence_summary(
         )
 
         if summary_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get evidence summary: {summary_result.err_value}",
-            )
+            return handle_result(summary_result, response)
 
         summary = summary_result.ok_value
         if summary is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Evidence summary returned None",
-            )
+            return handle_result(Err("Evidence summary returned None"), response)
         return summary
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get evidence summary: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get evidence summary: {str(e)}"), response)
 
 
 @router.post("/reports/generate")
 @beartype
 async def generate_compliance_report(
-    request: ComplianceReportRequest, current_user: dict[str, Any] = Depends(get_current_user)
-) -> dict[str, Any]:
+    request: ComplianceReportRequest, 
+    response: Response,
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> Union[dict[str, Any], ErrorResponse]:
     """Generate a comprehensive compliance report."""
     try:
         # Generate compliance report
@@ -475,19 +424,13 @@ async def generate_compliance_report(
         )
 
         if report_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to generate report: {report_result.err_value}",
-            )
+            return handle_result(report_result, response)
 
         report = report_result.ok_value
         
         # Type narrowing - report should not be None if is_ok() is True
         if report is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error: compliance report is None"
-            )
+            return handle_result(Err("Internal server error: compliance report is None"), response)
 
         return {
             "report_id": str(report.report_id),
@@ -505,37 +448,32 @@ async def generate_compliance_report(
             },
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate compliance report: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to generate compliance report: {str(e)}"), response)
 
 
 @router.get("/testing/dashboard")
 @beartype
 async def get_testing_dashboard(
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get control testing dashboard."""
     try:
         dashboard = await testing_framework.get_testing_dashboard()
         return dashboard
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get testing dashboard: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get testing dashboard: {str(e)}"), response)
 
 
 @router.post("/testing/plans")
 @beartype
 async def create_test_plan(
-    request: TestPlanRequest, current_user: dict[str, Any] = Depends(get_current_user)
-) -> dict[str, Any]:
+    request: TestPlanRequest, 
+    response: Response,
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> Union[dict[str, Any], ErrorResponse]:
     """Create a new control testing plan."""
     try:
         # Convert criteria strings to enums
@@ -544,10 +482,7 @@ async def create_test_plan(
             try:
                 criteria_enums.append(TrustServiceCriteria(criterion))
             except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid trust service criteria: {criterion}",
-                )
+                return handle_result(Err(f"Invalid trust service criteria: {criterion}"), response)
 
         plan_result = await testing_framework.create_test_plan(
             plan_name=request.plan_name,
@@ -559,19 +494,13 @@ async def create_test_plan(
         )
 
         if plan_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create test plan: {plan_result.err_value}",
-            )
+            return handle_result(plan_result, response)
 
         plan = plan_result.ok_value
         
         # Type narrowing - plan should not be None if is_ok() is True
         if plan is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error: test plan is None"
-            )
+            return handle_result(Err("Internal server error: test plan is None"), response)
 
         return {
             "plan_id": str(plan.plan_id),
@@ -587,23 +516,19 @@ async def create_test_plan(
             "status": plan.status,
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create test plan: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to create test plan: {str(e)}"), response)
 
 
 @router.post("/testing/execute-all")
 @beartype
 async def execute_all_controls(
+    response: Response,
     criteria: str | None = Query(
         None, description="Execute controls for specific criteria only"
     ),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Execute all controls or controls for specific criteria."""
     try:
         criteria_enum = None
@@ -611,27 +536,18 @@ async def execute_all_controls(
             try:
                 criteria_enum = TrustServiceCriteria(criteria)
             except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid trust service criteria: {criteria}",
-                )
+                return handle_result(Err(f"Invalid trust service criteria: {criteria}"), response)
 
         execution_result = control_framework.execute_all_controls(criteria_enum)
 
         if execution_result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to execute controls: {execution_result.err_value}",
-            )
+            return handle_result(execution_result, response)
 
         executions = execution_result.ok_value
         
         # Type narrowing - executions should not be None if is_ok() is True
         if executions is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error: control executions result is None"
-            )
+            return handle_result(Err("Internal server error: control executions result is None"), response)
 
         # Summarize results
         total_executions = len(executions)
@@ -663,24 +579,20 @@ async def execute_all_controls(
             ],
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to execute all controls: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to execute all controls: {str(e)}"), response)
 
 
 @router.get("/audit-trail")
 @beartype
 async def get_audit_trail(
+    response: Response,
     start_date: datetime | None = Query(None, description="Start date for audit trail"),
     end_date: datetime | None = Query(None, description="End date for audit trail"),
     control_id: str | None = Query(None, description="Filter by control ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
     current_user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Get compliance audit trail."""
     try:
         from ...compliance.audit_logger import get_audit_logger
@@ -693,10 +605,7 @@ async def get_audit_trail(
         )
 
         if trail_result.is_err():  # type: ignore[attr-defined]
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to get audit trail: {trail_result.err_value}",  # type: ignore[attr-defined]
-            )
+            return handle_result(trail_result, response)  # type: ignore[arg-type]
 
         audit_records = trail_result.ok_value  # type: ignore[attr-defined]
 
@@ -711,13 +620,8 @@ async def get_audit_trail(
             "audit_records": audit_records,
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get audit trail: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to get audit trail: {str(e)}"), response)
 
 
 @router.get("/health")

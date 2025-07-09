@@ -1,20 +1,22 @@
 """API key management endpoints."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
 from ...core.auth.oauth2 import APIKeyManager
 from ...core.cache import Cache
 from ...core.database import Database
+from ...core.result_types import Err
 from ...schemas.auth import CurrentUser
 from ..dependencies import get_current_user, get_db_connection, get_redis
+from ..response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 
@@ -166,11 +168,11 @@ async def create_api_key(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     key_data = result.ok_value
     if key_data is None:
-        raise HTTPException(status_code=500, detail="Unexpected null result")
+        return handle_result(Err("Unexpected null result"), response)
         
     return APIKeyCreateResponse(
         id=key_data["id"],
@@ -189,7 +191,8 @@ async def list_api_keys(
     active_only: bool = Query(True, description="Show only active keys"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> list[APIKeyResponse]:
+    response: Response = Depends(lambda: Response()),
+) -> Union[list[APIKeyResponse], ErrorResponse]:
     """List API keys for the current user.
 
     Args:
@@ -212,7 +215,7 @@ async def list_api_keys(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     keys = []
     key_list = result.ok_value
@@ -241,7 +244,8 @@ async def revoke_api_key(
     reason: str = Query(..., description="Reason for revocation"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> APIKeyRevokeResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[APIKeyRevokeResponse, ErrorResponse]:
     """Revoke an API key.
 
     Args:
@@ -266,12 +270,12 @@ async def revoke_api_key(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        raise HTTPException(status_code=404, detail=ownership_result.err_value)
+        return handle_result(ownership_result, response)
 
     result = await api_key_manager.revoke_api_key(key_id, reason)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     return APIKeyRevokeResponse(message="API key revoked successfully")
 
@@ -282,7 +286,8 @@ async def rotate_api_key(
     key_id: UUID,
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> APIKeyCreateResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[APIKeyCreateResponse, ErrorResponse]:
     """Rotate an API key.
 
     This will revoke the old key and create a new one with the same settings.
@@ -308,16 +313,16 @@ async def rotate_api_key(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        raise HTTPException(status_code=404, detail=ownership_result.err_value)
+        return handle_result(ownership_result, response)
 
     result = await api_key_manager.rotate_api_key(key_id)
 
     if result.is_err():
-        raise HTTPException(status_code=400, detail=result.err_value)
+        return handle_result(result, response)
 
     key_data = result.ok_value
     if key_data is None:
-        raise HTTPException(status_code=500, detail="Unexpected null result")
+        return handle_result(Err("Unexpected null result"), response)
         
     return APIKeyCreateResponse(
         id=key_data["id"],
@@ -337,7 +342,8 @@ async def get_api_key_usage(
     days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
     current_user: CurrentUser = Depends(get_current_user),
     api_key_manager: APIKeyManager = Depends(get_api_key_manager),
-) -> APIKeyUsageResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[APIKeyUsageResponse, ErrorResponse]:
     """Get usage statistics for an API key.
 
     Args:
@@ -357,16 +363,16 @@ async def get_api_key_usage(
         key_id, current_user.client_id
     )
     if ownership_result.is_err():
-        raise HTTPException(status_code=404, detail=ownership_result.err_value)
+        return handle_result(ownership_result, response)
 
     result = await api_key_manager.get_usage_statistics(key_id, days)
 
     if result.is_err():
-        raise HTTPException(status_code=404, detail=result.err_value)
+        return handle_result(result, response)
 
     stats = result.ok_value
     if stats is None:
-        raise HTTPException(status_code=500, detail="Unexpected null result")
+        return handle_result(Err("Unexpected null result"), response)
         
     return APIKeyUsageResponse(
         key_id=stats["key_id"],

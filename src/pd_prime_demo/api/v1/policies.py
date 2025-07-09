@@ -9,11 +9,13 @@ from uuid import UUID, uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status, Response
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
+from typing import Union
 
 from pd_prime_demo.core.result_types import Err
+from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -71,15 +73,16 @@ class PolicyFilter(BaseModel):
     max_premium: float | None = Field(None, ge=0, description="Maximum premium")
 
 
-@router.get("/", response_model=PolicyListResponse)
+@router.get("/")
 @beartype
 async def list_policies(
+    response: Response,
     pagination: PaginationParams = Depends(),
     filters: PolicyFilter = Depends(),
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> PolicyListResponse:
+) -> Union[PolicyListResponse, ErrorResponse]:
     """List policies with pagination and filtering.
 
     Args:
@@ -122,10 +125,7 @@ async def list_policies(
         )
 
         if isinstance(result, Err):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(result.error),
-            )
+            return handle_result(result, response)
 
         policies = result.ok_value
 
@@ -139,7 +139,7 @@ async def list_policies(
 
         total = len(count_result.ok_value) if count_result.is_ok() and count_result.ok_value is not None else 0
 
-        response = PolicyListResponse(
+        list_response = PolicyListResponse(
             items=policies,
             total=total,
             skip=pagination.skip,
@@ -148,19 +148,20 @@ async def list_policies(
         break  # Use the first (and only) yielded connection
 
     # Cache the result for 60 seconds
-    await redis.setex(cache_key, 60, response.model_dump_json())
+    await redis.setex(cache_key, 60, list_response.model_dump_json())
 
-    return response
+    return list_response
 
 
-@router.post("/", response_model=Policy, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 @beartype
 async def create_policy(
     policy_data: PolicyCreate,
+    response: Response,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Policy:
+) -> Union[Policy, ErrorResponse]:
     """Create a new insurance policy.
 
     Args:
@@ -196,10 +197,7 @@ async def create_policy(
             result = await service.create(policy_data, customer_id)
 
             if isinstance(result, Err):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=str(result.error),
-                )
+                return handle_result(result, response, success_status=status.HTTP_201_CREATED)
 
             policy = result.ok_value
 
@@ -213,20 +211,18 @@ async def create_policy(
         return policy
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create policy: {str(e)}",
-        ) from e
+        return handle_result(Err(f"Failed to create policy: {str(e)}"), response, success_status=status.HTTP_201_CREATED)
 
 
-@router.get("/{policy_id}", response_model=Policy)
+@router.get("/{policy_id}")
 @beartype
 async def get_policy(
     policy_id: UUID,
+    response: Response,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Policy:
+) -> Union[Policy, ErrorResponse]:
     """Retrieve a specific policy by ID.
 
     Args:
@@ -264,17 +260,11 @@ async def get_policy(
         result = await service.get(policy_id)
 
         if isinstance(result, Err):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(result.error),
-            )
+            return handle_result(result, response)
 
         policy = result.ok_value
         if not policy:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Policy {policy_id} not found",
-            )
+            return handle_result(Err(f"Policy {policy_id} not found"), response)
 
         # Cache the result
         await redis.setex(cache_key, 300, policy.model_dump_json())
@@ -282,21 +272,19 @@ async def get_policy(
         return policy
     
     # This should never be reached as the dependency should provide a connection
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Database connection not available"
-    )
+    return handle_result(Err("Database connection not available"), response)
 
 
-@router.put("/{policy_id}", response_model=Policy)
+@router.put("/{policy_id}")
 @beartype
 async def update_policy(
     policy_id: UUID,
     policy_update: PolicyUpdate,
+    response: Response,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> Policy:
+) -> Union[Policy, ErrorResponse]:
     """Update an existing policy.
 
     Args:
@@ -328,17 +316,11 @@ async def update_policy(
         result = await service.update(policy_id, policy_update)
 
         if isinstance(result, Err):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.error),
-            )
+            return handle_result(result, response)
 
         policy = result.ok_value
         if not policy:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Policy {policy_id} not found",
-            )
+            return handle_result(Err(f"Policy {policy_id} not found"), response)
 
         # Invalidate caches
         await redis.delete(f"policies:{policy_id}")
@@ -349,20 +331,18 @@ async def update_policy(
         return policy
     
     # This should never be reached as the dependency should provide a connection
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Database connection not available"
-    )
+    return handle_result(Err("Database connection not available"), response)
 
 
 @router.delete("/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
 @beartype
 async def delete_policy(
     policy_id: UUID,
+    response: Response,
     db: AsyncGenerator[asyncpg.Connection, None] = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_user_with_demo_fallback),
-) -> None:
+) -> Union[None, ErrorResponse]:
     """Delete a policy (soft delete by setting status to CANCELLED).
 
     Args:
@@ -390,20 +370,16 @@ async def delete_policy(
         result = await service.delete(policy_id)
 
         if isinstance(result, Err):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.error),
-            )
+            return handle_result(result, response)
 
         deleted = result.ok_value
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Policy {policy_id} not found",
-            )
+            return handle_result(Err(f"Policy {policy_id} not found"), response)
 
         # Invalidate caches
         await redis.delete(f"policies:{policy_id}")
         pattern = "policies:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
+        
+        return None

@@ -1,21 +1,21 @@
 """Authentication endpoints including SSO support."""
 
-from typing import Any
+from typing import Any, Union
 from uuid import uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
-
-from pd_prime_demo.core.result_types import Err
 
 from ...core.auth.sso_manager import SSOManager
 from ...core.cache import get_cache, Cache
 from ...core.database import get_db_session, Database
+from ...core.result_types import Err
 from ...core.security import get_security, Security
 from ..dependencies import get_sso_manager, get_db_connection
+from ..response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -217,7 +217,8 @@ async def sso_login_init(
     redirect_uri: str | None = Query(None, description="Custom redirect URI"),
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_cache),
-) -> SSOLoginInitResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[SSOLoginInitResponse, ErrorResponse]:
     """Initiate SSO login flow.
 
     This endpoint generates the authorization URL for the SSO provider
@@ -225,9 +226,9 @@ async def sso_login_init(
     """
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
-        raise HTTPException(
-            status_code=404,
-            detail=f"SSO provider '{provider}' not found. Available providers: {sso_manager.list_providers()}",
+        return handle_result(
+            Err(f"SSO provider '{provider}' not found. Available providers: {sso_manager.list_providers()}"),
+            response
         )
 
     # Generate state for CSRF protection
@@ -257,9 +258,9 @@ async def sso_login_init(
     )
 
     if isinstance(auth_url_result, Err):
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate authorization URL: {auth_url_result.error}",
+        return handle_result(
+            Err(f"Failed to generate authorization URL: {auth_url_result.error}"),
+            response
         )
 
     return SSOLoginInitResponse(authorization_url=auth_url_result.value, state=state)
@@ -278,7 +279,8 @@ async def sso_callback(
     cache: Cache = Depends(get_cache),
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
-) -> LoginResponse | RedirectResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[LoginResponse, RedirectResponse, ErrorResponse]:
     """Handle SSO callback after user authentication.
 
     This endpoint is called by the SSO provider after the user
@@ -287,32 +289,33 @@ async def sso_callback(
     """
     # Check for errors from provider
     if error:
-        raise HTTPException(
-            status_code=400,
-            detail=f"SSO authentication failed: {error} - {error_description or 'No details provided'}",
+        return handle_result(
+            Err(f"SSO authentication failed: {error} - {error_description or 'No details provided'}"),
+            response
         )
 
     # Validate state
     state_data = await cache.get(f"sso:state:{state}")
     if not state_data or state_data.get("provider") != provider:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid state parameter. Please try logging in again.",
+        return handle_result(
+            Err("Invalid state parameter. Please try logging in again."),
+            response
         )
 
     # Get SSO provider
     sso_provider = sso_manager.get_provider(provider)
     if not sso_provider:
-        raise HTTPException(
-            status_code=404, detail=f"SSO provider '{provider}' not found"
+        return handle_result(
+            Err(f"SSO provider '{provider}' not found"),
+            response
         )
 
     # Exchange code for tokens
     token_result = await sso_provider.exchange_code_for_token(code, state)
     if isinstance(token_result, Err):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to exchange code for token: {token_result.error}",
+        return handle_result(
+            Err(f"Failed to exchange code for token: {token_result.error}"),
+            response
         )
 
     tokens = token_result.value
@@ -320,8 +323,9 @@ async def sso_callback(
     # Get user info
     user_info_result = await sso_provider.get_user_info(tokens["access_token"])
     if isinstance(user_info_result, Err):
-        raise HTTPException(
-            status_code=400, detail=f"Failed to get user info: {user_info_result.error}"
+        return handle_result(
+            Err(f"Failed to get user info: {user_info_result.error}"),
+            response
         )
 
     sso_user_info = user_info_result.value
@@ -329,7 +333,7 @@ async def sso_callback(
     # Create or update user
     user_result = await sso_manager.create_or_update_user(sso_user_info, provider)
     if isinstance(user_result, Err):
-        raise HTTPException(status_code=400, detail=user_result.error)
+        return handle_result(user_result, response)
 
     user = user_result.value
 
@@ -416,7 +420,8 @@ async def logout(
     session_id: str = Query(..., description="Session ID to invalidate"),
     db: asyncpg.Connection = Depends(get_db_connection),
     cache: Cache = Depends(get_cache),
-) -> LogoutResponse:
+    response: Response = Depends(lambda: Response()),
+) -> Union[LogoutResponse, ErrorResponse]:
     """Logout and invalidate session.
 
     This endpoint invalidates the user's session and optionally
@@ -435,8 +440,9 @@ async def logout(
     )
 
     if not session:
-        raise HTTPException(
-            status_code=404, detail="Session not found or already invalidated"
+        return handle_result(
+            Err("Session not found or already invalidated"),
+            response
         )
 
     # Revoke session

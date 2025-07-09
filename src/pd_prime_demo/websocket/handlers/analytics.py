@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.database import Database
-from ..manager import ConnectionManager, WebSocketMessage
+from ..manager import ConnectionManager, MessageType, WebSocketMessage
 
 # Additional Pydantic models to replace dict usage
 
@@ -182,7 +182,7 @@ class AnalyticsWebSocketHandler:
         metadata = self._manager._connection_metadata.get(connection_id)
         if not metadata or not metadata.user_id:
             error_msg = WebSocketMessage(
-                type="analytics_error",
+                type=MessageType.ANALYTICS_ERROR,
                 data={
                     "error": "Authentication required for analytics access",
                     "dashboard_type": config.dashboard_type,
@@ -196,7 +196,7 @@ class AnalyticsWebSocketHandler:
             permission_check = await self._validate_admin_access(metadata.user_id)
             if permission_check.is_err():
                 error_msg = WebSocketMessage(
-                    type="analytics_error",
+                    type=MessageType.ANALYTICS_ERROR,
                     data={
                         "error": "Insufficient permissions for admin dashboard",
                         "required_permission": "analytics:admin",
@@ -232,7 +232,7 @@ class AnalyticsWebSocketHandler:
         initial_data = await self._get_dashboard_data(config)
         if initial_data.is_ok():
             initial_msg = WebSocketMessage(
-                type="analytics_data",
+                type=MessageType.ANALYTICS_DATA,
                 data={
                     "dashboard": config.dashboard_type,
                     "metrics": initial_data.unwrap(),
@@ -282,7 +282,7 @@ class AnalyticsWebSocketHandler:
                 data_result = await self._get_dashboard_data(config)
                 if data_result.is_err():
                     error_msg = WebSocketMessage(
-                        type="analytics_error",
+                        type=MessageType.ANALYTICS_ERROR,
                         data={
                             "error": f"Failed to fetch analytics data: {data_result.unwrap_err()}",
                             "dashboard": config.dashboard_type,
@@ -293,7 +293,7 @@ class AnalyticsWebSocketHandler:
 
                 # Send update
                 update_msg = WebSocketMessage(
-                    type="analytics_update",
+                    type=MessageType.ANALYTICS_UPDATE,
                     data={
                         "dashboard": config.dashboard_type,
                         "metrics": data_result.unwrap(),
@@ -314,7 +314,7 @@ class AnalyticsWebSocketHandler:
         except Exception as e:
             # Unexpected error
             error_msg = WebSocketMessage(
-                type="analytics_error",
+                type=MessageType.ANALYTICS_ERROR,
                 data={
                     "error": f"Analytics stream error: {str(e)}",
                     "dashboard": config.dashboard_type,
@@ -639,7 +639,7 @@ class AnalyticsWebSocketHandler:
 
         # Broadcast to relevant rooms
         event_msg = WebSocketMessage(
-            type="analytics_event",
+            type=MessageType.ANALYTICS_EVENT,
             data={
                 "event_type": event_type,
                 "event_data": data,
@@ -674,7 +674,7 @@ class AnalyticsWebSocketHandler:
             return Err(f"Invalid severity level: {severity}")
 
         alert_msg = WebSocketMessage(
-            type="analytics_alert",
+            type=MessageType.ANALYTICS_ALERT,
             data={
                 "alert_type": alert_type,
                 "message": message,

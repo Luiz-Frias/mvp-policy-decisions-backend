@@ -195,10 +195,10 @@ class WebAuthnProvider:
                 user_name=user_email,
                 user_display_name=user_display_name,
                 exclude_credentials=exclude_list,
-                authenticator_selection={
+                authenticator_selection={  # type: ignore[arg-type]
                     "user_verification": self._user_verification,
-                    "authenticator_attachment": "cross-platform",
-                    "resident_key": "discouraged",
+                    "authenticator_attachment": "cross-platform", 
+                    "require_resident_key": False,
                 },
                 attestation=self._attestation,
                 timeout=self._timeout,

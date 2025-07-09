@@ -11,11 +11,13 @@ from uuid import UUID, uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from redis.asyncio import Redis
+from typing import Union
 
 from pd_prime_demo.core.result_types import Err
+from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -268,15 +270,16 @@ class ClaimStatusUpdate(BaseModel):
     notes: str | None = Field(None, max_length=1000, description="Additional notes")
 
 
-@router.get("/", response_model=ClaimListResponse)
+@router.get("/")
 @beartype
 async def list_claims(
+    response: Response,
     pagination: PaginationParams = Depends(),
     filters: ClaimFilter = Depends(),
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> ClaimListResponse:
+) -> Union[ClaimListResponse, ErrorResponse]:
     """List claims with pagination and filtering.
 
     Args:
@@ -315,10 +318,7 @@ async def list_claims(
     )
 
     if isinstance(result, Err):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result.error),
-        )
+        return handle_result(result, response)
 
     claim_models = result.ok_value
 
@@ -362,24 +362,25 @@ async def list_claims(
 
     total = len(count_result.ok_value) if count_result.is_ok() and count_result.ok_value is not None else 0
 
-    response = ClaimListResponse(
+    list_response = ClaimListResponse(
         items=claims, total=total, skip=pagination.skip, limit=pagination.limit
     )
 
     # Cache the result for 30 seconds (shorter due to frequent updates)
-    await redis.setex(cache_key, 30, response.model_dump_json())
+    await redis.setex(cache_key, 30, list_response.model_dump_json())
 
-    return response
+    return list_response
 
 
-@router.post("/", response_model=Claim, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 @beartype
 async def create_claim(
     claim_data: ClaimCreate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Union[Claim, ErrorResponse]:
     """Create a new insurance claim.
 
     Args:
@@ -423,10 +424,7 @@ async def create_claim(
         result = await service.create(service_claim_data, claim_data.policy_id)
 
         if isinstance(result, Err):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.error),
-            )
+            return handle_result(result, response, success_status=status.HTTP_201_CREATED)
 
         claim_model = result.ok_value
 
@@ -464,20 +462,18 @@ async def create_claim(
         return claim
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create claim: {str(e)}",
-        ) from e
+        return handle_result(Err(f"Failed to create claim: {str(e)}"), response, success_status=status.HTTP_201_CREATED)
 
 
-@router.get("/{claim_id}", response_model=Claim)
+@router.get("/{claim_id}")
 @beartype
 async def get_claim(
     claim_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Union[Claim, ErrorResponse]:
     """Retrieve a specific claim by ID.
 
     Args:
@@ -513,16 +509,11 @@ async def get_claim(
     result = await service.get(claim_id)
 
     if isinstance(result, Err):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result.error),
-        )
+        return handle_result(result, response)
 
     claim_model = result.ok_value
     if not claim_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
-        )
+        return handle_result(Err(f"Claim {claim_id} not found"), response)
 
     # Convert to API model
     claim = Claim(
@@ -556,15 +547,16 @@ async def get_claim(
     return claim
 
 
-@router.put("/{claim_id}", response_model=Claim)
+@router.put("/{claim_id}")
 @beartype
 async def update_claim(
     claim_id: UUID,
     claim_update: ClaimUpdate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Union[Claim, ErrorResponse]:
     """Update an existing claim.
 
     Args:
@@ -599,16 +591,11 @@ async def update_claim(
     result = await service.update(claim_id, service_update)
 
     if isinstance(result, Err):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(result.error),
-        )
+        return handle_result(result, response)
 
     claim_model = result.ok_value
     if not claim_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
-        )
+        return handle_result(Err(f"Claim {claim_id} not found"), response)
 
     # If status update requested, handle separately
     if claim_update.status:
@@ -622,16 +609,11 @@ async def update_claim(
         )
 
         if isinstance(status_result, Err):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(status_result.error),
-            )
+            return handle_result(status_result, response)
 
         claim_model = status_result.ok_value
         if not claim_model:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found after status update"
-            )
+            return handle_result(Err(f"Claim {claim_id} not found after status update"), response)
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -668,15 +650,16 @@ async def update_claim(
     return claim
 
 
-@router.post("/{claim_id}/status", response_model=Claim)
+@router.post("/{claim_id}/status")
 @beartype
 async def update_claim_status(
     claim_id: UUID,
     status_update: ClaimStatusUpdate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Union[Claim, ErrorResponse]:
     """Update claim status with audit trail.
 
     Args:
@@ -713,16 +696,11 @@ async def update_claim_status(
     )
 
     if isinstance(result, Err):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(result.error),
-        )
+        return handle_result(result, response)
 
     claim_model = result.ok_value
     if not claim_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
-        )
+        return handle_result(Err(f"Claim {claim_id} not found"), response)
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -763,10 +741,11 @@ async def update_claim_status(
 @beartype
 async def delete_claim(
     claim_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> None:
+) -> Union[None, ErrorResponse]:
     """Delete a claim (only allowed for DRAFT status).
 
     Args:
@@ -792,10 +771,7 @@ async def delete_claim(
     result = await service.delete(claim_id)
 
     if isinstance(result, Err):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(result.error),
-        )
+        return handle_result(result, response)
 
     # This is a placeholder implementation
 
@@ -805,6 +781,4 @@ async def delete_claim(
     async for key in redis.scan_iter(match=pattern):
         await redis.delete(key)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
-    )
+    return handle_result(Err(f"Claim {claim_id} not found"), response)

@@ -162,17 +162,17 @@ async def check_service_health(
     quote_start = time.time()
     try:
         # Initialize with rating engine if available
-        rating_engine: RatingEngine | None = None
+        quote_rating_engine: RatingEngine | None = None
         rating_engine_available = False
         try:
-            rating_engine = RatingEngine(db, cache)
-            await rating_engine.initialize()
+            quote_rating_engine = RatingEngine(db, cache)
+            await quote_rating_engine.initialize()
             rating_engine_available = True
         except Exception:
-            rating_engine = None  # type: ignore[assignment]
+            quote_rating_engine = None
             rating_engine_available = False
 
-        QuoteService(db, cache, rating_engine)
+        QuoteService(db, cache, quote_rating_engine)
         quote_response_time = (time.time() - quote_start) * 1000
 
         if not rating_engine_available:

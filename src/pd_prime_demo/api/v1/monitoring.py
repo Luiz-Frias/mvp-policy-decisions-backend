@@ -1,10 +1,10 @@
 """Database and system monitoring endpoints with performance tracking."""
 
 import time
-from typing import Any
+from typing import Any, Union
 
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.admin_query_optimizer import AdminQueryOptimizer
@@ -13,6 +13,7 @@ from ...core.performance_monitor import PerformanceMetrics, get_performance_coll
 from ...core.query_optimizer import QueryOptimizer
 from ...core.result_types import Result, Ok, Err
 from ..dependencies import get_db
+from ..response_patterns import handle_result, ErrorResponse
 
 router = APIRouter(prefix="/monitoring", tags=["monitoring"])
 
@@ -149,12 +150,13 @@ async def get_pool_stats(db: Database = Depends(get_db)) -> PoolStatsResponse:
 @router.get("/slow-queries", response_model=list[SlowQueryResponse])
 @beartype
 async def get_slow_queries(
+    response: Response,
     threshold_ms: float = Query(
         100.0, ge=10.0, le=10000.0, description="Threshold in milliseconds"
     ),
     limit: int = Query(20, ge=1, le=100, description="Maximum results to return"),
     db: Database = Depends(get_db),
-) -> list[SlowQueryResponse]:
+) -> Union[list[SlowQueryResponse], ErrorResponse]:
     """Get analysis of slow database queries."""
     optimizer = QueryOptimizer(db)
     result = await optimizer.analyze_slow_queries(
@@ -162,15 +164,12 @@ async def get_slow_queries(
     )
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     # Type narrowing - ok_value should not be None if is_ok() is True
     slow_queries = result.ok_value
     if slow_queries is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: slow queries result is None"
-        )
+        return handle_result(Err("Internal server error: slow queries result is None"), response)
 
     return [
         SlowQueryResponse(
@@ -188,24 +187,22 @@ async def get_slow_queries(
 @router.post("/analyze-query", response_model=QueryPlanResponse)
 @beartype
 async def analyze_query(
+    response: Response,
     query: str = Query(..., description="SQL query to analyze"),
     db: Database = Depends(get_db),
-) -> QueryPlanResponse:
+) -> Union[QueryPlanResponse, ErrorResponse]:
     """Analyze a specific query's execution plan."""
     optimizer = QueryOptimizer(db)
     result = await optimizer.explain_analyze(query)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     plan = result.ok_value
     
     # Type narrowing - plan should not be None if is_ok() is True
     if plan is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: query plan is None"
-        )
+        return handle_result(Err("Internal server error: query plan is None"), response)
     
     return QueryPlanResponse(
         query=plan.query,
@@ -223,25 +220,23 @@ async def analyze_query(
 @beartype
 async def get_index_suggestions(
     table_name: str,
+    response: Response,
     min_cardinality: int = Query(
         100, ge=10, description="Minimum cardinality for suggestions"
     ),
     db: Database = Depends(get_db),
-) -> list[IndexSuggestionResponse]:
+) -> Union[list[IndexSuggestionResponse], ErrorResponse]:
     """Get index suggestions for a specific table."""
     optimizer = QueryOptimizer(db)
     result = await optimizer.suggest_indexes(table_name, min_cardinality)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     # Type narrowing - ok_value should not be None if is_ok() is True
     suggestions = result.ok_value
     if suggestions is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: index suggestions result is None"
-        )
+        return handle_result(Err("Internal server error: index suggestions result is None"), response)
 
     return [
         IndexSuggestionResponse(
@@ -258,17 +253,18 @@ async def get_index_suggestions(
 @router.get("/table-bloat")
 @beartype
 async def check_table_bloat(
+    response: Response,
     threshold_percent: float = Query(
         20.0, ge=5.0, le=50.0, description="Bloat threshold percentage"
     ),
     db: Database = Depends(get_db),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Check for table bloat that affects performance."""
     optimizer = QueryOptimizer(db)
     result = await optimizer.check_table_bloat(threshold_percent)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"bloated_tables": result.ok_value}
 
@@ -276,15 +272,16 @@ async def check_table_bloat(
 @router.get("/admin/metrics", response_model=AdminMetricsResponse)
 @beartype
 async def get_admin_metrics(
+    response: Response,
     use_cache: bool = Query(True, description="Use cached results if available"),
     db: Database = Depends(get_db),
-) -> AdminMetricsResponse:
+) -> Union[AdminMetricsResponse, ErrorResponse]:
     """Get optimized admin dashboard metrics."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.get_admin_dashboard_metrics(use_cache=use_cache)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     metrics = result.unwrap()  # Safe to unwrap after checking is_err()
 
@@ -302,28 +299,32 @@ async def get_admin_metrics(
 @router.post("/admin/refresh-views")
 @beartype
 async def refresh_admin_views(
+    response: Response,
     force: bool = Query(False, description="Force refresh all views"),
     db: Database = Depends(get_db),
-) -> dict[str, Any]:
+) -> Union[dict[str, Any], ErrorResponse]:
     """Refresh admin materialized views."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.refresh_materialized_views(force_refresh=force)
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     return {"refreshed_views": result.ok_value}
 
 
 @router.post("/admin/optimize")
 @beartype
-async def optimize_admin_queries(db: Database = Depends(get_db)) -> dict[str, Any]:
+async def optimize_admin_queries(
+    response: Response,
+    db: Database = Depends(get_db)
+) -> Union[dict[str, Any], ErrorResponse]:
     """Run admin query optimization routine."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.optimize_admin_queries()
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     assert result.ok_value is not None
     return result.ok_value
@@ -331,13 +332,16 @@ async def optimize_admin_queries(db: Database = Depends(get_db)) -> dict[str, An
 
 @router.get("/admin/performance")
 @beartype
-async def monitor_admin_performance(db: Database = Depends(get_db)) -> dict[str, Any]:
+async def monitor_admin_performance(
+    response: Response,
+    db: Database = Depends(get_db)
+) -> Union[dict[str, Any], ErrorResponse]:
     """Monitor admin-specific query performance."""
     admin_optimizer = AdminQueryOptimizer(db)
     result = await admin_optimizer.monitor_admin_query_performance()
 
     if result.is_err():
-        raise HTTPException(status_code=500, detail=result.err_value)
+        return handle_result(result, response)
 
     assert result.ok_value is not None
     return result.ok_value
@@ -433,13 +437,16 @@ async def get_performance_metrics() -> dict[str, PerformanceMetricsResponse]:
     "/performance/metrics/{operation}", response_model=PerformanceMetricsResponse
 )
 @beartype
-async def get_operation_metrics(operation: str) -> PerformanceMetricsResponse:
+async def get_operation_metrics(
+    operation: str,
+    response: Response
+) -> Union[PerformanceMetricsResponse, ErrorResponse]:
     """Get performance metrics for a specific operation."""
     collector = get_performance_collector()
     result = await collector.get_metrics(operation)
 
     if result.is_err():
-        raise HTTPException(status_code=404, detail=result.err_value)
+        return handle_result(result, response)
 
     metrics = result.unwrap()  # Safe to unwrap after checking is_err()
     

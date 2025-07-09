@@ -9,11 +9,13 @@ from uuid import UUID
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status, Response
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
+from typing import Union
 
 from pd_prime_demo.core.result_types import Err
+from pd_prime_demo.api.response_patterns import handle_result, ErrorResponse
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -71,15 +73,16 @@ class CustomerFilter(BaseModel):
     )
 
 
-@router.get("/", response_model=CustomerListResponse)
+@router.get("/")
 @beartype
 async def list_customers(
+    response: Response,
     pagination: PaginationParams = Depends(),
     filters: CustomerFilter = Depends(),
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> CustomerListResponse:
+) -> Union[CustomerListResponse, ErrorResponse]:
     """List customers with pagination and filtering.
 
     Args:
@@ -165,24 +168,25 @@ async def list_customers(
     rows = await db.fetch(query, *params)
     customers = [service._row_to_customer(row) for row in rows]
 
-    response = CustomerListResponse(
+    list_response = CustomerListResponse(
         items=customers, total=total or 0, skip=pagination.skip, limit=pagination.limit
     )
 
     # Cache the result for 60 seconds
-    await redis.setex(cache_key, 60, response.model_dump_json())
+    await redis.setex(cache_key, 60, list_response.model_dump_json())
 
-    return response
+    return list_response
 
 
-@router.post("/", response_model=Customer, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 @beartype
 async def create_customer(
     customer_data: CustomerCreate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Customer:
+) -> Union[Customer, ErrorResponse]:
     """Create a new customer.
 
     Args:
@@ -212,10 +216,7 @@ async def create_customer(
         result = await service.create(customer_data)
 
         if result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.err_value),
-            )
+            return handle_result(result, response, success_status=status.HTTP_201_CREATED)
 
         customer = result.ok_value
         assert customer is not None
@@ -228,20 +229,18 @@ async def create_customer(
         return customer
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create customer: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to create customer: {str(e)}"), response, success_status=status.HTTP_201_CREATED)
 
 
-@router.get("/{customer_id}", response_model=Customer)
+@router.get("/{customer_id}")
 @beartype
 async def get_customer(
     customer_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Customer:
+) -> Union[Customer, ErrorResponse]:
     """Get customer by ID.
 
     Args:
@@ -277,17 +276,11 @@ async def get_customer(
     result = await service.get(customer_id)
 
     if result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result.err_value),
-        )
+        return handle_result(result, response)
 
     customer = result.ok_value
     if not customer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found",
-        )
+        return handle_result(Err("Customer not found"), response)
 
     # Cache the result
     await redis.setex(cache_key, 300, customer.model_dump_json())
@@ -295,15 +288,16 @@ async def get_customer(
     return customer
 
 
-@router.put("/{customer_id}", response_model=Customer)
+@router.put("/{customer_id}")
 @beartype
 async def update_customer(
     customer_id: UUID,
     customer_update: CustomerUpdate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Customer:
+) -> Union[Customer, ErrorResponse]:
     """Update customer information.
 
     Args:
@@ -334,17 +328,11 @@ async def update_customer(
         result = await service.update(customer_id, customer_update)
 
         if result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.err_value),
-            )
+            return handle_result(result, response)
 
         customer = result.ok_value
         if not customer:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Customer not found",
-            )
+            return handle_result(Err("Customer not found"), response)
 
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
@@ -354,23 +342,19 @@ async def update_customer(
 
         return customer
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to update customer: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to update customer: {str(e)}"), response)
 
 
 @router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
 @beartype
 async def delete_customer(
     customer_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> None:
+) -> Union[None, ErrorResponse]:
     """Delete customer account.
 
     Args:
@@ -397,10 +381,7 @@ async def delete_customer(
         result = await service.delete(customer_id)
 
         if result.is_err():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(result.err_value),
-            )
+            return handle_result(result, response)
 
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
@@ -408,23 +389,21 @@ async def delete_customer(
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
-    except HTTPException:
-        raise
+        return None
+
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to delete customer: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to delete customer: {str(e)}"), response)
 
 
-@router.get("/{customer_id}/policies", response_model=list[PolicySummary])
+@router.get("/{customer_id}/policies")
 @beartype
 async def get_customer_policies(
     customer_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> list[PolicySummary]:
+) -> Union[list[PolicySummary], ErrorResponse]:
     """Get all policies for a specific customer.
 
     Args:
@@ -466,19 +445,13 @@ async def get_customer_policies(
     result = await service.get_policies(customer_id)
 
     if result.is_err():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(result.err_value),
-        )
+        return handle_result(result, response)
 
     policies = result.ok_value
     
     # Type narrowing - policies should not be None if is_ok() is True
     if policies is None:
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: policies result is None"
-        )
+        return handle_result(Err("Internal server error: policies result is None"), response)
 
     # Cache the result for 300 seconds (5 minutes)
     await redis.setex(
