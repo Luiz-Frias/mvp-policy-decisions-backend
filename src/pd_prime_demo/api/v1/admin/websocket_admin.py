@@ -1,5 +1,6 @@
 """Admin WebSocket API endpoints for real-time monitoring and control."""
 
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -16,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ....models.admin import AdminUser
 from ....websocket.handlers.admin_dashboard import AdminDashboardHandler
-from ....websocket.manager import ConnectionManager, WebSocketMessage
+from ....websocket.manager import ConnectionManager, MessageType, WebSocketMessage
 
 
 class AdminWebSocketConfig(BaseModel):
@@ -78,14 +79,11 @@ def get_current_admin_user() -> AdminUser:
     return AdminUser(
         id=UUID("00000000-0000-0000-0000-000000000001"),
         email="admin@demo.com",
-        role="super_admin",
-        is_active=True,
-        effective_permissions=[
-            "analytics:read",
-            "audit:read",
-            "performance:read",
-            "system:manage",
-        ],
+        role_id=UUID("00000000-0000-0000-0000-000000000002"),  # Required field
+        is_super_admin=True,  # Grant super admin for demo user
+        full_name="Demo Admin",  # Required field
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
     )
 
 
@@ -103,13 +101,13 @@ async def admin_dashboard_websocket(
     try:
         # Send welcome message
         welcome_msg = WebSocketMessage(
-            type="admin_connected",
+            type=MessageType.CONNECTION,
             data={
                 "connection_id": connection_id,
                 "admin_user": {
                     "id": str(admin_user.id),
                     "email": admin_user.email,
-                    "role": admin_user.role,
+                    "role": "super_admin" if admin_user.is_super_admin else "admin",
                     "permissions": admin_user.effective_permissions,
                 },
                 "capabilities": [
@@ -134,7 +132,7 @@ async def admin_dashboard_websocket(
                     )
                     if result.is_err():
                         error_msg = WebSocketMessage(
-                            type="error", data={"error": result.unwrap_err()}
+                            type=MessageType.ERROR, data={"error": result.unwrap_err()}
                         )
                         await websocket.send_json(error_msg.model_dump())
 
@@ -145,7 +143,7 @@ async def admin_dashboard_websocket(
                     )
                     if result.is_err():
                         error_msg = WebSocketMessage(
-                            type="error", data={"error": result.unwrap_err()}
+                            type=MessageType.ERROR, data={"error": result.unwrap_err()}
                         )
                         await websocket.send_json(error_msg.model_dump())
 
@@ -156,19 +154,19 @@ async def admin_dashboard_websocket(
                     )
                     if result.is_err():
                         error_msg = WebSocketMessage(
-                            type="error", data={"error": result.unwrap_err()}
+                            type=MessageType.ERROR, data={"error": result.unwrap_err()}
                         )
                         await websocket.send_json(error_msg.model_dump())
 
                 elif message_type == "ping":
                     pong_msg = WebSocketMessage(
-                        type="pong", data={"timestamp": data.get("timestamp")}
+                        type=MessageType.PONG, data={"timestamp": data.get("timestamp")}
                     )
                     await websocket.send_json(pong_msg.model_dump())
 
                 else:
                     error_msg = WebSocketMessage(
-                        type="error",
+                        type=MessageType.ERROR,
                         data={
                             "error": f"Unknown message type: {message_type}",
                             "supported_types": [
@@ -185,7 +183,7 @@ async def admin_dashboard_websocket(
                 break
             except Exception as e:
                 error_msg = WebSocketMessage(
-                    type="error",
+                    type=MessageType.ERROR,
                     data={
                         "error": f"Processing error: {str(e)}",
                         "fatal": True,

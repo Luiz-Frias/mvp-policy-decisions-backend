@@ -177,7 +177,7 @@ async def get_mfa_manager() -> MFAManager:
 
 @router.get("/status", response_model=MFAStatusResponse)
 async def get_mfa_status(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> MFAStatusResponse:
     """Get user's MFA status."""
@@ -209,7 +209,7 @@ async def get_mfa_status(
 
 @router.post("/totp/setup", response_model=TOTPSetupResponse)
 async def setup_totp(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> TOTPSetupResponse:
     """Start TOTP setup process."""
@@ -243,7 +243,7 @@ async def setup_totp(
 @router.post("/totp/verify-setup")
 async def verify_totp_setup(
     request: TOTPVerifyRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str]:
     """Verify TOTP setup and activate."""
@@ -261,7 +261,7 @@ async def verify_totp_setup(
 
 @router.delete("/totp")
 async def disable_totp(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str]:
     """Disable TOTP authentication."""
@@ -306,7 +306,7 @@ async def disable_totp(
 @router.post("/webauthn/register/begin", response_model=WebAuthnRegistrationResponse)
 async def begin_webauthn_registration(
     request: WebAuthnRegistrationRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> WebAuthnRegistrationResponse:
     """Begin WebAuthn registration."""
@@ -338,7 +338,7 @@ async def begin_webauthn_registration(
 @router.post("/sms/setup")
 async def setup_sms(
     request: SMSSetupRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str]:
     """Setup SMS authentication."""
@@ -370,7 +370,7 @@ async def setup_sms(
 @router.post("/challenge", response_model=MFAChallengeResponse)
 async def create_mfa_challenge(
     preferred_method: MFAMethod | None = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> MFAChallengeResponse:
     """Create MFA challenge for authentication."""
@@ -400,7 +400,7 @@ async def create_mfa_challenge(
 async def verify_mfa_challenge(
     challenge_id: UUID,
     request: MFAVerificationRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any]:
     """Verify MFA challenge."""
@@ -437,7 +437,7 @@ async def verify_mfa_challenge(
 
 @router.post("/recovery-codes/generate")
 async def generate_recovery_codes(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any]:
     """Generate new recovery codes."""
@@ -461,7 +461,7 @@ async def generate_recovery_codes(
 @router.post("/device/trust")
 async def trust_device(
     request: DeviceTrustRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any]:
     """Mark device as trusted."""
@@ -491,7 +491,7 @@ async def trust_device(
 
 @router.get("/risk-assessment")
 async def get_risk_assessment(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any]:
     """Get current authentication risk assessment."""

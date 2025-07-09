@@ -150,14 +150,14 @@ async def list_api_keys(
     for key_data in result.value:
         keys.append(
             APIKeyResponse(
-                id=key_data["id"],
-                name=key_data["name"],
-                scopes=key_data["scopes"],
-                expires_at=key_data.get("expires_at"),
-                rate_limit_per_minute=key_data["rate_limit_per_minute"],
-                created_at=key_data["created_at"],
-                last_used_at=key_data.get("last_used_at"),
-                active=key_data["active"],
+                id=UUID(key_data["id"]) if isinstance(key_data["id"], str) else key_data["id"],
+                name=str(key_data["name"]),
+                scopes=list(key_data["scopes"]) if key_data["scopes"] else [],
+                expires_at=datetime.fromisoformat(key_data["expires_at"]) if key_data.get("expires_at") and isinstance(key_data["expires_at"], str) else key_data.get("expires_at"),
+                rate_limit_per_minute=int(key_data["rate_limit_per_minute"]),
+                created_at=datetime.fromisoformat(key_data["created_at"]) if isinstance(key_data["created_at"], str) else key_data["created_at"],
+                last_used_at=datetime.fromisoformat(key_data["last_used_at"]) if key_data.get("last_used_at") and isinstance(key_data["last_used_at"], str) else key_data.get("last_used_at"),
+                active=bool(key_data["active"]),
             )
         )
 

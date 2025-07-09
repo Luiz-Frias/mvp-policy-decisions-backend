@@ -169,11 +169,11 @@ class ClaimService:
 
         param_count += 1
         query_parts.append(f"LIMIT ${param_count}")
-        params.append(limit)
+        params.append(str(limit))
 
         param_count += 1
         query_parts.append(f"OFFSET ${param_count}")
-        params.append(offset)
+        params.append(str(offset))
 
         query = " ".join(query_parts)
         rows = await self._db.fetch(query, *params)
@@ -276,7 +276,7 @@ class ClaimService:
         ]:
             param_count += 1
             update_fields.append(f"resolved_at = ${param_count}")
-            params.append(datetime.now(timezone.utc))
+            params.append(str(datetime.now(timezone.utc)))
 
         # Add note to data
         if status_update.notes:

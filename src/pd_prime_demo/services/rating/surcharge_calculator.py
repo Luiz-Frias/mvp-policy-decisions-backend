@@ -514,8 +514,8 @@ class SurchargeCalculator:
         total_amount: Decimal,
     ) -> dict[str, Any]:
         """Format surcharges into a summary report."""
-        by_type = {}
-        by_severity = {"high": [], "medium": [], "low": []}
+        by_type: dict[str, dict[str, Any]] = {}
+        by_severity: dict[str, list[dict[str, Any]]] = {"high": [], "medium": [], "low": []}
 
         for surcharge in surcharges:
             surcharge_type = surcharge["type"]

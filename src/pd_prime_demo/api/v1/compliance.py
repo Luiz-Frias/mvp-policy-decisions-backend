@@ -131,7 +131,7 @@ class TestPlanRequest(BaseModel):
 @router.get("/overview", response_model=ComplianceOverviewResponse)
 @beartype
 async def get_compliance_overview(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> ComplianceOverviewResponse:
     """Get overall SOC 2 compliance overview."""
     try:
@@ -188,7 +188,7 @@ async def get_compliance_overview(
 @beartype
 async def list_controls(
     criteria: str | None = Query(None, description="Filter by trust service criteria"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """List all SOC 2 controls with optional filtering."""
     try:
@@ -305,7 +305,7 @@ async def get_control_status(
 @router.get("/dashboards/security")
 @beartype
 async def get_security_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get security controls dashboard."""
     try:
@@ -322,7 +322,7 @@ async def get_security_dashboard(
 @router.get("/dashboards/availability")
 @beartype
 async def get_availability_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get availability controls dashboard."""
     try:
@@ -339,7 +339,7 @@ async def get_availability_dashboard(
 @router.get("/dashboards/processing-integrity")
 @beartype
 async def get_processing_integrity_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get processing integrity controls dashboard."""
     try:
@@ -358,7 +358,7 @@ async def get_processing_integrity_dashboard(
 @router.get("/dashboards/confidentiality")
 @beartype
 async def get_confidentiality_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get confidentiality controls dashboard."""
     try:
@@ -375,7 +375,7 @@ async def get_confidentiality_dashboard(
 @router.get("/dashboards/privacy")
 @beartype
 async def get_privacy_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get privacy controls dashboard."""
     try:
@@ -398,7 +398,7 @@ async def get_evidence_summary(
     period_end: datetime | None = Query(
         default=None, description="End date for evidence summary"
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get evidence collection summary."""
     try:
@@ -482,7 +482,7 @@ async def generate_compliance_report(
 @router.get("/testing/dashboard")
 @beartype
 async def get_testing_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get control testing dashboard."""
     try:
@@ -560,7 +560,7 @@ async def execute_all_controls(
     criteria: str | None = Query(
         None, description="Execute controls for specific criteria only"
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Execute all controls or controls for specific criteria."""
     try:
@@ -585,8 +585,8 @@ async def execute_all_controls(
         executions = execution_result.unwrap()
 
         # Summarize results
-        total_executions = len(executions)
-        successful_executions = sum(1 for exec in executions if exec.result)
+        total_executions = len(executions) if executions else 0
+        successful_executions = sum(1 for exec in executions if exec.result) if executions else 0
         failed_executions = total_executions - successful_executions
 
         return {
@@ -630,7 +630,7 @@ async def get_audit_trail(
     end_date: datetime | None = Query(None, description="End date for audit trail"),
     control_id: str | None = Query(None, description="Filter by control ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get compliance audit trail."""
     try:

@@ -169,7 +169,7 @@ async def approve_rate_version(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"approved": result.ok_value}
+    return {"approved": result.ok_value or False}
 
 
 @router.post("/rate-versions/{version_id}/reject")
@@ -200,7 +200,7 @@ async def reject_rate_version(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.err_value)
 
-    return {"rejected": result.ok_value}
+    return {"rejected": result.ok_value or False}
 
 
 @router.get("/rate-versions/{version_id_1}/compare/{version_id_2}")

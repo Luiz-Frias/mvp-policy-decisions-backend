@@ -112,7 +112,7 @@ async def bulk_quote_operation(
 
     # Process in batches
     batch_size = 50
-    results = {"total": len(quote_ids), "successful": 0, "failed": 0, "errors": []}
+    results: dict[str, Any] = {"total": len(quote_ids), "successful": 0, "failed": 0, "errors": []}
 
     for i in range(0, len(quote_ids), batch_size):
         batch = quote_ids[i : i + batch_size]
@@ -230,12 +230,12 @@ async def export_quotes(
     if created_after:
         param_count += 1
         query_parts.append(f"AND created_at >= ${param_count}")
-        params.append(created_after)
+        params.append(str(created_after))
 
     if created_before:
         param_count += 1
         query_parts.append(f"AND created_at <= ${param_count}")
-        params.append(created_before)
+        params.append(str(created_before))
 
     query = " ".join(query_parts)
     rows = await quote_service._db.fetch(query, *params)

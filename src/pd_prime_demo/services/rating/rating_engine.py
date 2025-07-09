@@ -647,7 +647,7 @@ class RatingEngine:
             Result containing validation report or error
         """
         try:
-            results = {
+            results: dict[str, Any] = {
                 "total_cases": len(test_cases),
                 "passed": 0,
                 "failed": 0,

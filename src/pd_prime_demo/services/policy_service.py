@@ -148,11 +148,11 @@ class PolicyService:
 
         param_count += 1
         query_parts.append(f"LIMIT ${param_count}")
-        params.append(limit)
+        params.append(str(limit))
 
         param_count += 1
         query_parts.append(f"OFFSET ${param_count}")
-        params.append(offset)
+        params.append(str(offset))
 
         query = " ".join(query_parts)
         rows = await self._db.fetch(query, *params)

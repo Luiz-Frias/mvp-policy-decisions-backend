@@ -432,12 +432,12 @@ class AuditLogger:
             if start_date:
                 param_count += 1
                 conditions.append(f"created_at >= ${param_count}")
-                params.append(start_date)
+                params.append(str(start_date))
 
             if end_date:
                 param_count += 1
                 conditions.append(f"created_at <= ${param_count}")
-                params.append(end_date)
+                params.append(str(end_date))
 
             if user_id:
                 param_count += 1
@@ -470,7 +470,7 @@ class AuditLogger:
                 LIMIT ${param_count}
             """
             )
-            params.append(limit)
+            params.append(str(limit))
 
             rows = await self._database.fetch(query, *params)
 

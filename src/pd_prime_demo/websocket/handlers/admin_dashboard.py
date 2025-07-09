@@ -466,10 +466,10 @@ class AdminDashboardHandler:
             return Ok(
                 {
                     "connected_clients": info.get("connected_clients", 0),
-                    "used_memory_mb": memory_info.get("used_memory", 0) / (1024 * 1024),
-                    "hit_rate": info.get("keyspace_hits", 0)
+                    "used_memory_mb": float(memory_info.get("used_memory", 0)) / (1024 * 1024),
+                    "hit_rate": float(info.get("keyspace_hits", 0))
                     / max(
-                        info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0), 1
+                        float(info.get("keyspace_hits", 0)) + float(info.get("keyspace_misses", 0)), 1
                     ),
                     "total_keys": await redis_client.dbsize(),
                     "status": "healthy",

@@ -18,7 +18,7 @@ from .handlers.admin_dashboard import AdminDashboardHandler
 from .handlers.analytics import AnalyticsWebSocketHandler, DashboardConfig
 from .handlers.notifications import NotificationHandler
 from .handlers.quotes import CollaborativeEditRequest, QuoteWebSocketHandler
-from .manager import ConnectionManager, WebSocketMessage
+from .manager import ConnectionManager, MessageType, WebSocketMessage
 
 # Create WebSocket app
 websocket_app = FastAPI(
@@ -125,7 +125,7 @@ async def send_error_message(
     manager: ConnectionManager, connection_id: str, error: str
 ) -> None:
     """Helper function to send error messages with proper format."""
-    error_msg = WebSocketMessage(type="error", data={"error": error})
+    error_msg = WebSocketMessage(type=MessageType.ERROR, data={"error": error})
     await manager.send_personal_message(connection_id, error_msg)
 
 
@@ -198,7 +198,7 @@ async def websocket_endpoint(
                 data = json.loads(raw_data)
             except json.JSONDecodeError:
                 error_msg = WebSocketMessage(
-                    type="error",
+                    type=MessageType.ERROR,
                     data={
                         "error": "Invalid JSON format",
                         "received": (
@@ -224,7 +224,7 @@ async def websocket_endpoint(
                 quote_id = data.get("quote_id")
                 if not quote_id:
                     error_msg = WebSocketMessage(
-                        type="error",
+                        type=MessageType.ERROR,
                         data={"error": "quote_id required for quote_subscribe"},
                     )
                     await manager.send_personal_message(connection_id, error_msg)
@@ -237,7 +237,7 @@ async def websocket_endpoint(
                     )
                 except ValueError:
                     error_msg = WebSocketMessage(
-                        type="error",
+                        type=MessageType.ERROR,
                         data={"error": f"Invalid quote_id format: {quote_id}"},
                     )
                     await manager.send_personal_message(connection_id, error_msg)
@@ -386,7 +386,7 @@ async def websocket_endpoint(
             else:
                 # Unknown message type
                 error_msg = WebSocketMessage(
-                    type="error",
+                    type=MessageType.ERROR,
                     data={
                         "error": f"Unknown message type: {message_type}",
                         "supported_types": [
@@ -415,7 +415,7 @@ async def websocket_endpoint(
         # Unexpected error
         try:
             error_msg = WebSocketMessage(
-                type="error",
+                type=MessageType.ERROR,
                 data={
                     "error": f"Unexpected error: {str(e)}",
                     "fatal": True,

@@ -324,7 +324,7 @@ class AvailabilityControlManager:
         ]
 
         all_delivered = all(alert["delivered"] for alert in test_alerts)
-        max_latency = max(alert["latency_seconds"] for alert in test_alerts)
+        max_latency = max(int(alert["latency_seconds"]) for alert in test_alerts)
 
         return {
             "functional": all_delivered and max_latency < 60,
@@ -450,7 +450,7 @@ class AvailabilityControlManager:
             f"{metric}: {data['change_percentage']:+.1f}%"
             for metric, data in trends.items()
             if data["trend"] in ["degrading", "increasing"]
-            and data["change_percentage"] > 10
+            and float(data["change_percentage"]) > 10
         ]
 
         return {
@@ -710,7 +710,7 @@ class AvailabilityControlManager:
         ]
 
         failed_systems = [s["name"] for s in systems if not s["failover_functional"]]
-        max_failover_time = max(s["failover_time_seconds"] for s in systems)
+        max_failover_time = max(int(s["failover_time_seconds"]) for s in systems)
 
         return {
             "all_systems_functional": len(failed_systems) == 0,

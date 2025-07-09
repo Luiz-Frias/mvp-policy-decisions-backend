@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pd_prime_demo.core.result_types import Err, Ok
 
 from ...services.quote_service import QuoteService
-from ..manager import ConnectionManager, WebSocketMessage
+from ..manager import ConnectionManager, MessageType, WebSocketMessage
 
 
 class QuoteUpdateData(BaseModel):
@@ -78,7 +78,7 @@ class QuoteWebSocketHandler:
         quote_result = await self._quote_service.get_quote(quote_id)
         if quote_result.is_err():
             error_msg = WebSocketMessage(
-                type="subscription_error",
+                type=MessageType.SUBSCRIPTION_ERROR,
                 data={
                     "error": f"Cannot subscribe to quote {quote_id}: {quote_result.unwrap_err()}",
                     "quote_id": str(quote_id),
@@ -90,7 +90,7 @@ class QuoteWebSocketHandler:
         quote = quote_result.unwrap()
         if not quote:
             error_msg = WebSocketMessage(
-                type="subscription_error",
+                type=MessageType.SUBSCRIPTION_ERROR,
                 data={
                     "error": f"Quote {quote_id} not found",
                     "quote_id": str(quote_id),
@@ -112,7 +112,7 @@ class QuoteWebSocketHandler:
 
         # Send current quote state
         state_msg = WebSocketMessage(
-            type="quote_state",
+            type=MessageType.QUOTE_STATE,
             data={
                 "quote": quote.model_dump(mode="json"),
                 "active_editors": len(self._active_quote_sessions[quote_id]),
@@ -123,7 +123,7 @@ class QuoteWebSocketHandler:
 
         # Notify others of new editor
         join_msg = WebSocketMessage(
-            type="quote_editor_joined",
+            type=MessageType.ROOM_EVENT,
             data={
                 "quote_id": str(quote_id),
                 "connection_id": connection_id,
@@ -155,7 +155,7 @@ class QuoteWebSocketHandler:
             del self._field_locks[field]
             # Notify about lock release
             unlock_msg = WebSocketMessage(
-                type="field_unlocked",
+                type=MessageType.FIELD_UNLOCKED,
                 data={
                     "quote_id": str(quote_id),
                     "field": field.split(":", 1)[1],
@@ -171,7 +171,7 @@ class QuoteWebSocketHandler:
         # Notify others of editor leaving
         if quote_id in self._active_quote_sessions:
             leave_msg = WebSocketMessage(
-                type="quote_editor_left",
+                type=MessageType.ROOM_EVENT,
                 data={
                     "quote_id": str(quote_id),
                     "connection_id": connection_id,
@@ -207,7 +207,7 @@ class QuoteWebSocketHandler:
         room_id = f"quote:{quote_id}"
 
         message = WebSocketMessage(
-            type="quote_update",
+            type=MessageType.QUOTE_UPDATE,
             data={
                 "quote_id": str(quote_id),
                 "update": update_data.model_dump(exclude_none=True),
@@ -232,7 +232,7 @@ class QuoteWebSocketHandler:
         ):
             lock_owner = self._field_locks[field_key]
             error_msg = WebSocketMessage(
-                type="edit_rejected",
+                type=MessageType.EDIT_REJECTED,
                 data={
                     "error": f"Field '{field}' is currently being edited by another user",
                     "field": field,
@@ -250,7 +250,7 @@ class QuoteWebSocketHandler:
         # Apply optimistic lock
         self._field_locks[field_key] = connection_id
         lock_msg = WebSocketMessage(
-            type="field_locked",
+            type=MessageType.FIELD_LOCKED,
             data={
                 "quote_id": str(quote_id),
                 "field": field,
@@ -294,7 +294,7 @@ class QuoteWebSocketHandler:
         room_id = f"quote:{quote_id}"
 
         progress_msg = WebSocketMessage(
-            type="calculation_progress",
+            type=MessageType.CALCULATION_PROGRESS,
             data={
                 "quote_id": str(quote_id),
                 "progress": progress,
@@ -318,7 +318,7 @@ class QuoteWebSocketHandler:
         room_id = f"quote:{quote_id}"
 
         status_msg = WebSocketMessage(
-            type="quote_status_changed",
+            type=MessageType.QUOTE_STATUS_CHANGED,
             data={
                 "quote_id": str(quote_id),
                 "old_status": old_status,
@@ -344,7 +344,7 @@ class QuoteWebSocketHandler:
         )
 
         focus_msg = WebSocketMessage(
-            type="field_focus",
+            type=MessageType.FIELD_FOCUS,
             data={
                 "quote_id": str(quote_id),
                 "field": field,
@@ -376,7 +376,7 @@ class QuoteWebSocketHandler:
         )
 
         cursor_msg = WebSocketMessage(
-            type="cursor_position",
+            type=MessageType.CURSOR_POSITION,
             data={
                 "quote_id": str(quote_id),
                 "field": field,
@@ -406,7 +406,7 @@ class QuoteWebSocketHandler:
             room_id = f"quote:{quote_id}"
 
             unlock_msg = WebSocketMessage(
-                type="field_unlocked",
+                type=MessageType.FIELD_UNLOCKED,
                 data={
                     "quote_id": quote_id,
                     "field": field,
@@ -429,7 +429,7 @@ class QuoteWebSocketHandler:
             quote_id, field = field_key.split(":", 1)
 
             unlock_msg = WebSocketMessage(
-                type="field_unlocked",
+                type=MessageType.FIELD_UNLOCKED,
                 data={
                     "quote_id": quote_id,
                     "field": field,

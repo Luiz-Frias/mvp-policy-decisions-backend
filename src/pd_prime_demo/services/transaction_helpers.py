@@ -5,7 +5,7 @@ data consistency and proper error handling across all services.
 """
 
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import asyncpg
 from beartype import beartype
@@ -223,7 +223,7 @@ async def with_advisory_lock(
 async def upsert_with_conflict(
     db: Database,
     table: str,
-    insert_data: dict,
+    insert_data: dict[str, Any],
     conflict_columns: list[str],
     update_data: dict | None = None,
     returning_columns: list[str] | None = None,

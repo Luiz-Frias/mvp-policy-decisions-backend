@@ -480,22 +480,22 @@ class QuoteService:
         if created_after:
             param_count += 1
             query_parts.append(f"AND created_at >= ${param_count}")
-            params.append(created_after)
+            params.append(str(created_after))
 
         if created_before:
             param_count += 1
             query_parts.append(f"AND created_at <= ${param_count}")
-            params.append(created_before)
+            params.append(str(created_before))
 
         query_parts.append("ORDER BY created_at DESC")
 
         param_count += 1
         query_parts.append(f"LIMIT ${param_count}")
-        params.append(limit)
+        params.append(str(limit))
 
         param_count += 1
         query_parts.append(f"OFFSET ${param_count}")
-        params.append(offset)
+        params.append(str(offset))
 
         query = " ".join(query_parts)
         rows = await self._db.fetch(query, *params)
@@ -851,7 +851,7 @@ class QuoteService:
         if update_data.effective_date:
             param_count += 1
             update_parts.append(f"effective_date = ${param_count}")
-            params.append(update_data.effective_date)
+            params.append(str(update_data.effective_date))
 
         if user_id:
             param_count += 1

@@ -155,11 +155,11 @@ async def list_customers(
     # Add pagination params
     param_num = len(params) + 1
     query += f" LIMIT ${param_num}"
-    params.append(pagination.limit)
+    params.append(str(pagination.limit))
 
     param_num = len(params) + 1
     query += f" OFFSET ${param_num}"
-    params.append(pagination.skip)
+    params.append(str(pagination.skip))
 
     # Execute query
     rows = await db.fetch(query, *params)

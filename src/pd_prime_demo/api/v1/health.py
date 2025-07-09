@@ -19,6 +19,7 @@ from ...core.config import Settings, get_settings
 from ...schemas.health_details import (
     CPUHealthDetails,
     DatabaseHealthDetails,
+    DatabasePoolStats,
     HealthDetails,
     MemoryHealthDetails,
     RedisHealthDetails,
@@ -701,10 +702,13 @@ async def check_database_health(
                 response_time_ms=response_time,
                 message=message,
                 details=DatabaseHealthDetails(
-                    connected=True,
-                    pool_size=pool_stats["size"] if pool_stats else None,
-                    pool_available=pool_stats["free_size"] if pool_stats else None,
-                    latency_ms=response_time,
+                    version="PostgreSQL",
+                    pool_stats=DatabasePoolStats(
+                        size=pool_stats["size"] if pool_stats else None,
+                        available=pool_stats["free_size"] if pool_stats else None,
+                        in_use=None,
+                        waiting=None,
+                    ) if pool_stats else None,
                 ),
             ),
             response_time,
@@ -718,10 +722,8 @@ async def check_database_health(
                 response_time_ms=response_time,
                 message=f"Database connection failed: {str(e)}",
                 details=DatabaseHealthDetails(
-                    connected=False,
-                    pool_size=None,
-                    pool_available=None,
-                    latency_ms=None,
+                    version="unknown",
+                    pool_stats=None,
                 ),
             ),
             response_time,
@@ -762,8 +764,8 @@ async def check_redis_health(
 
         # Get Redis info
         info = await redis.info()
-        memory_used_mb = round(info.get("used_memory", 0) / (1024 * 1024), 2)
-        connected_clients = info.get("connected_clients", 0)
+        memory_used_mb = round(float(info.get("used_memory", 0)) / (1024 * 1024), 2)
+        connected_clients = int(info.get("connected_clients", 0)) if info.get("connected_clients") is not None else 0
 
         return (
             HealthStatus(
@@ -771,10 +773,13 @@ async def check_redis_health(
                 response_time_ms=response_time,
                 message=message,
                 details=RedisHealthDetails(
-                    connected=True,
-                    memory_used_mb=memory_used_mb,
+                    version=str(info.get("redis_version", "unknown")),
+                    uptime_days=None,
                     connected_clients=connected_clients,
-                    version=info.get("redis_version", "unknown"),
+                    used_memory_human=None,
+                    used_memory_percent=None,
+                    total_commands_processed=None,
+                    instantaneous_ops_per_sec=None,
                 ),
             ),
             response_time,
@@ -788,10 +793,13 @@ async def check_redis_health(
                 response_time_ms=response_time,
                 message=f"Redis connection failed: {str(e)}",
                 details=RedisHealthDetails(
-                    connected=False,
-                    memory_used_mb=None,
+                    version="unknown",
+                    uptime_days=None,
                     connected_clients=None,
-                    version=None,
+                    used_memory_human=None,
+                    used_memory_percent=None,
+                    total_commands_processed=None,
+                    instantaneous_ops_per_sec=None,
                 ),
             ),
             response_time,

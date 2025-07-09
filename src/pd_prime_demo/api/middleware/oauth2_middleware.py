@@ -1,6 +1,6 @@
 """OAuth2 authentication middleware with API key support."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from beartype import beartype
 from fastapi import HTTPException, Request, Response
@@ -18,7 +18,7 @@ from ...core.database import get_db_session
 class OAuth2Middleware(BaseHTTPMiddleware):
     """Middleware for OAuth2 token validation and API key authentication."""
 
-    def __init__(self, app, exempt_paths: set | None = None):
+    def __init__(self, app, exempt_paths: set[str] | None = None):
         """Initialize OAuth2 middleware.
 
         Args:
@@ -38,7 +38,7 @@ class OAuth2Middleware(BaseHTTPMiddleware):
         }
 
     @beartype
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """Process request through OAuth2 validation.
 
         Args:

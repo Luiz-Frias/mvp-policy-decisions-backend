@@ -148,7 +148,7 @@ async def apply_manual_discount(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.unwrap_err())
 
-    return {"applied": result.unwrap()}
+    return {"applied": result.unwrap() or False}
 
 
 @router.post("/special-rules")
@@ -225,7 +225,7 @@ async def approve_pricing_override(
     if result.is_err():
         raise HTTPException(status_code=400, detail=result.unwrap_err())
 
-    return {"approved": result.unwrap()}
+    return {"approved": result.unwrap() or False}
 
 
 @router.post("/overrides/{override_id}/reject")

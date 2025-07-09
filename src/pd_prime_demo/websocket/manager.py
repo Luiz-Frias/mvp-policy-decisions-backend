@@ -870,7 +870,7 @@ class ConnectionManager:
         # Validate message structure
         if "type" not in raw_message:
             error_msg = WebSocketMessage(
-                type="error",
+                type=MessageType.ERROR,
                 data={
                     "error": "Message validation error: 'type' field is required.",
                     "required_fields": ["type"],
@@ -978,7 +978,7 @@ class ConnectionManager:
                     else:
                         # Send heartbeat
                         heartbeat_msg = WebSocketMessage(
-                            type="heartbeat",
+                            type=MessageType.HEARTBEAT,
                             data={
                                 "server_time": now.isoformat(),
                                 "connection_healthy": True,
@@ -1009,7 +1009,7 @@ class ConnectionManager:
                 if stats["utilization"] > 0.9:
                     # Alert admins about high connection usage
                     alert_msg = WebSocketMessage(
-                        type="system_alert",
+                        type=MessageType.SYSTEM_ALERT,
                         data={
                             "alert_type": "high_connection_usage",
                             "message": f"Connection pool at {stats['utilization']*100:.1f}% capacity",
@@ -1050,7 +1050,7 @@ class ConnectionManager:
         # Notify room of member leaving
         metadata = self._connection_metadata.get(connection_id)
         leave_msg = WebSocketMessage(
-            type="room_event",
+            type=MessageType.ROOM_EVENT,
             data={
                 "event": "member_left",
                 "room_id": room_id,
