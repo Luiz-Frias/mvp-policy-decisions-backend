@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -290,10 +290,10 @@ class EvidenceCollector:
                 control_id=control_id,
             )
 
-            return Result.ok(stored_artifact)
+            return Ok(stored_artifact)
 
         except Exception as e:
-            return Result.err(f"Failed to collect control evidence: {str(e)}")
+            return Err(f"Failed to collect control evidence: {str(e)}")
 
     @beartype
     def _map_control_to_criteria(self, control_id: str) -> str:
@@ -390,10 +390,10 @@ class EvidenceCollector:
 
             stored_artifact = await self._store_evidence_artifact(artifact)
 
-            return Result.ok(stored_artifact)
+            return Ok(stored_artifact)
 
         except Exception as e:
-            return Result.err(f"Failed to collect system evidence: {str(e)}")
+            return Err(f"Failed to collect system evidence: {str(e)}")
 
     @beartype
     def _map_evidence_type_to_criteria(self, evidence_type: EvidenceType) -> str:
@@ -453,10 +453,10 @@ class EvidenceCollector:
                 collection_id=str(collection.collection_id),
             )
 
-            return Result.ok(collection)
+            return Ok(collection)
 
         except Exception as e:
-            return Result.err(f"Failed to create evidence collection: {str(e)}")
+            return Err(f"Failed to create evidence collection: {str(e)}")
 
     @beartype
     async def _store_collection_metadata(self, collection: EvidenceCollection) -> None:
@@ -479,10 +479,10 @@ class EvidenceCollector:
                 artifact_id=str(artifact_id),
             )
 
-            return Result.ok(None)
+            return Ok(None)
 
         except Exception as e:
-            return Result.err(f"Failed to add artifact to collection: {str(e)}")
+            return Err(f"Failed to add artifact to collection: {str(e)}")
 
     @beartype
     async def verify_evidence_integrity(self, artifact_id: UUID):
@@ -516,10 +516,10 @@ class EvidenceCollector:
                     verification_result="failed",
                 )
 
-            return Result.ok(integrity_verified)
+            return Ok(integrity_verified)
 
         except Exception as e:
-            return Result.err(f"Failed to verify evidence integrity: {str(e)}")
+            return Err(f"Failed to verify evidence integrity: {str(e)}")
 
     @beartype
     async def generate_compliance_report(
@@ -567,10 +567,10 @@ class EvidenceCollector:
                 report_type=report_type,
             )
 
-            return Result.ok(report)
+            return Ok(report)
 
         except Exception as e:
-            return Result.err(f"Failed to generate compliance report: {str(e)}")
+            return Err(f"Failed to generate compliance report: {str(e)}")
 
     @beartype
     async def _collect_compliance_data(
@@ -719,13 +719,13 @@ class EvidenceCollector:
                 },
             }
 
-            return Result.ok(summary)
+            return Ok(summary)
 
         except Exception as e:
-            return Result.err(f"Failed to get evidence summary: {str(e)}")
+            return Err(f"Failed to get evidence summary: {str(e)}")
 
     @beartype
-    async def cleanup_expired_evidence(self):
+    async def cleanup_expired_evidence(self) -> Result[int, str]:
         """Clean up expired evidence artifacts."""
         try:
             # In a real implementation, this would:
@@ -745,10 +745,10 @@ class EvidenceCollector:
                 expired_artifacts_count=expired_count,
             )
 
-            return Result.ok(expired_count)
+            return Ok(expired_count)
 
         except Exception as e:
-            return Result.err(f"Failed to cleanup expired evidence: {str(e)}")
+            return Err(f"Failed to cleanup expired evidence: {str(e)}")
 
 
 # Global evidence collector instance

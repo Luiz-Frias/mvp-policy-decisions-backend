@@ -13,7 +13,7 @@ class MessageValidationMixin:
 
     @validator("*", pre=True)
     @classmethod
-    def strip_whitespace(cls, v):
+    def strip_whitespace(cls, v: Any) -> Any:
         """Strip whitespace from string values."""
         if isinstance(v, str):
             return v.strip()

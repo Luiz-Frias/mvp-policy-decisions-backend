@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok
 
 from ..core.config import get_settings
 from .audit_logger import AuditLogger, get_audit_logger
@@ -210,10 +210,10 @@ class SecurityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Security control execution failed: {str(e)}")
+            return Err(f"Security control execution failed: {str(e)}")
 
     @beartype
     async def _scan_database_encryption(self) -> dict[str, Any]:
@@ -288,10 +288,10 @@ class SecurityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"TLS control execution failed: {str(e)}")
+            return Err(f"TLS control execution failed: {str(e)}")
 
     @beartype
     async def _test_tls_configuration(self) -> dict[str, Any]:
@@ -413,10 +413,10 @@ class SecurityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Vulnerability scan control failed: {str(e)}")
+            return Err(f"Vulnerability scan control failed: {str(e)}")
 
     @beartype
     async def _perform_vulnerability_scan(self) -> VulnerabilityAssessment:
@@ -561,10 +561,10 @@ class SecurityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Access control check failed: {str(e)}")
+            return Err(f"Access control check failed: {str(e)}")
 
     @beartype
     async def _check_authentication_mechanisms(self) -> dict[str, Any]:

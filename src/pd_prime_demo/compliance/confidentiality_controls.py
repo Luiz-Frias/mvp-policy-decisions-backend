@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -409,10 +409,10 @@ class ConfidentialityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Data classification control failed: {str(e)}")
+            return Err(f"Data classification control failed: {str(e)}")
 
     @beartype
     async def _check_classification_coverage(self) -> dict[str, Any]:
@@ -581,10 +581,10 @@ class ConfidentialityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Access control matrix verification failed: {str(e)}")
+            return Err(f"Access control matrix verification failed: {str(e)}")
 
     @beartype
     async def _check_access_matrix_compliance(self) -> dict[str, Any]:
@@ -773,10 +773,10 @@ class ConfidentialityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Data loss prevention control failed: {str(e)}")
+            return Err(f"Data loss prevention control failed: {str(e)}")
 
     @beartype
     async def _check_dlp_system_status(self) -> dict[str, Any]:
@@ -948,10 +948,10 @@ class ConfidentialityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Confidential data handling control failed: {str(e)}")
+            return Err(f"Confidential data handling control failed: {str(e)}")
 
     @beartype
     async def _check_data_masking(self) -> dict[str, Any]:

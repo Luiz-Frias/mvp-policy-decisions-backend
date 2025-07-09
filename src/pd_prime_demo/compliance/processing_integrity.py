@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -97,7 +97,7 @@ class DataValidationResult(BaseModel):
     data_quality_score: float = Field(ge=0.0, le=100.0)
 
     @validator("data_quality_score", pre=True, always=True)
-    def calculate_quality_score(cls, v, values):
+    def calculate_quality_score(cls, v: Any, values: dict[str, Any]) -> float:
         """Calculate data quality score based on validation results."""
         if "records_validated" in values and values["records_validated"] > 0:
             passed = values.get("records_passed", 0)
@@ -128,7 +128,9 @@ class ReconciliationResult(BaseModel):
     reconciliation_percentage: float = Field(ge=0.0, le=100.0)
 
     @validator("reconciliation_percentage", pre=True, always=True)
-    def calculate_reconciliation_percentage(cls, v, values):
+    def calculate_reconciliation_percentage(
+        cls, v: Any, values: dict[str, Any]
+    ) -> float:
         """Calculate reconciliation percentage."""
         if "records_compared" in values and values["records_compared"] > 0:
             matches = values.get("matches", 0)
@@ -160,7 +162,7 @@ class ChangeRecord(BaseModel):
     change_hash: str = Field(...)
 
     @validator("change_hash", pre=True, always=True)
-    def calculate_change_hash(cls, v, values):
+    def calculate_change_hash(cls, v: Any, values: dict[str, Any]) -> str:
         """Calculate hash of the change for integrity verification."""
         change_data = {
             "table": values.get("table_name"),
@@ -321,10 +323,10 @@ class ProcessingIntegrityManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Data validation control failed: {str(e)}")
+            return Err(f"Data validation control failed: {str(e)}")
 
     @beartype
     async def _validate_table_data(
@@ -528,10 +530,10 @@ class ProcessingIntegrityManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Data reconciliation control failed: {str(e)}")
+            return Err(f"Data reconciliation control failed: {str(e)}")
 
     @beartype
     async def _reconcile_data(
@@ -712,10 +714,10 @@ class ProcessingIntegrityManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Change control audit failed: {str(e)}")
+            return Err(f"Change control audit failed: {str(e)}")
 
     @beartype
     async def _verify_audit_trail_completeness(self) -> dict[str, Any]:
@@ -919,10 +921,10 @@ class ProcessingIntegrityManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Error detection control failed: {str(e)}")
+            return Err(f"Error detection control failed: {str(e)}")
 
     @beartype
     async def _check_error_detection_systems(self) -> dict[str, Any]:

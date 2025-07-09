@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### **IMMEDIATE CONTEXT FOR HANDOFF**
 
-**Date**: January 2025  
-**Phase**: Post-Critical Infrastructure Fixes  
-**Branch**: `feat/wave-2-implementation-07-05-2025`  
+**Date**: January 2025
+**Phase**: Post-Critical Infrastructure Fixes
+**Branch**: `feat/wave-2-implementation-07-05-2025`
 **Last Major Work**: Comprehensive Pydantic compliance and critical system fixes completed
 
 ### **WHAT WE JUST ACCOMPLISHED (READY TO PICK UP THE PEN)**
@@ -18,17 +18,20 @@ We completed a **comprehensive codebase analysis and critical fixes** using a **
 #### **✅ COMPLETED PHASES:**
 
 **Phase 1: Pydantic Compliance (COMPLETE)**
+
 - ✅ **Rating Schema**: Converted to modern ConfigDict, eliminated all `dict[str, Any]` usage
 - ✅ **All Schemas**: 3 specialized agents fixed quote, common, and admin schemas
 - ✅ **Type Annotations**: Fixed all legacy `Dict` → `dict`, `Union` → `|` syntax
 - ✅ **Model Validation**: All models now use `frozen=True`, `extra="forbid"`, proper validation
 
 **Phase 2: Critical System Fixes (COMPLETE)**
+
 - ✅ **Import Crisis**: Fixed 22 files with broken Result type imports after `services.result` deletion
 - ✅ **Database Schema**: Created missing OAuth2 tables (refresh_tokens, token_logs, authorization_codes)
 - ✅ **Pre-commit Config**: Focused on production code only (excluded scripts/)
 
 **Phase 3: Integration Validation (COMPLETE)**
+
 - ✅ **All imports working**: Result types, services, schemas all functional
 - ✅ **Type checking**: MyPy strict mode passes on key files
 - ✅ **Schema validation**: All Pydantic models validate correctly
@@ -37,12 +40,14 @@ We completed a **comprehensive codebase analysis and critical fixes** using a **
 ### **CURRENT SYSTEM STATE**
 
 **🟢 OPERATIONAL**: All critical blockers resolved
+
 - Import crisis fixed - services can start
 - Database schema complete - all required tables exist
 - Pydantic models compliant - type safety enforced
 - Pre-commit hooks focused on production code
 
 **🟡 NEEDS ATTENTION**: Known issues requiring next phase work
+
 - Security hardening (demo auth bypasses still exist)
 - Performance optimization (some MyPy errors remain)
 - Complete SOC 2 compliance implementation
@@ -120,6 +125,7 @@ The project enforces strict quality gates:
 ### **Pre-commit Configuration**
 
 **IMPORTANT**: Pre-commit hooks are configured to focus on **production code only**:
+
 - **Included**: `src/`, `tests/`, `alembic/`, `config/`
 - **Excluded**: `scripts/`, `docs/`, `examples/`, `dev-tools/`
 
@@ -208,7 +214,7 @@ class PolicyService:
     def __init__(self, db: Database, cache: Cache) -> None:
         self.db = db
         self.cache = cache
-    
+
     @beartype
     async def create_policy(self, policy_data: PolicyCreate) -> Result[Policy, str]:
         # Business logic implementation
@@ -232,6 +238,7 @@ class PolicyService:
 **Problem**: Missing OAuth2 tables causing system failures.
 
 **Solution**: Created migration `009_add_missing_oauth2_tables.py` with:
+
 - `oauth2_refresh_tokens` - Token storage with rotation
 - `oauth2_token_logs` - Audit logging
 - `oauth2_authorization_codes` - PKCE support
@@ -240,7 +247,8 @@ class PolicyService:
 
 **Problem**: Multiple models using legacy patterns and `dict[str, Any]`.
 
-**Solution**: 
+**Solution**:
+
 - Converted all models to modern ConfigDict syntax
 - Eliminated all `dict[str, Any]` usage with structured models
 - Fixed legacy type annotations (`Dict` → `dict`, `Union` → `|`)
@@ -287,17 +295,20 @@ This project uses the SAGE (Supervisor Agent-Generated Engineering) system for m
 ### **Current Wave 2.5 Status**
 
 **✅ COMPLETED**:
+
 - Critical infrastructure fixes
 - Pydantic compliance
 - Import crisis resolution
 - Database schema completion
 
 **🔄 IN PROGRESS**:
+
 - Security hardening
 - Performance optimization
 - SOC 2 compliance completion
 
 **⏳ NEXT PRIORITIES**:
+
 1. Remove demo authentication bypasses
 2. Fix remaining MyPy errors
 3. Implement real security controls
@@ -311,6 +322,7 @@ This project uses the SAGE (Supervisor Agent-Generated Engineering) system for m
 ### **Current State Assessment**
 
 **🟢 READY FOR DEVELOPMENT**:
+
 - All critical imports working
 - Database schema complete
 - Pydantic models compliant
@@ -318,11 +330,13 @@ This project uses the SAGE (Supervisor Agent-Generated Engineering) system for m
 - Pre-commit hooks functional
 
 **🟡 NEEDS WORK FOR STAGING**:
+
 - Security hardening required
 - Performance optimization needed
 - Complete error handling
 
 **🔴 BLOCKS PRODUCTION**:
+
 - Demo authentication bypasses
 - Mock security implementations
 - Incomplete SOC 2 compliance
@@ -369,6 +383,7 @@ uv run python -m pd_prime_demo.main
 ### **Immediate Actions (Next Session)**
 
 1. **Security Hardening**:
+
    ```bash
    # Deploy security hardening agent
    # Focus on removing demo auth bypasses
@@ -376,6 +391,7 @@ uv run python -m pd_prime_demo.main
    ```
 
 2. **Performance Optimization**:
+
    ```bash
    # Fix remaining MyPy errors
    # Optimize database connections
@@ -411,8 +427,8 @@ When continuing work, deploy specialized agents:
 
 **This is a ROCKETSHIP codebase** - enterprise-grade insurance platform built with SAGE system. The foundation is solid, critical infrastructure is complete, and the system is ready for the next phase of security hardening and performance optimization.
 
-**Branch**: `feat/wave-2-implementation-07-05-2025`  
-**Last Updated**: January 2025  
-**Status**: Ready for security hardening phase  
+**Branch**: `feat/wave-2-implementation-07-05-2025`
+**Last Updated**: January 2025
+**Status**: Ready for security hardening phase
 
 **Remember**: Follow the master ruleset, use Result types, maintain type safety, and build for production excellence. The system is designed to handle enterprise-scale insurance operations with SOC 2 compliance and peak performance.

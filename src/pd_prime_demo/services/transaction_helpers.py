@@ -10,7 +10,7 @@ from typing import TypeVar
 import asyncpg
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.database import Database
 
@@ -160,7 +160,7 @@ async def batch_operation(
     for i in range(0, len(items), batch_size):
         batch = items[i : i + batch_size]
 
-        async def _batch_operation() -> dict:
+        async def _batch_operation() -> Result[list[T], str]:
             batch_processed: list[T] = []
 
             for item in batch:
@@ -188,7 +188,7 @@ async def with_advisory_lock(
     lock_id: int,
     operation: Callable[[], Awaitable[dict]],
     wait: bool = True,
-):
+) -> Result[dict, str]:
     """Execute operation with PostgreSQL advisory lock.
 
     Advisory locks prevent concurrent execution of critical sections
@@ -227,7 +227,7 @@ async def upsert_with_conflict(
     conflict_columns: list[str],
     update_data: dict | None = None,
     returning_columns: list[str] | None = None,
-):
+) -> Result[dict | None, str]:
     """Perform UPSERT operation with conflict handling.
 
     Args:
@@ -285,7 +285,7 @@ async def upsert_with_conflict(
 
 
 @beartype
-async def ensure_transaction_valid(db: Database):
+async def ensure_transaction_valid(db: Database) -> Result[bool, str]:
     """Ensure current transaction is valid and not aborted.
 
     Args:

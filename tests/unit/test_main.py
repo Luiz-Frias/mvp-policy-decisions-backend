@@ -15,7 +15,8 @@ os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-testing-32-chars")  # n
 os.environ.setdefault("API_ENV", "development")
 
 from src.pd_prime_demo.core.config import Settings
-from src.pd_prime_demo.main import BaseAppModel, Result, create_app, lifespan, main
+from src.pd_prime_demo.core.result_types import Err, Ok
+from src.pd_prime_demo.main import BaseAppModel, create_app, lifespan, main
 
 
 class TestResultType:
@@ -23,7 +24,7 @@ class TestResultType:
 
     def test_result_ok_creation(self) -> None:
         """Test creating successful Result."""
-        result = Result.ok("success")
+        result = Ok("success")
 
         assert result.is_ok()
         assert not result.is_err()
@@ -32,7 +33,7 @@ class TestResultType:
 
     def test_result_err_creation(self) -> None:
         """Test creating error Result."""
-        result = Result.err("error message")
+        result = Err("error message")
 
         assert not result.is_ok()
         assert result.is_err()
@@ -41,14 +42,14 @@ class TestResultType:
 
     def test_result_unwrap_panic_on_error(self) -> None:
         """Test unwrap() panics on error result."""
-        result = Result.err("error")
+        result = Err("error")
 
         with pytest.raises(RuntimeError, match="Called unwrap\\(\\) on error result"):
             result.unwrap()
 
     def test_result_unwrap_err_panic_on_ok(self) -> None:
         """Test unwrap_err() panics on ok result."""
-        result = Result.ok("success")
+        result = Ok("success")
 
         with pytest.raises(RuntimeError, match="Called unwrap_err\\(\\) on ok result"):
             result.unwrap_err()
@@ -56,16 +57,16 @@ class TestResultType:
     def test_result_with_different_types(self) -> None:
         """Test Result with different types."""
         # Integer result
-        int_result = Result.ok(42)
+        int_result = Ok(42)
         assert int_result.unwrap() == 42
         assert int_result.unwrap_or(0) == 42
 
         # List result
-        list_result = Result.ok([1, 2, 3])
+        list_result = Ok([1, 2, 3])
         assert list_result.unwrap() == [1, 2, 3]
 
         # Error with string
-        str_error = Result.err("Something went wrong")
+        str_error = Err("Something went wrong")
         assert str_error.unwrap_err() == "Something went wrong"
         assert str_error.unwrap_or([]) == []
 

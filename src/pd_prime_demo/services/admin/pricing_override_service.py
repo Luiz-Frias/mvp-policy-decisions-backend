@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -36,7 +36,7 @@ class PricingOverrideService:
         new_amount: Decimal,
         reason: str,
         approval_required: bool = True,
-    ):
+    ) -> Result[UUID, str]:
         """Create pricing override requiring approval.
 
         Args:
@@ -131,7 +131,7 @@ class PricingOverrideService:
         discount_amount: Decimal,
         discount_reason: str,
         expires_at: datetime | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Apply manual discount to quote.
 
         Args:
@@ -222,7 +222,7 @@ class PricingOverrideService:
         adjustments: dict[str, Any],
         effective_date: datetime,
         expiration_date: datetime | None = None,
-    ):
+    ) -> Result[UUID, str]:
         """Create special pricing rule (e.g., promotional rates).
 
         Args:
@@ -300,7 +300,7 @@ class PricingOverrideService:
         override_id: UUID,
         approver_id: UUID,
         approval_notes: str | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Approve a pending pricing override.
 
         Args:

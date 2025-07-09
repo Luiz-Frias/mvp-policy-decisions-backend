@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -87,7 +87,7 @@ class RateManagementService:
         version_id: UUID,
         admin_user_id: UUID,
         approval_notes: str | None = None,
-    ):
+    ) -> Result[bool, str]:
         """Approve rate table version."""
         # Check approval permissions
         has_permission = await self._check_permission(admin_user_id, "rate:approve")
@@ -135,7 +135,7 @@ class RateManagementService:
         version_id: UUID,
         admin_user_id: UUID,
         rejection_reason: str,
-    ):
+    ) -> Result[bool, str]:
         """Reject rate table version."""
         # Check approval permissions
         has_permission = await self._check_permission(admin_user_id, "rate:approve")
@@ -199,7 +199,7 @@ class RateManagementService:
         start_date: date,
         end_date: date,
         admin_user_id: UUID,
-    ):
+    ) -> Result[UUID, str]:
         """Schedule A/B test between rate versions."""
         # Validate inputs
         if not 0.1 <= traffic_split <= 0.5:
@@ -370,7 +370,9 @@ class RateManagementService:
         return row["is_creator"] if row else False
 
     @beartype
-    async def _create_approval_workflow(self, version_id: UUID, created_by: UUID):
+    async def _create_approval_workflow(
+        self, version_id: UUID, created_by: UUID
+    ) -> None:
         """Create approval workflow for rate version."""
         workflow_id = uuid4()
         query = """

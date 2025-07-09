@@ -68,12 +68,14 @@ class RoomPermission(BaseModel):
     expires_at: datetime | None = Field(default=None)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    @beartype
     def is_expired(self) -> bool:
         """Check if permission has expired."""
         if self.expires_at is None:
             return False
         return datetime.now() > self.expires_at
 
+    @beartype
     def is_valid(self) -> bool:
         """Check if permission is valid (not expired)."""
         return not self.is_expired()
@@ -124,10 +126,12 @@ class UserPermissions(BaseModel):
     is_active: bool = Field(default=True)
     last_activity: datetime = Field(default_factory=datetime.now)
 
+    @beartype
     def has_permission(self, permission: str) -> bool:
         """Check if user has a specific permission."""
         return permission in self.permissions
 
+    @beartype
     def has_room_permission(self, room_id: str, permission: PermissionType) -> bool:
         """Check if user has a specific room permission."""
         return (
@@ -135,6 +139,7 @@ class UserPermissions(BaseModel):
             and permission in self.room_permissions[room_id]
         )
 
+    @beartype
     def can_access_room(self, room_id: str) -> bool:
         """Check if user can access a room (has any permission)."""
         return (
@@ -145,7 +150,7 @@ class UserPermissions(BaseModel):
 class RoomPermissionManager:
     """Manages room permissions and access control."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize permission manager."""
         # Permission storage
         self._user_permissions: dict[UUID, UserPermissions] = {}
@@ -579,6 +584,7 @@ class RoomPermissionManager:
         for key in keys_to_remove:
             del self._permission_cache[key]
 
+    @beartype
     def get_permission_summary(self) -> dict[str, Any]:
         """Get summary of all permissions."""
         return {

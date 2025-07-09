@@ -14,7 +14,7 @@ from attrs import define, field, frozen
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 
 class TrustServiceCriteria(str, Enum):
@@ -116,11 +116,11 @@ class ControlFramework:
     _audit_logger: Any = field(default=None)  # Will be injected
 
     @beartype
-    def register_control(self, control: ControlDefinition):
+    def register_control(self, control: ControlDefinition) -> Result[None, str]:
         """Register a new compliance control."""
         try:
             if control.control_id in self._controls:
-                return Result.err(f"Control {control.control_id} already registered")
+                return Err(f"Control {control.control_id} already registered")
 
             self._controls[control.control_id] = control
 
@@ -131,17 +131,19 @@ class ControlFramework:
                     metadata={"criteria": control.criteria.value},
                 )
 
-            return Result.ok(None)
+            return Ok(None)
 
         except Exception as e:
-            return Result.err(f"Failed to register control: {str(e)}")
+            return Err(f"Failed to register control: {str(e)}")
 
     @beartype
-    def execute_control(self, control_id: str, context: dict[str, Any] | None = None):
+    def execute_control(
+        self, control_id: str, context: dict[str, Any] | None = None
+    ) -> Result[ControlExecution, str]:
         """Execute a compliance control and collect evidence."""
         try:
             if control_id not in self._controls:
-                return Result.err(f"Control {control_id} not found")
+                return Err(f"Control {control_id} not found")
 
             control = self._controls[control_id]
             start_time = datetime.now(timezone.utc)
@@ -173,10 +175,10 @@ class ControlFramework:
             if self._audit_logger:
                 self._audit_logger.log_control_execution(execution)
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Control execution failed: {str(e)}")
+            return Err(f"Control execution failed: {str(e)}")
 
     @beartype
     def _execute_control_logic(
@@ -210,10 +212,10 @@ class ControlFramework:
         ]
 
     @beartype
-    def get_control_status(self, control_id: str):
+    def get_control_status(self, control_id: str) -> Result[ControlStatus, str]:
         """Get current status of a control."""
         if control_id not in self._controls:
-            return Result.err(f"Control {control_id} not found")
+            return Err(f"Control {control_id} not found")
 
         # Get latest execution
         recent_executions = [
@@ -221,19 +223,19 @@ class ControlFramework:
         ]
 
         if not recent_executions:
-            return Result.ok(ControlStatus.INACTIVE)
+            return Ok(ControlStatus.INACTIVE)
 
         latest_execution = max(recent_executions, key=lambda x: x.timestamp)
-        return Result.ok(latest_execution.status)
+        return Ok(latest_execution.status)
 
     @beartype
-    def generate_compliance_report(self):
+    def generate_compliance_report(self) -> Result[ComplianceMetrics, str]:
         """Generate compliance metrics report."""
         try:
             total_controls = len(self._controls)
 
             if total_controls == 0:
-                return Result.ok(
+                return Ok(
                     ComplianceMetrics(
                         total_controls=0,
                         active_controls=0,
@@ -282,7 +284,7 @@ class ControlFramework:
                     else:
                         low_risk_findings += len(execution.findings)
 
-            return Result.ok(
+            return Ok(
                 ComplianceMetrics(
                     total_controls=total_controls,
                     active_controls=active_controls,
@@ -297,7 +299,7 @@ class ControlFramework:
             )
 
         except Exception as e:
-            return Result.err(f"Failed to generate compliance report: {str(e)}")
+            return Err(f"Failed to generate compliance report: {str(e)}")
 
     @beartype
     def get_failing_controls(self) -> list[ControlExecution]:
@@ -314,7 +316,9 @@ class ControlFramework:
         return [exec for exec in latest_executions.values() if not exec.result]
 
     @beartype
-    def execute_all_controls(self, criteria: TrustServiceCriteria | None = None):
+    def execute_all_controls(
+        self, criteria: TrustServiceCriteria | None = None
+    ) -> Result[list[ControlExecution], str]:
         """Execute all controls or controls for specific criteria."""
         try:
             controls_to_execute = (
@@ -336,10 +340,10 @@ class ControlFramework:
                             error=result.unwrap_err(),
                         )
 
-            return Result.ok(executions)
+            return Ok(executions)
 
         except Exception as e:
-            return Result.err(f"Bulk control execution failed: {str(e)}")
+            return Err(f"Bulk control execution failed: {str(e)}")
 
 
 # Pre-defined SOC 2 controls

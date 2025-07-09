@@ -22,7 +22,7 @@ except ImportError:
 from beartype import beartype
 from pydantic import Field
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -97,7 +97,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("rating_engine_initialize")
-    async def initialize(self):
+    async def initialize(self) -> Result[bool, str]:
         """Preload rating data for performance."""
         try:
             # Load base rates
@@ -1065,7 +1065,7 @@ class RatingEngine:
 
     @beartype
     @performance_monitor("load_base_rates")
-    async def _load_base_rates(self):
+    async def _load_base_rates(self) -> Result[bool, str]:
         """Load base rates into memory."""
         query = """
             SELECT state, product_type, coverage_type, base_rate
@@ -1087,21 +1087,21 @@ class RatingEngine:
         return Ok(True)
 
     @beartype
-    async def _load_discount_rules(self):
+    async def _load_discount_rules(self) -> Result[bool, str]:
         """Load discount rules."""
         # In production, load from database
         # For now, rules are hardcoded in calculate_discounts
         return Ok(True)
 
     @beartype
-    async def _load_territory_factors(self):
+    async def _load_territory_factors(self) -> Result[bool, str]:
         """Load common territory factors."""
         # In production, preload most common ZIP codes
         return Ok(True)
 
     @beartype
     @performance_monitor("load_state_rules")
-    async def _load_state_rules(self):
+    async def _load_state_rules(self) -> Result[bool, str]:
         """Load state-specific rules."""
         query = """
             SELECT state, rules_data
@@ -1205,6 +1205,6 @@ class RatingEngine:
         return await self._performance_optimizer.optimize_slow_calculations()
 
     @beartype
-    async def warm_caches(self):
+    async def warm_caches(self) -> Result[int, str]:
         """Warm caches for better performance."""
         return await self._performance_optimizer.warm_cache_for_common_scenarios()

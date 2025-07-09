@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 from ..core.auth.sso_manager import SSOManager
 from ..core.cache import Cache, get_redis_client
 from ..core.config import Settings, get_settings
-from ..core.database import get_db_session
+from ..core.database import Database, get_db_session
 from ..core.security import verify_jwt_token
 from ..models.admin import AdminUser
 from ..schemas.auth import CurrentUser
@@ -498,7 +498,7 @@ async def get_sso_manager(
 
 
 @beartype
-def get_database():
+def get_database() -> Database:
     """Backward-compatibility wrapper returning global Database instance.
 
     Several legacy components import `get_database` from this module. The

@@ -1248,7 +1248,7 @@ class StatisticalRatingModels:
 class AdvancedPerformanceCalculator:
     """High-performance calculation engine for complex rating scenarios."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize performance calculator with optimization settings."""
         self._vector_cache: dict[str, NDArray[np.float64]] = {}
         self._lookup_tables: dict[str, dict[Any, float]] = {}

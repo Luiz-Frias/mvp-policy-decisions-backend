@@ -172,6 +172,7 @@ class Settings(BaseSettings):
 
     @field_validator("api_cors_origins")
     @classmethod
+    @beartype
     def validate_cors_origins(cls: type["Settings"], v: list[str]) -> list[str]:
         """Validate CORS origins are proper URLs."""
         for origin in v:
@@ -204,11 +205,13 @@ class Settings(BaseSettings):
         return v
 
     @property
+    @beartype
     def is_production(self) -> bool:
         """Check if running in production mode."""
         return self.api_env == "production"
 
     @property
+    @beartype
     def is_development(self) -> bool:
         """Check if running in development mode."""
         return self.api_env == "development"

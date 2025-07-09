@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ....core.cache import Cache
 from ....core.database import Database
@@ -207,7 +207,7 @@ class ClientCertificateManager:
         certificate_id: UUID,
         reason: str,
         admin_user_id: UUID,
-    ):
+    ) -> Result[bool, str]:
         """Revoke a client certificate.
 
         Args:

@@ -7,7 +7,7 @@ from typing import Any
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 
@@ -426,7 +426,7 @@ class RatingCacheManager:
         return Ok(value)
 
     @beartype
-    async def batch_invalidate(self):
+    async def batch_invalidate(self) -> Result[int, str]:
         """Process queued cache invalidations.
 
         Returns:

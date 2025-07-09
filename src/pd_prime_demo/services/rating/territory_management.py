@@ -10,7 +10,7 @@ from uuid import UUID
 
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -131,7 +131,7 @@ class TerritoryManager:
         risk_factors: dict[str, float],
         description: str,
         admin_user_id: UUID,
-    ):
+    ) -> Result[bool, str]:
         """Create new territory definition.
 
         Args:
@@ -193,7 +193,7 @@ class TerritoryManager:
         state: str,
         risk_factors: dict[str, float],
         admin_user_id: UUID,
-    ):
+    ) -> Result[bool, str]:
         """Update risk factors for existing territory.
 
         Args:
@@ -369,7 +369,9 @@ class TerritoryManager:
         )
 
     @beartype
-    async def _get_territory_for_zip(self, state: str, zip_code: str):
+    async def _get_territory_for_zip(
+        self, state: str, zip_code: str
+    ) -> Result[dict[str, Any], str]:
         """Get territory definition for a ZIP code.
 
         Args:
@@ -422,7 +424,9 @@ class TerritoryManager:
             return Err(f"Territory lookup failed: {str(e)}")
 
     @beartype
-    async def _get_territory_definition(self, state: str, territory_id: str):
+    async def _get_territory_definition(
+        self, state: str, territory_id: str
+    ) -> Result[dict[str, Any], str]:
         """Get territory definition by ID.
 
         Args:
@@ -469,7 +473,7 @@ class TerritoryManager:
     @beartype
     async def _check_zip_conflicts(
         self, state: str, zip_codes: list[str], exclude_territory: str | None = None
-    ):
+    ) -> Result[bool, str]:
         """Check for ZIP code conflicts with existing territories.
 
         Args:
@@ -522,7 +526,7 @@ class TerritoryManager:
     @beartype
     async def _save_territory(
         self, territory: TerritoryDefinition, admin_user_id: UUID
-    ):
+    ) -> Result[bool, str]:
         """Save territory definition to database.
 
         Args:

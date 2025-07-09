@@ -60,7 +60,7 @@ def find_created_tables(migrations_dir: Path) -> set[str]:
     return created_tables
 
 
-def main():
+def main() -> int:
     """Main validation function."""
     project_root = Path(__file__).parent
     src_dir = project_root / "src"

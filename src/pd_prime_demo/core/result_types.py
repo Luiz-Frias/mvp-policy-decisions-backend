@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from attrs import frozen
+from beartype import beartype
 
 T = TypeVar("T")
 E = TypeVar("E")
@@ -14,32 +15,39 @@ class Ok(Generic[T]):
 
     value: T
 
+    @beartype
     def is_ok(self) -> bool:
         """Check if result is Ok."""
         return True
 
+    @beartype
     def is_err(self) -> bool:
         """Check if result is Error."""
         return False
 
     @property
+    @beartype
     def ok_value(self) -> T:
         """Get the Ok value."""
         return self.value
 
     @property
+    @beartype
     def err_value(self) -> None:
         """Get the Error value (None for Ok)."""
         return None
 
+    @beartype
     def unwrap(self) -> T:
         """Get the success value."""
         return self.value
 
+    @beartype
     def unwrap_or(self, default: T) -> T:
         """Get the success value."""
         return self.value
 
+    @beartype
     def unwrap_err(self) -> None:
         """Raise ValueError as this is Ok."""
         raise ValueError("Called unwrap_err on Ok value")
@@ -51,32 +59,39 @@ class Err(Generic[E]):
 
     error: E
 
+    @beartype
     def is_ok(self) -> bool:
         """Check if result is Ok."""
         return False
 
+    @beartype
     def is_err(self) -> bool:
         """Check if result is Error."""
         return True
 
     @property
+    @beartype
     def ok_value(self) -> None:
         """Get the Ok value (None for Err)."""
         return None
 
     @property
+    @beartype
     def err_value(self) -> E:
         """Get the Error value."""
         return self.error
 
+    @beartype
     def unwrap(self) -> None:
         """Raise ValueError as this is Err."""
         raise ValueError(f"Called unwrap on Err value: {self.error}")
 
+    @beartype
     def unwrap_or(self, default: T) -> T:
         """Return default value."""
         return default
 
+    @beartype
     def unwrap_err(self) -> E:
         """Get the error value."""
         return self.error
@@ -92,11 +107,13 @@ else:
         """Result class with class methods for convenient creation and generic type support."""
 
         @staticmethod
+        @beartype
         def ok(value: T) -> Ok[T]:
             """Create an Ok result."""
             return Ok(value)
 
         @staticmethod
+        @beartype
         def err(error: E) -> Err[E]:
             """Create an Err result."""
             return Err(error)

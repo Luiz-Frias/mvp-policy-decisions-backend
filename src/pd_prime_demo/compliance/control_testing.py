@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok
 
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import (
@@ -366,10 +366,10 @@ class ControlTestingFramework:
                 criteria=[c.value for c in criteria],
             )
 
-            return Result.ok(test_plan)
+            return Ok(test_plan)
 
         except Exception as e:
-            return Result.err(f"Failed to create test plan: {str(e)}")
+            return Err(f"Failed to create test plan: {str(e)}")
 
     @beartype
     async def execute_control_test(
@@ -389,7 +389,7 @@ class ControlTestingFramework:
                     break
 
             if not test_definition:
-                return Result.err(f"Test {test_id} not found")
+                return Err(f"Test {test_id} not found")
 
             # Execute the test based on type
             test_result = await self._execute_test_procedures(
@@ -428,10 +428,10 @@ class ControlTestingFramework:
                 executed_by=executed_by,
             )
 
-            return Result.ok(executed_test)
+            return Ok(executed_test)
 
         except Exception as e:
-            return Result.err(f"Failed to execute control test: {str(e)}")
+            return Err(f"Failed to execute control test: {str(e)}")
 
     @beartype
     async def _execute_test_procedures(
@@ -823,10 +823,10 @@ class ControlTestingFramework:
                 ineffective_controls=ineffective_controls,
             )
 
-            return Result.ok(updated_plan)
+            return Ok(updated_plan)
 
         except Exception as e:
-            return Result.err(f"Failed to execute test plan: {str(e)}")
+            return Err(f"Failed to execute test plan: {str(e)}")
 
     @beartype
     async def get_testing_dashboard(self) -> dict[str, Any]:

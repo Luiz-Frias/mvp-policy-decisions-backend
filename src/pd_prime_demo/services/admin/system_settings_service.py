@@ -9,7 +9,7 @@ from uuid import UUID
 from beartype import beartype
 from cryptography.fernet import Fernet
 
-from pd_prime_demo.core.result_types import Err, Ok
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...core.cache import Cache
 from ...core.database import Database
@@ -58,7 +58,7 @@ class SystemSettingsService:
         self,
         category: str,
         key: str,
-    ):
+    ) -> Result[Any, str]:
         """Get system setting value.
 
         Args:
@@ -115,7 +115,7 @@ class SystemSettingsService:
         key: str,
         value: Any,
         updated_by: UUID,
-    ):
+    ) -> Result[bool, str]:
         """Update system setting.
 
         Args:
@@ -322,7 +322,7 @@ class SystemSettingsService:
         value: Any,
         value_type: SettingType,
         rules: dict[str, Any],
-    ):
+    ) -> Result[bool, str]:
         """Validate value against type and rules."""
         # Type validation
         if value_type == SettingType.INTEGER:

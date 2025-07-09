@@ -26,7 +26,7 @@ class BusinessRuleViolation:
         message: str,
         field: str | None = None,
         suggested_action: str | None = None,
-    ):
+    ) -> None:
         """Initialize business rule violation.
 
         Args:

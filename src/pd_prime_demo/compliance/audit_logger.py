@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ..core.database import get_database
 
@@ -153,14 +153,14 @@ class ComplianceEvent(BaseModel):
 class AuditLogger:
     """Enterprise audit logger for SOC 2 compliance."""
 
-    def __init__(self, database=None):
+    def __init__(self, database=None) -> None:
         """Initialize audit logger with database connection."""
         self._database = database or get_database()
         self._batch_size = 100
         self._pending_events: list[ComplianceEvent] = []
 
     @beartype
-    async def log_event(self, event: ComplianceEvent):
+    async def log_event(self, event: ComplianceEvent) -> Result[None, str]:
         """Log a single compliance event."""
         try:
             # Immediate write for high-risk events
@@ -172,10 +172,10 @@ class AuditLogger:
                 if len(self._pending_events) >= self._batch_size:
                     await self._flush_pending_events()
 
-            return Result.ok(None)
+            return Ok(None)
 
         except Exception as e:
-            return Result.err(f"Failed to log audit event: {str(e)}")
+            return Err(f"Failed to log audit event: {str(e)}")
 
     @beartype
     async def _write_event_to_database(self, event: ComplianceEvent) -> None:
@@ -322,7 +322,7 @@ class AuditLogger:
         return await self.log_event(event)
 
     @beartype
-    async def log_control_execution(self, execution):
+    async def log_control_execution(self, execution) -> Result[None, str]:
         """Log control execution event."""
         event = ComplianceEvent(
             event_type=AuditEventType.CONTROL_EXECUTION,
@@ -485,16 +485,16 @@ class AuditLogger:
                     record["security_alerts"] = json.loads(record["security_alerts"])
                 audit_records.append(record)
 
-            return Result.ok(audit_records)
+            return Ok(audit_records)
 
         except Exception as e:
-            return Result.err(f"Failed to retrieve audit trail: {str(e)}")
+            return Err(f"Failed to retrieve audit trail: {str(e)}")
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AuditLogger":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit - flush any pending events."""
         if self._pending_events:
             await self._flush_pending_events()

@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -280,10 +280,10 @@ class PrivacyControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"GDPR compliance control failed: {str(e)}")
+            return Err(f"GDPR compliance control failed: {str(e)}")
 
     @beartype
     async def _check_lawful_basis_compliance(self) -> dict[str, Any]:
@@ -560,10 +560,10 @@ class PrivacyControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Consent management control failed: {str(e)}")
+            return Err(f"Consent management control failed: {str(e)}")
 
     @beartype
     async def _check_consent_collection(self) -> dict[str, Any]:
@@ -754,10 +754,10 @@ class PrivacyControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Data subject rights control failed: {str(e)}")
+            return Err(f"Data subject rights control failed: {str(e)}")
 
     @beartype
     async def _check_rights_request_processing(self) -> dict[str, Any]:
@@ -1008,10 +1008,10 @@ class PrivacyControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"CCPA compliance control failed: {str(e)}")
+            return Err(f"CCPA compliance control failed: {str(e)}")
 
     @beartype
     async def _check_ccpa_disclosures(self) -> dict[str, Any]:

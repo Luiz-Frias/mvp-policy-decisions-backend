@@ -153,6 +153,7 @@ class Result(Generic[T, E]):
     _error: E | None = field(default=None, init=False)
 
     @classmethod
+    @beartype
     def ok(cls, value: T) -> "Result[T, E]":
         """Create a successful result."""
         result = cls()
@@ -160,32 +161,38 @@ class Result(Generic[T, E]):
         return result
 
     @classmethod
+    @beartype
     def err(cls, error: E) -> "Result[T, E]":
         """Create an error result."""
         result = cls()
         object.__setattr__(result, "_error", error)
         return result
 
+    @beartype
     def is_ok(self) -> bool:
         """Check if result is successful."""
         return self._value is not None
 
+    @beartype
     def is_err(self) -> bool:
         """Check if result is an error."""
         return self._error is not None
 
+    @beartype
     def unwrap(self) -> T:
         """Unwrap value or raise exception."""
         if self._value is not None:
             return self._value
         raise RuntimeError("Called unwrap() on error result")
 
+    @beartype
     def unwrap_err(self) -> E:
         """Extract the error value or panic."""
         if self._error is not None:
             return self._error
         raise RuntimeError("Called unwrap_err() on ok result")
 
+    @beartype
     def unwrap_or(self, default: T) -> T:
         """Unwrap value or return default."""
         return self._value if self._value is not None else default

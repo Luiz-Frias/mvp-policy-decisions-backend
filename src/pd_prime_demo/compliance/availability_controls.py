@@ -16,7 +16,7 @@ import psutil
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from pd_prime_demo.core.result_types import Result
+from pd_prime_demo.core.result_types import Err, Ok
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
@@ -225,10 +225,10 @@ class AvailabilityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Uptime monitoring control failed: {str(e)}")
+            return Err(f"Uptime monitoring control failed: {str(e)}")
 
     @beartype
     async def _calculate_uptime_metrics(self) -> UptimeMetrics:
@@ -410,10 +410,10 @@ class AvailabilityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Performance monitoring control failed: {str(e)}")
+            return Err(f"Performance monitoring control failed: {str(e)}")
 
     @beartype
     async def _collect_performance_metrics(self) -> PerformanceMetrics:
@@ -559,10 +559,10 @@ class AvailabilityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Backup recovery control failed: {str(e)}")
+            return Err(f"Backup recovery control failed: {str(e)}")
 
     @beartype
     async def _check_backup_status(self) -> BackupStatus:
@@ -682,10 +682,10 @@ class AvailabilityControlManager:
                 execution_time_ms=execution_time_ms,
             )
 
-            return Result.ok(execution)
+            return Ok(execution)
 
         except Exception as e:
-            return Result.err(f"Failover control failed: {str(e)}")
+            return Err(f"Failover control failed: {str(e)}")
 
     @beartype
     async def _test_failover_mechanisms(self) -> dict[str, Any]:
