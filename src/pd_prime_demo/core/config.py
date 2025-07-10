@@ -22,6 +22,10 @@ class Settings(BaseSettings):
         description="PostgreSQL connection URL",
         min_length=1,
     )
+    database_public_url: str | None = Field(
+        default=None,
+        description="PostgreSQL public URL (for external access)",
+    )
     database_read_url: str | None = Field(
         default=None,
         description="PostgreSQL read replica URL (optional)",
@@ -243,6 +247,20 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development mode."""
         return self.api_env == "development"
+
+    @property
+    @beartype
+    def effective_database_url(self) -> str:
+        """Get the effective database URL, preferring public URL when available."""
+        # If public URL is available and we're not in Railway environment, use public
+        if self.database_public_url:
+            # Check if we're running outside Railway (by testing if internal URL works)
+            if "railway.internal" in self.database_url:
+                # We have an internal URL, so prefer public for external access
+                return self.database_public_url
+
+        # Fall back to regular database_url
+        return self.database_url
 
 
 _settings: Settings | None = None

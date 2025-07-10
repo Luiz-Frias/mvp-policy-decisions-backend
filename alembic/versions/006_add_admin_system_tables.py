@@ -1021,22 +1021,51 @@ def upgrade() -> None:
         """
     )
 
-    # Add update triggers
-    for table in [
-        "admin_roles",
-        "admin_users",
-        "system_settings",
-        "admin_dashboards",
-        "admin_rate_approvals",
-    ]:
-        op.execute(
-            f"""
-            CREATE TRIGGER update_{table}_updated_at
-            BEFORE UPDATE ON {table}
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-            """
-        )
+    # Add update triggers - split for asyncpg compatibility
+    op.execute(
+        """
+        CREATE TRIGGER update_admin_roles_updated_at
+        BEFORE UPDATE ON admin_roles
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
+    
+    op.execute(
+        """
+        CREATE TRIGGER update_admin_users_updated_at
+        BEFORE UPDATE ON admin_users
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
+    
+    op.execute(
+        """
+        CREATE TRIGGER update_system_settings_updated_at
+        BEFORE UPDATE ON system_settings
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
+    
+    op.execute(
+        """
+        CREATE TRIGGER update_admin_dashboards_updated_at
+        BEFORE UPDATE ON admin_dashboards
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
+    
+    op.execute(
+        """
+        CREATE TRIGGER update_admin_rate_approvals_updated_at
+        BEFORE UPDATE ON admin_rate_approvals
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
 
     # Create function to calculate admin risk score
     op.execute(
@@ -1107,11 +1136,11 @@ def upgrade() -> None:
                 resource := split_part(perm, '.', 1);
                 action := split_part(perm, '.', 2);
 
-                -- Verify permission exists in registry
+                -- Verify permission exists in registry (use local variables, not table columns)
                 IF NOT EXISTS (
-                    SELECT 1 FROM admin_permissions
-                    WHERE admin_permissions.resource = resource
-                    AND admin_permissions.action = action
+                    SELECT 1 FROM admin_permissions ap
+                    WHERE ap.resource = split_part(perm, '.', 1)
+                    AND ap.action = split_part(perm, '.', 2)
                 ) THEN
                     RETURN FALSE;
                 END IF;

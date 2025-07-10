@@ -490,15 +490,24 @@ def upgrade() -> None:
     )
 
     # Add update triggers for new tables
-    for table in ["user_sso_links", "sso_provider_configs"]:
-        op.execute(
-            f"""
-            CREATE TRIGGER update_{table}_updated_at
-            BEFORE UPDATE ON {table}
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-            """
-        )
+    # Create triggers separately for asyncpg compatibility
+    op.execute(
+        """
+        CREATE TRIGGER update_user_sso_links_updated_at
+        BEFORE UPDATE ON user_sso_links
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
+    
+    op.execute(
+        """
+        CREATE TRIGGER update_sso_provider_configs_updated_at
+        BEFORE UPDATE ON sso_provider_configs
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
 
 
 def downgrade() -> None:

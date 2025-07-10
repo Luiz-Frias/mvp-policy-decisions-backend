@@ -589,7 +589,7 @@ def upgrade() -> None:
             p_interval INTERVAL DEFAULT '1 minute'
         )
         RETURNS TABLE (
-            timestamp TIMESTAMPTZ,
+            event_timestamp TIMESTAMPTZ,
             messages_per_second NUMERIC,
             bytes_per_second NUMERIC,
             active_connections INTEGER
@@ -597,7 +597,7 @@ def upgrade() -> None:
         BEGIN
             RETURN QUERY
             SELECT
-                date_trunc('minute', e.created_at) AS timestamp,
+                date_trunc('minute', e.created_at) AS event_timestamp,
                 COUNT(*)::NUMERIC / EXTRACT(EPOCH FROM p_interval) AS messages_per_second,
                 SUM(
                     CASE

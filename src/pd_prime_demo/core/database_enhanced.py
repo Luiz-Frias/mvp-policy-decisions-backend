@@ -185,15 +185,8 @@ class Database:
                 connection_timeout=5.0,  # Reduced from 60.0 for faster failure detection
                 command_timeout=10.0,  # Reduced from 120.0 for testing (can be increased later)
                 server_settings={
-                    "work_mem": "512MB",  # Increased for complex queries
-                    "temp_buffers": "64MB",
-                    "maintenance_work_mem": "1GB",  # Increased for admin operations
-                    "random_page_cost": "1.1",
-                    "seq_page_cost": "1.0",
-                    "effective_cache_size": "4GB",
-                    "enable_hashjoin": "on",
-                    "enable_mergejoin": "on",
-                    "enable_sort": "on",
+                    "application_name": "pd_prime_demo_admin",
+                    "timezone": "UTC",
                 },
             )
 
@@ -218,22 +211,10 @@ class Database:
                 f"Pool size {max_conn} exceeds safe database limit ({300 * 0.8:.0f})"
             )
 
+        # Connection-level settings only (no server-level parameters)
         server_settings = {
-            "jit": "off",  # Disable JIT for consistent performance
-            "random_page_cost": "1.1",  # SSD optimized
-            "seq_page_cost": "1.0",  # SSD optimized
-            "effective_cache_size": "4GB",
-            "shared_buffers": "256MB",
-            # Performance optimizations based on OLTP workload
-            "wal_buffers": "16MB",
-            "checkpoint_completion_target": "0.9",
-            "max_wal_size": "1GB",
-            "min_wal_size": "80MB",
-            "autovacuum": "on",
-            "autovacuum_naptime": "30s",
-            "enable_indexscan": "on",
-            "enable_indexonlyscan": "on",
-            "enable_bitmapscan": "on",
+            "application_name": "pd_prime_demo",
+            "timezone": "UTC",
         }
 
         if pool_type == "read":
@@ -242,13 +223,8 @@ class Database:
             max_conn = min(max_conn * 2, 80)  # Capped at 80 per instance
             server_settings.update(
                 {
+                    "application_name": "pd_prime_demo_read",
                     "default_transaction_read_only": "on",
-                    "work_mem": "64MB",  # More memory for read queries
-                    "max_parallel_workers_per_gather": "4",
-                    "max_parallel_workers": "8",
-                    "enable_parallel_hash": "on",
-                    "enable_partitionwise_join": "on",
-                    "enable_partitionwise_aggregate": "on",
                 }
             )
 
@@ -413,7 +389,7 @@ class Database:
         self._main_config = main_config  # Save for later use
 
         self._pool = await asyncpg.create_pool(
-            self._settings.database_url,
+            self._settings.effective_database_url,
             min_size=main_config.min_connections,
             max_size=main_config.max_connections,
             max_inactive_connection_lifetime=main_config.max_inactive_connection_lifetime,
@@ -445,7 +421,7 @@ class Database:
         if self._settings.database_admin_pool_enabled:
             admin_config = self._get_pool_config("admin")
             self._admin_pool = await asyncpg.create_pool(
-                self._settings.database_url,
+                self._settings.effective_database_url,
                 min_size=admin_config.min_connections,
                 max_size=admin_config.max_connections,
                 max_inactive_connection_lifetime=admin_config.max_inactive_connection_lifetime,

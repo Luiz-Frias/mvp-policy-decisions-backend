@@ -431,15 +431,15 @@ def upgrade() -> None:
     )
 
     # Add update triggers for tables that need them
-    for table in ["oauth2_refresh_tokens"]:
-        op.execute(
-            f"""
-            CREATE TRIGGER update_{table}_updated_at
-            BEFORE UPDATE ON {table}
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-            """
-        )
+    # Create trigger separately for asyncpg compatibility
+    op.execute(
+        """
+        CREATE TRIGGER update_oauth2_refresh_tokens_updated_at
+        BEFORE UPDATE ON oauth2_refresh_tokens
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
 
     # Create function to automatically clean up expired tokens
     op.execute(
@@ -447,27 +447,31 @@ def upgrade() -> None:
         CREATE OR REPLACE FUNCTION cleanup_expired_oauth2_tokens()
         RETURNS INTEGER AS $$
         DECLARE
-            deleted_count INTEGER := 0;
+            total_deleted INTEGER := 0;
+            rows_affected INTEGER;
         BEGIN
             -- Delete expired authorization codes (older than 24 hours)
             DELETE FROM oauth2_authorization_codes
             WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '24 hours';
 
-            GET DIAGNOSTICS deleted_count = ROW_COUNT;
+            GET DIAGNOSTICS rows_affected = ROW_COUNT;
+            total_deleted := total_deleted + rows_affected;
 
             -- Delete expired refresh tokens (keeping recent ones for audit)
             DELETE FROM oauth2_refresh_tokens
             WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days';
 
-            GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
+            GET DIAGNOSTICS rows_affected = ROW_COUNT;
+            total_deleted := total_deleted + rows_affected;
 
             -- Archive old token logs (older than 90 days)
             DELETE FROM oauth2_token_logs
             WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days';
 
-            GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
+            GET DIAGNOSTICS rows_affected = ROW_COUNT;
+            total_deleted := total_deleted + rows_affected;
 
-            RETURN deleted_count;
+            RETURN total_deleted;
         END;
         $$ LANGUAGE plpgsql;
         """

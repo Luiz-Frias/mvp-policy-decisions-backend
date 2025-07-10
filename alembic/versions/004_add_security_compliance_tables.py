@@ -377,20 +377,32 @@ def upgrade() -> None:
     )
 
     # Create partitions for audit logs (monthly partitions)
+    # Split into separate execute statements for asyncpg compatibility
     op.execute(
         """
-        -- Create partitions for current and next 3 months
         CREATE TABLE audit_logs_2025_01 PARTITION OF audit_logs
-            FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-
+            FOR VALUES FROM ('2025-01-01') TO ('2025-02-01')
+        """
+    )
+    
+    op.execute(
+        """
         CREATE TABLE audit_logs_2025_02 PARTITION OF audit_logs
-            FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
-
+            FOR VALUES FROM ('2025-02-01') TO ('2025-03-01')
+        """
+    )
+    
+    op.execute(
+        """
         CREATE TABLE audit_logs_2025_03 PARTITION OF audit_logs
-            FOR VALUES FROM ('2025-03-01') TO ('2025-04-01');
-
+            FOR VALUES FROM ('2025-03-01') TO ('2025-04-01')
+        """
+    )
+    
+    op.execute(
+        """
         CREATE TABLE audit_logs_2025_04 PARTITION OF audit_logs
-            FOR VALUES FROM ('2025-04-01') TO ('2025-05-01');
+            FOR VALUES FROM ('2025-04-01') TO ('2025-05-01')
         """
     )
 

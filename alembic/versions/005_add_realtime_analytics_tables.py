@@ -629,15 +629,24 @@ def upgrade() -> None:
     )
 
     # Add update triggers
-    for table in ["notification_queue", "realtime_metrics"]:
-        op.execute(
-            f"""
-            CREATE TRIGGER update_{table}_updated_at
-            BEFORE UPDATE ON {table}
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-            """
-        )
+    # Create triggers separately for asyncpg compatibility
+    op.execute(
+        """
+        CREATE TRIGGER update_notification_queue_updated_at
+        BEFORE UPDATE ON notification_queue
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
+    
+    op.execute(
+        """
+        CREATE TRIGGER update_realtime_metrics_updated_at
+        BEFORE UPDATE ON realtime_metrics
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()
+        """
+    )
 
     # Create function to clean up old connections
     op.execute(
