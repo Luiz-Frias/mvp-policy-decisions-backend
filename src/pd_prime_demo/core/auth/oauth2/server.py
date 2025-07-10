@@ -11,12 +11,11 @@ from jose import JWTError, jwt  # type: ignore[import-untyped]
 from passlib.context import CryptContext
 from pydantic import Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
-
-from ....core.cache import Cache
-from ....core.config import Settings
-from ....core.database import Database
-from ...models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 

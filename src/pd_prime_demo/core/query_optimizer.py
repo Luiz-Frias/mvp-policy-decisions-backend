@@ -6,7 +6,8 @@ from attrs import field, frozen
 from beartype import beartype
 from pydantic import Field
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
+
 from .database_enhanced import Database
 from .result_types import Err, Ok, Result
 
@@ -14,8 +15,8 @@ from .result_types import Err, Ok, Result
 
 
 @beartype
-class PlanDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class PlanData(BaseModelConfig):
+    """Structured model for query plan data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -128,7 +129,7 @@ class QueryOptimizer:
             return Err(f"Failed to analyze query: {str(e)}")
 
     @beartype
-    def _analyze_plan_for_suggestions(self, plan_data: PlanDataData) -> list[str]:
+    def _analyze_plan_for_suggestions(self, plan_data: dict[str, Any]) -> list[str]:
         """Analyze query plan and generate optimization suggestions."""
         suggestions = []
         plan = plan_data.get("Plan", {})

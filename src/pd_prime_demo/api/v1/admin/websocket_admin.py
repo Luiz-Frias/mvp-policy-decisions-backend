@@ -5,19 +5,10 @@ from typing import Any
 from uuid import UUID
 
 from beartype import beartype
-from fastapi import (
-    APIRouter,
-    BaseModelConfig,
-    Depends,
-    Response,
-    WebSocket,
-    WebSocketDisconnect,
-    ....models.base,
-    from,
-    import,
-    status,
-)
+from fastapi import APIRouter, Depends, Response, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, ConfigDict, Field
+
+from pd_prime_demo.models.base import BaseModelConfig
 
 from ....models.admin import AdminUser
 from ....websocket.handlers.admin_dashboard import AdminDashboardHandler
@@ -25,6 +16,7 @@ from ....websocket.manager import ConnectionManager, MessageType, WebSocketMessa
 from ...response_patterns import ErrorResponse
 
 # Auto-generated models
+
 
 @beartype
 class StatsData(BaseModelConfig):
@@ -45,13 +37,12 @@ class FiltersData(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
+class AlertData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
 
 
 class AdminWebSocketConfig(BaseModel):
@@ -100,7 +91,8 @@ def get_admin_dashboard_handler() -> AdminDashboardHandler:
     """Get admin dashboard handler dependency."""
     # This would be injected in production
     # For now, using a placeholder
-    from ....core.cache import get_cache
+    from pd_prime_demo.core.cache import get_cache
+
     from ....core.database_enhanced import get_database
 
     cache = get_cache()
@@ -265,7 +257,7 @@ async def broadcast_admin_alert(
     message: str,
     response: Response,
     severity: str = "medium",
-    data: DataData | None = None,
+    data: AlertData | None = None,
     admin_user: AdminUser = Depends(get_current_admin_user),
     dashboard_handler: AdminDashboardHandler = Depends(get_admin_dashboard_handler),
 ) -> dict[str, str] | ErrorResponse:

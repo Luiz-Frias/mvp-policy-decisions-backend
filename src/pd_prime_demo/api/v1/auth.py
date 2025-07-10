@@ -8,9 +8,10 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache, get_cache
+from pd_prime_demo.core.database import Database
+
 from ...core.auth.sso_manager import SSOManager
-from ...core.cache import Cache, get_cache
-from ...core.database import Database
 from ...core.result_types import Err
 from ...core.security import Security, get_security
 from ..dependencies import get_db_connection, get_sso_manager
@@ -91,9 +92,9 @@ class SSOLoginInitResponse(BaseModel):
 @beartype
 async def login(
     request: LoginRequest,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
-    response: Response = Depends(lambda: Response()),
 ) -> LoginResponse | ErrorResponse:
     """Login with email and password.
 
@@ -218,10 +219,10 @@ async def list_sso_providers(
 @beartype
 async def sso_login_init(
     provider: str,
+    response: Response,
     redirect_uri: str | None = Query(None, description="Custom redirect URI"),
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_cache),
-    response: Response = Depends(lambda: Response()),
 ) -> SSOLoginInitResponse | ErrorResponse:
     """Initiate SSO login flow.
 
@@ -276,6 +277,7 @@ async def sso_login_init(
 @beartype
 async def sso_callback(
     provider: str,
+    response: Response,
     code: str = Query(..., description="Authorization code"),
     state: str = Query(..., description="State parameter"),
     error: str | None = Query(None, description="Error from provider"),
@@ -285,7 +287,6 @@ async def sso_callback(
     cache: Cache = Depends(get_cache),
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
-    response: Response = Depends(lambda: Response()),
 ) -> LoginResponse | RedirectResponse | ErrorResponse:
     """Handle SSO callback after user authentication.
 
@@ -419,10 +420,10 @@ class LogoutResponse(BaseModel):
 @router.post("/logout", response_model=LogoutResponse)
 @beartype
 async def logout(
+    response: Response,
     session_id: str = Query(..., description="Session ID to invalidate"),
     db: asyncpg.Connection = Depends(get_db_connection),
     cache: Cache = Depends(get_cache),
-    response: Response = Depends(lambda: Response()),
 ) -> LogoutResponse | ErrorResponse:
     """Logout and invalidate session.
 

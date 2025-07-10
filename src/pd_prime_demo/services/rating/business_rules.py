@@ -12,8 +12,8 @@ from beartype import beartype
 from pydantic import Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.models.base import BaseModelConfig
 
-from ...models.base import BaseModelConfig
 from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo
 
 # Auto-generated models

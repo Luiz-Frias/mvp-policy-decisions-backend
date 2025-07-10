@@ -11,8 +11,9 @@ from typing import Any
 from beartype import beartype
 from pydantic import Field
 
+from pd_prime_demo.models.base import BaseModelConfig
+
 from ...core.result_types import Err, Ok, Result
-from ...models.base import BaseModelConfig
 from ..performance_monitor import performance_monitor
 
 # Auto-generated models

@@ -9,16 +9,16 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.models.base import BaseModelConfig
 
 from ..core.cache import Cache
-from ..models.base import BaseModelConfig
 
 # Auto-generated models
 
 
 @beartype
-class StepDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class StepData(BaseModelConfig):
+    """Structured model for step data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -35,8 +35,8 @@ class ValidationsData(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class WizardData(BaseModelConfig):
+    """Structured model for wizard data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -53,8 +53,8 @@ class IntelligenceData(BaseModelConfig):
 
 
 @beartype
-class InitialDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class InitialData(BaseModelConfig):
+    """Structured model for initial data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -62,8 +62,8 @@ class InitialDataData(BaseModelConfig):
 
 
 @beartype
-class AllDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class AllData(BaseModelConfig):
+    """Structured model for all data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -96,7 +96,6 @@ class WizardState(BaseModel):
     """Current state of quote wizard."""
 
     model_config = ConfigDict(
-        frozen=True,
         frozen=False,  # Must be mutable for state updates
         extra="forbid",
         validate_assignment=True,
@@ -107,7 +106,7 @@ class WizardState(BaseModel):
     quote_id: UUID | None
     current_step: str
     completed_steps: list[str]
-    data: DataData
+    data: WizardData
     validation_errors: dict[str, list[str]] = Field(default_factory=dict)
     started_at: datetime
     last_updated: datetime
@@ -243,7 +242,7 @@ class QuoteWizardService:
 
     @beartype
     async def start_session(
-        self, initial_data: InitialDataData | None = None
+        self, initial_data: InitialData | None = None
     ) -> Result[WizardState, str]:
         """Start a new wizard session."""
         session_id = uuid4()
@@ -300,7 +299,7 @@ class QuoteWizardService:
 
     @beartype
     async def update_step(
-        self, session_id: UUID, step_data: StepDataData
+        self, session_id: UUID, step_data: StepData
     ) -> Result[WizardState, str]:
         """Update current step with data."""
         # Get session
@@ -595,7 +594,9 @@ class QuoteWizardService:
         )
 
     @beartype
-    def _validate_step_data(self, step: WizardStep, data: DataData) -> WizardValidation:
+    def _validate_step_data(
+        self, step: WizardStep, data: WizardData
+    ) -> WizardValidation:
         """Validate data for a specific step."""
         validation = WizardValidation(is_valid=True)
         errors: dict[str, list[str]] = {}
@@ -757,7 +758,7 @@ class QuoteWizardService:
 
     @beartype
     def _determine_next_step(
-        self, current_step: WizardStep, data: DataData
+        self, current_step: WizardStep, data: WizardData
     ) -> str | None:
         """Determine next step based on current step and data."""
         if not current_step.next_step:
@@ -804,9 +805,7 @@ class QuoteWizardService:
         return int((completed / total_steps) * 100) if total_steps > 0 else 0
 
     @beartype
-    def _extract_step_data(
-        self, step: WizardStep, all_data: AllDataData
-    ) -> dict[str, Any]:
+    def _extract_step_data(self, step: WizardStep, all_data: AllData) -> dict[str, Any]:
         """Extract data relevant to a specific step."""
         return {field: all_data.get(field) for field in step.fields}
 

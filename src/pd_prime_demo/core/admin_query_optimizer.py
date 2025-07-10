@@ -7,7 +7,8 @@ from attrs import field, frozen
 from beartype import beartype
 from pydantic import Field
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
+
 from .cache_stub import get_cache
 from .database_enhanced import Database
 from .result_types import Err, Ok, Result

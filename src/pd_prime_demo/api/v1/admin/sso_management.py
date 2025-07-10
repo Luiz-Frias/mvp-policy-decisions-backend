@@ -8,8 +8,9 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.models.base import BaseModelConfig
+
 from ....models.admin import AdminUser, Permission
-from ....models.base import BaseModelConfig
 from ....services.admin.sso_admin_service import SSOAdminService
 from ...dependencies import get_current_admin_user, get_sso_admin_service
 from ...response_patterns import ErrorResponse

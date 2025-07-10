@@ -16,10 +16,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.common import (
-    EvidenceContent,
-    SystemDataMetrics,
-)
+from pd_prime_demo.schemas.common import EvidenceContent, SystemDataMetrics
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger

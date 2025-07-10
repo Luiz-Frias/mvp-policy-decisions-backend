@@ -12,26 +12,7 @@ from pd_prime_demo.core.result_types import Err, Ok, Result
 
 from ...services.quote_service import QuoteService
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
-from ..message_models import (  # Auto-generated models
-    Any],
-    BaseModelConfig,
-    DetailsData,
-    """Structured,
-    ...models.base,
-    :,
-    @beartype,
-    class,
-    dict[str,
-    from,
-    import,
-    model,
-    replacing,
-    usage.""",
-)
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+from ..message_models import BaseModelConfig, DetailsData, create_websocket_message_data
 
 
 @beartype
@@ -40,9 +21,6 @@ class FieldLocksMapping(BaseModelConfig):
 
     key: str = Field(..., min_length=1, description="Mapping key")
     value: str = Field(..., min_length=1, description="Mapping value")
-
-    create_websocket_message_data,
-)
 
 
 class QuoteUpdateData(BaseModel):

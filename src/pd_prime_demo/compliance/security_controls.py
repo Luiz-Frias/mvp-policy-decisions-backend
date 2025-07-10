@@ -20,9 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
 from pd_prime_demo.schemas.common import ControlEvidence, EvidenceContent
-from pd_prime_demo.schemas.compliance import (
-    VulnerabilityFinding,
-)
+from pd_prime_demo.schemas.compliance import VulnerabilityFinding
 
 from ..core.config import get_settings
 from .audit_logger import AuditLogger, get_audit_logger
@@ -405,7 +403,7 @@ class SecurityControlManager:
                     ControlStatus.ACTIVE if len(findings) == 0 else ControlStatus.FAILED
                 ),
                 result=len(findings) == 0,
-                evidence_collected=evidence_data,
+                evidence_collected=evidence,
                 findings=findings,
                 remediation_actions=(
                     [

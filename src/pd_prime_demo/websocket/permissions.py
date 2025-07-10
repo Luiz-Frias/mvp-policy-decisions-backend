@@ -10,8 +10,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 

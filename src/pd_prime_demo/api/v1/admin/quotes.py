@@ -11,8 +11,9 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import Field
 
+from pd_prime_demo.models.base import BaseModelConfig
+
 from ....models.admin import AdminUser
-from ....models.base import BaseModelConfig
 from ....models.quote import QuoteOverrideRequest
 from ....schemas.quote import QuoteResponse
 from ....services.quote_service import QuoteService

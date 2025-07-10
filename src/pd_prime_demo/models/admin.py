@@ -3,7 +3,6 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any
 
 from beartype import beartype
 from pydantic import EmailStr, Field, computed_field, field_validator, model_validator
@@ -562,7 +561,9 @@ class SystemSetting(IdentifiableModel):
         pattern=r"^[a-zA-Z0-9_\-\.]+$",
         description="Unique setting key within category",
     )
-    value: Any = Field(..., description="Setting value (type varies by setting)")
+    value: str | int | float | bool | Decimal | datetime | dict | list = Field(
+        ..., description="Setting value (type varies by setting)"
+    )
     data_type: str = Field(
         ...,
         pattern=r"^(string|number|boolean|json|datetime|decimal)$",
@@ -576,7 +577,9 @@ class SystemSetting(IdentifiableModel):
     validation_rules: ValidationRulesData | None = Field(
         None, description="Additional validation rules (min, max, regex, etc.)"
     )
-    default_value: Any | None = Field(None, description="Default value if not set")
+    default_value: (
+        str | int | float | bool | Decimal | datetime | dict | list | None
+    ) = Field(None, description="Default value if not set")
 
     # Security
     is_sensitive: bool = Field(
@@ -606,7 +609,9 @@ class SystemSetting(IdentifiableModel):
     @field_validator("value")
     @classmethod
     @beartype
-    def validate_value_type(cls, v: Any) -> Any:
+    def validate_value_type(
+        cls, v: str | int | float | bool | Decimal | datetime | dict | list
+    ) -> str | int | float | bool | Decimal | datetime | dict | list:
         """Validate value matches declared type."""
         # Note: Can't access data_type and validation_rules here with beartype
         # Moving validation to model_validator
@@ -924,6 +929,7 @@ class AdminDashboard(IdentifiableModel):
 
     @field_validator("widgets")
     @classmethod
+    @beartype
     def validate_widget_positions(
         cls, v: list[DashboardWidget]
     ) -> list[DashboardWidget]:

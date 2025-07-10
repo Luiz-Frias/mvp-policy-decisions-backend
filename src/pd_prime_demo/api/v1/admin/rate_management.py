@@ -12,10 +12,11 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from ....core.cache import Cache
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.models.base import BaseModelConfig
+
 from ....core.database_enhanced import Database
 from ....models.admin import AdminUser
-from ....models.base import BaseModelConfig
 from ....services.admin.rate_management_service import RateManagementService
 from ...dependencies import get_cache, get_current_admin_user, get_database
 from ...response_patterns import ErrorResponse
@@ -24,7 +25,7 @@ from ...response_patterns import ErrorResponse
 
 
 @beartype
-class RateDataData(BaseModelConfig):
+class RateData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
     # Auto-generated - customize based on usage
@@ -47,7 +48,7 @@ class RateTableVersionCreate(BaseModel):
         validate_default=True,
     )
     table_name: str = Field(..., min_length=1, max_length=100)
-    rate_data: RateDataData = Field(...)
+    rate_data: RateData = Field(...)
     effective_date: date = Field(...)
     notes: str | None = Field(None, max_length=1000)
 
@@ -379,7 +380,8 @@ async def list_rate_table_versions(
         return ErrorResponse(error="Insufficient permissions. Required: rate:read")
 
     # Use underlying rate table service for version listing
-    from ....core.cache import Cache
+    from pd_prime_demo.core.cache import Cache
+
     from ....core.database_enhanced import get_database
     from ....services.rating.rate_tables import RateTableService
 
@@ -439,7 +441,8 @@ async def get_active_rates(
         return ErrorResponse(error="Insufficient permissions. Required: rate:read")
 
     # Use underlying rate table service for active rates
-    from ....core.cache import Cache
+    from pd_prime_demo.core.cache import Cache
+
     from ....core.database_enhanced import get_database
     from ....services.rating.rate_tables import RateTableService
 
@@ -488,7 +491,8 @@ async def rate_management_health(
 
     try:
         # Basic health checks
-        from ....core.cache import Cache
+        from pd_prime_demo.core.cache import Cache
+
         from ....core.database_enhanced import get_database
 
         db = get_database()

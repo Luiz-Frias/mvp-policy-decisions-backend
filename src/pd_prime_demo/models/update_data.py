@@ -7,7 +7,7 @@ The goal is to enforce type safety and runtime validation at every layer.
 """
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any  # SYSTEM_BOUNDARY: PostgreSQL JSONB interface
 
 from beartype import beartype
 from pydantic import Field, model_validator

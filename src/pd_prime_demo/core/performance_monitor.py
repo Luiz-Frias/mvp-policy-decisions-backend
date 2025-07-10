@@ -15,7 +15,8 @@ from fastapi import Request, Response
 from pydantic import Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
+
 from .result_types import Err, Ok, Result
 
 # Auto-generated models

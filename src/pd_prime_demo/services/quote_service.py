@@ -11,6 +11,7 @@ import asyncpg
 from beartype import beartype
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.models.base import BaseModelConfig
 
 from ..core.cache import Cache
 from ..core.database import Database
@@ -28,10 +29,6 @@ from ..models.quote import (
     QuoteStatus,
     QuoteUpdate,
     VehicleInfo,
-    ..models.base,
-    from,
-    import,
-    pydantic,
 )
 from .performance_monitor import performance_monitor
 
@@ -47,8 +44,14 @@ except ImportError:
 try:
     from ..websocket.manager import ConnectionManager
 
+    HAS_WEBSOCKET = True
+except ImportError:
+    ConnectionManager = None  # type: ignore[assignment,misc]
+    HAS_WEBSOCKET = False
+
 
 # Auto-generated models
+
 
 @beartype
 class FiltersData(BaseModelConfig):
@@ -57,12 +60,6 @@ class FiltersData(BaseModelConfig):
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-    HAS_WEBSOCKET = True
-except ImportError:
-    ConnectionManager = None  # type: ignore[assignment,misc]
-    HAS_WEBSOCKET = False
 
 
 class QuoteService:

@@ -2,45 +2,73 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
-
-from ...core.cache import Cache
-from ...core.database import Database
-from ...models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 
 
 @beartype
 class ConditionsData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+    """Conditions for special pricing rules."""
 
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+    # Customer criteria
+    customer_type: str | None = Field(
+        None, description="Type of customer (individual, business, etc.)"
+    )
+    min_age: int | None = Field(
+        None, ge=16, le=100, description="Minimum age requirement"
+    )
+    max_age: int | None = Field(None, ge=16, le=100, description="Maximum age limit")
+
+    # Policy criteria
+    policy_type: str | None = Field(None, description="Type of policy")
+    coverage_amount_min: float | None = Field(
+        None, ge=0, description="Minimum coverage amount"
+    )
+    coverage_amount_max: float | None = Field(
+        None, ge=0, description="Maximum coverage amount"
+    )
+
+    # Geographic criteria
+    state: str | None = Field(None, description="State code")
+    zip_codes: list[str] = Field(
+        default_factory=list, description="Applicable ZIP codes"
+    )
 
 
 @beartype
 class AdjustmentsData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+    """Pricing adjustments for special rules."""
 
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+    # Percentage adjustments
+    premium_adjustment_pct: float | None = Field(
+        None, description="Premium adjustment percentage"
+    )
+    deductible_adjustment_pct: float | None = Field(
+        None, description="Deductible adjustment percentage"
+    )
 
+    # Fixed adjustments
+    premium_adjustment_fixed: float | None = Field(
+        None, description="Fixed premium adjustment"
+    )
+    discount_amount: float | None = Field(
+        None, ge=0, description="Fixed discount amount"
+    )
 
-@beartype
-class ActionDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+    # Coverage adjustments
+    coverage_adjustments: dict[str, float] = Field(
+        default_factory=dict, description="Coverage-specific adjustments"
+    )
 
 
 class PricingOverrideResponse(BaseModelConfig):
@@ -534,7 +562,7 @@ class PricingOverrideService:
         admin_user_id: UUID,
         action_type: str,
         quote_id: UUID | None,
-        action_data: ActionDataData,
+        action_data: dict[str, Any],
     ) -> None:
         """Log pricing activity for audit trail.
 

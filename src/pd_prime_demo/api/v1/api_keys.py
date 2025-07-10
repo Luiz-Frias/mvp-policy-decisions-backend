@@ -9,9 +9,10 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
+
 from ...core.auth.oauth2 import APIKeyManager
-from ...core.cache import Cache
-from ...core.database import Database
 from ...schemas.auth import CurrentUser
 from ..dependencies import get_current_user, get_db_connection, get_redis
 from ..response_patterns import APIResponseHandler, ErrorResponse

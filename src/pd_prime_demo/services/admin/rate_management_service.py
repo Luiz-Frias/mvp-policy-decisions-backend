@@ -10,52 +10,34 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from beartype import beartype
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.models.base import BaseModelConfig
 
-from ...core.cache import Cache
-from ...core.database import Database
-from ...models.base import BaseModelConfig
 from ..rating.rate_tables import RateTableService
 
 # Auto-generated models
 
 
 @beartype
-class DetailsData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class RateData(BaseModelConfig):
+    """Structured model for rate table data."""
 
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-@beartype
-class ConversionMetricsData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-@beartype
-class RateDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-@beartype
-class DifferencesData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
+    # Rate table structure
+    base_rates: dict[str, float] = Field(
+        default_factory=dict, description="Base premium rates by coverage"
+    )
+    factors: dict[str, float] = Field(
+        default_factory=dict, description="Rating factors"
+    )
+    territories: dict[str, float] = Field(
+        default_factory=dict, description="Territory multipliers"
+    )
+    effective_date: str = Field(..., description="Effective date for this rate data")
+    version: str = Field(..., description="Rate table version identifier")
 
 
 class RateVersionResponse(BaseModelConfig):
@@ -85,7 +67,7 @@ class RateManagementService:
     async def create_rate_table_version(
         self,
         table_name: str,
-        rate_data: RateDataData,
+        rate_data: RateData,
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
@@ -494,7 +476,7 @@ class RateManagementService:
         admin_user_id: UUID,
         action: str,
         target_id: UUID,
-        details: DetailsData,
+        details: dict[str, Any],
     ) -> None:
         """Log rate management activity for audit trail."""
         query = """
@@ -524,9 +506,7 @@ class RateManagementService:
         print(f"Rate version {version_id} approved by {approved_by}")
 
     @beartype
-    async def _analyze_rate_impact(
-        self, differences: DifferencesData
-    ) -> DifferencesData:
+    async def _analyze_rate_impact(self, differences: dict[str, Any]) -> dict[str, Any]:
         """Analyze business impact of rate changes."""
         modified = differences.get("modified", {})
 
@@ -727,7 +707,7 @@ class RateManagementService:
     async def _calculate_rate_summary(
         self,
         quote_analytics: list[dict[str, Any]],
-        conversion_metrics: ConversionMetricsData,
+        conversion_metrics: dict[str, Any],
     ) -> dict[str, Any]:
         """Calculate summary statistics."""
         if not quote_analytics:

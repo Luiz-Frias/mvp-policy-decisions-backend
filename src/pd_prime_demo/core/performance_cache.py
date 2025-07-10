@@ -12,7 +12,8 @@ from attrs import field, frozen
 from beartype import beartype
 from pydantic import Field
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
+
 from .cache import get_cache
 from .performance_monitor import performance_context
 
@@ -29,8 +30,8 @@ class ResultData(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class CacheData(BaseModelConfig):
+    """Structured model for cache data usage."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -73,7 +74,7 @@ class CacheKey:
 
     @classmethod
     @beartype
-    def from_data(cls, prefix: str, data: DataData) -> "CacheKey":
+    def from_data(cls, prefix: str, data: dict[str, Any]) -> "CacheKey":
         """Create cache key from data dictionary."""
         # Sort keys for consistent hashing
         sorted_data = json.dumps(data, sort_keys=True, default=str)
@@ -105,7 +106,7 @@ class PerformanceCache:
     def __init__(self) -> None:
         """Initialize performance cache."""
         self._cache = get_cache()
-        self._metrics: MetricsData = {
+        self._metrics: dict[str, Any] = {
             "hits": 0,
             "misses": 0,
             "lookup_times": [],
@@ -385,7 +386,7 @@ async def warm_all_caches() -> dict[str, Any]:
     perf_cache = get_performance_cache()
 
     start_time = time.time()
-    results: ResultsData = {}
+    results: dict[str, Any] = {}
 
     # Warm rating calculations cache
     rating_result = await perf_cache.warm_rating_cache()
@@ -412,8 +413,8 @@ async def warm_all_caches() -> dict[str, Any]:
 async def cache_rate_calculation(
     state: str,
     policy_type: str,
-    factors: FactorsData,
-    result: ResultData,
+    factors: dict[str, Any],
+    result: dict[str, Any],
     ttl_seconds: int = 3600,
 ) -> bool:
     """Cache a rate calculation result."""
@@ -440,7 +441,7 @@ async def cache_rate_calculation(
 async def get_cached_rate(
     state: str,
     policy_type: str,
-    factors: FactorsData,
+    factors: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Get cached rate calculation result."""
     perf_cache = get_performance_cache()

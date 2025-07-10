@@ -7,11 +7,11 @@ from uuid import UUID, uuid4
 
 from beartype import beartype
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
-from ....core.cache import Cache
-from ....core.config import Settings
-from ....core.database import Database
 from .biometric import BiometricProvider
 from .models import (
     DeviceTrust,

@@ -11,11 +11,12 @@ from jose import jwt  # type: ignore[import-untyped]
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
+from pd_prime_demo.core.cache import get_redis_client
+from pd_prime_demo.core.config import get_settings
+from pd_prime_demo.core.database import get_db_session
+
 from ...api.response_patterns import ErrorResponse
 from ...core.auth.oauth2 import APIKeyManager, ScopeValidator
-from ...core.cache import get_redis_client
-from ...core.config import get_settings
-from ...core.database import get_db_session
 
 
 class OAuth2Middleware(BaseHTTPMiddleware):
@@ -201,8 +202,8 @@ class OAuth2Middleware(BaseHTTPMiddleware):
         # Get database and cache connections
         async with get_db_session() as db:
             redis = get_redis_client()
-            from ...core.cache import Cache
-            from ...core.database import Database
+            from pd_prime_demo.core.cache import Cache
+            from pd_prime_demo.core.database import Database
 
             database = Database(db)
             cache = Cache(redis)
@@ -317,11 +318,12 @@ class OAuth2Middleware(BaseHTTPMiddleware):
             # Get database and cache connections
             async with get_db_session() as db:
                 redis = get_redis_client()
+                from pd_prime_demo.core.cache import Cache
+                from pd_prime_demo.core.database import Database
+
                 from ...core.auth.oauth2.client_certificates import (
                     ClientCertificateManager,
                 )
-                from ...core.cache import Cache
-                from ...core.database import Database
 
                 database = Database(db)
                 cache = Cache(redis)

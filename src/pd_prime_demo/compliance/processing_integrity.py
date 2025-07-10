@@ -18,65 +18,71 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.schemas.common import (
-    BaseModelConfig,
-    ControlEvidence,
-)
+from pd_prime_demo.models.base import BaseModelConfig
+from pd_prime_demo.schemas.common import ControlEvidence
 
 from ..core.database import get_database
 from .audit_logger import AuditLogger, get_audit_logger
 from .control_framework import ControlExecution, ControlStatus
 
-
 # Processing Integrity specific models
+
 
 @beartype
 class ValidationError(BaseModelConfig):
     """Structured model for validation errors."""
-    
+
     field_name: str = Field(..., description="Name of the field that failed validation")
     error_message: str = Field(..., description="Description of the validation error")
     error_code: str | None = Field(None, description="Error code for categorization")
-    severity: str = Field(default="error", description="Severity level: error, warning, info")
-    value: str | None = Field(None, description="The value that failed validation (as string)")
-    rule_id: str | None = Field(None, description="ID of the validation rule that was violated")
+    severity: str = Field(
+        default="error", description="Severity level: error, warning, info"
+    )
+    value: str | None = Field(
+        None, description="The value that failed validation (as string)"
+    )
+    rule_id: str | None = Field(
+        None, description="ID of the validation rule that was violated"
+    )
 
 
 @beartype
 class DiscrepancyDetail(BaseModelConfig):
     """Structured model for data reconciliation discrepancies."""
-    
+
     field_name: str = Field(..., description="Field where discrepancy was found")
     source_value: str | None = Field(None, description="Value in source system")
     target_value: str | None = Field(None, description="Value in target system")
     record_id: str = Field(..., description="ID of the record with discrepancy")
-    discrepancy_type: str = Field(..., description="Type of discrepancy: missing, mismatch, extra")
+    discrepancy_type: str = Field(
+        ..., description="Type of discrepancy: missing, mismatch, extra"
+    )
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @beartype
 class ChangeValueData(BaseModelConfig):
     """Structured model for before/after values in change records."""
-    
-    fields: dict[str, str] = Field(default_factory=dict, description="Field name to value mapping")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Additional metadata")
+
+    fields: dict[str, str] = Field(
+        default_factory=dict, description="Field name to value mapping"
+    )
+    metadata: dict[str, str] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
 
 
 # Auto-generated models
 
+
 # Models to replace dict[str, Any] usage
-@beartype
-class ValidationError(BaseModelConfig):
-    """Model for validation error details."""
-    rule_id: str
-    field: str
-    value: Any
-    error: str
+# Note: ValidationError is already defined above, removing duplicate
 
 
 @beartype
 class ApiEndpoint(BaseModelConfig):
     """Model for API endpoint validation status."""
+
     endpoint: str
     has_validation: bool
 
@@ -84,6 +90,7 @@ class ApiEndpoint(BaseModelConfig):
 @beartype
 class ApiValidationResult(BaseModelConfig):
     """Model for API validation check results."""
+
     total_endpoints: int
     validated_endpoints: int
     unvalidated_endpoints: list[str]
@@ -91,19 +98,13 @@ class ApiValidationResult(BaseModelConfig):
     validation_coverage: float
 
 
-@beartype
-class DiscrepancyDetail(BaseModelConfig):
-    """Model for data discrepancy details."""
-    record_id: str
-    field: str
-    source_value: Any
-    target_value: Any
-    difference: str | float
+# Note: DiscrepancyDetail is already defined above, removing duplicate
 
 
 @beartype
 class ReconciliationProcess(BaseModelConfig):
     """Model for reconciliation process status."""
+
     name: str
     status: str
     last_run: datetime
@@ -112,6 +113,7 @@ class ReconciliationProcess(BaseModelConfig):
 @beartype
 class AutomatedReconciliationResult(BaseModelConfig):
     """Model for automated reconciliation check results."""
+
     total_processes: int
     running_processes: int
     failed_processes: list[str]
@@ -122,6 +124,7 @@ class AutomatedReconciliationResult(BaseModelConfig):
 @beartype
 class AuditCoverage(BaseModelConfig):
     """Model for audit coverage details."""
+
     has_triggers: bool
     has_recent_activity: bool
     coverage: int
@@ -130,6 +133,7 @@ class AuditCoverage(BaseModelConfig):
 @beartype
 class AuditTrailCompleteness(BaseModelConfig):
     """Model for audit trail completeness check results."""
+
     complete: bool
     coverage_percentage: float
     tables_checked: list[str]
@@ -137,9 +141,11 @@ class AuditTrailCompleteness(BaseModelConfig):
     audit_coverage: dict[str, AuditCoverage]
 
 
+# Note: ChangeRecord is defined later in the file as a proper model, removing duplicate
 @beartype
-class ChangeRecord(BaseModelConfig):
+class ChangeRecordIntegrity(BaseModelConfig):
     """Model for change record integrity check."""
+
     change_id: str
     table: str
     operation: str
@@ -151,15 +157,17 @@ class ChangeRecord(BaseModelConfig):
 @beartype
 class ChangeIntegrityResult(BaseModelConfig):
     """Model for change integrity verification results."""
+
     total_changes_checked: int
     tampered_records: int
     integrity_percentage: float
-    sample_changes: list[ChangeRecord]
+    sample_changes: list[ChangeRecordIntegrity]
 
 
 @beartype
 class ApprovedChange(BaseModelConfig):
     """Model for change approval status."""
+
     change_id: str
     approved: bool
     approver: str | None
@@ -168,6 +176,7 @@ class ApprovedChange(BaseModelConfig):
 @beartype
 class ChangeApprovalResult(BaseModelConfig):
     """Model for change approval workflow check results."""
+
     total_changes: int
     approved_changes: int
     unapproved_changes: int
@@ -178,6 +187,7 @@ class ChangeApprovalResult(BaseModelConfig):
 @beartype
 class UserActivity(BaseModelConfig):
     """Model for user activity segregation check."""
+
     user: str
     created_policy: bool | None = Field(default=None)
     approved_policy: bool | None = Field(default=None)
@@ -190,6 +200,7 @@ class UserActivity(BaseModelConfig):
 @beartype
 class SegregationResult(BaseModelConfig):
     """Model for segregation of duties check results."""
+
     users_checked: int
     violations: int
     violation_details: list[str]
@@ -198,6 +209,7 @@ class SegregationResult(BaseModelConfig):
 @beartype
 class DetectionSystem(BaseModelConfig):
     """Model for error detection system status."""
+
     name: str
     active: bool
     coverage: int
@@ -206,6 +218,7 @@ class DetectionSystem(BaseModelConfig):
 @beartype
 class ErrorDetectionResult(BaseModelConfig):
     """Model for error detection system check results."""
+
     total_systems: int
     active_systems: int
     inactive_systems: list[str]
@@ -217,6 +230,7 @@ class ErrorDetectionResult(BaseModelConfig):
 @beartype
 class ErrorTrendData(BaseModelConfig):
     """Model for error trend data point."""
+
     date: str
     errors: int
 
@@ -224,6 +238,7 @@ class ErrorTrendData(BaseModelConfig):
 @beartype
 class ErrorTrendAnalysis(BaseModelConfig):
     """Model for error trend analysis results."""
+
     error_rate_increasing: bool
     increase_percentage: float
     recent_average: float
@@ -234,6 +249,7 @@ class ErrorTrendAnalysis(BaseModelConfig):
 @beartype
 class ErrorCorrectionRecord(BaseModelConfig):
     """Model for error correction record."""
+
     error_id: str
     corrected: bool
     correction_time: int | None
@@ -242,6 +258,7 @@ class ErrorCorrectionRecord(BaseModelConfig):
 @beartype
 class ErrorCorrectionResult(BaseModelConfig):
     """Model for error correction mechanism check results."""
+
     total_errors: int
     corrected_errors: int
     uncorrected_errors: int
@@ -253,6 +270,7 @@ class ErrorCorrectionResult(BaseModelConfig):
 @beartype
 class ControlResultSummary(BaseModelConfig):
     """Model for control result summary in dashboard."""
+
     control_id: str
     status: str
     result: bool
@@ -262,6 +280,7 @@ class ControlResultSummary(BaseModelConfig):
 @beartype
 class ProcessingIntegrityDashboard(BaseModelConfig):
     """Model for processing integrity dashboard data."""
+
     integrity_score: float
     data_quality_score: float
     total_controls: int
@@ -272,6 +291,7 @@ class ProcessingIntegrityDashboard(BaseModelConfig):
     last_assessment: str
     compliance_status: str
     control_results: list[ControlResultSummary]
+
 
 # AfterValuesData was removed as ChangeValueData is used instead
 
@@ -429,9 +449,7 @@ class ReconciliationResult(BaseModel):
 
     @field_validator("reconciliation_percentage", mode="before")
     @classmethod
-    def calculate_reconciliation_percentage(
-        cls, v: Any, info
-    ) -> float:
+    def calculate_reconciliation_percentage(cls, v: Any, info) -> float:
         """Calculate reconciliation percentage."""
         if info.data.get("records_compared", 0) > 0:
             matches = info.data.get("matches", 0)
@@ -622,7 +640,8 @@ class ProcessingIntegrityManager:
                 result=len(findings) == 0,
                 findings=findings,
                 evidence_items=[
-                    f"Evidence collected: {field}" for field in evidence.model_fields_set
+                    f"Evidence collected: {field}"
+                    for field in evidence.model_fields_set
                 ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
@@ -768,7 +787,9 @@ class ProcessingIntegrityManager:
             ApiEndpoint(endpoint="/api/v1/policies", has_validation=True),
             ApiEndpoint(endpoint="/api/v1/quotes", has_validation=True),
             ApiEndpoint(endpoint="/api/v1/claims", has_validation=True),
-            ApiEndpoint(endpoint="/api/v1/admin/users", has_validation=False),  # Missing validation
+            ApiEndpoint(
+                endpoint="/api/v1/admin/users", has_validation=False
+            ),  # Missing validation
         ]
 
         unvalidated_endpoints = [
@@ -860,7 +881,8 @@ class ProcessingIntegrityManager:
                 result=len(findings) == 0,
                 findings=findings,
                 evidence_items=[
-                    f"Evidence collected: {field}" for field in evidence.model_fields_set
+                    f"Evidence collected: {field}"
+                    for field in evidence.model_fields_set
                 ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
@@ -1017,9 +1039,7 @@ class ProcessingIntegrityManager:
 
         return AutomatedReconciliationResult(
             total_processes=len(processes),
-            running_processes=len(
-                [p for p in processes if p.status == "running"]
-            ),
+            running_processes=len([p for p in processes if p.status == "running"]),
             failed_processes=failed_processes,
             all_processes_running=len(failed_processes) == 0,
             processes_detail=processes,
@@ -1085,7 +1105,8 @@ class ProcessingIntegrityManager:
                 result=len(findings) == 0,
                 findings=findings,
                 evidence_items=[
-                    f"Evidence collected: {field}" for field in evidence.model_fields_set
+                    f"Evidence collected: {field}"
+                    for field in evidence.model_fields_set
                 ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
@@ -1171,7 +1192,7 @@ class ProcessingIntegrityManager:
         """Verify integrity of change records."""
         # Simulated change integrity verification
         sample_changes = [
-            ChangeRecord(
+            ChangeRecordIntegrity(
                 change_id="CHG-001",
                 table="policies",
                 operation="UPDATE",
@@ -1179,7 +1200,7 @@ class ProcessingIntegrityManager:
                 actual_hash="abc123",
                 tampered=False,
             ),
-            ChangeRecord(
+            ChangeRecordIntegrity(
                 change_id="CHG-002",
                 table="customers",
                 operation="INSERT",
@@ -1187,7 +1208,7 @@ class ProcessingIntegrityManager:
                 actual_hash="def456",
                 tampered=False,
             ),
-            ChangeRecord(
+            ChangeRecordIntegrity(
                 change_id="CHG-003",
                 table="claims",
                 operation="UPDATE",
@@ -1216,13 +1237,13 @@ class ProcessingIntegrityManager:
         recent_changes = [
             ApprovedChange(change_id="CHG-001", approved=True, approver="manager1"),
             ApprovedChange(change_id="CHG-002", approved=True, approver="manager2"),
-            ApprovedChange(change_id="CHG-003", approved=False, approver=None),  # Unapproved
+            ApprovedChange(
+                change_id="CHG-003", approved=False, approver=None
+            ),  # Unapproved
             ApprovedChange(change_id="CHG-004", approved=True, approver="manager1"),
         ]
 
-        unapproved_changes = sum(
-            1 for change in recent_changes if not change.approved
-        )
+        unapproved_changes = sum(1 for change in recent_changes if not change.approved)
 
         return ChangeApprovalResult(
             total_changes=len(recent_changes),
@@ -1240,7 +1261,9 @@ class ProcessingIntegrityManager:
         """Check segregation of duties violations."""
         # Simulated segregation check
         user_activities = [
-            UserActivity(user="user1", created_policy=True, approved_policy=False),  # Good
+            UserActivity(
+                user="user1", created_policy=True, approved_policy=False
+            ),  # Good
             UserActivity(
                 user="user2",
                 created_claim=True,
@@ -1263,9 +1286,11 @@ class ProcessingIntegrityManager:
 
         violation_details = []
         for activity in user_activities:
-            if (activity.created_policy and activity.approved_policy) or \
-               (activity.created_claim and activity.approved_claim) or \
-               (activity.entered_payment and activity.approved_payment):
+            if (
+                (activity.created_policy and activity.approved_policy)
+                or (activity.created_claim and activity.approved_claim)
+                or (activity.entered_payment and activity.approved_payment)
+            ):
                 violation_details.append(
                     f"User {activity.user} both created and approved same transaction type"
                 )
@@ -1325,7 +1350,8 @@ class ProcessingIntegrityManager:
                 result=len(findings) == 0,
                 findings=findings,
                 evidence_items=[
-                    f"Evidence collected: {field}" for field in evidence.model_fields_set
+                    f"Evidence collected: {field}"
+                    for field in evidence.model_fields_set
                 ],
                 execution_time_ms=execution_time_ms,
                 criteria="processing_integrity",
@@ -1392,7 +1418,8 @@ class ProcessingIntegrityManager:
 
         active_systems = [s for s in detection_systems if s.active]
         average_coverage = (
-            sum(float(system.coverage) for system in active_systems) / len(active_systems)
+            sum(float(system.coverage) for system in active_systems)
+            / len(active_systems)
             if active_systems
             else 0.0
         )
@@ -1439,14 +1466,20 @@ class ProcessingIntegrityManager:
     async def _check_error_correction_mechanisms(self) -> ErrorCorrectionResult:
         """Check error correction mechanisms."""
         errors_found = [
-            ErrorCorrectionRecord(error_id="ERR-001", corrected=True, correction_time=15),
-            ErrorCorrectionRecord(error_id="ERR-002", corrected=True, correction_time=8),
+            ErrorCorrectionRecord(
+                error_id="ERR-001", corrected=True, correction_time=15
+            ),
+            ErrorCorrectionRecord(
+                error_id="ERR-002", corrected=True, correction_time=8
+            ),
             ErrorCorrectionRecord(
                 error_id="ERR-003",
                 corrected=False,
                 correction_time=None,
             ),  # Uncorrected
-            ErrorCorrectionRecord(error_id="ERR-004", corrected=True, correction_time=22),
+            ErrorCorrectionRecord(
+                error_id="ERR-004", corrected=True, correction_time=22
+            ),
         ]
 
         uncorrected_errors = sum(1 for error in errors_found if not error.corrected)

@@ -8,10 +8,11 @@ from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings, get_settings
+from pd_prime_demo.core.database import Database
+
 from ...core.auth.oauth2 import OAuth2Server
-from ...core.cache import Cache
-from ...core.config import Settings, get_settings
-from ...core.database import Database
 from ..dependencies import get_db_connection, get_redis
 from ..response_patterns import ErrorResponse
 
@@ -165,6 +166,7 @@ async def authorize(
 @router.post("/token")
 @beartype
 async def token(
+    response: Response,
     grant_type: str = Form(...),
     client_id: str | None = Form(None),
     client_secret: str | None = Form(None),
@@ -176,8 +178,9 @@ async def token(
     password: str | None = Form(None),
     code_verifier: str | None = Form(None),
     oauth2_server: OAuth2Server = Depends(get_oauth2_server),
-    response: Response = Depends(lambda: Response()),
-) -> dict[str, Any] | ErrorResponse:
+) -> (
+    dict[str, Any] | ErrorResponse
+):  # SYSTEM_BOUNDARY - OAuth2 spec requires specific response format
     """OAuth2 token endpoint.
 
     This endpoint handles all OAuth2 token requests including:

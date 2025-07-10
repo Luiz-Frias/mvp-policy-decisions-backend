@@ -10,14 +10,14 @@ def fix_missing_imports(file_path: Path) -> bool:
     try:
         with open(file_path, 'r') as f:
             content = f.read()
-        
+
         # Check if file uses BaseModelConfig but doesn't import it
         has_basemodel_usage = 'BaseModelConfig' in content
         has_basemodel_import = 'from' in content and 'BaseModelConfig' in content and any('BaseModelConfig' in line for line in content.split('\n') if line.strip().startswith('from'))
-        
+
         if has_basemodel_usage and not has_basemodel_import:
             lines = content.split('\n')
-            
+
             # Determine the correct import path based on file location
             file_parts = str(file_path).split('/')
             if 'core' in file_parts:
@@ -44,21 +44,21 @@ def fix_missing_imports(file_path: Path) -> bool:
                 import_line = 'from ..models.base import BaseModelConfig'
             else:
                 import_line = 'from .models.base import BaseModelConfig'
-            
+
             # Find where to insert the import
             insert_idx = 0
             last_import_idx = -1
-            
+
             for i, line in enumerate(lines):
                 if line.strip().startswith(('import ', 'from ')):
                     last_import_idx = i
                 elif line.strip() and not line.strip().startswith('#') and last_import_idx != -1:
                     insert_idx = last_import_idx + 1
                     break
-            
+
             # Check if we need Field import too
             needs_field = 'Field(' in content and 'from pydantic import' not in content
-            
+
             if needs_field:
                 # Check if there's already a pydantic import to extend
                 pydantic_idx = -1
@@ -66,7 +66,7 @@ def fix_missing_imports(file_path: Path) -> bool:
                     if 'from pydantic import' in line:
                         pydantic_idx = i
                         break
-                
+
                 if pydantic_idx != -1:
                     # Add Field to existing import
                     lines[pydantic_idx] = lines[pydantic_idx].rstrip(') ')
@@ -78,17 +78,17 @@ def fix_missing_imports(file_path: Path) -> bool:
                     # Add new pydantic import
                     lines.insert(insert_idx, 'from pydantic import Field')
                     insert_idx += 1
-            
+
             # Insert BaseModelConfig import
             lines.insert(insert_idx, import_line)
-            
+
             # Write back
             with open(file_path, 'w') as f:
                 f.write('\n'.join(lines))
-            
+
             print(f"Fixed: {file_path}")
             return True
-    
+
     except Exception as e:
         print(f"Error fixing {file_path}: {e}")
         return False
@@ -139,12 +139,12 @@ def main():
         "src/pd_prime_demo/websocket/manager.py",
         "src/pd_prime_demo/websocket/monitoring.py",
     ]
-    
+
     fixed = 0
     for file_path in files_to_fix:
         if fix_missing_imports(Path(file_path)):
             fixed += 1
-    
+
     print(f"\nFixed {fixed} files with missing BaseModelConfig imports")
 
 

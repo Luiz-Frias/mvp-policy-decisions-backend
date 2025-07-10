@@ -8,10 +8,9 @@ from typing import Any
 from beartype import beartype
 from pydantic import Field
 
+from pd_prime_demo.core.cache import Cache
 from pd_prime_demo.core.result_types import Err, Ok, Result
-
-from ...core.cache import Cache
-from ...models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 
@@ -33,8 +32,8 @@ class ResultData(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class CacheData(BaseModelConfig):
+    """Structured model for cache data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -43,7 +42,7 @@ class DataData(BaseModelConfig):
 
 @beartype
 class DeserializedData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+    """Structured model for deserialized data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -52,7 +51,7 @@ class DeserializedData(BaseModelConfig):
 
 @beartype
 class SerializedData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+    """Structured model for serialized data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -366,7 +365,7 @@ class RatingCacheStrategy:
         return serialized
 
     @beartype
-    def _deserialize_calculation_result(self, data: DataData) -> DataData:
+    def _deserialize_calculation_result(self, data: CacheData) -> CacheData:
         """Deserialize cached calculation result.
 
         Args:

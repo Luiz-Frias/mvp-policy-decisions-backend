@@ -8,37 +8,16 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
-from ...core.database import Database
 from ..manager import ConnectionManager, MessageType, WebSocketMessage
-from ..message_models import (  # Auto-generated models
+from ..message_models import (
     BaseModelConfig,
     ByStateCounts,
-    """Structured,
-    ...models.base,
-    :,
-    @beartype,
-    class,
-    dict[str,
-    from,
-    import,
-    int],
-    model,
-    replacing,
-    usage.""",
+    Data,
+    create_websocket_message_data,
 )
-
-    total: int = Field(default=0, ge=0, description="Total count")
-
-
-@beartype
-class DataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @beartype
@@ -68,8 +47,6 @@ class ByValueRangeCounts(BaseModelConfig):
 
     total: int = Field(default=0, ge=0, description="Total count")
 
-    create_websocket_message_data,
-)
 
 # Additional Pydantic models to replace dict usage
 
@@ -695,9 +672,7 @@ class AnalyticsWebSocketHandler:
         }
 
     @beartype
-    async def broadcast_event(
-        self, event_type: str, data: DataData
-    ) -> Result[int, str]:
+    async def broadcast_event(self, event_type: str, data: Data) -> Result[int, str]:
         """Broadcast analytics event to relevant dashboard subscribers."""
         # Determine which dashboards care about this event
         affected_dashboards = []
@@ -744,7 +719,7 @@ class AnalyticsWebSocketHandler:
         alert_type: str,
         message: str,
         severity: str,
-        data: DataData | None = None,
+        data: Data | None = None,
     ) -> Result[int, str]:
         """Send alert to admin dashboard subscribers."""
         if severity not in ["low", "medium", "high", "critical"]:

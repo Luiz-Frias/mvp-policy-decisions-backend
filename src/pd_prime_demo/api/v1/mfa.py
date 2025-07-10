@@ -7,22 +7,18 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.cache import get_cache
+from pd_prime_demo.core.config import get_settings
+from pd_prime_demo.core.database import get_database
+
 from ...core.auth.mfa import MFAManager
-from ...core.auth.mfa.models import (
-    BaseModelConfig,
-    MFAMethod,
-    MFAVerificationRequest,
-    ...models.base,
-    from,
-    import,
-)
-from ...core.cache import get_cache
-from ...core.config import get_settings
-from ...core.database import get_database
+from ...core.auth.mfa.models import MFAMethod, MFAVerificationRequest
+from ...models.base import BaseModelConfig
 from ..dependencies import get_current_user
 from ..response_patterns import ErrorResponse
 
 # Auto-generated models
+
 
 @beartype
 class MetadataData(BaseModelConfig):
@@ -34,7 +30,7 @@ class MetadataData(BaseModelConfig):
 
 
 @beartype
-class AuthenticatorselectionData(BaseModelConfig):
+class AuthenticatorSelectionData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
     # Auto-generated - customize based on usage
@@ -161,7 +157,7 @@ class WebAuthnRegistrationResponse(BaseModel):
     pubKeyCredParams: list[dict[str, Any]]
     timeout: int
     excludeCredentials: list[dict[str, Any]]
-    authenticatorSelection: AuthenticatorselectionData
+    authenticatorSelection: AuthenticatorSelectionData
     attestation: str
 
 

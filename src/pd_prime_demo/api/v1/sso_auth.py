@@ -6,9 +6,10 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings, get_settings
+
 from ...core.auth.sso_manager import SSOManager
-from ...core.cache import Cache
-from ...core.config import Settings, get_settings
 from ...core.result_types import Err
 from ...core.security import create_jwt_token
 from ..dependencies import get_redis, get_sso_manager
@@ -77,10 +78,10 @@ async def list_available_providers(
 async def initiate_sso_auth(
     provider: str,
     request: Request,
+    response: Response,
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_redis),
     redirect_url: str | None = Query(None, description="Post-auth redirect URL"),
-    response: Response = Depends(lambda: Response()),
 ) -> dict[str, Any] | ErrorResponse:
     """Initiate SSO authentication flow.
 
@@ -278,9 +279,9 @@ async def handle_sso_callback(
 @beartype
 async def logout_sso_user(
     provider: str,
+    response: Response,
     access_token: str = Query(..., description="Provider access token"),
     sso_manager: SSOManager = Depends(get_sso_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> dict[str, Any] | ErrorResponse:
     """Logout user from SSO provider.
 
@@ -319,9 +320,9 @@ async def logout_sso_user(
 @beartype
 async def refresh_sso_token(
     provider: str,
+    response: Response,
     refresh_token: str = Query(..., description="Refresh token"),
     sso_manager: SSOManager = Depends(get_sso_manager),
-    response: Response = Depends(lambda: Response()),
 ) -> dict[str, Any] | ErrorResponse:
     """Refresh SSO access token.
 

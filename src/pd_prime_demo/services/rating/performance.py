@@ -11,8 +11,9 @@ from typing import Any
 from beartype import beartype
 from pydantic import Field
 
+from pd_prime_demo.models.base import BaseModelConfig
+
 from ...core.result_types import Err, Ok, Result
-from ...models.base import BaseModelConfig
 from ...schemas.rating import PerformanceMetrics, PerformanceThresholds
 
 # Auto-generated models
@@ -26,8 +27,8 @@ class FactorsMetrics(BaseModelConfig):
 
 
 @beartype
-class InputDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class InputData(BaseModelConfig):
+    """Structured model for input data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -35,8 +36,8 @@ class InputDataData(BaseModelConfig):
 
 
 @beartype
-class QuoteDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class QuoteData(BaseModelConfig):
+    """Structured model for quote data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -116,7 +117,7 @@ class RatingPerformanceOptimizer:
     @beartype
     def create_calculation_hash(
         self,
-        input_data: InputDataData,
+        input_data: InputData,
     ) -> str:
         """Create hash for calculation caching.
 
@@ -259,7 +260,7 @@ class RatingPerformanceOptimizer:
     @beartype
     async def optimize_calculation_pipeline(
         self,
-        quote_data: QuoteDataData,
+        quote_data: QuoteData,
     ) -> Result[dict[str, Any], str]:
         """Optimize entire calculation pipeline for <50ms performance.
 

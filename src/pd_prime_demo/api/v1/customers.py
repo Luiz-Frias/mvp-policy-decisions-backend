@@ -18,10 +18,10 @@ from pd_prime_demo.api.response_patterns import (
     ErrorResponse,
     handle_result,
 )
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err
 
-from ...core.cache import Cache
-from ...core.database import Database
 from ...models.customer import Customer, CustomerCreate, CustomerUpdate
 from ...schemas.auth import CurrentUser
 from ...schemas.common import PolicySummary

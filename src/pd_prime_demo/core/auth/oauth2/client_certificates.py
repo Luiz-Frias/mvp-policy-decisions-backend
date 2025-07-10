@@ -12,11 +12,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from pydantic import Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
-
-from ....core.cache import Cache
-from ....core.database import Database
-from ...models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 

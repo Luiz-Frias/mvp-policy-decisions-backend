@@ -1,7 +1,7 @@
 """Admin API schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -493,13 +493,13 @@ class SystemSettingCreateRequest(BaseModel):
 
     category: SystemSettingCategory
     key: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-\.]+$")
-    value: Any
+    value: str | int | float | bool | dict | list
     data_type: str = Field(
         ..., pattern=r"^(string|number|boolean|json|datetime|decimal)$"
     )
     description: str | None = Field(None, max_length=500)
     validation_rules: AdminValidationRules | None = None
-    default_value: Any | None = None
+    default_value: str | int | float | bool | dict | list | None = None
     is_sensitive: bool = Field(default=False)
     encrypted: bool = Field(default=False)
     requires_restart: bool = Field(default=False)
@@ -518,7 +518,7 @@ class SystemSettingUpdateRequest(BaseModel):
         validate_default=True,
     )
 
-    value: Any
+    value: str | int | float | bool | dict | list
     description: str | None = Field(None, max_length=500)
     validation_rules: AdminValidationRules | None = None
     requires_restart: bool | None = None
@@ -540,12 +540,12 @@ class SystemSettingResponse(BaseModel):
     id: UUID4
     category: SystemSettingCategory
     key: str
-    value: Any
+    value: str | int | float | bool | dict | list
     display_value: str
     data_type: str
     description: str | None
     validation_rules: AdminValidationRules | None
-    default_value: Any | None
+    default_value: str | int | float | bool | dict | list | None
     is_sensitive: bool
     encrypted: bool
     requires_restart: bool

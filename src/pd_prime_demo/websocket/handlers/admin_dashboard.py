@@ -2,19 +2,23 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any
 from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
+from pd_prime_demo.core.performance_monitor import PerformanceMetrics
 from pd_prime_demo.core.result_types import Err, Ok, Result
-
-from ...core.cache import Cache
-from ...core.database import Database
-from ..manager import ConnectionManager, MessageType, WebSocketMessage
 from pd_prime_demo.models.base import BaseModelConfig
-from ..message_models import create_websocket_message_data
+from pd_prime_demo.websocket.admin_models import UserActivity
+from pd_prime_demo.websocket.manager import (
+    ConnectionManager,
+    MessageType,
+    WebSocketMessage,
+)
+from pd_prime_demo.websocket.message_models import Data, create_websocket_message_data
 
 
 @beartype
@@ -77,7 +81,9 @@ class ConfigData(BaseModelConfig):
 
     update_interval: int = Field(default=5, ge=1, le=60)
     metrics_enabled: list[str] = Field(default_factory=list)
-    alert_thresholds: dict[str, float] = Field(default_factory=dict)  # metric_name -> threshold_value
+    alert_thresholds: dict[str, float] = Field(
+        default_factory=dict
+    )  # metric_name -> threshold_value
     retention_days: int = Field(default=30, ge=1)
 
 
@@ -128,7 +134,7 @@ class ApiResponseTimesMetrics(BaseModelConfig):
 @beartype
 class RecentError(BaseModelConfig):
     """Recent error detail."""
-    
+
     type: str
     count: int = Field(ge=0)
     last_occurrence: str | None = None
@@ -555,7 +561,7 @@ class AdminDashboardHandler:
                 db_model = db_stats
             else:
                 db_model = DatabaseData()
-            
+
             # Handle websocket stats - convert dict to model
             if isinstance(ws_stats, dict):
                 ws_model = WebsocketsData(**ws_stats)
@@ -563,19 +569,19 @@ class AdminDashboardHandler:
                 ws_model = ws_stats
             else:
                 ws_model = WebsocketsData()
-            
+
             # Handle cache stats
             if isinstance(cache_stats, CacheData):
                 cache_model = cache_stats
             else:
                 cache_model = CacheData()
-            
+
             # Handle error stats
             if isinstance(error_stats, ErrorsData):
                 errors_model = error_stats
             else:
                 errors_model = ErrorsData()
-            
+
             return Ok(
                 SystemMetrics(
                     database=db_model,
@@ -623,13 +629,13 @@ class AdminDashboardHandler:
             idle_conn = pool_stats["idle_connections"] if pool_stats else 0
             total_conn = pool_stats["total_connections"] if pool_stats else 0
             avg_query_time = query_stats["avg_query_time_ms"] if query_stats else 0.0
-            
+
             # Count slow queries based on threshold (e.g., > 100ms)
             slow_queries = 0
             if query_stats and query_stats["max_query_time_ms"]:
                 if query_stats["max_query_time_ms"] > 100:
                     slow_queries = 1  # At least one slow query
-            
+
             return Ok(
                 DatabaseData(
                     active_connections=active_conn,
@@ -658,13 +664,13 @@ class AdminDashboardHandler:
             misses = float(info.get("keyspace_misses", 0))
             total_requests = hits + misses
             hit_rate = hits / max(total_requests, 1)
-            
+
             memory_usage_mb = float(memory_info.get("used_memory", 0)) / (1024 * 1024)
-            
+
             # Note: evictions not directly available in standard Redis info
             # Would need to track separately or use specific Redis commands
             evictions = 0
-            
+
             return Ok(
                 CacheData(
                     hit_rate=hit_rate,
@@ -711,22 +717,30 @@ class AdminDashboardHandler:
             total_errors = 0
             errors_by_type = {}
             recent_errors = []
-            
+
             for row in error_counts:
                 error_type = row["error_type"]
                 count = row["count"]
                 total_errors += count
                 errors_by_type[error_type] = count
-                recent_errors.append(RecentError(
-                    type=error_type,
-                    count=count,
-                    last_occurrence=row["last_occurrence"].isoformat() if row["last_occurrence"] else None
-                ))
-            
+                recent_errors.append(
+                    RecentError(
+                        type=error_type,
+                        count=count,
+                        last_occurrence=(
+                            row["last_occurrence"].isoformat()
+                            if row["last_occurrence"]
+                            else None
+                        ),
+                    )
+                )
+
             # Assume we have a way to get total requests for error rate calculation
             # For now, use a simple calculation based on errors in last hour
-            error_rate = min(total_errors / 1000.0, 1.0)  # Assuming ~1000 requests/hour baseline
-            
+            error_rate = min(
+                total_errors / 1000.0, 1.0
+            )  # Assuming ~1000 requests/hour baseline
+
             return Ok(
                 ErrorsData(
                     total_errors=total_errors,
@@ -915,7 +929,7 @@ class AdminDashboardHandler:
                     quote_calculation_times=quote_calculation_times,
                     active_sessions=active_sessions,
                     error_rates=error_rates,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
             )
         except Exception as e:
@@ -927,7 +941,7 @@ class AdminDashboardHandler:
         alert_type: str,
         message: str,
         severity: str,
-        data: DataData | None = None,
+        data: Data | None = None,
     ) -> Result[None, str]:
         """Broadcast alert to all admin users with proper severity validation."""
         if severity not in ["low", "medium", "high", "critical"]:

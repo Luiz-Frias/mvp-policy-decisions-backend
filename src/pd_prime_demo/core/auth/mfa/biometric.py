@@ -9,10 +9,10 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel, ConfigDict
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
-from ....core.cache import Cache
-from ....core.config import Settings
 from .models import BiometricCaptureSettings
 
 
@@ -82,7 +82,6 @@ class BiometricChallengeData(BaseModel):
     """Biometric authentication challenge data."""
 
     model_config = ConfigDict(
-        frozen=True,
         frozen=False,  # Allow mutation for status updates
         extra="forbid",
         validate_assignment=True,

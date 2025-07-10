@@ -12,24 +12,23 @@ from fastapi import WebSocket
 from pydantic import BaseModel, ConfigDict, Field, validator
 
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.models.base import BaseModelConfig
 
 from ..core.cache import Cache
 from ..core.database import Database
 from .message_models import (
     BackpressureMetrics,
-    BaseModelConfig,
     ConnectionCapabilities,
+    Data,
     WebSocketConnectionMetadata,
-    ..models.base,
     create_connection_capabilities,
     create_connection_metadata,
     create_websocket_message_data,
-    from,
-    import,
 )
 from .monitoring import WebSocketMonitor
 
 # Auto-generated models
+
 
 @beartype
 class MetadataData(BaseModelConfig):
@@ -57,15 +56,6 @@ class MissedHeartbeatsCounts(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-@beartype
 class MessageSequencesCounts(BaseModelConfig):
     """Structured model replacing dict[str, int] usage."""
 
@@ -79,7 +69,6 @@ class RawMessageData(BaseModelConfig):
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
 
 
 class RateLimiterState(TypedDict):
@@ -168,7 +157,7 @@ class WebSocketMessage(BaseModel):
     )
 
     type: MessageType = Field(..., description="Message type from enum")
-    data: DataData = Field(default_factory=dict, description="Message payload")
+    data: Data = Field(default_factory=dict, description="Message payload")
     timestamp: datetime = Field(
         default_factory=datetime.now, description="Message timestamp"
     )
@@ -952,7 +941,7 @@ class ConnectionManager:
 
     @beartype
     async def handle_message(
-        self, connection_id: str, raw_message: RawMessageData
+        self, connection_id: str, raw_message: Data
     ) -> Result[None, str]:
         """Handle incoming WebSocket message with explicit validation."""
         # Validate connection exists

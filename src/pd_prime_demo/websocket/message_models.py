@@ -8,7 +8,7 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, validator
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 
@@ -32,7 +32,7 @@ class VData(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
+class Data(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
     # Auto-generated - customize based on usage
@@ -50,10 +50,32 @@ class ValuesData(BaseModelConfig):
 
 
 @beartype
+class ByStateCounts(BaseModelConfig):
+    """Structured model for state-based count data."""
+
+    # Auto-generated - customize based on usage
+    total: int = Field(default=0, ge=0, description="Total count")
+    ca: int = Field(default=0, ge=0, description="California count")
+    tx: int = Field(default=0, ge=0, description="Texas count")
+    ny: int = Field(default=0, ge=0, description="New York count")
+    fl: int = Field(default=0, ge=0, description="Florida count")
+    other: int = Field(default=0, ge=0, description="Other states count")
+
+
+@beartype
 class ConnectionLimitsCounts(BaseModelConfig):
     """Structured model replacing dict[str, int] usage."""
 
     total: int = Field(default=0, ge=0, description="Total count")
+
+
+@beartype
+class DetailsData(BaseModelConfig):
+    """Structured model for detailed data usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 # WebSocket-specific models to replace dict usage
@@ -662,7 +684,7 @@ MESSAGE_TYPE_REGISTRY = {
 
 
 @beartype
-def validate_message_data(message_type: str, data: DataData) -> MessageType:
+def validate_message_data(message_type: str, data: Data) -> MessageType:
     """Validate message data based on type."""
     if message_type not in MESSAGE_TYPE_REGISTRY:
         raise ValueError(f"Unknown message type: {message_type}")

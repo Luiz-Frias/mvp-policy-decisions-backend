@@ -7,9 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from pd_prime_demo.models.quote import (
-    DriverInfo,
-)
+from pd_prime_demo.models.quote import DriverInfo
 from pd_prime_demo.services.rating.calculators import (
     CreditBasedInsuranceScorer,
     DiscountCalculator,

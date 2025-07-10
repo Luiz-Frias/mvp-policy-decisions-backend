@@ -13,11 +13,11 @@ from uuid import UUID, uuid4
 from beartype import beartype
 from pydantic import Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err, Ok, Result
+from pd_prime_demo.models.base import BaseModelConfig
 
-from ...core.cache import Cache
-from ...core.database import Database
-from ...models.base import BaseModelConfig
 from ...schemas.rating import RateTableData
 
 # Auto-generated models
@@ -33,8 +33,8 @@ class DifferencesData(BaseModelConfig):
 
 
 @beartype
-class RateDataData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class RateData(BaseModelConfig):
+    """Structured model for rate data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -42,8 +42,8 @@ class RateDataData(BaseModelConfig):
 
 
 @beartype
-class RateData1Data(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+class RateComparisonData(BaseModelConfig):
+    """Structured model for rate comparison data."""
 
     # Auto-generated - customize based on usage
     content: str | None = Field(default=None, description="Content data")
@@ -88,7 +88,7 @@ class RateTableService:
     async def create_rate_table_version(
         self,
         table_name: str,
-        rate_data: RateDataData,
+        rate_data: RateData,
         admin_user_id: UUID,
         effective_date: date,
         notes: str | None = None,
@@ -362,7 +362,7 @@ class RateTableService:
 
     @beartype
     async def _validate_rate_structure(
-        self, table_name: str, rate_data: RateDataData
+        self, table_name: str, rate_data: RateData
     ) -> Result[bool, str]:
         """Validate rate table structure and data."""
         # Check required fields
@@ -549,7 +549,7 @@ class RateTableService:
 
     @beartype
     def _calculate_rate_differences(
-        self, rate_data_1: RateData1Data, rate_data_2: RateData1Data
+        self, rate_data_1: RateComparisonData, rate_data_2: RateComparisonData
     ) -> dict[str, Any]:
         """Calculate differences between two rate structures."""
         differences: dict[str, dict[str, Any]] = {
@@ -587,9 +587,7 @@ class RateTableService:
         return differences
 
     @beartype
-    def _calculate_impact_summary(
-        self, differences: DifferencesData
-    ) -> DifferencesData:
+    def _calculate_impact_summary(self, differences: DifferencesData) -> dict[str, Any]:
         """Calculate summary of rate change impacts."""
         modified = differences.get("modified", {})
 

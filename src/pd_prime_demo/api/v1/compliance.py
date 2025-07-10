@@ -11,27 +11,25 @@ from beartype import beartype
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...compliance import (
+from pd_prime_demo.api.dependencies import get_current_user
+from pd_prime_demo.api.response_patterns import ErrorResponse, handle_result
+from pd_prime_demo.compliance import (
     SOC2_CORE_CONTROLS,
     AvailabilityControlManager,
-    BaseModelConfig,
     ConfidentialityControlManager,
     ControlFramework,
     PrivacyControlManager,
     ProcessingIntegrityManager,
     SecurityControlManager,
     TrustServiceCriteria,
-    ...models.base,
-    from,
     get_evidence_collector,
     get_testing_framework,
-    import,
 )
-from ...core.result_types import Err
-from ..dependencies import get_current_user
-from ..response_patterns import ErrorResponse, handle_result
+from pd_prime_demo.core.result_types import Err
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
+
 
 @beartype
 class DashboardData(BaseModelConfig):
@@ -69,7 +67,7 @@ class AssessmentPeriodMapping(BaseModelConfig):
 
 
 @beartype
-class DataData(BaseModelConfig):
+class ComplianceData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
     # Auto-generated - customize based on usage
@@ -221,7 +219,7 @@ class SecurityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     security_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: DataData = Field(...)
+    data: ComplianceData = Field(...)
 
 
 class AvailabilityDashboardResponse(BaseModel):
@@ -230,7 +228,7 @@ class AvailabilityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     availability_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: DataData = Field(...)
+    data: ComplianceData = Field(...)
 
 
 class ProcessingIntegrityDashboardResponse(BaseModel):
@@ -239,7 +237,7 @@ class ProcessingIntegrityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     integrity_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: DataData = Field(...)
+    data: ComplianceData = Field(...)
 
 
 class ConfidentialityDashboardResponse(BaseModel):
@@ -248,7 +246,7 @@ class ConfidentialityDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     confidentiality_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: DataData = Field(...)
+    data: ComplianceData = Field(...)
 
 
 class PrivacyDashboardResponse(BaseModel):
@@ -257,7 +255,7 @@ class PrivacyDashboardResponse(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     privacy_score: float = Field(ge=0.0, le=100.0)
     # SYSTEM_BOUNDARY - dashboard data aggregated from multiple sources
-    data: DataData = Field(...)
+    data: ComplianceData = Field(...)
 
 
 class ControlListResponse(BaseModel):

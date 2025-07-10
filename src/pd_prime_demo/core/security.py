@@ -8,7 +8,8 @@ from attrs import field, frozen
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
+
 from ..schemas.internal import JWTDecodeResult
 from .config import get_settings
 

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -860,7 +860,7 @@ class DateRange(BaseModel):
 
     @field_validator("end_date")
     @classmethod
-    def validate_end_date(cls, v: datetime, info: Any) -> datetime:
+    def validate_end_date(cls, v: datetime, info: dict) -> datetime:
         """Ensure end_date is after start_date."""
         if (
             hasattr(info, "data")

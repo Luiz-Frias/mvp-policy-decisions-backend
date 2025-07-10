@@ -7,13 +7,13 @@ throughout the compliance layer, ensuring type safety and validation for SOC 2 c
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID, uuid4
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 
@@ -1534,7 +1534,7 @@ class EvidenceItem(BaseModel):
     @field_validator("evidence_period_end")
     @classmethod
     @beartype
-    def validate_period_end(cls, v: datetime, info: Any) -> datetime:
+    def validate_period_end(cls, v: datetime, info: dict) -> datetime:
         """Validate that evidence period end is after start."""
         if hasattr(info, "data") and "evidence_period_start" in info.data:
             if v <= info.data["evidence_period_start"]:
@@ -1662,7 +1662,7 @@ def create_audit_log_entry(
     user_id: UUID | None = None,
     resource_type: str | None = None,
     resource_id: str | None = None,
-    **kwargs: Any,
+    **kwargs: dict,
 ) -> AuditLogEntry:
     """Create a standardized audit log entry."""
     return AuditLogEntry(
@@ -1683,7 +1683,7 @@ def create_control_test_result(
     test_result: str,
     executed_by: str,
     trust_service_criteria: TrustServiceCriterion,
-    **kwargs: Any,
+    **kwargs: dict,
 ) -> ControlTestResult:
     """Create a standardized control test result."""
     return ControlTestResult(
@@ -1706,7 +1706,7 @@ def create_evidence_item(
     trust_service_criteria: TrustServiceCriterion,
     evidence_period_start: datetime,
     evidence_period_end: datetime,
-    **kwargs: Any,
+    **kwargs: dict,
 ) -> EvidenceItem:
     """Create a standardized evidence item."""
     return EvidenceItem(

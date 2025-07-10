@@ -9,10 +9,10 @@ from beartype import beartype
 from cryptography.fernet import Fernet
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
-from ....core.cache import Cache
-from ....core.config import Settings
 from .models import SMSVerification
 
 

@@ -8,8 +8,8 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import Field
 
-from ...core.database import Database
-from ...models.base import BaseModelConfig
+from pd_prime_demo.core.database import Database
+from pd_prime_demo.models.base import BaseModelConfig
 
 # Auto-generated models
 

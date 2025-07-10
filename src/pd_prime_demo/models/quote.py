@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from beartype import beartype
 from pydantic import Field, computed_field, field_validator, model_validator
@@ -207,8 +207,12 @@ class OverrideData(BaseModelConfig):
     field_name: str = Field(
         ..., min_length=1, max_length=100, description="Name of field being overridden"
     )
-    original_value: Any = Field(..., description="Original value before override")
-    new_value: Any = Field(..., description="New value after override")
+    original_value: str | int | float | Decimal | bool | None = Field(
+        ..., description="Original value before override"
+    )
+    new_value: str | int | float | Decimal | bool | None = Field(
+        ..., description="New value after override"
+    )
     override_type: str = Field(
         ...,
         pattern=r"^(manual|system|exception|correction)$",
@@ -227,7 +231,9 @@ class OverrideData(BaseModelConfig):
     @field_validator("new_value")
     @classmethod
     @beartype
-    def validate_new_value_different(cls, v: Any, info: "ValidationInfo") -> Any:
+    def validate_new_value_different(
+        cls, v: str | int | float | Decimal | bool | None, info: "ValidationInfo"
+    ) -> str | int | float | Decimal | bool | None:
         """Ensure new value is different from original."""
         if info.data.get("original_value") == v:
             raise ValueError("New value must be different from original value")
@@ -1375,8 +1381,8 @@ class QuoteComparison(BaseModelConfig):
     """Model for comparing multiple quote versions."""
 
     quotes: list[Quote] = Field(..., description="Quotes to compare (2-10)")
-    differences: dict[str, dict[str, Any]] = Field(
-        default_factory=dict, description="Identified differences between quotes"
+    differences: dict[str, dict[str, str | int | float | Decimal | bool | None]] = (
+        Field(default_factory=dict, description="Identified differences between quotes")
     )
     recommendation: str | None = Field(
         None, max_length=1000, description="AI-generated recommendation"

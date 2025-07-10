@@ -15,7 +15,8 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 
-from ...core.config import Settings, get_settings
+from pd_prime_demo.core.config import Settings, get_settings
+
 from ...schemas.health_details import (
     CPUHealthDetails,
     DatabaseHealthDetails,

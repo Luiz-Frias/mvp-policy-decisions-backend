@@ -467,9 +467,10 @@ async def upload_client_certificate(
         response.status_code = 403
         return ErrorResponse(error="Insufficient permissions")
 
+    from pd_prime_demo.core.cache import Cache
+    from pd_prime_demo.core.database import Database
+
     from ....core.auth.oauth2.client_certificates import ClientCertificateManager
-    from ....core.cache import Cache
-    from ....core.database import Database
 
     database = Database(db)
     cache = Cache(redis)
@@ -526,9 +527,10 @@ async def list_client_certificates(
         response.status_code = 403
         return ErrorResponse(error="Insufficient permissions")
 
+    from pd_prime_demo.core.cache import Cache
+    from pd_prime_demo.core.database import Database
+
     from ....core.auth.oauth2.client_certificates import ClientCertificateManager
-    from ....core.cache import Cache
-    from ....core.database import Database
 
     database = Database(db)
     cache = Cache(redis)
@@ -575,9 +577,10 @@ async def revoke_client_certificate(
         response.status_code = 403
         return ErrorResponse(error="Insufficient permissions")
 
+    from pd_prime_demo.core.cache import Cache
+    from pd_prime_demo.core.database import Database
+
     from ....core.auth.oauth2.client_certificates import ClientCertificateManager
-    from ....core.cache import Cache
-    from ....core.database import Database
 
     database = Database(db)
     cache = Cache(redis)

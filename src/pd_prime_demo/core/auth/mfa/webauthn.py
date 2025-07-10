@@ -6,34 +6,9 @@ from uuid import UUID
 
 from beartype import beartype
 
-from ...models.base import BaseModelConfig
-
 if TYPE_CHECKING:
     from webauthn.helpers.cose import COSEAlgorithmIdentifier
     from webauthn.helpers.structs import (
-        AuthenticatorSelectionData,
-        BaseModelConfig,
-        :,
-        models,
-        rtype,
-        s,
-        to-generated,
-    )
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-@beartype
-class CredentialResponseData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
         AttestationConveyancePreference,
         AuthenticatorSelectionCriteria,
         PublicKeyCredentialDescriptor,
@@ -146,9 +121,9 @@ except ImportError:
 
 from pydantic import BaseModel, ConfigDict
 
+from pd_prime_demo.core.config import Settings
 from pd_prime_demo.core.result_types import Err, Ok, Result
 
-from ....core.config import Settings
 from .models import WebAuthnCredential
 
 
@@ -186,7 +161,7 @@ class WebAuthnRegistrationOptions(BaseModel):
     pub_key_cred_params: list[dict[str, Any]]
     timeout: int
     exclude_credentials: list["CredentialDescriptor"]
-    authenticator_selection: AuthenticatorSelectionData
+    authenticator_selection: AuthenticatorSelectionCriteria
     attestation: str
 
 
@@ -388,7 +363,11 @@ class WebAuthnProvider:
 
     @beartype
     def verify_registration(
-        self, user_id: UUID, credential_response: CredentialResponseData
+        self,
+        user_id: UUID,
+        credential_response: dict[
+            str, Any
+        ],  # SYSTEM_BOUNDARY - WebAuthn API response structure
     ) -> Result[WebAuthnCredential, str]:
         """Verify WebAuthn registration response.
 
@@ -502,7 +481,9 @@ class WebAuthnProvider:
     def verify_authentication(
         self,
         user_id: UUID,
-        credential_response: CredentialResponseData,
+        credential_response: dict[
+            str, Any
+        ],  # SYSTEM_BOUNDARY - WebAuthn API response structure
         stored_credential: WebAuthnCredential,
     ) -> Result[bool, str]:
         """Verify WebAuthn authentication response.
@@ -548,7 +529,9 @@ class WebAuthnProvider:
             return Err(f"Failed to verify authentication: {str(e)}")
 
     @beartype
-    def _detect_device_name(self, credential_response: CredentialResponseData) -> str:
+    def _detect_device_name(
+        self, credential_response: dict[str, Any]
+    ) -> str:  # SYSTEM_BOUNDARY - WebAuthn API response
         """Detect device name from credential response."""
         # This is a simplified version - in production, you might want to
         # parse the attestation statement for more details

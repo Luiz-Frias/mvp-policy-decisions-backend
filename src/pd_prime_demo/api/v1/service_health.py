@@ -11,11 +11,11 @@ from beartype import beartype
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.config import Settings, get_settings
+from pd_prime_demo.core.database import Database
 from pd_prime_demo.core.result_types import Err
 
-from ...core.cache import Cache
-from ...core.config import Settings, get_settings
-from ...core.database import Database
 from ...services.quote_service import QuoteService
 from ...services.rating_engine import RatingEngine
 from ..dependencies import get_cache, get_db_raw

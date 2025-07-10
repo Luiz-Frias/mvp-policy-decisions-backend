@@ -7,7 +7,7 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import Field
 
-from ..models.base import BaseModelConfig
+from pd_prime_demo.models.base import BaseModelConfig
 
 
 @beartype
