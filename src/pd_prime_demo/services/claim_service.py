@@ -8,6 +8,8 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok, Result
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.claim import (
@@ -17,20 +19,26 @@ from ..models.claim import (
     ClaimStatusUpdate,
     ClaimUpdate,
 )
-from .result import Err, Ok, Result
+from .cache_keys import CacheKeys
+from .performance_monitor import performance_monitor
 
 
 class ClaimService:
     """Service for claim business logic."""
 
     def __init__(self, db: Database, cache: Cache) -> None:
-        """Initialize claim service."""
+        """Initialize claim service with dependency validation."""
+        if not db or not hasattr(db, "execute"):
+            raise ValueError("Database connection required and must be active")
+        if not cache or not hasattr(cache, "get"):
+            raise ValueError("Cache connection required and must be available")
+
         self._db = db
         self._cache = cache
-        self._cache_prefix = "claim:"
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
+    @performance_monitor("create_claim")
     async def create(
         self,
         claim_data: ClaimCreate,
@@ -47,12 +55,12 @@ class ClaimService:
             query = """
                 INSERT INTO claims (
                     policy_id, claim_number, data, status,
-                    amount_claimed, amount_approved, submission_date
+                    amount_claimed, amount_approved, submitted_at
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id, policy_id, claim_number, data, status,
-                          amount_claimed, amount_approved, submission_date,
-                          resolution_date, created_at, updated_at
+                          amount_claimed, amount_approved, submitted_at,
+                          resolved_at, created_at, updated_at
             """
 
             # Prepare JSONB data
@@ -89,7 +97,8 @@ class ClaimService:
             claim = self._row_to_claim(row)
 
             # Invalidate policy cache
-            await self._cache.delete(f"policy:{policy_id}:claims")
+            await self._cache.delete(CacheKeys.policy_claims(policy_id))
+            await self._cache.delete(CacheKeys.claims_by_policy(policy_id))
 
             return Ok(claim)
 
@@ -99,10 +108,11 @@ class ClaimService:
             return Err(f"Database error: {str(e)}")
 
     @beartype
+    @performance_monitor("get_claim")
     async def get(self, claim_id: UUID) -> Result[Claim | None, str]:
         """Get claim by ID."""
         # Check cache first
-        cache_key = f"{self._cache_prefix}{claim_id}"
+        cache_key = CacheKeys.claim_by_id(claim_id)
         cached = await self._cache.get(cache_key)
         if cached:
             return Ok(Claim(**cached))
@@ -110,8 +120,8 @@ class ClaimService:
         # Query database
         query = """
             SELECT id, policy_id, claim_number, data, status,
-                   amount_claimed, amount_approved, submission_date,
-                   resolution_date, created_at, updated_at
+                   amount_claimed, amount_approved, submitted_at,
+                   resolved_at, created_at, updated_at
             FROM claims
             WHERE id = $1
         """
@@ -132,6 +142,7 @@ class ClaimService:
         return Ok(claim)
 
     @beartype
+    @performance_monitor("list_claims")
     async def list(
         self,
         policy_id: UUID | None = None,
@@ -154,15 +165,15 @@ class ClaimService:
             query_parts.append(f"AND status = ${param_count}")
             params.append(status)
 
-        query_parts.append("ORDER BY submission_date DESC")
+        query_parts.append("ORDER BY submitted_at DESC")
 
         param_count += 1
         query_parts.append(f"LIMIT ${param_count}")
-        params.append(limit)
+        params.append(str(limit))
 
         param_count += 1
         query_parts.append(f"OFFSET ${param_count}")
-        params.append(offset)
+        params.append(str(offset))
 
         query = " ".join(query_parts)
         rows = await self._db.fetch(query, *params)
@@ -215,7 +226,8 @@ class ClaimService:
         claim = self._row_to_claim(row)
 
         # Invalidate cache
-        await self._cache.delete(f"{self._cache_prefix}{claim_id}")
+        await self._cache.delete(CacheKeys.claim_by_id(claim_id))
+        await self._cache.delete(CacheKeys.claims_by_policy(claim.policy_id))
 
         return Ok(claim)
 
@@ -256,15 +268,15 @@ class ClaimService:
             update_fields.append(f"amount_approved = ${param_count}")
             params.append(str(status_update.amount_approved))
 
-        # Set resolution_date for final statuses
+        # Set resolved_at for final statuses
         if status_update.status in [
             ClaimStatus.APPROVED,
             ClaimStatus.DENIED,
             ClaimStatus.CLOSED,
         ]:
             param_count += 1
-            update_fields.append(f"resolution_date = ${param_count}")
-            params.append(datetime.now(timezone.utc))
+            update_fields.append(f"resolved_at = ${param_count}")
+            params.append(str(datetime.now(timezone.utc)))
 
         # Add note to data
         if status_update.notes:
@@ -298,12 +310,13 @@ class ClaimService:
         claim = self._row_to_claim(row)
 
         # Invalidate cache
-        await self._cache.delete(f"{self._cache_prefix}{claim_id}")
+        await self._cache.delete(CacheKeys.claim_by_id(claim_id))
+        await self._cache.delete(CacheKeys.claims_by_policy(claim.policy_id))
 
         return Ok(claim)
 
     @beartype
-    async def delete(self, claim_id: UUID) -> Result[bool, str]:
+    async def delete(self, claim_id: UUID) -> Result[None, str]:
         """Delete a claim (only allowed for DRAFT status)."""
         # Get existing claim
         existing_result = await self.get(claim_id)
@@ -312,7 +325,7 @@ class ClaimService:
 
         existing = existing_result.unwrap()
         if not existing:
-            return Ok(False)
+            return Err("Claim not found")
 
         if existing.status != "DRAFT":
             return Err("Can only delete claims in DRAFT status")
@@ -324,9 +337,9 @@ class ClaimService:
 
         if deleted:
             # Invalidate cache
-            await self._cache.delete(f"{self._cache_prefix}{claim_id}")
+            await self._cache.delete(CacheKeys.claim_by_id(claim_id))
 
-        return Ok(deleted)
+        return Ok(None)
 
     @beartype
     async def _validate_claim_data(
@@ -435,7 +448,7 @@ class ClaimService:
             adjuster_id=UUID(data["adjuster_id"]) if data.get("adjuster_id") else None,
             adjuster_notes=data.get("adjuster_notes"),
             supporting_documents=data.get("documents", []),
-            submitted_at=row["submission_date"],
+            submitted_at=row["submitted_at"],
             approved_at=(
                 datetime.fromisoformat(data["approved_at"])
                 if data.get("approved_at")
@@ -444,5 +457,5 @@ class ClaimService:
             paid_at=(
                 datetime.fromisoformat(data["paid_at"]) if data.get("paid_at") else None
             ),
-            closed_at=row["resolution_date"],
+            closed_at=row["resolved_at"],
         )

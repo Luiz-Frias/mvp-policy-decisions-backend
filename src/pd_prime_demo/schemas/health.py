@@ -15,6 +15,8 @@ class ComponentStatus(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     status: str = Field(..., pattern=r"^(healthy|unhealthy|degraded)$")
@@ -29,6 +31,8 @@ class HealthComponents(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     database: ComponentStatus = Field(..., description="Database health")

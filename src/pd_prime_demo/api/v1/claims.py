@@ -11,11 +11,23 @@ from uuid import UUID, uuid4
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from redis.asyncio import Redis
 
+from pd_prime_demo.api.response_patterns import ErrorResponse, handle_result
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
+from pd_prime_demo.core.result_types import Err
+
+from ...models.claim import ClaimCreate as ServiceClaimCreate
+from ...models.claim import ClaimPriority
+from ...models.claim import ClaimStatus as ServiceClaimStatus
+from ...models.claim import ClaimStatusUpdate as ServiceClaimStatusUpdate
+from ...models.claim import ClaimType as ServiceClaimType
+from ...models.claim import ClaimUpdate as ServiceClaimUpdate
 from ...schemas.auth import CurrentUser
+from ...services.claim_service import ClaimService
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()
@@ -48,7 +60,13 @@ class ClaimType(str, Enum):
 class ClaimBase(BaseModel):
     """Base claim attributes shared across operations."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     policy_id: UUID = Field(..., description="Associated policy ID")
     claim_type: ClaimType = Field(..., description="Type of claim")
@@ -73,6 +91,7 @@ class ClaimBase(BaseModel):
 
     @field_validator("incident_date")
     @classmethod
+    @beartype
     def validate_incident_date(cls, v: date) -> date:
         """Ensure incident date is not in the future."""
         if v > date.today():
@@ -80,6 +99,7 @@ class ClaimBase(BaseModel):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_dates(self) -> "ClaimBase":
         """Ensure reported date is after or equal to incident date."""
         if self.reported_date < self.incident_date:
@@ -117,7 +137,13 @@ class ClaimCreate(ClaimBase):
 class ClaimUpdate(BaseModel):
     """Model for updating claim information."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: ClaimStatus | None = None
     amount_claimed: Decimal | None = Field(
@@ -145,6 +171,7 @@ class ClaimUpdate(BaseModel):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_status_transitions(self) -> "ClaimUpdate":
         """Validate status transitions follow business rules."""
         # Status transition validation would be done against current status
@@ -189,7 +216,13 @@ class Claim(ClaimBase):
 class ClaimListResponse(BaseModel):
     """Response model for claim list endpoints."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     items: list[Claim] = Field(..., description="List of claims")
     total: int = Field(..., ge=0, description="Total number of claims")
@@ -200,7 +233,13 @@ class ClaimListResponse(BaseModel):
 class ClaimFilter(BaseModel):
     """Filter parameters for claim queries."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: ClaimStatus | None = None
     claim_type: ClaimType | None = None
@@ -218,7 +257,13 @@ class ClaimFilter(BaseModel):
 class ClaimStatusUpdate(BaseModel):
     """Model for claim status transitions."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     status: ClaimStatus = Field(..., description="New status")
     reason: str = Field(
@@ -227,15 +272,16 @@ class ClaimStatusUpdate(BaseModel):
     notes: str | None = Field(None, max_length=1000, description="Additional notes")
 
 
-@router.get("/", response_model=ClaimListResponse)
+@router.get("/")
 @beartype
 async def list_claims(
+    response: Response,
     pagination: PaginationParams = Depends(),
     filters: ClaimFilter = Depends(),
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> ClaimListResponse:
+) -> ClaimListResponse | ErrorResponse:
     """List claims with pagination and filtering.
 
     Args:
@@ -255,29 +301,92 @@ async def list_claims(
     if cached_result:
         return ClaimListResponse.model_validate_json(cached_result)
 
-    # TODO: Implement actual database query with filters
-    # This is a placeholder implementation
-    claims: list[Claim] = []
-    total = 0
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
 
-    response = ClaimListResponse(
+    database = Database(db)
+    cache = Cache(redis)
+    service = ClaimService(database, cache)
+
+    # Convert API filters to service parameters
+    result = await service.list(
+        policy_id=filters.policy_id,
+        status=filters.status.value if filters.status else None,
+        limit=pagination.limit,
+        offset=pagination.skip,
+    )
+
+    if isinstance(result, Err):
+        return handle_result(result, response)
+
+    claim_models = result.ok_value
+
+    # Convert ClaimModel to API Claim
+    claims = []
+    for cm in claim_models:
+        claims.append(
+            Claim(
+                id=cm.id,
+                claim_number=cm.claim_number,
+                created_at=cm.created_at,
+                updated_at=cm.updated_at,
+                policy_id=cm.policy_id,
+                claim_type=ClaimType(cm.claim_type.value),
+                incident_date=cm.incident_date,
+                reported_date=cm.incident_date,  # Using incident_date as reported_date
+                amount_claimed=cm.claimed_amount,
+                description=cm.description,
+                incident_location=cm.incident_location,
+                status=ClaimStatus(cm.status.value),
+                customer_id=uuid4(),  # Will be fetched from policy
+                contact_phone="",  # Not in model
+                contact_email="",  # Not in model
+                adjuster_id=cm.adjuster_id,
+                adjuster_notes=cm.adjuster_notes,
+                approved_amount=cm.approved_amount,
+                paid_amount=cm.paid_amount,
+                approved_at=cm.approved_at,
+                paid_at=cm.paid_at,
+                closed_at=cm.closed_at,
+            )
+        )
+
+    # Get total count
+    count_result = await service.list(
+        policy_id=filters.policy_id,
+        status=filters.status.value if filters.status else None,
+        limit=1000000,
+        offset=0,
+    )
+
+    total = (
+        len(count_result.ok_value)
+        if count_result.is_ok() and count_result.ok_value is not None
+        else 0
+    )
+
+    list_response = ClaimListResponse(
         items=claims, total=total, skip=pagination.skip, limit=pagination.limit
     )
 
     # Cache the result for 30 seconds (shorter due to frequent updates)
-    await redis.setex(cache_key, 30, response.model_dump_json())
+    await redis.setex(cache_key, 30, list_response.model_dump_json())
 
-    return response
+    return list_response
 
 
-@router.post("/", response_model=Claim, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 @beartype
 async def create_claim(
     claim_data: ClaimCreate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Claim | ErrorResponse:
     """Create a new insurance claim.
 
     Args:
@@ -293,43 +402,90 @@ async def create_claim(
         HTTPException: If claim creation fails
     """
     try:
-        # TODO: Validate policy exists and is active
-        # TODO: Validate customer owns the policy
-        # TODO: Generate unique claim number
-        # TODO: Implement actual database insertion
+        # Initialize services with dependency validation
+        if not db:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+
+        database = Database(db)
+        cache = Cache(redis)
+        service = ClaimService(database, cache)
+
+        # Convert API model to service model
+        service_claim_data = ServiceClaimCreate(
+            policy_id=claim_data.policy_id,
+            claim_type=ServiceClaimType(claim_data.claim_type.value),
+            incident_date=claim_data.incident_date,
+            incident_location=claim_data.incident_location,
+            description=claim_data.description,
+            claimed_amount=claim_data.amount_claimed,
+            priority=ClaimPriority.MEDIUM,  # Default priority
+            supporting_documents=[],  # Empty for now
+            contact_phone=claim_data.contact_phone,
+            contact_email=claim_data.contact_email,
+        )
+
+        # Create claim using service
+        result = await service.create(service_claim_data, claim_data.policy_id)
+
+        if isinstance(result, Err):
+            return handle_result(
+                result, response, success_status=status.HTTP_201_CREATED
+            )
+
+        claim_model = result.ok_value
 
         # Invalidate relevant caches
         pattern = "claims:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
-        # Return mock claim for now
+        # Convert back to API model
         claim = Claim(
-            id=uuid4(),
-            claim_number=f"CLM-{datetime.now().year}-{datetime.now().strftime('%m%d%H%M')}",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            customer_id=uuid4(),  # Would come from policy lookup
-            **claim_data.model_dump(),
+            id=claim_model.id,
+            claim_number=claim_model.claim_number,
+            created_at=claim_model.created_at,
+            updated_at=claim_model.updated_at,
+            policy_id=claim_model.policy_id,
+            claim_type=ClaimType(claim_model.claim_type.value),
+            incident_date=claim_model.incident_date,
+            reported_date=claim_model.incident_date,
+            amount_claimed=claim_model.claimed_amount,
+            description=claim_model.description,
+            incident_location=claim_model.incident_location,
+            status=ClaimStatus(claim_model.status.value),
+            customer_id=uuid4(),  # Will be fetched from policy
+            contact_phone=claim_data.contact_phone,
+            contact_email=claim_data.contact_email,
+            adjuster_id=claim_model.adjuster_id,
+            adjuster_notes=claim_model.adjuster_notes,
+            approved_amount=claim_model.approved_amount,
+            paid_amount=claim_model.paid_amount,
+            approved_at=claim_model.approved_at,
+            paid_at=claim_model.paid_at,
+            closed_at=claim_model.closed_at,
         )
 
         return claim
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create claim: {str(e)}",
-        ) from e
+        return handle_result(
+            Err(f"Failed to create claim: {str(e)}"),
+            response,
+            success_status=status.HTTP_201_CREATED,
+        )
 
 
-@router.get("/{claim_id}", response_model=Claim)
+@router.get("/{claim_id}")
 @beartype
 async def get_claim(
     claim_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Claim | ErrorResponse:
     """Retrieve a specific claim by ID.
 
     Args:
@@ -351,23 +507,68 @@ async def get_claim(
     if cached_claim:
         return Claim.model_validate_json(cached_claim)
 
-    # TODO: Implement actual database query
-    # This is a placeholder implementation
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
+    database = Database(db)
+    cache = Cache(redis)
+    service = ClaimService(database, cache)
+
+    # Get claim using service
+    result = await service.get(claim_id)
+
+    if isinstance(result, Err):
+        return handle_result(result, response)
+
+    claim_model = result.ok_value
+    if not claim_model:
+        return handle_result(Err(f"Claim {claim_id} not found"), response)
+
+    # Convert to API model
+    claim = Claim(
+        id=claim_model.id,
+        claim_number=claim_model.claim_number,
+        created_at=claim_model.created_at,
+        updated_at=claim_model.updated_at,
+        policy_id=claim_model.policy_id,
+        claim_type=ClaimType(claim_model.claim_type.value),
+        incident_date=claim_model.incident_date,
+        reported_date=claim_model.incident_date,
+        amount_claimed=claim_model.claimed_amount,
+        description=claim_model.description,
+        incident_location=claim_model.incident_location,
+        status=ClaimStatus(claim_model.status.value),
+        customer_id=uuid4(),  # Will be fetched from policy
+        contact_phone="",  # Not in model
+        contact_email="",  # Not in model
+        adjuster_id=claim_model.adjuster_id,
+        adjuster_notes=claim_model.adjuster_notes,
+        approved_amount=claim_model.approved_amount,
+        paid_amount=claim_model.paid_amount,
+        approved_at=claim_model.approved_at,
+        paid_at=claim_model.paid_at,
+        closed_at=claim_model.closed_at,
     )
 
+    # Cache the result
+    await redis.setex(cache_key, 300, claim.model_dump_json())
 
-@router.put("/{claim_id}", response_model=Claim)
+    return claim
+
+
+@router.put("/{claim_id}")
 @beartype
 async def update_claim(
     claim_id: UUID,
     claim_update: ClaimUpdate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Claim | ErrorResponse:
     """Update an existing claim.
 
     Args:
@@ -383,10 +584,50 @@ async def update_claim(
     Raises:
         HTTPException: If claim not found or update fails
     """
-    # TODO: Validate status transitions
-    # TODO: Implement actual database update
-    # TODO: Create audit log entry
-    # This is a placeholder implementation
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
+
+    database = Database(db)
+    cache = Cache(redis)
+    service = ClaimService(database, cache)
+
+    # Convert to service update model
+    service_update = ServiceClaimUpdate(
+        supporting_documents=[],  # Not exposed in API update
+    )
+
+    # Update claim using service
+    result = await service.update(claim_id, service_update)
+
+    if isinstance(result, Err):
+        return handle_result(result, response)
+
+    claim_model = result.ok_value
+    if not claim_model:
+        return handle_result(Err(f"Claim {claim_id} not found"), response)
+
+    # If status update requested, handle separately
+    if claim_update.status:
+        status_result = await service.update_status(
+            claim_id,
+            ServiceClaimStatusUpdate(
+                status=ServiceClaimStatus(claim_update.status.value),
+                amount_approved=claim_update.approved_amount,
+                notes=claim_update.adjuster_notes,
+            ),
+        )
+
+        if isinstance(status_result, Err):
+            return handle_result(status_result, response)
+
+        claim_model = status_result.ok_value
+        if not claim_model:
+            return handle_result(
+                Err(f"Claim {claim_id} not found after status update"), response
+            )
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -394,20 +635,45 @@ async def update_claim(
     async for key in redis.scan_iter(match=pattern):
         await redis.delete(key)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
+    # Convert to API model
+    claim = Claim(
+        id=claim_model.id,
+        claim_number=claim_model.claim_number,
+        created_at=claim_model.created_at,
+        updated_at=claim_model.updated_at,
+        policy_id=claim_model.policy_id,
+        claim_type=ClaimType(claim_model.claim_type.value),
+        incident_date=claim_model.incident_date,
+        reported_date=claim_model.incident_date,
+        amount_claimed=claim_model.claimed_amount,
+        description=claim_model.description,
+        incident_location=claim_model.incident_location,
+        status=ClaimStatus(claim_model.status.value),
+        customer_id=uuid4(),  # Will be fetched from policy
+        contact_phone="",  # Not in model
+        contact_email="",  # Not in model
+        adjuster_id=claim_model.adjuster_id,
+        adjuster_notes=claim_model.adjuster_notes,
+        approved_amount=claim_model.approved_amount,
+        paid_amount=claim_model.paid_amount,
+        approved_at=claim_model.approved_at,
+        paid_at=claim_model.paid_at,
+        closed_at=claim_model.closed_at,
     )
 
+    return claim
 
-@router.post("/{claim_id}/status", response_model=Claim)
+
+@router.post("/{claim_id}/status")
 @beartype
 async def update_claim_status(
     claim_id: UUID,
     status_update: ClaimStatusUpdate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Claim:
+) -> Claim | ErrorResponse:
     """Update claim status with audit trail.
 
     Args:
@@ -423,11 +689,32 @@ async def update_claim_status(
     Raises:
         HTTPException: If claim not found or transition invalid
     """
-    # TODO: Fetch current claim
-    # TODO: Validate status transition is allowed
-    # TODO: Update claim status
-    # TODO: Create audit log entry
-    # TODO: Send notifications if needed
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
+
+    database = Database(db)
+    cache = Cache(redis)
+    service = ClaimService(database, cache)
+
+    # Update claim status using service
+    result = await service.update_status(
+        claim_id,
+        ServiceClaimStatusUpdate(
+            status=ServiceClaimStatus(status_update.status.value),
+            amount_approved=None,  # Not in this API
+            notes=status_update.notes,
+        ),
+    )
+
+    if isinstance(result, Err):
+        return handle_result(result, response)
+
+    claim_model = result.ok_value
+    if not claim_model:
+        return handle_result(Err(f"Claim {claim_id} not found"), response)
 
     # Invalidate caches
     await redis.delete(f"claims:{claim_id}")
@@ -435,19 +722,44 @@ async def update_claim_status(
     async for key in redis.scan_iter(match=pattern):
         await redis.delete(key)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
+    # Convert to API model
+    claim = Claim(
+        id=claim_model.id,
+        claim_number=claim_model.claim_number,
+        created_at=claim_model.created_at,
+        updated_at=claim_model.updated_at,
+        policy_id=claim_model.policy_id,
+        claim_type=ClaimType(claim_model.claim_type.value),
+        incident_date=claim_model.incident_date,
+        reported_date=claim_model.incident_date,
+        amount_claimed=claim_model.claimed_amount,
+        description=claim_model.description,
+        incident_location=claim_model.incident_location,
+        status=ClaimStatus(claim_model.status.value),
+        customer_id=uuid4(),  # Will be fetched from policy
+        contact_phone="",  # Not in model
+        contact_email="",  # Not in model
+        adjuster_id=claim_model.adjuster_id,
+        adjuster_notes=claim_model.adjuster_notes,
+        approved_amount=claim_model.approved_amount,
+        paid_amount=claim_model.paid_amount,
+        approved_at=claim_model.approved_at,
+        paid_at=claim_model.paid_at,
+        closed_at=claim_model.closed_at,
     )
 
+    return claim
 
-@router.delete("/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.delete("/{claim_id}")
 @beartype
 async def delete_claim(
     claim_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> None:
+) -> None | ErrorResponse:
     """Delete a claim (only allowed for DRAFT status).
 
     Args:
@@ -459,8 +771,22 @@ async def delete_claim(
     Raises:
         HTTPException: If claim not found or not in DRAFT status
     """
-    # TODO: Fetch claim and verify it's in DRAFT status
-    # TODO: Implement actual deletion
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
+
+    database = Database(db)
+    cache = Cache(redis)
+    service = ClaimService(database, cache)
+
+    # Delete claim using service
+    result = await service.delete(claim_id)
+
+    if isinstance(result, Err):
+        return handle_result(result, response)
+
     # This is a placeholder implementation
 
     # Invalidate caches
@@ -469,6 +795,4 @@ async def delete_claim(
     async for key in redis.scan_iter(match=pattern):
         await redis.delete(key)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Claim {claim_id} not found"
-    )
+    return handle_result(Err(f"Claim {claim_id} not found"), response)

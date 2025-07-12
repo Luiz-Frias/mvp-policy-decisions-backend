@@ -29,17 +29,32 @@ class BaseModelConfig(BaseModel):
         validate_assignment=True,
         str_strip_whitespace=True,
         validate_default=True,
-        use_enum_values=True,
-        arbitrary_types_allowed=False,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
     )
 
 
 @beartype
 class TimestampedModel(BaseModelConfig):
     """Base model with automatic timestamp fields."""
+
+    created_at: datetime = Field(
+        ..., description="Timestamp when the entity was created"
+    )
+    updated_at: datetime = Field(
+        ..., description="Timestamp when the entity was last updated"
+    )
+
+
+@beartype
+class TimestampMixin(BaseModelConfig):
+    """Mixin for models that need timestamp tracking."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     created_at: datetime = Field(
         ..., description="Timestamp when the entity was created"

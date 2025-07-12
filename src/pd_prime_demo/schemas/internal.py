@@ -8,8 +8,10 @@ class JWTDecodeResult(BaseModel):
 
     model_config = ConfigDict(
         frozen=True,
-        extra="allow",  # JWT can have extra claims
+        extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     sub: str = Field(..., description="Subject")

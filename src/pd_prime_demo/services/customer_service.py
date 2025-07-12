@@ -6,25 +6,33 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok, Result
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.customer import Customer, CustomerCreate, CustomerUpdate
 from ..models.update_data import CustomerUpdateData
 from ..schemas.common import PolicySummary
-from .result import Err, Ok, Result
+from .cache_keys import CacheKeys
+from .performance_monitor import performance_monitor
 
 
 class CustomerService:
     """Service for customer business logic."""
 
     def __init__(self, db: Database, cache: Cache) -> None:
-        """Initialize customer service."""
+        """Initialize customer service with dependency validation."""
+        if not db or not hasattr(db, "execute"):
+            raise ValueError("Database connection required and must be active")
+        if not cache or not hasattr(cache, "get"):
+            raise ValueError("Cache connection required and must be available")
+
         self._db = db
         self._cache = cache
-        self._cache_prefix = "customer:"
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
+    @performance_monitor("create_customer")
     async def create(self, customer_data: CustomerCreate) -> Result[Customer, str]:
         """Create a new customer."""
         try:
@@ -86,10 +94,11 @@ class CustomerService:
             return Err(f"Database error: {str(e)}")
 
     @beartype
+    @performance_monitor("get_customer")
     async def get(self, customer_id: UUID) -> Result[Customer | None, str]:
         """Get customer by ID."""
         # Check cache first
-        cache_key = f"{self._cache_prefix}{customer_id}"
+        cache_key = CacheKeys.customer_by_id(customer_id)
         cached = await self._cache.get(cache_key)
         if cached:
             return Ok(Customer(**cached))
@@ -117,6 +126,7 @@ class CustomerService:
         return Ok(customer)
 
     @beartype
+    @performance_monitor("get_by_customer_number")
     async def get_by_customer_number(
         self,
         customer_number: str,
@@ -155,6 +165,7 @@ class CustomerService:
         return Ok(customers)
 
     @beartype
+    @performance_monitor("update_customer")
     async def update(
         self,
         customer_id: UUID,
@@ -206,12 +217,15 @@ class CustomerService:
         customer = self._row_to_customer(row)
 
         # Invalidate cache
-        await self._cache.delete(f"{self._cache_prefix}{customer_id}")
+        await self._cache.delete(CacheKeys.customer_by_id(customer_id))
+        # Also invalidate email lookup cache if we had one
+        if customer.email:
+            await self._cache.delete(CacheKeys.customer_by_email(customer.email))
 
         return Ok(customer)
 
     @beartype
-    async def delete(self, customer_id: UUID) -> Result[bool, str]:
+    async def delete(self, customer_id: UUID) -> Result[None, str]:
         """Delete a customer and all related data."""
         # Note: This is a hard delete with CASCADE
         # In production, consider soft delete instead
@@ -222,11 +236,12 @@ class CustomerService:
 
         if deleted:
             # Invalidate cache
-            await self._cache.delete(f"{self._cache_prefix}{customer_id}")
+            await self._cache.delete(CacheKeys.customer_by_id(customer_id))
 
-        return Ok(deleted)
+        return Ok(None)
 
     @beartype
+    @performance_monitor("get_customer_policies")
     async def get_policies(self, customer_id: UUID) -> Result[list[PolicySummary], str]:
         """Get all policies for a customer."""
         query = """
@@ -271,6 +286,7 @@ class CustomerService:
         return Ok(True)
 
     @beartype
+    @performance_monitor("row_to_customer")
     def _row_to_customer(self, row: asyncpg.Record) -> Customer:
         """Convert database row to Customer model."""
         data = dict(row["data"])

@@ -6,10 +6,23 @@ import bcrypt
 import jwt
 from attrs import field, frozen
 from beartype import beartype
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from pd_prime_demo.models.base import BaseModelConfig
 
 from ..schemas.internal import JWTDecodeResult
 from .config import get_settings
+
+# Auto-generated models
+
+
+@beartype
+class PayloadData(BaseModelConfig):
+    """Structured model replacing dict[str, Any] usage."""
+
+    # Auto-generated - customize based on usage
+    content: str | None = Field(default=None, description="Content data")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
 @frozen
@@ -30,6 +43,9 @@ class TokenData(BaseModel):
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     access_token: str
@@ -219,3 +235,29 @@ async def verify_jwt_token(token: str, secret: str) -> JWTDecodeResult:
         type=token_payload.type,
         scopes=token_payload.scopes,
     )
+
+
+@beartype
+async def create_jwt_token(payload: PayloadData, secret: str) -> str:
+    """Create JWT token from payload.
+
+    Args:
+        payload: Token payload data
+        secret: JWT secret (unused, uses settings)
+
+    Returns:
+        str: Encoded JWT token
+    """
+    security = get_security()
+
+    # Extract required fields
+    subject = payload.get("sub", "")
+    scopes = payload.get("scopes", [])
+
+    # Use the security instance to create token
+    token_data = security.create_access_token(
+        subject=subject,
+        scopes=scopes,
+    )
+
+    return token_data.access_token

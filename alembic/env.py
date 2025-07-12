@@ -28,13 +28,29 @@ if config.config_file_name is not None:
 # target_metadata = Base.metadata
 target_metadata = None  # Will be updated when models are implemented
 
-# Get database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/dbname")
+# Import our settings to use the effective database URL logic
+import sys
+from pathlib import Path
+
+# Add src to path so we can import our configuration
+src_path = Path(__file__).parent.parent / "src"
+sys.path.insert(0, str(src_path))
+
+from pd_prime_demo.core.config import get_settings
+
+# Use our smart URL selection logic
+settings = get_settings()
+DATABASE_URL = settings.effective_database_url
 
 # Override the sqlalchemy.url from alembic.ini with environment variable
-config.set_main_option(
-    "sqlalchemy.url", DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-)
+if "sqlite" in DATABASE_URL or "sqlite" in config.get_main_option("sqlalchemy.url", ""):
+    # For SQLite testing, use the URL as-is (synchronous)
+    pass
+else:
+    # For PostgreSQL, convert to async driver
+    config.set_main_option(
+        "sqlalchemy.url", DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    )
 
 
 def run_migrations_offline() -> None:
@@ -99,8 +115,32 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
     """
-    # Handle async migrations
-    asyncio.run(run_async_migrations())
+    url = config.get_main_option("sqlalchemy.url")
+    if url and "sqlite" in url:
+        # Use synchronous SQLite for testing
+        run_sync_migrations()
+    else:
+        # Handle async migrations for PostgreSQL
+        asyncio.run(run_async_migrations())
+
+
+def run_sync_migrations() -> None:
+    """Run migrations in synchronous mode for SQLite."""
+    from sqlalchemy import create_engine
+
+    url = config.get_main_option("sqlalchemy.url")
+    engine = create_engine(url)
+
+    with engine.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():

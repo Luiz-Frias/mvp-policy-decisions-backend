@@ -5,18 +5,27 @@ with proper validation, caching, and error handling.
 """
 
 import json
-from datetime import datetime, timezone
 from uuid import UUID
 
 import asyncpg
 from beartype import beartype
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
+
+from pd_prime_demo.api.response_patterns import (
+    APIResponseHandler,
+    ErrorResponse,
+    handle_result,
+)
+from pd_prime_demo.core.cache import Cache
+from pd_prime_demo.core.database import Database
+from pd_prime_demo.core.result_types import Err
 
 from ...models.customer import Customer, CustomerCreate, CustomerUpdate
 from ...schemas.auth import CurrentUser
 from ...schemas.common import PolicySummary
+from ...services.customer_service import CustomerService
 from ..dependencies import PaginationParams, get_current_user, get_db, get_redis
 
 router = APIRouter()
@@ -25,7 +34,13 @@ router = APIRouter()
 class CustomerListResponse(BaseModel):
     """Response model for customer list endpoints."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     items: list[Customer] = Field(..., description="List of customers")
     total: int = Field(..., ge=0, description="Total number of customers")
@@ -36,7 +51,13 @@ class CustomerListResponse(BaseModel):
 class CustomerFilter(BaseModel):
     """Filter parameters for customer queries."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
 
     search: str | None = Field(None, description="Search by name or email")
     state_province: str | None = Field(
@@ -55,15 +76,16 @@ class CustomerFilter(BaseModel):
     )
 
 
-@router.get("/", response_model=CustomerListResponse)
+@router.get("/")
 @beartype
 async def list_customers(
+    response: Response,
     pagination: PaginationParams = Depends(),
     filters: CustomerFilter = Depends(),
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> CustomerListResponse:
+) -> CustomerListResponse | ErrorResponse:
     """List customers with pagination and filtering.
 
     Args:
@@ -85,29 +107,89 @@ async def list_customers(
     if cached_result:
         return CustomerListResponse.model_validate_json(cached_result)
 
-    # TODO: Implement actual database query with filters
-    # This is a placeholder implementation for Wave 1
-    customers: list[Customer] = []
-    total = 0
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
 
-    response = CustomerListResponse(
-        items=customers, total=total, skip=pagination.skip, limit=pagination.limit
+    database = Database(db)
+    cache = Cache(redis)
+    service = CustomerService(database, cache)
+
+    # Build query with filters
+    where_clauses = []
+    params = []
+
+    if filters.search:
+        where_clauses.append(
+            "(data->>'first_name' ILIKE $1 OR data->>'last_name' ILIKE $1 OR data->>'email' ILIKE $1)"
+        )
+        params.append(f"%{filters.search}%")
+
+    if filters.state_province:
+        param_num = len(params) + 1
+        where_clauses.append(f"data->>'state_province' = ${param_num}")
+        params.append(filters.state_province)
+
+    if filters.country_code:
+        param_num = len(params) + 1
+        where_clauses.append(f"data->>'country_code' = ${param_num}")
+        params.append(filters.country_code)
+
+    if filters.is_active is not None:
+        param_num = len(params) + 1
+        status = "ACTIVE" if filters.is_active else "INACTIVE"
+        where_clauses.append(f"data->>'status' = ${param_num}")
+        params.append(status)
+
+    # Build count query
+    count_query = "SELECT COUNT(*) FROM customers"
+    if where_clauses:
+        count_query += " WHERE " + " AND ".join(where_clauses)
+
+    # Get total count
+    total = await db.fetchval(count_query, *params)
+
+    # Build main query with pagination
+    query = "SELECT * FROM customers"
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+
+    query += " ORDER BY created_at DESC"
+
+    # Add pagination params
+    param_num = len(params) + 1
+    query += f" LIMIT ${param_num}"
+    params.append(str(pagination.limit))
+
+    param_num = len(params) + 1
+    query += f" OFFSET ${param_num}"
+    params.append(str(pagination.skip))
+
+    # Execute query
+    rows = await db.fetch(query, *params)
+    customers = [service._row_to_customer(row) for row in rows]
+
+    list_response = CustomerListResponse(
+        items=customers, total=total or 0, skip=pagination.skip, limit=pagination.limit
     )
 
     # Cache the result for 60 seconds
-    await redis.setex(cache_key, 60, response.model_dump_json())
+    await redis.setex(cache_key, 60, list_response.model_dump_json())
 
-    return response
+    return list_response
 
 
-@router.post("/", response_model=Customer, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 @beartype
 async def create_customer(
     customer_data: CustomerCreate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Customer:
+) -> Customer | ErrorResponse:
     """Create a new customer.
 
     Args:
@@ -123,61 +205,50 @@ async def create_customer(
         HTTPException: If customer creation fails
     """
     try:
-        # TODO: Implement actual database insertion with customer service
-        # This is a placeholder implementation for Wave 1
+        # Initialize services with dependency validation
+        if not db:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+
+        database = Database(db)
+        cache = Cache(redis)
+        service = CustomerService(database, cache)
+
+        # Create customer using service
+        result = await service.create(customer_data)
+
+        if result.is_err():
+            error_msg = result.unwrap_err()
+            response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+            return ErrorResponse(error=error_msg)
+
+        customer = result.ok_value
+        assert customer is not None
 
         # Invalidate relevant caches
         pattern = "customers:list:*"
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
-        # Return mock customer for Wave 1 (will be replaced with actual service call)
-        from uuid import uuid4
-
-        from ...models.customer import CustomerStatus
-
-        customer = Customer(
-            id=uuid4(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-            customer_number=f"CUST-{str(uuid4())[:10].replace('-', '')}0",
-            status=CustomerStatus.ACTIVE,
-            tax_id_masked=customer_data.tax_id,  # Already masked by CustomerCreate validator
-            total_policies=0,
-            risk_score=None,
-            # Copy all fields from CustomerCreate (they inherit from CustomerBase)
-            customer_type=customer_data.customer_type,
-            first_name=customer_data.first_name,
-            last_name=customer_data.last_name,
-            email=customer_data.email,
-            phone_number=customer_data.phone_number,
-            date_of_birth=customer_data.date_of_birth,
-            address_line1=customer_data.address_line1,
-            address_line2=customer_data.address_line2,
-            city=customer_data.city,
-            state_province=customer_data.state_province,
-            postal_code=customer_data.postal_code,
-            country_code=customer_data.country_code,
-            marketing_consent=customer_data.marketing_consent,
-        )
-
+        response.status_code = status.HTTP_201_CREATED
         return customer
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create customer: {str(e)}",
-        )
+        error_msg = f"Failed to create customer: {str(e)}"
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
 
 
-@router.get("/{customer_id}", response_model=Customer)
+@router.get("/{customer_id}")
 @beartype
 async def get_customer(
     customer_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Customer:
+) -> Customer | ErrorResponse:
     """Get customer by ID.
 
     Args:
@@ -199,23 +270,45 @@ async def get_customer(
     if cached_result:
         return Customer.model_validate_json(cached_result)
 
-    # TODO: Implement actual database query
-    # This is a placeholder for Wave 1
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Customer not found",
-    )
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
+
+    database = Database(db)
+    cache = Cache(redis)
+    service = CustomerService(database, cache)
+
+    # Get customer using service
+    result = await service.get(customer_id)
+
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
+
+    customer = result.ok_value
+    if not customer:
+        response.status_code = 404
+        return ErrorResponse(error="Customer not found")
+
+    # Cache the result
+    await redis.setex(cache_key, 300, customer.model_dump_json())
+
+    return customer
 
 
-@router.put("/{customer_id}", response_model=Customer)
+@router.put("/{customer_id}")
 @beartype
 async def update_customer(
     customer_id: UUID,
     customer_update: CustomerUpdate,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Customer:
+) -> Customer | ErrorResponse:
     """Update customer information.
 
     Args:
@@ -232,8 +325,28 @@ async def update_customer(
         HTTPException: If customer not found or update fails
     """
     try:
-        # TODO: Implement actual database update with customer service
-        # This is a placeholder for Wave 1
+        # Initialize services with dependency validation
+        if not db:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+
+        database = Database(db)
+        cache = Cache(redis)
+        service = CustomerService(database, cache)
+
+        # Update customer using service
+        result = await service.update(customer_id, customer_update)
+
+        if result.is_err():
+            error_msg = result.unwrap_err()
+            response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+            return ErrorResponse(error=error_msg)
+
+        customer = result.ok_value
+        if not customer:
+            response.status_code = 404
+            return ErrorResponse(error="Customer not found")
 
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
@@ -241,28 +354,21 @@ async def update_customer(
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found",
-        )
+        return customer
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to update customer: {str(e)}",
-        )
+        return handle_result(Err(f"Failed to update customer: {str(e)}"), response)
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{customer_id}")
 @beartype
 async def delete_customer(
     customer_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> None:
+) -> None | ErrorResponse:
     """Delete customer account.
 
     Args:
@@ -275,8 +381,23 @@ async def delete_customer(
         HTTPException: If customer not found or deletion fails
     """
     try:
-        # TODO: Implement actual database deletion with customer service
-        # This is a placeholder for Wave 1
+        # Initialize services with dependency validation
+        if not db:
+            raise ValueError("Database connection required and must be active")
+        if not redis:
+            raise ValueError("Cache connection required and must be available")
+
+        database = Database(db)
+        cache = Cache(redis)
+        service = CustomerService(database, cache)
+
+        # Delete customer using service
+        result = await service.delete(customer_id)
+
+        if result.is_err():
+            error_msg = result.unwrap_err()
+            response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+            return ErrorResponse(error=error_msg)
 
         # Invalidate caches
         await redis.delete(f"customer:{customer_id}")
@@ -284,28 +405,24 @@ async def delete_customer(
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found",
-        )
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return None
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to delete customer: {str(e)}",
-        )
+        error_msg = f"Failed to delete customer: {str(e)}"
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
 
 
-@router.get("/{customer_id}/policies", response_model=list[PolicySummary])
+@router.get("/{customer_id}/policies")
 @beartype
 async def get_customer_policies(
     customer_id: UUID,
+    response: Response,
     db: asyncpg.Connection = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: CurrentUser = Depends(get_current_user),
-) -> list[PolicySummary]:
+) -> list[PolicySummary] | ErrorResponse:
     """Get all policies for a specific customer.
 
     Args:
@@ -333,9 +450,31 @@ async def get_customer_policies(
             # Invalid cache data, continue to database query
             await redis.delete(cache_key)
 
-    # TODO: Implement actual database query for customer policies
-    # This is a placeholder for Wave 1
-    policies: list[PolicySummary] = []
+    # Initialize services with dependency validation
+    if not db:
+        raise ValueError("Database connection required and must be active")
+    if not redis:
+        raise ValueError("Cache connection required and must be available")
+
+    database = Database(db)
+    cache = Cache(redis)
+    service = CustomerService(database, cache)
+
+    # Get customer policies using service
+    result = await service.get_policies(customer_id)
+
+    if result.is_err():
+        error_msg = result.unwrap_err()
+        response.status_code = APIResponseHandler.map_error_to_status(error_msg)
+        return ErrorResponse(error=error_msg)
+
+    policies = result.ok_value
+
+    # Type narrowing - policies should not be None if is_ok() is True
+    if policies is None:
+        return handle_result(
+            Err("Internal server error: policies result is None"), response
+        )
 
     # Cache the result for 300 seconds (5 minutes)
     await redis.setex(

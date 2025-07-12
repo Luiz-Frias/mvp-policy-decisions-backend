@@ -4,7 +4,7 @@ This module provides test data factories and fixtures following MASTER RULESET p
 All data models use Pydantic with frozen=True for immutability and strict validation.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
@@ -13,6 +13,13 @@ from beartype import beartype
 from pydantic import Field, model_validator
 
 from pd_prime_demo.models.base import BaseModelConfig, IdentifiableModel
+from pd_prime_demo.models.quote import (
+    CoverageSelection,
+    CoverageType,
+    DriverInfo,
+    VehicleInfo,
+    VehicleType,
+)
 
 
 @beartype
@@ -290,3 +297,105 @@ ERROR_RESPONSE_TEMPLATE = {
     },
     "timestamp": None,
 }
+
+
+# Rating engine test data helpers
+@beartype
+def create_test_driver(**kwargs: Any) -> DriverInfo:
+    """Create a test driver with default values."""
+    defaults = {
+        "first_name": "John",
+        "last_name": "Doe",
+        "date_of_birth": date(1985, 5, 15),
+        "license_number": "D12345678",
+        "license_state": "CA",
+        "license_status": "valid",
+        "first_licensed_date": date(2005, 5, 15),
+        "gender": "M",
+        "marital_status": "married",
+        "accidents_3_years": 0,
+        "violations_3_years": 0,
+        "claims_3_years": 0,
+        "sr22_required": False,
+        "good_student": False,
+        "military": False,
+        "senior": False,
+        "defensive_driving": False,
+    }
+    defaults.update(kwargs)
+    return DriverInfo(**defaults)
+
+
+@beartype
+def create_test_vehicle(**kwargs: Any) -> VehicleInfo:
+    """Create a test vehicle with default values."""
+    defaults = {
+        "vin": "1HGCM82633A004352",
+        "year": 2020,
+        "make": "Toyota",
+        "model": "Camry",
+        "trim": "LE",
+        "body_style": "Sedan",
+        "vehicle_type": VehicleType.PRIVATE_PASSENGER,
+        "engine_size": "2.5L",
+        "fuel_type": "Gasoline",
+        "safety_rating": 5,
+        "anti_theft": True,
+        "usage": "Personal",
+        "annual_mileage": 12000,
+        "garage_type": "Attached Garage",
+        "owned": True,
+        "finance_type": "Owned",
+        "value": Decimal("25000.00"),
+        "purchase_date": date(2020, 1, 15),
+        "primary_use": "Work",
+        "parking_location": "Garage",
+        "anti_lock_brakes": True,
+        "airbags": True,
+        "daytime_running_lights": True,
+        "passive_restraints": True,
+        "automatic_seatbelts": False,
+        "anti_theft_device": "Factory Alarm",
+        "comprehensive_deductible": Decimal("500.00"),
+        "collision_deductible": Decimal("500.00"),
+    }
+    defaults.update(kwargs)
+    return VehicleInfo(**defaults)
+
+
+@beartype
+def create_test_coverage_selections(**kwargs: Any) -> list[CoverageSelection]:
+    """Create test coverage selections with default values."""
+    defaults = [
+        CoverageSelection(
+            coverage_type=CoverageType.BODILY_INJURY,
+            limit=Decimal("100000.00"),
+            deductible=Decimal("0.00"),
+            selected=True,
+        ),
+        CoverageSelection(
+            coverage_type=CoverageType.PROPERTY_DAMAGE,
+            limit=Decimal("50000.00"),
+            deductible=Decimal("0.00"),
+            selected=True,
+        ),
+        CoverageSelection(
+            coverage_type=CoverageType.COMPREHENSIVE,
+            limit=Decimal("25000.00"),
+            deductible=Decimal("500.00"),
+            selected=True,
+        ),
+        CoverageSelection(
+            coverage_type=CoverageType.COLLISION,
+            limit=Decimal("25000.00"),
+            deductible=Decimal("500.00"),
+            selected=True,
+        ),
+    ]
+
+    # Apply any overrides
+    custom_coverages = kwargs.get("coverages", [])
+    if custom_coverages:
+        return custom_coverages
+
+    return defaults

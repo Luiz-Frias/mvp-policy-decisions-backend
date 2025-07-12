@@ -17,12 +17,12 @@ import pytest
 from beartype import beartype
 from pydantic import ValidationError
 
+from pd_prime_demo.core.result_types import Err, Ok, Result
 from pd_prime_demo.models.base import (
     BaseModelConfig,
     IdentifiableModel,
     TimestampedModel,
 )
-from pd_prime_demo.services.result import Err, Ok, Result
 from tests.fixtures.test_data import (
     VALID_POLICY_DATA,
     DecisionFactorModel,
@@ -89,7 +89,11 @@ class TestBaseModelConfig:
         instance = TestModel(timestamp=now)
 
         json_data = instance.model_dump_json()
-        assert now.isoformat() in json_data
+        # Check that either format is acceptable (Z or +00:00)
+        assert (
+            now.isoformat() in json_data
+            or now.isoformat().replace("+00:00", "Z") in json_data
+        )
 
 
 class TestTimestampedModel:
