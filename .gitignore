@@ -194,6 +194,7 @@ tracemalloc_*.txt
 
 # Archived docs
 docs/archive/
+docs/prompts/
 
 # Local configuration files (may contain environment-specific settings)
 .coveragerc.local
