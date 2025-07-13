@@ -514,6 +514,39 @@ class StateDiscountRules(BaseModelConfig):
 
 
 # ---------------------------------------------------------------------------
+# Catastrophe-related models (new)
+# ---------------------------------------------------------------------------
+
+
+@beartype
+class DwellingCharacteristics(BaseModelConfig):
+    """Physical characteristics of the insured dwelling used in catastrophe loading.
+
+    Only basic attributes for now; extend as underwriting rules evolve.
+    """
+
+    construction_type: str = Field(
+        default="wood_frame",
+        description="Primary construction type of the building (e.g., wood_frame, brick, steel)",
+    )
+    roof_type: str = Field(
+        default="asphalt_shingle",
+        description="Roof covering material (e.g., asphalt_shingle, tile, metal)",
+    )
+    year_built: int | None = Field(
+        default=None,
+        ge=1800,
+        le=datetime.now().year,
+        description="Year the dwelling was built (optional)",
+    )
+    square_feet: int | None = Field(
+        default=None,
+        ge=100,
+        description="Finished square footage of the dwelling (optional)",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Helper utilities
 # ---------------------------------------------------------------------------
 
