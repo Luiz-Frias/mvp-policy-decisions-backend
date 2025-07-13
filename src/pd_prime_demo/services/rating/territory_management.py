@@ -1,11 +1,11 @@
 # PolicyCore - Policy Decision Management System
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
 # Form F[x] Labs
 #
 # This software is dual-licensed under AGPL-3.0 and Commercial License.
 # For commercial licensing, contact: luizf35@gmail.com
 # See LICENSE file for full terms.
-
 """Territory management for geographic rating factors.
 
 This module handles ZIP code to territory mapping, territory factor
