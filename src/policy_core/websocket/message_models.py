@@ -26,7 +26,16 @@ from policy_core.models.base import BaseModelConfig
 class PayloadData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
-    # Auto-generated - customize based on usage
+    # Allow arbitrary extra keys for flexible payloads in cross-boundary messages.
+    model_config = ConfigDict(
+        frozen=True,
+        extra="allow",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    # Common optional fields
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
@@ -40,11 +49,29 @@ class VData(BaseModelConfig):
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
-@beartype
 class Data(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+    """Structured model replacing dict[str, Any] usage.
 
-    # Auto-generated - customize based on usage
+    This model intentionally **allows** extra keys because it represents the
+    arbitrary JSON payload inside a ``WebSocketMessage`` that crosses the
+    server-client boundary. Concrete helpers like ``WebSocketMessageData`` or
+    specialized domain models should be used where the structure is known. For
+    the generic ``data`` field we relax validation to prevent brittle failures
+    when new keys are introduced by clients or internal helpers (e.g. welcome
+    messages).
+    """
+
+    # Override configuration inherited from ``BaseModelConfig`` so that unknown
+    # keys are *allowed* at runtime (system-boundary permissiveness).
+    model_config = ConfigDict(
+        frozen=True,
+        extra="allow",  # <<< permit arbitrary keys
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    # Known common keys (optional)
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
@@ -809,9 +836,13 @@ def create_websocket_message_data(
 
     # Capabilities remain a simple dict in WebSocketMessageData; allow both dict and model
     if isinstance(capabilities, ConnectionCapabilities):
-        capabilities_dict = capabilities.model_dump()
+        capabilities_dict = {
+            k: v for k, v in capabilities.model_dump().items() if isinstance(v, bool)
+        }
     else:
-        capabilities_dict = capabilities
+        capabilities_dict = {
+            k: v for k, v in (capabilities or {}).items() if isinstance(v, bool)
+        }
 
     return WebSocketMessageData(
         connection_id=connection_id,
