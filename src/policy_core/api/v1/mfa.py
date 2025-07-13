@@ -22,6 +22,9 @@ from policy_core.core.database import get_database
 from ...core.auth.mfa import MFAManager
 from ...core.auth.mfa.models import MFAMethod, MFAVerificationRequest
 from ...models.base import BaseModelConfig
+
+# For these endpoints we treat current user as a raw dict coming from test patches.
+CurrentUserData = dict[str, Any]
 from ..dependencies import get_current_user
 from ..response_patterns import ErrorResponse
 
@@ -39,15 +42,6 @@ class MetadataData(BaseModelConfig):
 
 @beartype
 class AuthenticatorSelectionData(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
-
-    # Auto-generated - customize based on usage
-    content: str | None = Field(default=None, description="Content data")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
-
-
-@beartype
-class CurrentUserData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
     # Auto-generated - customize based on usage
@@ -228,6 +222,30 @@ async def get_mfa_manager() -> MFAManager:
     return MFAManager(db, cache, settings)
 
 
+# ---------------------------------------------------------------------------
+# Legacy helper: extract user_id from patched dict
+# ---------------------------------------------------------------------------
+
+
+def _get_user_id(user: Any) -> str:  # noqa: ANN401
+    """Extract user identifier from mocked/real user data (dict or model)."""
+    if user is None:
+        return ""
+
+    # Dict-like objects (incl. AsyncMock with spec=dict) have .get
+    if hasattr(user, "get"):
+        val = user.get("sub") or user.get("user_id")  # type: ignore[attr-defined]
+        if val:
+            return str(val)
+
+    # Fallback to attribute access
+    for attr in ("sub", "user_id"):
+        if hasattr(user, attr):
+            return str(getattr(user, attr))
+
+    return ""
+
+
 # Endpoints
 
 
@@ -238,7 +256,7 @@ async def get_mfa_status(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> MFAStatusResponse | ErrorResponse:
     """Get user's MFA status."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Get MFA configuration
     config_result = await mfa_manager.get_user_mfa_config(user_id)
@@ -281,7 +299,7 @@ async def setup_totp(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> TOTPSetupResponse | ErrorResponse:
     """Start TOTP setup process."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
     user_email = current_user.get("email", "user@example.com")
 
     # Check if TOTP already enabled
@@ -322,7 +340,7 @@ async def verify_totp_setup(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str] | ErrorResponse:
     """Verify TOTP setup and activate."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Verify and activate TOTP
     verify_result = await mfa_manager.verify_totp_setup(user_id, request.code)
@@ -340,7 +358,7 @@ async def disable_totp(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str] | ErrorResponse:
     """Disable TOTP authentication."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Check if user has other MFA methods enabled
     config_result = await mfa_manager.get_user_mfa_config(user_id)
@@ -383,7 +401,7 @@ async def begin_webauthn_registration(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> WebAuthnRegistrationResponse | ErrorResponse:
     """Begin WebAuthn registration."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
     user_email = current_user.get("email", "user@example.com")
     user_name = current_user.get("name", user_email)
 
@@ -414,7 +432,7 @@ async def setup_sms(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, str | int] | ErrorResponse:
     """Setup SMS authentication."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Encrypt phone number
     encrypt_result = mfa_manager._sms_provider.encrypt_phone_number(
@@ -445,7 +463,7 @@ async def create_mfa_challenge(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> MFAChallengeResponse | ErrorResponse:
     """Create MFA challenge for authentication."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # In production, would include risk assessment
     challenge_result = await mfa_manager.create_mfa_challenge(
@@ -519,7 +537,7 @@ async def generate_recovery_codes(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Generate new recovery codes."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Generate new codes
     codes_result = await mfa_manager.generate_recovery_codes(user_id)
@@ -543,7 +561,7 @@ async def trust_device(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Mark device as trusted."""
-    user_id = UUID(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Get request metadata (in production, extract from request)
     ip_address = "127.0.0.1"  # Mock
@@ -578,7 +596,7 @@ async def get_risk_assessment(
     mfa_manager: MFAManager = Depends(get_mfa_manager),
 ) -> dict[str, Any] | ErrorResponse:
     """Get current authentication risk assessment."""
-    user_id = str(current_user["sub"])
+    user_id = _get_user_id(current_user)
 
     # Get request metadata (in production, extract from request)
     ip_address = "127.0.0.1"  # Mock

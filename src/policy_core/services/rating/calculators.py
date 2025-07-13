@@ -17,16 +17,21 @@
 # rule that otherwise blocks dict[...] usage outside system boundaries.
 # ---------------------------------------------------------------------------
 
+# TODO(modularization): This file is now ~2400 lines and exceeds the 500-line
+# architectural guideline.  In a follow-up refactor, split into focused
+# modules (e.g., `premium.py`, `risk.py`, `ai.py`, `discounts.py`) and expose
+# a public `policy_core.services.rating` package facade.
+
 import math
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, getcontext
 from enum import Enum
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 from beartype import beartype
 from numpy.typing import NDArray
-from pydantic import Field, ValidationError
+from pydantic import ConfigDict, Field, ValidationError
 
 from policy_core.models.base import BaseModelConfig
 from policy_core.schemas.rating import (
@@ -46,9 +51,22 @@ from ..performance_monitor import performance_monitor
 
 @beartype
 class FeaturesMetrics(BaseModelConfig):
-    """Structured model replacing dict[str, float] usage."""
+    """Input feature set for GLM and other statistical models.
 
-    average: float = Field(default=0.0, ge=0.0, description="Average value")
+    Fields mirror those referenced in GLM calculations; defaults allow partial
+    dicts from legacy callers while ensuring strict typing moving forward.
+    """
+
+    driver_age: float = Field(default=30.0, ge=16, le=100)
+    vehicle_age: float = Field(default=5.0, ge=0, le=50)
+    annual_mileage: float = Field(default=12000.0, ge=0)
+    urban_indicator: float = Field(default=0.0, ge=0.0, le=1.0)
+    prior_claims: float = Field(default=0.0, ge=0.0)
+    vehicle_value: float = Field(default=25000.0, ge=1000)
+    vehicle_safety_score: float = Field(default=0.0, ge=0.0)
+
+    # Allow extra attributes for forward-compat (e.g., new features)
+    model_config = ConfigDict(extra="allow")
 
 
 @beartype
@@ -62,9 +80,18 @@ class ParametersData(BaseModelConfig):
 
 @beartype
 class CoefficientsMetrics(BaseModelConfig):
-    """Structured model replacing dict[str, float] usage."""
+    """GLM coefficient set matching ``FeaturesMetrics`` fields."""
 
-    average: float = Field(default=0.0, ge=0.0, description="Average value")
+    intercept: float = Field(...)
+    driver_age: float = Field(default=0.0)
+    vehicle_age: float = Field(default=0.0)
+    annual_mileage: float = Field(default=0.0)
+    urban_indicator: float = Field(default=0.0)
+    prior_claims: float = Field(default=0.0)
+    vehicle_value: float = Field(default=0.0)
+    vehicle_safety_score: float = Field(default=0.0)
+
+    model_config = ConfigDict(extra="allow")
 
 
 # Set decimal precision for financial calculations
@@ -414,7 +441,7 @@ class TableDefinition(BaseModelConfig):
 
     table_type: str = Field(..., description="Type of lookup table")
     parameters: ParametersData = Field(
-        default_factory=dict, description="Table parameters"
+        default_factory=ParametersData, description="Table parameters"
     )
 
 
@@ -1380,7 +1407,7 @@ class AIRiskScorer:
         self,
         customer_data: CustomerAIData | dict[str, Any],
         vehicle_data: VehicleAIData | dict[str, Any],
-        driver_data: list[DriverAIData | dict[str, Any]],
+        driver_data: Sequence[DriverAIData | dict[str, Any]],
         external_data: ExternalAIData | dict[str, Any] | None = None,
     ) -> Result[AIRiskScoreResult, str]:
         """Calculate AI risk score using multiple models.
@@ -1405,7 +1432,7 @@ class AIRiskScorer:
             return Err(veh_res.unwrap_err())
         vehicle_data = veh_res.unwrap()
 
-        drv_res = _to_driver_ai_list(driver_data)
+        drv_res = _to_driver_ai_list(list(driver_data))
         if drv_res.is_err():
             return Err(drv_res.unwrap_err())
         driver_data = drv_res.unwrap()
@@ -1453,14 +1480,13 @@ class AIRiskScorer:
             )
 
             # Identify key risk factors
-            risk_factors = self._identify_risk_factors(
-                features,
-                {
-                    "claim_prob": claim_prob,
-                    "severity": expected_severity,
-                    "fraud": fraud_risk,
-                },
+            predictions_obj = AIModelPredictions(
+                claim_probability=claim_prob,
+                expected_severity=expected_severity,
+                fraud_risk=fraud_risk,
             )
+
+            risk_factors = self._identify_risk_factors(features, predictions_obj)
 
             return Ok(
                 AIRiskScoreResult(
@@ -1484,7 +1510,7 @@ class AIRiskScorer:
         self,
         customer_data: CustomerAIData,
         vehicle_data: VehicleAIData,
-        driver_data: list[DriverAIData],
+        driver_data: Sequence[DriverAIData],
         external_data: ExternalAIData | None,
     ) -> Result[NDArray[np.float64], str]:
         """Extract features for ML models.
@@ -1648,8 +1674,8 @@ class StatisticalRatingModels:
     @beartype
     @staticmethod
     def calculate_generalized_linear_model_factor(
-        features: FeaturesMetrics,
-        coefficients: CoefficientsMetrics,
+        features: FeaturesMetrics | dict[str, Any],
+        coefficients: CoefficientsMetrics | dict[str, Any],
         link_function: str = "log",
     ) -> Result[float, str]:
         """Calculate GLM-based rating factor.
@@ -1663,6 +1689,17 @@ class StatisticalRatingModels:
             Result containing calculated factor or error
         """
         try:
+            # Convert legacy dict inputs
+            features_result = _to_features_metrics(features)
+            if features_result.is_err():
+                return Err(features_result.unwrap_err())
+            features = features_result.unwrap()
+
+            coeffs_result = _to_coefficients_metrics(coefficients)
+            if coeffs_result.is_err():
+                return Err(coeffs_result.unwrap_err())
+            coefficients = coeffs_result.unwrap()
+
             if not features:
                 return Err("Features are required for GLM calculation")
             if not coefficients:
@@ -1725,8 +1762,8 @@ class StatisticalRatingModels:
     @beartype
     @staticmethod
     def calculate_loss_cost_relativity(
-        exposure_data: ExposureData,
-        loss_data: LossData,
+        exposure_data: ExposureData | dict[str, Any],
+        loss_data: LossData | dict[str, Any],
         credibility_threshold: float = 0.3,
     ) -> Result[float, str]:
         """Calculate loss cost relativity using Buhlmann credibility.
@@ -1740,6 +1777,17 @@ class StatisticalRatingModels:
             Result containing loss cost relativity or error
         """
         try:
+            # Convert legacy dict inputs
+            exposure_result = _to_exposure_data(exposure_data)
+            if exposure_result.is_err():
+                return Err(exposure_result.unwrap_err())
+            exposure_data = exposure_result.unwrap()
+
+            loss_result = _to_loss_data(loss_data)
+            if loss_result.is_err():
+                return Err(loss_result.unwrap_err())
+            loss_data = loss_result.unwrap()
+
             # Extract required data
             claim_count = loss_data.claim_count
             claim_amount = loss_data.claim_amount
@@ -1783,9 +1831,9 @@ class StatisticalRatingModels:
     @beartype
     @staticmethod
     def calculate_frequency_severity_model(
-        driver_profile: DriverProfile,
-        vehicle_profile: VehicleProfile,
-        territory_profile: TerritoryProfile,
+        driver_profile: DriverProfile | dict[str, Any],
+        vehicle_profile: VehicleProfile | dict[str, Any],
+        territory_profile: TerritoryProfile | dict[str, Any],
     ) -> Result[FrequencySeverityResult, str]:
         """Calculate separate frequency and severity models.
 
@@ -1798,57 +1846,84 @@ class StatisticalRatingModels:
             Result containing frequency and severity factors or error
         """
         try:
+            # Validate inputs
+            if not driver_profile or not vehicle_profile or not territory_profile:
+                return Err("All profiles are required for frequency/severity model")
+
+            # Convert legacy dict inputs
+            driver_res = _to_driver_profile(driver_profile)
+            if driver_res.is_err():
+                return Err(driver_res.unwrap_err())
+            driver_profile = driver_res.unwrap()
+
+            vehicle_res = _to_vehicle_profile(vehicle_profile)
+            if vehicle_res.is_err():
+                return Err(vehicle_res.unwrap_err())
+            vehicle_profile = vehicle_res.unwrap()
+
+            territory_res = _to_territory_profile(territory_profile)
+            if territory_res.is_err():
+                return Err(territory_res.unwrap_err())
+            territory_profile = territory_res.unwrap()
+
+            # Proceed
             # Frequency model (Poisson regression simulation)
-            freq_features = GLMFeatures(
-                driver_age=float(driver_profile.age),
-                vehicle_age=float(vehicle_profile.age),
-                annual_mileage=float(vehicle_profile.annual_mileage),
-                urban_indicator=float(1 if territory_profile.urban else 0),
-                prior_claims=float(driver_profile.prior_claims),
+            glm_features = GLMFeatures(
+                driver_age=driver_profile.age,
+                vehicle_age=vehicle_profile.age,
+                annual_mileage=vehicle_profile.annual_mileage,
+                urban_indicator=1.0 if territory_profile.urban else 0.0,
+                prior_claims=driver_profile.prior_claims,
+                vehicle_value=vehicle_profile.value,
+                vehicle_safety_score=len(vehicle_profile.safety_features) / 10,
             )
 
-            # Frequency coefficients (example values)
-            freq_coefficients = GLMCoefficients(
-                intercept=-4.5,
-                driver_age=-0.02 if freq_features.driver_age > 25 else 0.05,
-                vehicle_age=0.01,
-                annual_mileage=0.000001,  # Per mile
-                urban_indicator=0.3,
-                prior_claims=0.4,
+            freq_coeffs = GLMCoefficients(
+                intercept=-3.0,
+                driver_age=0.01,
+                vehicle_age=0.02,
+                annual_mileage=0.0001,
+                urban_indicator=0.5,
+                prior_claims=0.3,
+                vehicle_value=0.00005,
+                vehicle_safety_score=-0.1,
             )
 
-            freq_result = (
+            # Convert to dict for legacy-compatible helper
+            freq_factor_res = (
                 StatisticalRatingModels.calculate_generalized_linear_model_factor(
-                    freq_features, freq_coefficients, "log"
+                    glm_features.model_dump(),
+                    freq_coeffs.model_dump(),
+                    link_function="log",
                 )
             )
-            if freq_result.is_err():
-                return Err(f"Frequency model failed: {freq_result.unwrap_err()}")
-            frequency_factor = freq_result.unwrap()
+            if freq_factor_res.is_err():
+                return Err(f"Frequency model failed: {freq_factor_res.unwrap_err()}")
+            frequency_factor = freq_factor_res.unwrap()
 
             # Severity model (Gamma regression simulation)
-            sev_features = GLMFeatures(
-                vehicle_value=float(vehicle_profile.value),
-                driver_age=float(driver_profile.age),
-                vehicle_safety_score=float(len(vehicle_profile.safety_features)),
+            sev_features = glm_features.model_dump()
+            sev_coeffs = GLMCoefficients(
+                intercept=10.0,
+                driver_age=0.02,
+                vehicle_age=0.03,
+                annual_mileage=0.0002,
+                urban_indicator=0.8,
+                prior_claims=0.5,
+                vehicle_value=0.0001,
+                vehicle_safety_score=-0.2,
             )
 
-            # Severity coefficients (example values)
-            sev_coefficients = GLMCoefficients(
-                intercept=8.5,  # Log of base severity
-                vehicle_value=0.00001,  # Per dollar of vehicle value
-                driver_age=-0.005 if sev_features.driver_age > 25 else 0.01,
-                vehicle_safety_score=-0.1,  # Credit for safety features
-            )
-
-            sev_result = (
+            sev_factor_res = (
                 StatisticalRatingModels.calculate_generalized_linear_model_factor(
-                    sev_features, sev_coefficients, "log"
+                    sev_features,
+                    sev_coeffs.model_dump(),
+                    link_function="identity",
                 )
             )
-            if sev_result.is_err():
-                return Err(f"Severity model failed: {sev_result.unwrap_err()}")
-            severity_factor = sev_result.unwrap()
+            if sev_factor_res.is_err():
+                return Err(f"Severity model failed: {sev_factor_res.unwrap_err()}")
+            severity_factor = sev_factor_res.unwrap()
 
             return Ok(
                 FrequencySeverityResult(
@@ -1868,7 +1943,9 @@ class StatisticalRatingModels:
     def calculate_catastrophe_loading(
         zip_code: str,
         coverage_types: list[str],
-        dwelling_characteristics: DwellingCharacteristics | None = None,
+        dwelling_characteristics: DwellingCharacteristics
+        | dict[str, Any]
+        | None = None,
     ) -> Result[float, str]:
         """Calculate catastrophe loading factor.
 
@@ -1881,6 +1958,7 @@ class StatisticalRatingModels:
             Result containing catastrophe loading factor or error
         """
         try:
+            # Validate inputs
             if not zip_code:
                 return Err("ZIP code is required for catastrophe loading")
 
@@ -1908,19 +1986,22 @@ class StatisticalRatingModels:
                     cat_loading *= 1.06  # 6% wildfire loading
 
             # Apply dwelling-specific adjustments if available
-            if dwelling_characteristics:
-                construction_type = dwelling_characteristics.construction_type
-                roof_type = dwelling_characteristics.roof_type
+            if dwelling_characteristics is not None:
+                dc_res = _to_dwelling_characteristics(dwelling_characteristics)
+                if dc_res.is_err():
+                    return Err(dc_res.unwrap_err())
+                dc = dc_res.unwrap()
 
-                # Construction adjustments
-                if construction_type == "masonry":
-                    cat_loading *= 0.95  # Credit for masonry construction
-                elif construction_type == "mobile_home":
-                    cat_loading *= 1.25  # Surcharge for mobile homes
+                if dc is not None:
+                    # Construction adjustments
+                    if dc.construction_type == "masonry":
+                        cat_loading *= 0.95
+                    elif dc.construction_type == "mobile_home":
+                        cat_loading *= 1.25
 
-                # Roof adjustments for hail
-                if roof_type == "impact_resistant":
-                    cat_loading *= 0.90  # Credit for impact-resistant roof
+                    # Roof adjustments for hail-resistant materials
+                    if dc.roof_type == "impact_resistant":
+                        cat_loading *= 0.90
 
             return Ok(cat_loading)
 
@@ -2027,7 +2108,7 @@ class AdvancedPerformanceCalculator:
     @beartype
     def batch_calculate_factors(
         self,
-        factor_requests: list[FactorRequest | dict[str, Any]],
+        factor_requests: Sequence[FactorRequest | dict[str, Any]],
     ) -> Result[list[FactorResult], str]:
         """Batch calculate factors for multiple risks.
 
@@ -2355,7 +2436,7 @@ def _to_vehicle_ai_data(
 
 @beartype
 def _to_driver_ai_list(
-    drivers: list[DriverAIData | dict[str, Any]],
+    drivers: Sequence[DriverAIData | dict[str, Any]],
 ) -> Result[list[DriverAIData], str]:
     converted: list[DriverAIData] = []
     for idx, item in enumerate(drivers):
@@ -2397,7 +2478,7 @@ def _to_external_ai_data(
 
 @beartype
 def _to_factor_request_list(
-    requests: list[FactorRequest | dict[str, Any]],
+    requests: Sequence[FactorRequest | dict[str, Any]],
 ) -> Result[list[FactorRequest], str]:
     converted: list[FactorRequest] = []
     for idx, item in enumerate(requests):
@@ -2412,3 +2493,117 @@ def _to_factor_request_list(
         else:
             return Err(f"Unsupported factor_request type at index {idx}.")
     return Ok(converted)
+
+
+@beartype
+def _to_features_metrics(
+    data: FeaturesMetrics | dict[str, Any],
+) -> Result[FeaturesMetrics, str]:
+    if isinstance(data, FeaturesMetrics):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(FeaturesMetrics.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid features metrics: {exc}")
+    return Err("Unsupported features metrics type. Expected FeaturesMetrics or dict.")
+
+
+@beartype
+def _to_coefficients_metrics(
+    data: CoefficientsMetrics | dict[str, Any],
+) -> Result[CoefficientsMetrics, str]:
+    if isinstance(data, CoefficientsMetrics):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(CoefficientsMetrics.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid coefficients metrics: {exc}")
+    return Err(
+        "Unsupported coefficients metrics type. Expected CoefficientsMetrics or dict."
+    )
+
+
+@beartype
+def _to_exposure_data(
+    data: ExposureData | dict[str, Any],
+) -> Result[ExposureData, str]:
+    if isinstance(data, ExposureData):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(ExposureData.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid exposure data: {exc}")
+    return Err("Unsupported exposure data type. Expected ExposureData or dict.")
+
+
+@beartype
+def _to_loss_data(data: LossData | dict[str, Any]) -> Result[LossData, str]:
+    if isinstance(data, LossData):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(LossData.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid loss data: {exc}")
+    return Err("Unsupported loss data type. Expected LossData or dict.")
+
+
+@beartype
+def _to_driver_profile(
+    data: DriverProfile | dict[str, Any],
+) -> Result[DriverProfile, str]:
+    if isinstance(data, DriverProfile):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(DriverProfile.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid driver profile: {exc}")
+    return Err("Unsupported driver profile type. Expected DriverProfile or dict.")
+
+
+@beartype
+def _to_vehicle_profile(
+    data: VehicleProfile | dict[str, Any],
+) -> Result[VehicleProfile, str]:
+    if isinstance(data, VehicleProfile):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(VehicleProfile.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid vehicle profile: {exc}")
+    return Err("Unsupported vehicle profile type. Expected VehicleProfile or dict.")
+
+
+@beartype
+def _to_territory_profile(
+    data: TerritoryProfile | dict[str, Any],
+) -> Result[TerritoryProfile, str]:
+    if isinstance(data, TerritoryProfile):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(TerritoryProfile.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid territory profile: {exc}")
+    return Err("Unsupported territory profile type. Expected TerritoryProfile or dict.")
+
+
+@beartype
+def _to_dwelling_characteristics(
+    data: DwellingCharacteristics | dict[str, Any] | None,
+) -> Result[DwellingCharacteristics | None, str]:
+    if data is None or isinstance(data, DwellingCharacteristics):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(DwellingCharacteristics.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid dwelling characteristics: {exc}")
+    return Err(
+        "Unsupported dwelling characteristics type. Expected DwellingCharacteristics, dict, or None."
+    )

@@ -8,8 +8,10 @@
 
 """Risk-based authentication engine."""
 
+import logging
 from datetime import datetime, timezone
 from ipaddress import ip_address, ip_network
+from typing import Any
 
 from beartype import beartype
 from pydantic import Field
@@ -68,12 +70,33 @@ class RiskEngine:
         self._cache = cache
         self._settings = settings
 
-        # Risk thresholds
-        self._risk_thresholds = {
+        # Load dynamic config or fall back to defaults
+        config: dict[str, Any] = getattr(settings, "risk_engine_config", {})
+
+        # ------------------------------------------------------------------
+        # Parse thresholds: YAML uses lowercase keys. Convert to RiskLevel.
+        # ------------------------------------------------------------------
+        default_thresholds: dict[RiskLevel, float] = {
             RiskLevel.LOW: 0.0,
-            RiskLevel.MEDIUM: 0.3,
-            RiskLevel.HIGH: 0.6,
-            RiskLevel.CRITICAL: 0.8,
+            RiskLevel.MEDIUM: 0.4,
+            RiskLevel.HIGH: 0.7,
+            RiskLevel.CRITICAL: 0.9,
+        }
+
+        raw_thresholds: dict[str, float] = config.get("thresholds", {})  # type: ignore[arg-type]
+        self._risk_thresholds: dict[RiskLevel, float] = {
+            RiskLevel.LOW: float(
+                raw_thresholds.get("low", default_thresholds[RiskLevel.LOW])
+            ),
+            RiskLevel.MEDIUM: float(
+                raw_thresholds.get("medium", default_thresholds[RiskLevel.MEDIUM])
+            ),
+            RiskLevel.HIGH: float(
+                raw_thresholds.get("high", default_thresholds[RiskLevel.HIGH])
+            ),
+            RiskLevel.CRITICAL: float(
+                raw_thresholds.get("critical", default_thresholds[RiskLevel.CRITICAL])
+            ),
         }
 
         # MFA requirements by risk level
@@ -89,9 +112,7 @@ class RiskEngine:
             ip_network("10.0.0.0/8"),  # Private network example
             ip_network("192.168.0.0/16"),  # Private network example
         ]
-
-        # Risk factors and their weights
-        self._risk_weights = {
+        default_weights: dict[str, float] = {
             "new_device": 0.3,
             "new_location": 0.25,
             "impossible_travel": 0.4,
@@ -101,6 +122,22 @@ class RiskEngine:
             "account_age": 0.1,
             "unusual_behavior": 0.25,
         }
+
+        self._risk_weights: dict[str, float] = {
+            **default_weights,
+            **config.get("weights", {}),  # type: ignore[arg-type]
+        }
+
+        # ------------------------------------------------------------------
+        # Log effective configuration (use info level to appear in CI logs)
+        # ------------------------------------------------------------------
+        logger = logging.getLogger(__name__)
+        if logger.isEnabledFor(logging.INFO):
+            logger.info(
+                "RiskEngine initialized with thresholds=%s weights=%s",
+                {k.value: v for k, v in self._risk_thresholds.items()},
+                self._risk_weights,
+            )
 
     @beartype
     async def assess_risk(
@@ -387,61 +424,65 @@ class RiskEngine:
 
     @beartype
     async def _assess_behavior_risk(
-        self, user_id: str, context: ContextData
+        self,
+        user_id: str,
+        context: AdditionalContextData | ContextData | dict[str, float],
     ) -> dict[str, float]:
         """Assess risk based on behavioral patterns."""
         risk_factors = {}
 
-        try:
-            # Check for unusual actions
-            action = context.get("action")
-            if action in ["bulk_export", "permission_change", "api_key_create"]:
-                risk_factors["sensitive_action"] = 0.6
+        # Normalize to dict for easier access
+        ctx_dict: dict[str, Any]
+        if isinstance(context, (AdditionalContextData, ContextData)):
+            ctx_dict = context.model_dump()
+        else:
+            ctx_dict = context or {}
 
-            # Check for unusual data access patterns
-            if context.get("bulk_access", False):
-                risk_factors["bulk_access"] = 0.5
+        # Check for unusual actions
+        action = ctx_dict.get("action")
+        if action in ["bulk_export", "permission_change", "api_key_create"]:
+            risk_factors["sensitive_action"] = 0.6
 
-        except Exception:
-            pass
+        # Check for bulk data access flag
+        if ctx_dict.get("bulk_access", False):
+            risk_factors["bulk_access"] = 0.5
 
         return risk_factors
 
     @beartype
-    def _calculate_risk_score(self, risk_factors: RiskFactors) -> float:
+    def _calculate_risk_score(
+        self, risk_factors: RiskFactors | dict[str, float]
+    ) -> float:
         """Calculate weighted risk score."""
-        # Convert RiskFactors to dict for calculation
-        factors_dict = {
-            "location_risk": risk_factors.location_risk,
-            "device_risk": risk_factors.device_risk,
-            "behavioral_risk": risk_factors.behavioral_risk,
-            "time_risk": risk_factors.time_risk,
-            "network_risk": risk_factors.network_risk,
-            "velocity_risk": risk_factors.velocity_risk,
-            "credential_risk": risk_factors.credential_risk,
+        rf_res = _to_risk_factors(risk_factors)
+        if rf_res.is_err():
+            # Fall back to 0 risk on invalid input
+            return 0.0
+
+        factors = rf_res.unwrap()
+
+        # Simple weighted sum approach
+        score = 0.0
+        # Map weight keys to RiskFactors attributes
+        alias_map = {
+            "new_device": "device_risk",
+            "no_device_id": "device_risk",
+            "new_location": "location_risk",
+            "location_check_error": "location_risk",
+            "impossible_travel": "location_risk",
+            "untrusted_network": "network_risk",
+            "failed_attempts": "velocity_risk",
+            "suspicious_time": "time_risk",
+            "unusual_behavior": "behavioral_risk",
         }
 
-        total_score = 0.0
-        total_weight = 0.0
-
-        for factor, value in factors_dict.items():
-            # Get weight for this factor type
-            weight = 1.0  # Default weight
-            for factor_type, factor_weight in self._risk_weights.items():
-                if factor_type in factor:
-                    weight = factor_weight
-                    break
-
-            total_score += value * weight
-            total_weight += weight
+        for factor_name, weight in self._risk_weights.items():
+            attr = alias_map.get(factor_name, factor_name)
+            factor_value = getattr(factors, attr, 0.0)
+            score += factor_value * weight
 
         # Normalize score to 0-1 range
-        if total_weight > 0:
-            normalized_score = total_score / total_weight
-        else:
-            normalized_score = 0.0
-
-        return min(normalized_score, 1.0)
+        return min(max(score, 0.0), 1.0)
 
     @beartype
     def _determine_risk_level(self, risk_score: float) -> RiskLevel:
@@ -457,9 +498,15 @@ class RiskEngine:
 
     @beartype
     def _build_risk_reason(
-        self, risk_factors: RiskFactors, risk_level: RiskLevel
+        self, risk_factors: RiskFactors | dict[str, float], risk_level: RiskLevel
     ) -> str:
         """Build human-readable risk reason."""
+        rf_res = _to_risk_factors(risk_factors)
+        if rf_res.is_err():
+            return "Risk factors unavailable"
+
+        risk_factors = rf_res.unwrap()
+
         if risk_level == RiskLevel.LOW:
             return "Normal authentication pattern detected"
 
@@ -502,59 +549,42 @@ class RiskEngine:
 
     @beartype
     def _update_risk_factors(
-        self, risk_factors: RiskFactors, updates: UpdatesMetrics
+        self,
+        risk_factors: RiskFactors,
+        updates: UpdatesMetrics | dict[str, float],
     ) -> RiskFactors:
         """Update risk factors with new values."""
-        location_risk = risk_factors.location_risk
-        device_risk = risk_factors.device_risk
-        behavioral_risk = risk_factors.behavioral_risk
-        time_risk = risk_factors.time_risk
-        network_risk = risk_factors.network_risk
-        velocity_risk = risk_factors.velocity_risk
-        credential_risk = risk_factors.credential_risk
-
         # Map risk factor names to appropriate categories
-        for factor_name, value in updates.items():
-            if any(
-                term in factor_name
-                for term in ["location", "travel", "country", "city"]
-            ):
-                location_risk = max(location_risk, value)
-            elif any(
-                term in factor_name for term in ["device", "fingerprint", "user_agent"]
-            ):
-                device_risk = max(device_risk, value)
-            elif any(
-                term in factor_name
-                for term in ["behavior", "action", "access", "sensitive"]
-            ):
-                behavioral_risk = max(behavioral_risk, value)
-            elif any(term in factor_name for term in ["time", "hour", "pattern"]):
-                time_risk = max(time_risk, value)
-            elif any(
-                term in factor_name for term in ["network", "ip", "vpn", "proxy", "tor"]
-            ):
-                network_risk = max(network_risk, value)
-            elif any(
-                term in factor_name
-                for term in ["velocity", "failed", "attempts", "rapid"]
-            ):
-                velocity_risk = max(velocity_risk, value)
-            elif any(
-                term in factor_name
-                for term in ["credential", "password", "mfa", "account"]
-            ):
-                credential_risk = max(credential_risk, value)
+        # Convert dict inputs to UpdatesMetrics-like handling
+        if isinstance(updates, dict):
+            updates_dict = updates
+        else:
+            updates_dict = updates.model_dump()
 
-        return RiskFactors(
-            location_risk=location_risk,
-            device_risk=device_risk,
-            behavioral_risk=behavioral_risk,
-            time_risk=time_risk,
-            network_risk=network_risk,
-            velocity_risk=velocity_risk,
-            credential_risk=credential_risk,
-        )
+        new_data = risk_factors.model_dump()
+        allowed = set(RiskFactors.__fields__.keys())
+        for factor, value in updates_dict.items():
+            if factor not in allowed:
+                # Map some common aliases to base categories
+                if factor in ["new_device", "no_device_id"]:
+                    target = "device_risk"
+                elif factor in ["new_location", "location_check_error"]:
+                    target = "location_risk"
+                elif factor in ["failed_attempts", "rapid_attempts", "velocity"]:
+                    target = "velocity_risk"
+                elif factor in ["untrusted_network", "vpn_proxy"]:
+                    target = "network_risk"
+                elif factor in ["sensitive_action", "bulk_access", "unusual_behavior"]:
+                    target = "behavioral_risk"
+                else:
+                    continue
+                current = new_data.get(target, 0.0)
+                new_data[target] = max(current, value)
+            else:
+                current = new_data.get(factor, 0.0)
+                new_data[factor] = max(current, value)
+
+        return RiskFactors.model_validate(new_data)
 
     # Helper methods (mock implementations)
 
@@ -570,7 +600,11 @@ class RiskEngine:
         }
 
     @beartype
-    def _calculate_distance(self, loc1: Loc1Data, loc2: Loc1Data) -> float:
+    def _calculate_distance(
+        self,
+        loc1: Loc1Data | dict[str, str | float],
+        loc2: Loc1Data | dict[str, str | float],
+    ) -> float:
         """Calculate distance between two locations in km (mock)."""
         # In production, use proper geographic distance calculation
         return 100.0  # Mock 100km
@@ -610,3 +644,24 @@ class RiskEngine:
         """Log risk assessment for analysis and audit."""
         # In production, store in database for analysis
         pass
+
+
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# Convert loose dict inputs into strict RiskFactors model for backward compatibility.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_risk_factors(data: RiskFactors | dict[str, float]) -> Result[RiskFactors, str]:
+    """Coerce legacy dict risk_factors into RiskFactors model."""
+    if isinstance(data, RiskFactors):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            allowed_keys = {field for field in RiskFactors.__fields__.keys()}
+            filtered = {k: v for k, v in data.items() if k in allowed_keys}
+            return Ok(RiskFactors.model_validate(filtered))
+        except Exception as exc:  # pragma: no cover
+            return Err(f"Invalid risk factors: {exc}")
+    return Err("Unsupported risk factor type; expected RiskFactors or dict")
