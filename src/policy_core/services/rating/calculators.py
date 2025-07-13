@@ -1378,10 +1378,10 @@ class AIRiskScorer:
     @beartype
     async def calculate_ai_risk_score(
         self,
-        customer_data: CustomerAIData,
-        vehicle_data: VehicleAIData,
-        driver_data: list[DriverAIData],
-        external_data: ExternalAIData | None = None,
+        customer_data: CustomerAIData | dict[str, Any],
+        vehicle_data: VehicleAIData | dict[str, Any],
+        driver_data: list[DriverAIData | dict[str, Any]],
+        external_data: ExternalAIData | dict[str, Any] | None = None,
     ) -> Result[AIRiskScoreResult, str]:
         """Calculate AI risk score using multiple models.
 
@@ -1394,6 +1394,27 @@ class AIRiskScorer:
         Returns:
             Result containing risk score data or error
         """
+        # Convert legacy inputs to models
+        cust_res = _to_customer_ai_data(customer_data)
+        if cust_res.is_err():
+            return Err(cust_res.unwrap_err())
+        customer_data = cust_res.unwrap()
+
+        veh_res = _to_vehicle_ai_data(vehicle_data)
+        if veh_res.is_err():
+            return Err(veh_res.unwrap_err())
+        vehicle_data = veh_res.unwrap()
+
+        drv_res = _to_driver_ai_list(driver_data)
+        if drv_res.is_err():
+            return Err(drv_res.unwrap_err())
+        driver_data = drv_res.unwrap()
+
+        ext_res = _to_external_ai_data(external_data)
+        if ext_res.is_err():
+            return Err(ext_res.unwrap_err())
+        external_data = ext_res.unwrap()
+
         try:
             features_result = self._extract_features(
                 customer_data, vehicle_data, driver_data, external_data
@@ -2006,7 +2027,7 @@ class AdvancedPerformanceCalculator:
     @beartype
     def batch_calculate_factors(
         self,
-        factor_requests: list[FactorRequest],
+        factor_requests: list[FactorRequest | dict[str, Any]],
     ) -> Result[list[FactorResult], str]:
         """Batch calculate factors for multiple risks.
 
@@ -2016,6 +2037,16 @@ class AdvancedPerformanceCalculator:
         Returns:
             Result containing list of calculated factors or error
         """
+        # Convert any legacy dict entries
+        req_res = _to_factor_request_list(factor_requests)
+        if req_res.is_err():
+            return Err(req_res.unwrap_err())
+        factor_requests = req_res.unwrap()
+
+        # Validate requests
+        if not factor_requests:
+            return Err("No factor requests provided")
+
         try:
             results = []
 
@@ -2284,4 +2315,100 @@ def _to_discount_list(
                 f"Unsupported discount type at index {idx}. Expected DiscountData or dict."
             )
 
+    return Ok(converted)
+
+
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide *AIData models
+# Helpers to convert loose dicts into AI scoring models.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_customer_ai_data(
+    data: CustomerAIData | dict[str, Any],
+) -> Result[CustomerAIData, str]:
+    if isinstance(data, CustomerAIData):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(CustomerAIData.model_validate(data))
+        except ValidationError as exc:
+            return Err(f"CustomerAIData validation error: {exc}")
+    return Err("Unsupported customer_data type. Expected CustomerAIData or dict.")
+
+
+@beartype
+def _to_vehicle_ai_data(
+    data: VehicleAIData | dict[str, Any],
+) -> Result[VehicleAIData, str]:
+    if isinstance(data, VehicleAIData):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(VehicleAIData.model_validate(data))
+        except ValidationError as exc:
+            return Err(f"VehicleAIData validation error: {exc}")
+    return Err("Unsupported vehicle_data type. Expected VehicleAIData or dict.")
+
+
+@beartype
+def _to_driver_ai_list(
+    drivers: list[DriverAIData | dict[str, Any]],
+) -> Result[list[DriverAIData], str]:
+    converted: list[DriverAIData] = []
+    for idx, item in enumerate(drivers):
+        if isinstance(item, DriverAIData):
+            converted.append(item)
+            continue
+        if isinstance(item, dict):
+            try:
+                converted.append(DriverAIData.model_validate(item))
+            except ValidationError as exc:
+                return Err(f"DriverAIData[{idx}] validation error: {exc}")
+        else:
+            return Err(f"Unsupported driver_data type at index {idx}.")
+    return Ok(converted)
+
+
+@beartype
+def _to_external_ai_data(
+    data: ExternalAIData | dict[str, Any] | None,
+) -> Result[ExternalAIData | None, str]:
+    if data is None or isinstance(data, ExternalAIData):
+        return Ok(data)
+    if isinstance(data, dict):
+        try:
+            return Ok(ExternalAIData.model_validate(data))
+        except ValidationError as exc:
+            return Err(f"ExternalAIData validation error: {exc}")
+    return Err(
+        "Unsupported external_data type. Expected ExternalAIData, dict, or None."
+    )
+
+
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide FactorRequest instances
+# Helper to convert list[dict] → list[FactorRequest]
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_factor_request_list(
+    requests: list[FactorRequest | dict[str, Any]],
+) -> Result[list[FactorRequest], str]:
+    converted: list[FactorRequest] = []
+    for idx, item in enumerate(requests):
+        if isinstance(item, FactorRequest):
+            converted.append(item)
+            continue
+        if isinstance(item, dict):
+            try:
+                converted.append(FactorRequest.model_validate(item))
+            except ValidationError as exc:
+                return Err(f"FactorRequest[{idx}] validation error: {exc}")
+        else:
+            return Err(f"Unsupported factor_request type at index {idx}.")
     return Ok(converted)
