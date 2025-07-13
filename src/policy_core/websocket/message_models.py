@@ -15,8 +15,8 @@ from uuid import UUID
 
 from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, validator
-from result import Err, Ok, Result
 
+from policy_core.core.result_types import Err, Ok, Result
 from policy_core.models.base import BaseModelConfig
 
 # Auto-generated models
