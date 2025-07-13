@@ -135,7 +135,9 @@ class WebSocketMessageData(BaseModel):
 
     # Message content
     action: str | None = Field(default=None, description="Action type")
-    payload: PayloadData = Field(default_factory=dict, description="Message payload")
+    payload: PayloadData = Field(
+        default_factory=PayloadData, description="Message payload"
+    )
 
     # System fields
     server_time: datetime | None = Field(default=None, description="Server timestamp")
@@ -185,7 +187,7 @@ class WebSocketMessageData(BaseModel):
     @validator("payload")
     @classmethod
     @beartype
-    def validate_payload_size(cls, v: VData) -> VData:
+    def validate_payload_size(cls, v: PayloadData) -> PayloadData:
         """Validate payload size to prevent oversized messages."""
         import json
 
@@ -717,7 +719,7 @@ def create_websocket_message_data(
     user_id: UUID | None = None,
     room_id: str | None = None,
     action: str | None = None,
-    payload: PayloadData | None = None,
+    payload: PayloadData | dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> WebSocketMessageData:
     """Helper function to create WebSocketMessageData instances."""
@@ -726,7 +728,9 @@ def create_websocket_message_data(
         user_id=user_id,
         room_id=room_id,
         action=action,
-        payload=payload or {},
+        payload=payload
+        if isinstance(payload, PayloadData)
+        else PayloadData.model_validate(payload or {}),
         **kwargs,
     )
 

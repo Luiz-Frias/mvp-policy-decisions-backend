@@ -185,7 +185,7 @@ class WebSocketMessage(BaseModel):
     @validator("data")
     @classmethod
     @beartype
-    def validate_data_size(cls, v: VData) -> VData:
+    def validate_data_size(cls, v: Data) -> Data:
         """Validate message data size to prevent oversized messages."""
         import json
 
@@ -449,9 +449,9 @@ class ConnectionManager:
         self._max_connections_allowed = 10000
 
         # Rate limiting
-        self._rate_limiters: dict[str, RateLimiterState] = (
-            {}
-        )  # connection_id -> {"tokens": int, "last_refill": timestamp}
+        self._rate_limiters: dict[
+            str, RateLimiterState
+        ] = {}  # connection_id -> {"tokens": int, "last_refill": timestamp}
         self._rate_limit_config: dict[str, int | float] = {
             "tokens_per_second": 20,
             "max_tokens": 100,
@@ -1109,7 +1109,7 @@ class ConnectionManager:
                         data=create_websocket_message_data(
                             alert_type="high_connection_usage",
                             payload={
-                                "message": f"Connection pool at {stats['utilization']*100:.1f}% capacity",
+                                "message": f"Connection pool at {stats['utilization'] * 100:.1f}% capacity",
                                 "severity": "warning",
                                 "stats": stats,
                             },
