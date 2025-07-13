@@ -73,9 +73,27 @@ class ByStateCounts(BaseModelConfig):
 
 @beartype
 class ConnectionLimitsCounts(BaseModelConfig):
-    """Structured model replacing dict[str, int] usage."""
+    """Structured model replacing dict[str, int] usage.
 
-    total: int = Field(default=0, ge=0, description="Total count")
+    Provides backward-compat keys ``max_connections`` and ``current_connections`` used by
+    ConnectionManager welcome messages.
+    """
+
+    max_connections: int | None = Field(
+        default=None,
+        ge=0,
+        description="Maximum concurrent connections allowed by server",
+    )
+    current_connections: int | None = Field(
+        default=None,
+        ge=0,
+        description="Current active WebSocket connections on server",
+    )
+    total: int | None = Field(
+        default=None,
+        ge=0,
+        description="Total connections (legacy metric, may match current_connections)",
+    )
 
 
 @beartype
