@@ -14,7 +14,8 @@ from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, validator
+from result import Err, Ok, Result
 
 from policy_core.models.base import BaseModelConfig
 
@@ -712,6 +713,55 @@ def get_supported_message_types() -> list[str]:
     return list(MESSAGE_TYPE_REGISTRY.keys())
 
 
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide ConnectionLimitsCounts / ConnectionCapabilities
+# Helpers to convert loose dict inputs into strict models for backward compatibility.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_connection_limits_counts(
+    data: ConnectionLimitsCounts | dict[str, Any] | None,
+) -> Result[ConnectionLimitsCounts | None, str]:
+    """Convert dict to ConnectionLimitsCounts where necessary."""
+
+    if data is None or isinstance(data, ConnectionLimitsCounts):
+        return Ok(data)
+
+    if isinstance(data, dict):
+        try:
+            return Ok(ConnectionLimitsCounts.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid connection_limits: {exc}")
+
+    return Err(
+        "Unsupported connection_limits type. Expected ConnectionLimitsCounts, dict, or None."
+    )
+
+
+@beartype
+def _to_connection_capabilities(
+    data: ConnectionCapabilities | dict[str, Any] | None,
+) -> Result[ConnectionCapabilities | None, str]:
+    """Convert dict to ConnectionCapabilities while filtering unknown fields."""
+
+    if data is None or isinstance(data, ConnectionCapabilities):
+        return Ok(data)
+
+    if isinstance(data, dict):
+        try:
+            allowed_keys = ConnectionCapabilities.model_fields.keys()
+            filtered = {k: v for k, v in data.items() if k in allowed_keys}
+            return Ok(ConnectionCapabilities.model_validate(filtered))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid connection_capabilities: {exc}")
+
+    return Err(
+        "Unsupported capabilities type. Expected ConnectionCapabilities, dict, or None."
+    )
+
+
 @beartype
 def create_websocket_message_data(
     *,
@@ -720,17 +770,39 @@ def create_websocket_message_data(
     room_id: str | None = None,
     action: str | None = None,
     payload: PayloadData | dict[str, Any] | None = None,
+    connection_limits: ConnectionLimitsCounts | dict[str, int] | None = None,
+    capabilities: ConnectionCapabilities | dict[str, bool] | None = None,
     **kwargs: Any,
 ) -> WebSocketMessageData:
-    """Helper function to create WebSocketMessageData instances."""
+    """Helper function to create WebSocketMessageData instances accepting legacy dicts."""
+
+    # Convert payload
+    payload_model = (
+        payload
+        if isinstance(payload, PayloadData)
+        else PayloadData.model_validate(payload or {})
+    )
+
+    # Convert connection_limits
+    limits_result = _to_connection_limits_counts(connection_limits)
+    if limits_result.is_err():
+        raise ValueError(limits_result.unwrap_err())
+    limits_model = limits_result.unwrap()
+
+    # Capabilities remain a simple dict in WebSocketMessageData; allow both dict and model
+    if isinstance(capabilities, ConnectionCapabilities):
+        capabilities_dict = capabilities.model_dump()
+    else:
+        capabilities_dict = capabilities
+
     return WebSocketMessageData(
         connection_id=connection_id,
         user_id=user_id,
         room_id=room_id,
         action=action,
-        payload=payload
-        if isinstance(payload, PayloadData)
-        else PayloadData.model_validate(payload or {}),
+        payload=payload_model,
+        connection_limits=limits_model,
+        capabilities=capabilities_dict,
         **kwargs,
     )
 
@@ -742,9 +814,17 @@ def create_connection_capabilities(
     real_time_analytics: bool = False,
     file_transfer: bool = False,
     compression: bool = False,
+    capabilities: ConnectionCapabilities | dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> ConnectionCapabilities:
-    """Helper function to create ConnectionCapabilities instances."""
+    """Helper function to create ConnectionCapabilities instances or validate provided dict."""
+
+    if capabilities is not None:
+        result = _to_connection_capabilities(capabilities)
+        if result.is_err():
+            raise ValueError(result.unwrap_err())
+        return result.unwrap() or ConnectionCapabilities()
+
     return ConnectionCapabilities(
         collaborative_editing=collaborative_editing,
         real_time_analytics=real_time_analytics,
@@ -791,15 +871,20 @@ def create_connection_metadata(
     user_id: UUID | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
-    capabilities: ConnectionCapabilities | None = None,
+    capabilities: ConnectionCapabilities | dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> WebSocketConnectionMetadata:
-    """Helper function to create WebSocketConnectionMetadata instances."""
+    """Helper to create WebSocketConnectionMetadata accepting dict capabilities."""
+
+    result = _to_connection_capabilities(capabilities)
+    if result.is_err():
+        raise ValueError(result.unwrap_err())
+
     return WebSocketConnectionMetadata(
         connection_id=connection_id,
         user_id=user_id,
         ip_address=ip_address,
         user_agent=user_agent,
-        capabilities=capabilities or ConnectionCapabilities(),
+        capabilities=result.unwrap() or ConnectionCapabilities(),
         **kwargs,
     )
