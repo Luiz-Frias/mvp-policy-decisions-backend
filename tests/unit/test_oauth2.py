@@ -9,9 +9,9 @@ from typing import Any
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.pd_prime_demo.core.auth.oauth2 import SCOPES, OAuth2Server, ScopeValidator
-from src.pd_prime_demo.core.auth.oauth2.api_keys import APIKeyManager
-from src.pd_prime_demo.core.config import Settings
+from src.policy_core.core.auth.oauth2 import SCOPES, OAuth2Server, ScopeValidator
+from src.policy_core.core.auth.oauth2.api_keys import APIKeyManager
+from src.policy_core.core.config import Settings
 
 
 async def test_oauth2_server():

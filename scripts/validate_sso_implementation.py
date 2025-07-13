@@ -14,13 +14,13 @@ from beartype import beartype
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from pd_prime_demo.core.auth.providers.auth0 import Auth0SSOProvider
-from pd_prime_demo.core.auth.providers.azure import AzureADSSOProvider
-from pd_prime_demo.core.auth.providers.google import GoogleSSOProvider
-from pd_prime_demo.core.auth.providers.okta import OktaSSOProvider
-from pd_prime_demo.core.auth.sso_base import SSOUserInfo
-from pd_prime_demo.core.auth.sso_manager import SSOManager
-from pd_prime_demo.core.result_types import Err, Ok, Result
+from policy_core.core.auth.providers.auth0 import Auth0SSOProvider
+from policy_core.core.auth.providers.azure import AzureADSSOProvider
+from policy_core.core.auth.providers.google import GoogleSSOProvider
+from policy_core.core.auth.providers.okta import OktaSSOProvider
+from policy_core.core.auth.sso_base import SSOUserInfo
+from policy_core.core.auth.sso_manager import SSOManager
+from policy_core.core.result_types import Err, Ok, Result
 
 
 @beartype

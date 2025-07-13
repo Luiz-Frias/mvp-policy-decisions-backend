@@ -12,16 +12,16 @@ def fix_imports_in_file(file_path: Path) -> bool:
         
         # Pattern to match relative imports of models.base
         patterns = [
-            (r'from \.\.\.models\.base import', 'from pd_prime_demo.models.base import'),
-            (r'from \.\.\.\.models\.base import', 'from pd_prime_demo.models.base import'),
-            (r'from \.\.models\.base import', 'from pd_prime_demo.models.base import'),
+            (r'from \.\.\.models\.base import', 'from policy_core.models.base import'),
+            (r'from \.\.\.\.models\.base import', 'from policy_core.models.base import'),
+            (r'from \.\.models\.base import', 'from policy_core.models.base import'),
             # Also fix other common incorrect imports
-            (r'from \.\.\.\.core\.cache import', 'from pd_prime_demo.core.cache import'),
-            (r'from \.\.\.\.core\.database import', 'from pd_prime_demo.core.database import'),
-            (r'from \.\.\.\.core\.config import', 'from pd_prime_demo.core.config import'),
-            (r'from \.\.\.core\.cache import', 'from pd_prime_demo.core.cache import'),
-            (r'from \.\.\.core\.database import', 'from pd_prime_demo.core.database import'),
-            (r'from \.\.\.core\.config import', 'from pd_prime_demo.core.config import'),
+            (r'from \.\.\.\.core\.cache import', 'from policy_core.core.cache import'),
+            (r'from \.\.\.\.core\.database import', 'from policy_core.core.database import'),
+            (r'from \.\.\.\.core\.config import', 'from policy_core.core.config import'),
+            (r'from \.\.\.core\.cache import', 'from policy_core.core.cache import'),
+            (r'from \.\.\.core\.database import', 'from policy_core.core.database import'),
+            (r'from \.\.\.core\.config import', 'from policy_core.core.config import'),
         ]
         
         for pattern, replacement in patterns:

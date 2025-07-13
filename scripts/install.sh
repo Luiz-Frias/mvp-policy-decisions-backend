@@ -45,4 +45,4 @@ else
   WARN "docker-compose.yml not found or docker-compose missing – skipping local service startup."
 fi
 
-INFO "Installation complete. To start the dev server run:\n  uv run uvicorn src.pd_prime_demo.main:app --reload"
+INFO "Installation complete. To start the dev server run:\n  uv run uvicorn src.policy_core.main:app --reload"

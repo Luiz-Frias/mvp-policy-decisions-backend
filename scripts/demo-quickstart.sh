@@ -7,7 +7,7 @@ set -e
 echo "🚀 Starting MVP Policy Decision Demo Setup..."
 
 # Set demo environment variables
-export DATABASE_URL="postgresql://demo_user:demo_pass@localhost:5432/pd_prime_demo"  # pragma: allowlist secret
+export DATABASE_URL="postgresql://demo_user:demo_pass@localhost:5432/policy_core"  # pragma: allowlist secret
 export REDIS_URL="redis://localhost:6379/0"
 export SECRET_KEY="demo-secret-key-change-this-in-production-32chars"  # pragma: allowlist secret
 export JWT_SECRET="demo-jwt-secret-change-this-in-production-32chars"  # pragma: allowlist secret
@@ -74,7 +74,7 @@ cleanup_ports() {
     fi
 
     # Also kill any uvicorn or node processes that might be hanging
-    pkill -f "uvicorn.*pd_prime_demo" 2>/dev/null || true
+    pkill -f "uvicorn.*policy_core" 2>/dev/null || true
     pkill -f "node.*frontend" 2>/dev/null || true
 
     echo "✅ Port cleanup complete"
@@ -85,7 +85,7 @@ cleanup_ports
 
 # Create demo database if it doesn't exist
 echo "📊 Setting up demo database..."
-createdb pd_prime_demo 2>/dev/null || echo "Database already exists, continuing..."
+createdb policy_core 2>/dev/null || echo "Database already exists, continuing..."
 
 # Create demo user
 psql -h localhost -p 5432 -d postgres -c "
@@ -98,7 +98,7 @@ psql -h localhost -p 5432 -d postgres -c "
     \$\$;
 " 2>/dev/null || true
 
-psql -h localhost -p 5432 -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE pd_prime_demo TO demo_user;" 2>/dev/null || true
+psql -h localhost -p 5432 -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE policy_core TO demo_user;" 2>/dev/null || true
 
 echo "✅ Database setup complete"
 
@@ -116,7 +116,7 @@ echo "✅ Demo data seeded"
 
 # Start backend server in background
 echo "🚀 Starting backend server..."
-uv run uvicorn src.pd_prime_demo.main:app --host 0.0.0.0 --port 8000 --reload &
+uv run uvicorn src.policy_core.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 
 # Wait for backend to start

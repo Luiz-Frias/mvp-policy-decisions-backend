@@ -45,11 +45,11 @@ class ImportFixer:
     
     def __init__(self):
         self.import_mappings = {
-            r'from \.\.\.(\.)?models\.base import': 'from pd_prime_demo.models.base import',
-            r'from \.\.\.\.(\.)?models\.base import': 'from pd_prime_demo.models.base import',
-            r'from \.\.\.\.(\.)?core\.cache import': 'from pd_prime_demo.core.cache import',
-            r'from \.\.\.\.(\.)?core\.database import': 'from pd_prime_demo.core.database import',
-            r'from \.\.\.\.(\.)?core\.config import': 'from pd_prime_demo.core.config import',
+            r'from \.\.\.(\.)?models\.base import': 'from policy_core.models.base import',
+            r'from \.\.\.\.(\.)?models\.base import': 'from policy_core.models.base import',
+            r'from \.\.\.\.(\.)?core\.cache import': 'from policy_core.core.cache import',
+            r'from \.\.\.\.(\.)?core\.database import': 'from policy_core.core.database import',
+            r'from \.\.\.\.(\.)?core\.config import': 'from policy_core.core.config import',
         }
         
     def fix_imports(self, file_path: Path) -> List[str]:
@@ -140,7 +140,7 @@ class CodebaseAnalyzer:
             result.has_result_pattern = 'Result[' in content
             
             # Analyze data model usage
-            model_imports = re.findall(r'from pd_prime_demo\.models\.(\w+) import', content)
+            model_imports = re.findall(r'from policy_core\.models\.(\w+) import', content)
             for model in model_imports:
                 result.data_model_usage[model] = result.data_model_usage.get(model, 0) + 1
                 
@@ -215,11 +215,11 @@ async def main():
     
     # Define agent assignments
     agents = [
-        ("agent-1-core", Path("src/pd_prime_demo/core"), "*.py"),
-        ("agent-2-services", Path("src/pd_prime_demo/services"), "*.py"),
-        ("agent-3-api", Path("src/pd_prime_demo/api"), "*.py"),
-        ("agent-4-models-schemas", Path("src/pd_prime_demo/models"), "*.py"),
-        ("agent-5-websocket-compliance", Path("src/pd_prime_demo/websocket"), "*.py"),
+        ("agent-1-core", Path("src/policy_core/core"), "*.py"),
+        ("agent-2-services", Path("src/policy_core/services"), "*.py"),
+        ("agent-3-api", Path("src/policy_core/api"), "*.py"),
+        ("agent-4-models-schemas", Path("src/policy_core/models"), "*.py"),
+        ("agent-5-websocket-compliance", Path("src/policy_core/websocket"), "*.py"),
     ]
     
     print("🚀 Deploying 5 analysis agents to analyze codebase and fix imports...")

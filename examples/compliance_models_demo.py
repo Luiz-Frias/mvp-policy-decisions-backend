@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.pd_prime_demo.schemas.compliance import (
+from src.policy_core.schemas.compliance import (
     AccessControlMatrixResult,
     AuditLogEntry,
     AvailabilityMetrics,

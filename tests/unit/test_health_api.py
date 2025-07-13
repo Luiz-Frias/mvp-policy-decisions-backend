@@ -9,7 +9,7 @@ import pytest
 from fastapi import Request
 from pydantic import ValidationError
 
-from src.pd_prime_demo.api.v1.health import (
+from src.policy_core.api.v1.health import (
     ComponentHealthMap,
     HealthResponse,
     HealthStatus,
@@ -18,7 +18,7 @@ from src.pd_prime_demo.api.v1.health import (
     liveness_check,
     readiness_check,
 )
-from src.pd_prime_demo.core.config import Settings
+from src.policy_core.core.config import Settings
 
 
 def create_mock_request() -> Request:

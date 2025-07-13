@@ -125,10 +125,10 @@ class SAGEWaveManager:
                     agent_id="sec-1-auth",
                     description="Fix demo authentication bypasses",
                     files=[
-                        "src/pd_prime_demo/core/auth/dependencies.py",
-                        "src/pd_prime_demo/core/auth/demo_auth.py",
-                        "src/pd_prime_demo/api/dependencies.py",
-                        "src/pd_prime_demo/core/config.py"
+                        "src/policy_core/core/auth/dependencies.py",
+                        "src/policy_core/core/auth/demo_auth.py",
+                        "src/policy_core/api/dependencies.py",
+                        "src/policy_core/core/config.py"
                     ],
                     prompt="""Implement proper authentication with demo mode support:
 
@@ -149,9 +149,9 @@ Follow the patterns in CLAUDE.md Phase 6 Agent 1."""
                     agent_id="sec-2-encryption",
                     description="Implement proper encryption with Doppler",
                     files=[
-                        "src/pd_prime_demo/core/security/encryption.py",
-                        "src/pd_prime_demo/services/sso/config_manager.py",
-                        "src/pd_prime_demo/core/security/__init__.py"
+                        "src/policy_core/core/security/encryption.py",
+                        "src/policy_core/services/sso/config_manager.py",
+                        "src/policy_core/core/security/__init__.py"
                     ],
                     prompt="""Replace weak encryption with production-grade implementation:
 
@@ -168,10 +168,10 @@ Follow the patterns in CLAUDE.md Phase 6 Agent 2."""
                     agent_id="sec-3-ratelimit",
                     description="Add comprehensive rate limiting",
                     files=[
-                        "src/pd_prime_demo/api/middleware/rate_limit.py",
-                        "src/pd_prime_demo/main.py",
-                        "src/pd_prime_demo/api/v1/auth.py",
-                        "src/pd_prime_demo/api/v1/quotes.py"
+                        "src/policy_core/api/middleware/rate_limit.py",
+                        "src/policy_core/main.py",
+                        "src/policy_core/api/v1/auth.py",
+                        "src/policy_core/api/v1/quotes.py"
                     ],
                     prompt="""Implement Redis-based rate limiting:
 
@@ -191,9 +191,9 @@ Follow the patterns in CLAUDE.md Phase 6 Agent 3."""
                     agent_id="sec-4-pii",
                     description="Fix PII handling and data security",
                     files=[
-                        "src/pd_prime_demo/models/customer.py",
-                        "src/pd_prime_demo/services/customer_service.py",
-                        "src/pd_prime_demo/core/security/pii.py"
+                        "src/policy_core/models/customer.py",
+                        "src/policy_core/services/customer_service.py",
+                        "src/policy_core/core/security/pii.py"
                     ],
                     prompt="""Implement proper PII handling:
 
@@ -211,10 +211,10 @@ Follow the patterns in CLAUDE.md Phase 6 Agent 4.""",
                     agent_id="sec-5-oauth",
                     description="Fix OAuth2 and API security",
                     files=[
-                        "src/pd_prime_demo/api/v1/auth.py",
-                        "src/pd_prime_demo/api/v1/api_keys.py",
-                        "src/pd_prime_demo/services/auth/oauth2_service.py",
-                        "src/pd_prime_demo/core/auth/oauth2.py"
+                        "src/policy_core/api/v1/auth.py",
+                        "src/policy_core/api/v1/api_keys.py",
+                        "src/policy_core/services/auth/oauth2_service.py",
+                        "src/policy_core/core/auth/oauth2.py"
                     ],
                     prompt="""Fix OAuth2 security vulnerabilities:
 
@@ -240,9 +240,9 @@ Follow the patterns in CLAUDE.md Phase 6 Agent 5."""
                     agent_id="soc2-1-controls",
                     description="Implement real security controls",
                     files=[
-                        "src/pd_prime_demo/compliance/security_controls.py",
-                        "src/pd_prime_demo/compliance/control_tests.py",
-                        "src/pd_prime_demo/api/v1/compliance.py"
+                        "src/policy_core/compliance/security_controls.py",
+                        "src/policy_core/compliance/control_tests.py",
+                        "src/policy_core/api/v1/compliance.py"
                     ],
                     prompt="""Replace mock controls with real implementation:
 
@@ -259,9 +259,9 @@ Follow the patterns in CLAUDE.md Phase 7 Agent 1."""
                     agent_id="soc2-2-audit",
                     description="Complete audit trail implementation",
                     files=[
-                        "src/pd_prime_demo/compliance/audit_logger.py",
-                        "src/pd_prime_demo/models/audit.py",
-                        "src/pd_prime_demo/api/middleware/audit.py"
+                        "src/policy_core/compliance/audit_logger.py",
+                        "src/policy_core/models/audit.py",
+                        "src/policy_core/api/middleware/audit.py"
                     ],
                     prompt="""Implement comprehensive audit logging:
 
@@ -278,9 +278,9 @@ Follow the patterns in CLAUDE.md Phase 7 Agent 2."""
                     agent_id="soc2-3-evidence",
                     description="Build evidence collection system",
                     files=[
-                        "src/pd_prime_demo/compliance/evidence_collector.py",
-                        "src/pd_prime_demo/compliance/reports.py",
-                        "src/pd_prime_demo/compliance/scheduling.py"
+                        "src/policy_core/compliance/evidence_collector.py",
+                        "src/policy_core/compliance/reports.py",
+                        "src/policy_core/compliance/scheduling.py"
                     ],
                     prompt="""Automate evidence collection:
 

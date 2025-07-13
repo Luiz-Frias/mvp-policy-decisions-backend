@@ -22,13 +22,13 @@ from beartype import beartype
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.pd_prime_demo.core.cache import Cache
-from src.pd_prime_demo.core.config import get_settings
-from src.pd_prime_demo.core.database_enhanced import Database
-from src.pd_prime_demo.models.customer import CustomerCreate
-from src.pd_prime_demo.models.policy import PolicyCreate
-from src.pd_prime_demo.services.customer_service import CustomerService
-from src.pd_prime_demo.services.policy_service import PolicyService
+from src.policy_core.core.cache import Cache
+from src.policy_core.core.config import get_settings
+from src.policy_core.core.database_enhanced import Database
+from src.policy_core.models.customer import CustomerCreate
+from src.policy_core.models.policy import PolicyCreate
+from src.policy_core.services.customer_service import CustomerService
+from src.policy_core.services.policy_service import PolicyService
 
 
 @beartype

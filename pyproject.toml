@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pd_prime_demo"
+name = "policy_core"
 version = "0.1.0"
 description = "creating a mpv api backend to a policy decision and management software system"
 authors = [
@@ -234,7 +234,7 @@ cli = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pd_prime_demo"]
+packages = ["src/policy_core"]
 
 [tool.black]
 line-length = 88
@@ -258,11 +258,11 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["pd_prime_demo"]
+known_first_party = ["policy_core"]
 
 [tool.ruff]
 # Exclude example files from linting
-extend-exclude = ["src/pd_prime_demo/api/example_elite_pattern.py"]
+extend-exclude = ["src/policy_core/api/example_elite_pattern.py"]
 line-length = 88
 target-version = "py311"
 
@@ -283,7 +283,7 @@ plugins = [
 
 # EXCLUDE example files from type checking
 exclude = [
-    "src/pd_prime_demo/api/example_elite_pattern.py",
+    "src/policy_core/api/example_elite_pattern.py",
 ]
 
 # TYPE SAFETY MAXIMIZATION
@@ -361,8 +361,8 @@ ignore_errors = true
 # FastAPI specific overrides to handle decorators
 [[tool.mypy.overrides]]
 module = [
-    "pd_prime_demo.api.*",
-    "pd_prime_demo.main",
+    "policy_core.api.*",
+    "policy_core.main",
     "tests.integration.*",
 ]
 disallow_untyped_decorators = false
@@ -426,12 +426,12 @@ skips = ["*/test_*.py", "*/tests/*", "*_test.py", "conftest.py"]
 # COEXISTENCE: UV (primary) + Poetry (safety hook compatibility)
 # SOLUTION: Poetry section for Lucas-C safety hook without changing UV workflow
 [tool.poetry]
-name = "pd_prime_demo"
+name = "policy_core"
 version = "0.1.0"
 description = "creating a toy api model to establish a baseline of what ai-assisted software dev looks lik"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "pd_prime_demo", from = "src"}]
+packages = [{include = "policy_core", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

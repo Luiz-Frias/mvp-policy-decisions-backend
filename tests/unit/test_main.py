@@ -14,9 +14,9 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-32-chars")  # n
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-testing-32-chars")  # nosec
 os.environ.setdefault("API_ENV", "development")
 
-from src.pd_prime_demo.core.config import Settings
-from src.pd_prime_demo.core.result_types import Err, Ok
-from src.pd_prime_demo.main import BaseAppModel, create_app, lifespan, main
+from src.policy_core.core.config import Settings
+from src.policy_core.core.result_types import Err, Ok
+from src.policy_core.main import BaseAppModel, create_app, lifespan, main
 
 
 class TestResultType:
@@ -139,10 +139,10 @@ class TestLifespanFunction:
         mock_app = MagicMock(spec=FastAPI)
 
         with (
-            patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings),
-            patch("src.pd_prime_demo.main.get_database", return_value=mock_db),
-            patch("src.pd_prime_demo.main.get_cache", return_value=mock_cache),
-            patch("src.pd_prime_demo.main.logger") as mock_logger,
+            patch("src.policy_core.main.get_settings", return_value=mock_settings),
+            patch("src.policy_core.main.get_database", return_value=mock_db),
+            patch("src.policy_core.main.get_cache", return_value=mock_cache),
+            patch("src.policy_core.main.logger") as mock_logger,
         ):
             # Test the lifespan context manager
             async with lifespan(mock_app):
@@ -199,9 +199,9 @@ class TestLifespanFunction:
         mock_app = MagicMock(spec=FastAPI)
 
         with (
-            patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings),
-            patch("src.pd_prime_demo.main.get_database", return_value=mock_db),
-            patch("src.pd_prime_demo.main.get_cache", return_value=mock_cache),
+            patch("src.policy_core.main.get_settings", return_value=mock_settings),
+            patch("src.policy_core.main.get_database", return_value=mock_db),
+            patch("src.policy_core.main.get_cache", return_value=mock_cache),
             patch("builtins.print"),
         ):
             # Should propagate the exception
@@ -225,7 +225,7 @@ class TestCreateApp:
             api_port=8000,
         )
 
-        with patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings):
+        with patch("src.policy_core.main.get_settings", return_value=mock_settings):
             app = create_app()
 
         assert isinstance(app, FastAPI)
@@ -249,7 +249,7 @@ class TestCreateApp:
             api_port=8000,
         )
 
-        with patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings):
+        with patch("src.policy_core.main.get_settings", return_value=mock_settings):
             app = create_app()
 
         assert isinstance(app, FastAPI)
@@ -269,7 +269,7 @@ class TestCreateApp:
             api_env="development",
         )
 
-        with patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings):
+        with patch("src.policy_core.main.get_settings", return_value=mock_settings):
             app = create_app()
 
         # Verify app was created successfully with middleware configured
@@ -287,7 +287,7 @@ class TestCreateApp:
             api_cors_origins=["http://localhost:3000", "https://app.example.com"],
         )
 
-        with patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings):
+        with patch("src.policy_core.main.get_settings", return_value=mock_settings):
             app = create_app()
 
         # Verify app was created successfully with CORS configured
@@ -304,7 +304,7 @@ class TestCreateApp:
             api_env="development",
         )
 
-        with patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings):
+        with patch("src.policy_core.main.get_settings", return_value=mock_settings):
             app = create_app()
 
         # Test the root endpoint
@@ -336,13 +336,13 @@ class TestMainFunction:
         )
 
         with (
-            patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings),
-            patch("src.pd_prime_demo.main.uvicorn.run") as mock_run,
+            patch("src.policy_core.main.get_settings", return_value=mock_settings),
+            patch("src.policy_core.main.uvicorn.run") as mock_run,
         ):
             main()
 
             mock_run.assert_called_once_with(
-                "pd_prime_demo.main:app",
+                "policy_core.main:app",
                 host="127.0.0.1",
                 port=8080,
                 reload=True,  # Development mode
@@ -362,13 +362,13 @@ class TestMainFunction:
         )
 
         with (
-            patch("src.pd_prime_demo.main.get_settings", return_value=mock_settings),
-            patch("src.pd_prime_demo.main.uvicorn.run") as mock_run,
+            patch("src.policy_core.main.get_settings", return_value=mock_settings),
+            patch("src.policy_core.main.uvicorn.run") as mock_run,
         ):
             main()
 
             mock_run.assert_called_once_with(
-                "pd_prime_demo.main:app",
+                "policy_core.main:app",
                 host="0.0.0.0",  # nosec
                 port=80,
                 reload=False,  # Production mode

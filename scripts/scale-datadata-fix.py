@@ -174,10 +174,10 @@ class DataDataFixer:
 import sys
 sys.path.insert(0, 'src')
 try:
-    from pd_prime_demo.services.rating.cache_strategy import RatingCacheStrategy
-    from pd_prime_demo.services.rating.performance import RatingPerformanceOptimizer
-    from pd_prime_demo.services.rating.rate_tables import RateTableService
-    from pd_prime_demo.services.quote_wizard import QuoteWizardService
+    from policy_core.services.rating.cache_strategy import RatingCacheStrategy
+    from policy_core.services.rating.performance import RatingPerformanceOptimizer
+    from policy_core.services.rating.rate_tables import RateTableService
+    from policy_core.services.quote_wizard import QuoteWizardService
     print('✅ All imports successful')
 except ImportError as e:
     print(f'❌ Import error: {e}')

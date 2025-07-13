@@ -6,15 +6,15 @@ from decimal import Decimal
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-from src.pd_prime_demo.models.quote import (
+from src.policy_core.models.quote import (
     CoverageSelection,
     CoverageType,
     DriverInfo,
     VehicleInfo,
     VehicleType,
 )
-from src.pd_prime_demo.services.rating.state_rules import get_state_rules
-from src.pd_prime_demo.services.rating_engine import RatingEngine
+from src.policy_core.services.rating.state_rules import get_state_rules
+from src.policy_core.services.rating_engine import RatingEngine
 
 
 async def test_rating_engine_audit():

@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.pd_prime_demo.schemas.health import ComponentStatus, HealthComponents
+from src.policy_core.schemas.health import ComponentStatus, HealthComponents
 
 
 class TestComponentStatus:

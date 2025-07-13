@@ -12,8 +12,8 @@ from sqlalchemy.pool import NullPool
 
 # Import database configuration
 try:
-    from pd_prime_demo.core.config import settings
-    from pd_prime_demo.core.database import get_db_session
+    from policy_core.core.config import settings
+    from policy_core.core.database import get_db_session
 except ImportError:
     print("❌ Failed to import database configuration")
     print("Make sure the application is properly installed")

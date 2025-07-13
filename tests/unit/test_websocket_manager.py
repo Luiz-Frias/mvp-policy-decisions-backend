@@ -8,7 +8,7 @@ import pytest
 from fastapi import WebSocket
 from starlette.websockets import WebSocketState
 
-from src.pd_prime_demo.websocket.manager import ConnectionManager, WebSocketMessage
+from src.policy_core.websocket.manager import ConnectionManager, WebSocketMessage
 
 
 def create_mock_websocket():

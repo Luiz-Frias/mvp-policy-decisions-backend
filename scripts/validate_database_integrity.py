@@ -17,8 +17,8 @@ from beartype import beartype
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.pd_prime_demo.core.config import get_settings
-from src.pd_prime_demo.core.database_enhanced import Database
+from src.policy_core.core.config import get_settings
+from src.policy_core.core.database_enhanced import Database
 
 
 @beartype

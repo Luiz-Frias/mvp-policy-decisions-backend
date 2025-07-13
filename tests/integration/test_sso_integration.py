@@ -14,17 +14,17 @@ import asyncio
 import asyncpg
 from beartype import beartype
 
-from src.pd_prime_demo.core.auth.sso_base import SSOUserInfo
-from src.pd_prime_demo.core.auth.sso_manager import SSOManager
-from src.pd_prime_demo.core.cache import Cache
-from src.pd_prime_demo.core.config import get_settings
-from src.pd_prime_demo.core.database import Database
+from src.policy_core.core.auth.sso_base import SSOUserInfo
+from src.policy_core.core.auth.sso_manager import SSOManager
+from src.policy_core.core.cache import Cache
+from src.policy_core.core.config import get_settings
+from src.policy_core.core.database import Database
 
 # ---------------------------------------------------------------------------
 # Logging Setup (replaces legacy ``print`` with structured logging)
 # ---------------------------------------------------------------------------
-from src.pd_prime_demo.core.logging_utils import configure_logging, patch_print
-from src.pd_prime_demo.core.result_types import Err, Ok
+from src.policy_core.core.logging_utils import configure_logging, patch_print
+from src.policy_core.core.result_types import Err, Ok
 
 configure_logging()
 patch_print()

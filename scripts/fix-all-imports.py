@@ -111,11 +111,11 @@ def check_and_fix_file(file_path: Path) -> bool:
 def fix_specific_files_with_errors():
     """Fix specific files we know have issues."""
     specific_fixes = [
-        ("src/pd_prime_demo/services/admin/sso_admin_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
-        ("src/pd_prime_demo/services/admin/rate_management_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
-        ("src/pd_prime_demo/services/admin/pricing_override_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
-        ("src/pd_prime_demo/services/admin/system_settings_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
-        ("src/pd_prime_demo/services/admin/activity_logger.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
+        ("src/policy_core/services/admin/sso_admin_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
+        ("src/policy_core/services/admin/rate_management_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
+        ("src/policy_core/services/admin/pricing_override_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
+        ("src/policy_core/services/admin/system_settings_service.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
+        ("src/policy_core/services/admin/activity_logger.py", "from pydantic import ConfigDict", "from pydantic import ConfigDict, Field"),
     ]
     
     for file_path, old_import, new_import in specific_fixes:
