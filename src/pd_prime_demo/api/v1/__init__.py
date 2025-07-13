@@ -7,8 +7,13 @@ that can be mounted on the main FastAPI application.
 from fastapi import APIRouter
 
 from .admin import oauth2_router as admin_oauth2_router
+from .admin.pricing_controls import router as admin_pricing_router
+from .admin.quotes import router as admin_quotes_router
+from .admin.rate_management import router as admin_rate_router
 from .admin.sso_management import router as admin_sso_router
+from .admin.websocket_admin import router as admin_websocket_router
 from .api_keys import router as api_keys_router
+from .auth import router as auth_router
 from .claims import router as claims_router
 from .compliance import router as compliance_router
 from .customers import router as customers_router
@@ -39,10 +44,17 @@ router.include_router(oauth2_router, tags=["oauth2"])
 router.include_router(api_keys_router, tags=["api-keys"])
 router.include_router(sso_auth_router, tags=["sso-auth"])
 router.include_router(mfa_router, tags=["mfa"])
+router.include_router(auth_router, tags=["authentication"])
 
 # Admin endpoints
 router.include_router(admin_oauth2_router, prefix="/admin", tags=["admin"])
 router.include_router(admin_sso_router, tags=["admin-sso"])
+router.include_router(admin_pricing_router, tags=["admin-pricing"])
+router.include_router(admin_rate_router, tags=["admin-rate-management"])
+router.include_router(
+    admin_quotes_router, prefix="/admin/quotes", tags=["admin-quotes"]
+)
+router.include_router(admin_websocket_router, prefix="/admin", tags=["admin-websocket"])
 
 
 __all__ = ["router"]
