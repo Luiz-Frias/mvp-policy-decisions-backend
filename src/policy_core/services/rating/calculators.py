@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 from beartype import beartype
 from numpy.typing import NDArray
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from policy_core.models.base import BaseModelConfig
 from policy_core.schemas.rating import (
@@ -388,16 +388,6 @@ class FrequencySeverityResult(BaseModelConfig):
 
 
 @beartype
-class DwellingCharacteristics(BaseModelConfig):
-    """Dwelling characteristics for catastrophe loading."""
-
-    construction_type: str = Field(
-        default="wood_frame", description="Construction type"
-    )
-    roof_type: str = Field(default="asphalt_shingle", description="Roof material type")
-
-
-@beartype
 class TrendFactorsResult(BaseModelConfig):
     """Result of trend factor calculations."""
 
@@ -523,6 +513,38 @@ class StateDiscountRules(BaseModelConfig):
 # Structured models to replace dict[str, Any] usage
 
 
+# ---------------------------------------------------------------------------
+# Helper utilities
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_rating_factors(
+    factors: RatingFactors | dict[str, float],
+) -> Result[RatingFactors, str]:
+    """Convert loose dict of factors into RatingFactors model.
+
+    Many call-sites (especially tests) still pass plain dicts.  We translate them
+    here to maintain strict typing without breaking callers.
+    """
+    if isinstance(factors, RatingFactors):
+        return Ok(factors)
+
+    if isinstance(factors, dict):
+        try:
+            model = RatingFactors.model_validate(factors)
+            return Ok(model)
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid rating factors: {exc}")
+
+    return Err("Unsupported factors type. Expected RatingFactors or dict[str, float].")
+
+
+# =============================================================================
+# Premium Calculator
+# =============================================================================
+
+
 class PremiumCalculator:
     """Advanced premium calculation with statistical methods."""
 
@@ -561,7 +583,7 @@ class PremiumCalculator:
     @performance_monitor("apply_multiplicative_factors")
     def apply_multiplicative_factors(
         base_premium: Decimal,
-        factors: RatingFactors,
+        factors: RatingFactors | dict[str, float],
     ) -> Result[FactorizedPremium, str]:
         """Apply rating factors with detailed breakdown.
 
@@ -572,6 +594,13 @@ class PremiumCalculator:
         Returns:
             Result containing (final premium, factor impacts) or error
         """
+        # Validate / convert factors
+        factors_result = _to_rating_factors(factors)
+        if isinstance(factors_result, Err):
+            return factors_result  # propagate error
+
+        factors_model = factors_result.value
+
         if base_premium <= 0:
             return Err("Base premium must be positive")
 
@@ -591,7 +620,7 @@ class PremiumCalculator:
         ]
 
         # Convert structured factors to dict for processing
-        factors_dict = factors.to_dict()
+        factors_dict = factors_model.to_dict()
 
         # Process all factors (ordered first, then any additional ones)
         all_factor_names = factor_order + [
