@@ -995,7 +995,7 @@ class DiscountCalculator:
     @staticmethod
     def calculate_stacked_discounts(
         base_premium: Decimal,
-        applicable_discounts: list[DiscountData],
+        applicable_discounts: list[DiscountData | dict[str, Any]],
         max_total_discount: Decimal = Decimal("0.40"),
         state_rules: StateDiscountRules | None = None,
     ) -> Result[StackedDiscounts, str]:
@@ -1010,25 +1010,34 @@ class DiscountCalculator:
         Returns:
             Result containing (applied discounts, total discount amount) or error
         """
-        if base_premium <= 0:
-            return Err("Base premium must be positive")
+        # Convert discount list if raw dicts supplied
+        discounts_result = _to_discount_list(applicable_discounts)
+        if isinstance(discounts_result, Err):
+            return discounts_result
 
-        if not applicable_discounts:
+        discounts_list = discounts_result.value
+
+        if not discounts_list:
             return Ok(
                 StackedDiscounts(
                     applied_discounts=[], total_discount_amount=Decimal("0")
                 )
             )
 
+        if base_premium <= 0:
+            return Err("Base premium must be positive")
+
+        # Remove automatic StateDiscountRules instantiation (requires max_discount)
+        if state_rules is None:
+            pass  # No state-specific cap provided
+
         # Apply state-specific max discount if provided
         if state_rules:
             state_max = Decimal(str(state_rules.max_discount))
             max_total_discount = min(max_total_discount, state_max)
 
-        # Discount validation is now handled by Pydantic model validation
-
         # Sort by priority (lower number = higher priority)
-        sorted_discounts = sorted(applicable_discounts, key=lambda d: d.priority)
+        sorted_discounts = sorted(discounts_list, key=lambda d: d.priority)
 
         applied_discounts: list[Discount] = []
         remaining_premium = base_premium
@@ -2242,3 +2251,37 @@ def _to_vehicle_data(data: VehicleData | dict[str, Any]) -> Result[VehicleData, 
             return Err(f"Invalid vehicle data: {exc}")
 
     return Err("Unsupported vehicle_data type. Expected VehicleData or dict.")
+
+
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide DiscountData instances
+# Helper to convert list of dicts supplied by older tests into DiscountData models.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_discount_list(
+    discounts: list[DiscountData | dict[str, Any]],
+) -> Result[list[DiscountData], str]:
+    """Convert a list of dicts to DiscountData models where necessary."""
+
+    if not discounts:
+        return Ok([])
+
+    converted: list[DiscountData] = []
+    for idx, item in enumerate(discounts):
+        if isinstance(item, DiscountData):
+            converted.append(item)
+        elif isinstance(item, dict):
+            try:
+                model = DiscountData.model_validate(item)
+                converted.append(model)
+            except ValidationError as exc:
+                return Err(f"Invalid discount at index {idx}: {exc}")
+        else:
+            return Err(
+                f"Unsupported discount type at index {idx}. Expected DiscountData or dict."
+            )
+
+    return Ok(converted)
