@@ -147,7 +147,8 @@ async def login(
 
     # Create access token
     token_data = security.create_access_token(
-        subject=str(user["id"]), scopes=[user["role"]]  # Simple role-based scopes
+        subject=str(user["id"]),
+        scopes=[user["role"]],  # Simple role-based scopes
     )
 
     # Log authentication event
@@ -281,21 +282,21 @@ async def sso_login_init(
     return SSOLoginInitResponse(authorization_url=auth_url_result.value, state=state)
 
 
-@router.get("/sso/{provider}/callback")
+@router.get("/sso/{provider}/callback", response_model=None)
 @beartype
 async def sso_callback(
     provider: str,
     response: Response,
+    request: Request,
     code: str = Query(..., description="Authorization code"),
     state: str = Query(..., description="State parameter"),
     error: str | None = Query(None, description="Error from provider"),
     error_description: str | None = Query(None, description="Error description"),
-    request: Request | None = None,
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_cache),
     db: asyncpg.Connection = Depends(get_db_connection),
     security: Security = Depends(get_security),
-) -> LoginResponse | RedirectResponse | ErrorResponse:
+) -> Response:
     """Handle SSO callback after user authentication.
 
     This endpoint is called by the SSO provider after the user
