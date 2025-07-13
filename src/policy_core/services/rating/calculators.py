@@ -573,6 +573,61 @@ def _to_rating_factors(
     return Err("Unsupported factors type. Expected RatingFactors or dict[str, float].")
 
 
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide TerritoryData
+# Helper to convert dicts supplied by older tests into TerritoryData model.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_territory_data(
+    data: TerritoryData | dict[str, Any],
+) -> Result[TerritoryData, str]:
+    """Convert loose dict into TerritoryData.
+
+    Expected dict format:
+        {
+            "base_loss_cost": 100,
+            "90210": {"loss_cost": 120, "credibility": 0.8},
+            ...
+        }
+    """
+
+    if isinstance(data, TerritoryData):
+        return Ok(data)
+
+    if isinstance(data, dict):
+        if "base_loss_cost" not in data:
+            return Err("Territory dict missing 'base_loss_cost'")
+
+        try:
+            base_loss_cost = float(data["base_loss_cost"])
+
+            zip_territories: dict[str, ZipTerritoryData] = {}
+            for zip_code, zip_val in data.items():
+                if zip_code == "base_loss_cost":
+                    continue
+
+                if isinstance(zip_val, ZipTerritoryData):
+                    zip_territories[zip_code] = zip_val
+                elif isinstance(zip_val, dict):
+                    zip_territories[zip_code] = ZipTerritoryData.model_validate(zip_val)
+                else:
+                    return Err(f"Invalid ZIP territory entry for {zip_code}: {zip_val}")
+
+            model = TerritoryData(
+                base_loss_cost=base_loss_cost, zip_territories=zip_territories
+            )
+            return Ok(model)
+        except ValidationError as exc:  # noqa: F841  # type: ignore[name-defined]
+            return Err(f"Invalid territory data: {exc}")
+        except (TypeError, ValueError) as exc:
+            return Err(f"Invalid territory data: {exc}")
+
+    return Err("Unsupported territory_data type. Expected TerritoryData or dict.")
+
+
 # =============================================================================
 # Premium Calculator
 # =============================================================================
@@ -697,7 +752,7 @@ class PremiumCalculator:
     @performance_monitor("calculate_territory_factor")
     def calculate_territory_factor(
         zip_code: str,
-        territory_data: TerritoryData,
+        territory_data: TerritoryData | dict[str, Any],
     ) -> Result[float, str]:
         """Calculate territory factor using actuarial data.
 
@@ -708,11 +763,18 @@ class PremiumCalculator:
         Returns:
             Result containing territory factor or error
         """
+        # Convert/validate territory data (legacy dict support)
+        territory_result = _to_territory_data(territory_data)
+        if isinstance(territory_result, Err):
+            return territory_result
+
+        territory_model = territory_result.value
+
         if not zip_code:
             return Err("ZIP code is required for territory rating")
 
         # Get loss cost data for ZIP
-        base_loss_cost = territory_data.base_loss_cost
+        base_loss_cost = territory_model.base_loss_cost
         if base_loss_cost <= 0:
             return Err(
                 "Territory calculation error: base_loss_cost is required but not provided. "
@@ -720,11 +782,11 @@ class PremiumCalculator:
                 "Check: Admin > Rate Management > Territory Rates"
             )
 
-        zip_data = territory_data.get_zip_data(zip_code)
+        zip_data = territory_model.get_zip_data(zip_code)
         zip_loss_cost = zip_data.loss_cost
 
         # Use base loss cost if ZIP-specific data is default
-        if zip_loss_cost == 100.0 and zip_code not in territory_data.zip_territories:
+        if zip_loss_cost == 100.0 and zip_code not in territory_model.zip_territories:
             zip_loss_cost = base_loss_cost
 
         # Calculate relativity
@@ -746,7 +808,7 @@ class PremiumCalculator:
     @staticmethod
     @performance_monitor("calculate_driver_risk_score")
     def calculate_driver_risk_score(
-        driver_data: DriverData,
+        driver_data: DriverData | dict[str, Any],
     ) -> Result[DriverRiskScore, str]:
         """Calculate driver risk score using statistical model.
 
@@ -756,11 +818,18 @@ class PremiumCalculator:
         Returns:
             Result containing (risk score, risk factors) or error
         """
+        # Convert driver data if dict supplied
+        driver_result = _to_driver_data(driver_data)
+        if isinstance(driver_result, Err):
+            return driver_result
+
+        driver_model = driver_result.value
+
         # Validate driver experience makes sense
-        if not driver_data.validate_experience():
+        if not driver_model.validate_experience():
             return Err(
-                f"Driver risk calculation error: years_licensed ({driver_data.years_licensed}) "
-                f"cannot exceed age minus 16 ({driver_data.age - 16}). "
+                f"Driver risk calculation error: years_licensed ({driver_model.years_licensed}) "
+                f"cannot exceed age minus 16 ({driver_model.age - 16}). "
                 "Required action: Ensure driver information is accurate. "
                 "Check: Quote > Driver Information section"
             )
@@ -768,10 +837,10 @@ class PremiumCalculator:
         risk_factors = []
 
         # Base risk components - now from structured data
-        age = driver_data.age
-        experience = driver_data.years_licensed
-        violations = driver_data.violations_3_years
-        accidents = driver_data.accidents_3_years
+        age = driver_model.age
+        experience = driver_model.years_licensed
+        violations = driver_model.violations_3_years
+        accidents = driver_model.accidents_3_years
 
         # Data validation is handled by Pydantic model validation
 
@@ -2109,3 +2178,27 @@ class RegulatoryComplianceCalculator:
 
         except Exception as e:
             return Err(f"Mandatory coverage application failed: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide DriverData
+# Helper to convert dicts supplied by older tests into DriverData model.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_driver_data(data: DriverData | dict[str, Any]) -> Result[DriverData, str]:
+    """Convert loose dict into DriverData model."""
+
+    if isinstance(data, DriverData):
+        return Ok(data)
+
+    if isinstance(data, dict):
+        try:
+            model = DriverData.model_validate(data)
+            return Ok(model)
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid driver data: {exc}")
+
+    return Err("Unsupported driver_data type. Expected DriverData or dict.")
