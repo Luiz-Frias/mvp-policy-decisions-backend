@@ -332,9 +332,9 @@ async def example_deployment():
                 agent_id="security-auth",
                 description="Fix demo authentication bypasses",
                 files=[
-                    "src/pd_prime_demo/core/auth/dependencies.py",
-                    "src/pd_prime_demo/core/auth/demo_auth.py",
-                    "src/pd_prime_demo/api/dependencies.py"
+                    "src/policy_core/core/auth/dependencies.py",
+                    "src/policy_core/core/auth/demo_auth.py",
+                    "src/policy_core/api/dependencies.py"
                 ],
                 prompt="""Fix all demo authentication bypasses by:
 1. Implementing proper feature flag system for DEMO_MODE
@@ -348,9 +348,9 @@ async def example_deployment():
                 agent_id="security-encryption", 
                 description="Fix weak encryption and integrate Doppler",
                 files=[
-                    "src/pd_prime_demo/core/security/encryption.py",
-                    "src/pd_prime_demo/services/sso/config_manager.py",
-                    "src/pd_prime_demo/core/config.py"
+                    "src/policy_core/core/security/encryption.py",
+                    "src/policy_core/services/sso/config_manager.py",
+                    "src/policy_core/core/config.py"
                 ],
                 prompt="""Replace weak encryption with proper implementation:
 1. Replace base64 'encryption' with cryptography library (Fernet)
@@ -364,8 +364,8 @@ async def example_deployment():
                 agent_id="security-ratelimit",
                 description="Implement rate limiting",
                 files=[
-                    "src/pd_prime_demo/api/middleware/rate_limit.py",
-                    "src/pd_prime_demo/main.py"
+                    "src/policy_core/api/middleware/rate_limit.py",
+                    "src/policy_core/main.py"
                 ],
                 prompt="""Add comprehensive rate limiting:
 1. Use slowapi for Redis-based rate limiting

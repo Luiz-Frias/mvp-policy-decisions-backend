@@ -13,8 +13,8 @@ from uuid import uuid4
 import pytest
 from beartype import beartype
 
-from src.pd_prime_demo.models.quote import CoverageSelection, CoverageType
-from src.pd_prime_demo.services.rating_engine import RatingEngine
+from src.policy_core.models.quote import CoverageSelection, CoverageType
+from src.policy_core.services.rating_engine import RatingEngine
 from tests.fixtures.test_data import (
     create_test_coverage_selections,
     create_test_driver,

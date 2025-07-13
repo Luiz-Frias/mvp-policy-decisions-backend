@@ -943,7 +943,7 @@ async def main():
     """Main function to seed all rate-related tables."""
 
     # Database connection
-    database_url = os.getenv("DATABASE_URL", "postgresql://localhost/pd_prime_demo")
+    database_url = os.getenv("DATABASE_URL", "postgresql://localhost/policy_core")
 
     try:
         conn = await asyncpg.connect(database_url)

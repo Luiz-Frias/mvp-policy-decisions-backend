@@ -6,14 +6,14 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
-from src.pd_prime_demo.models.quote import (
+from src.policy_core.models.quote import (
     CoverageSelection,
     CoverageType,
     DriverInfo,
     VehicleInfo,
     VehicleType,
 )
-from src.pd_prime_demo.services.rating_engine import RatingEngine
+from src.policy_core.services.rating_engine import RatingEngine
 
 
 def create_mock_db() -> MagicMock:

@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-from src.pd_prime_demo.models.admin import (
+from src.policy_core.models.admin import (
     AdminActivityLog,
     AdminDashboard,
     AdminRoleModel,
@@ -18,7 +18,7 @@ from src.pd_prime_demo.models.admin import (
 )
 
 # Import all models to audit
-from src.pd_prime_demo.models.quote import (
+from src.policy_core.models.quote import (
     CoverageSelection,
     Discount,
     DriverInfo,

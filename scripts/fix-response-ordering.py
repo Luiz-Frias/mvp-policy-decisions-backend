@@ -72,7 +72,7 @@ def fix_response_ordering_in_file(file_path: Path) -> bool:
 
 def main():
     """Fix Response parameter ordering in all API files."""
-    api_dir = Path("src/pd_prime_demo/api/v1")
+    api_dir = Path("src/policy_core/api/v1")
     
     files_to_fix = [
         api_dir / "sso_auth.py",

@@ -4,10 +4,10 @@ from uuid import uuid4
 
 import pytest
 
-from src.pd_prime_demo.core.auth.mfa.models import MFAMethod, RiskLevel
-from src.pd_prime_demo.core.auth.mfa.risk_engine import RiskEngine
-from src.pd_prime_demo.core.auth.mfa.totp import TOTPProvider
-from src.pd_prime_demo.core.config import get_settings
+from src.policy_core.core.auth.mfa.models import MFAMethod, RiskLevel
+from src.policy_core.core.auth.mfa.risk_engine import RiskEngine
+from src.policy_core.core.auth.mfa.totp import TOTPProvider
+from src.policy_core.core.config import get_settings
 
 
 @pytest.fixture

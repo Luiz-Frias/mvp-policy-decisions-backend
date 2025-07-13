@@ -16,7 +16,7 @@ from beartype import beartype
 # Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pd_prime_demo.core.config import get_settings
+from policy_core.core.config import get_settings
 
 # Set up logging
 logging.basicConfig(

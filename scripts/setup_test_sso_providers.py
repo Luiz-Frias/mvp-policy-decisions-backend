@@ -12,7 +12,7 @@ from uuid import uuid4
 import asyncpg
 from beartype import beartype
 
-from src.pd_prime_demo.core.config import get_settings
+from src.policy_core.core.config import get_settings
 
 
 @beartype

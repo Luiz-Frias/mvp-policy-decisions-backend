@@ -375,7 +375,7 @@ async def main():
     """Run all performance tests."""
 
     # Database connection
-    database_url = os.getenv("DATABASE_URL", "postgresql://localhost/pd_prime_demo")
+    database_url = os.getenv("DATABASE_URL", "postgresql://localhost/policy_core")
 
     try:
         print("🚀 Starting Database Performance Tests")

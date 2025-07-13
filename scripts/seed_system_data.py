@@ -382,7 +382,7 @@ async def main():
     """Main seeding function."""
     load_dotenv()
 
-    database_url = os.getenv("DATABASE_URL", "postgresql://localhost/pd_prime_demo")
+    database_url = os.getenv("DATABASE_URL", "postgresql://localhost/policy_core")
 
     # Convert to asyncpg format
     if "postgresql+asyncpg://" in database_url:

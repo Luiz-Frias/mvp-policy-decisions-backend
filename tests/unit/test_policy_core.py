@@ -1,10 +1,10 @@
-"""Tests for pd_prime_demo foundation classes."""
+"""Tests for policy_core foundation classes."""
 
 import pytest
 
-from pd_prime_demo import __version__
-from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.models.base import BaseModelConfig
+from policy_core import __version__
+from policy_core.core.result_types import Err, Ok, Result
+from policy_core.models.base import BaseModelConfig
 
 
 def test_version() -> None:

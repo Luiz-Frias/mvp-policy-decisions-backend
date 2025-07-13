@@ -184,7 +184,7 @@ async def main() -> None:
         print("ERROR: DATABASE_URL environment variable not set")
         print("Please set DATABASE_URL in your .env file or environment")
         print(
-            "Example: DATABASE_URL=postgresql://user:password@localhost:5432/pd_prime_demo"
+            "Example: DATABASE_URL=postgresql://user:password@localhost:5432/policy_core"
         )
         sys.exit(1)
 

@@ -12,12 +12,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pd_prime_demo.core.logging_utils import (
+from policy_core.core.logging_utils import (
     configure_logging,
     get_logger,
     patch_print,
 )
-from pd_prime_demo.services.rating.calculators import (
+from policy_core.services.rating.calculators import (
     AIRiskScorer,
     CreditBasedInsuranceScorer,
     DiscountCalculator,
@@ -26,7 +26,7 @@ from pd_prime_demo.services.rating.calculators import (
     RegulatoryComplianceCalculator,
     StatisticalRatingModels,
 )
-from pd_prime_demo.services.rating.performance import RatingPerformanceOptimizer
+from policy_core.services.rating.performance import RatingPerformanceOptimizer
 
 # Initialize application-wide logging and redirect any legacy ``print`` calls
 configure_logging()

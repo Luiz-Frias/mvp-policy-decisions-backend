@@ -16,9 +16,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.pd_prime_demo.core.cache import get_cache
-from src.pd_prime_demo.core.database import get_database
-from src.pd_prime_demo.websocket.app import (
+from src.policy_core.core.cache import get_cache
+from src.policy_core.core.database import get_database
+from src.policy_core.websocket.app import (
     get_admin_handler,
     get_analytics_handler,
     get_manager,
@@ -312,7 +312,7 @@ class WebSocketValidator:
 
         try:
             # Check quote service integration
-            from src.pd_prime_demo.api.dependencies import get_quote_service
+            from src.policy_core.api.dependencies import get_quote_service
 
             quote_service = await get_quote_service(
                 await get_database().connect(), await get_cache().connect()

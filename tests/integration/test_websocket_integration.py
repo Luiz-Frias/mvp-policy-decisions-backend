@@ -16,8 +16,8 @@ import pytest
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocketDisconnect
 
-from src.pd_prime_demo.main import app
-from src.pd_prime_demo.websocket.app import websocket_app
+from src.policy_core.main import app
+from src.policy_core.websocket.app import websocket_app
 
 
 @pytest.fixture

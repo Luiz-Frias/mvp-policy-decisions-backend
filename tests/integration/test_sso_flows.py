@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-from src.pd_prime_demo.core.auth.providers.google import GoogleSSOProvider
-from src.pd_prime_demo.core.auth.sso_base import SSOUserInfo
-from src.pd_prime_demo.core.auth.sso_manager import SSOManager
+from src.policy_core.core.auth.providers.google import GoogleSSOProvider
+from src.policy_core.core.auth.sso_base import SSOUserInfo
+from src.policy_core.core.auth.sso_manager import SSOManager
 
 
 class TestSSOIntegrationFlows:
@@ -202,7 +202,7 @@ class TestSSOIntegrationFlows:
             "UPDATE users SET role = $1 WHERE id = $2", "underwriter", user_id
         )
 
-    @patch("src.pd_prime_demo.core.auth.providers.google.httpx.AsyncClient")
+    @patch("src.policy_core.core.auth.providers.google.httpx.AsyncClient")
     async def test_google_provider_integration(self, mock_client):
         """Test Google SSO provider integration."""
         # Mock HTTP responses
@@ -333,7 +333,7 @@ class TestSSOIntegrationFlows:
     async def test_token_refresh_flow(self):
         """Test token refresh functionality."""
         with patch(
-            "src.pd_prime_demo.core.auth.providers.google.httpx.AsyncClient"
+            "src.policy_core.core.auth.providers.google.httpx.AsyncClient"
         ) as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200

@@ -119,7 +119,7 @@ make dev
 make test
 
 # Start development server
-uv run uvicorn src.pd_prime_demo.main:app --reload
+uv run uvicorn src.policy_core.main:app --reload
 
 # Format and lint code
 make format
@@ -227,7 +227,7 @@ Example Python code implementing MASTER RULESET principles:
 - Result types for error handling without exceptions
 - Field constraints and validation on all data models
 
-See `src/pd_prime_demo/main.py` for complete implementation examples.
+See `src/policy_core/main.py` for complete implementation examples.
 
 ## 📚 Documentation
 
@@ -243,7 +243,7 @@ See `src/pd_prime_demo/main.py` for complete implementation examples.
 ```
 mvp-policy-decision-backend/
 ├── src/
-│   └── pd_prime_demo/
+│   └── policy_core/
 │       ├── __init__.py
 │       ├── main.py              # FastAPI application entry point
 │       └── core/

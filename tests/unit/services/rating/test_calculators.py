@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from pd_prime_demo.services.rating.calculators import (
+from policy_core.services.rating.calculators import (
     AIRiskScorer,
     CreditBasedInsuranceScorer,
     DiscountCalculator,
@@ -726,7 +726,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_generalized_linear_model_factor_log_link(self):
         """Test GLM calculation with log link function."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         features = {
             "age": 30.0,
@@ -754,7 +754,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_generalized_linear_model_factor_logit_link(self):
         """Test GLM calculation with logit link function."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         features = {"risk_score": 0.5}
         coefficients = {"intercept": 0.0, "risk_score": 2.0}
@@ -772,7 +772,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_generalized_linear_model_factor_validation(self):
         """Test GLM validation errors."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         # No features
         result = StatisticalRatingModels.calculate_generalized_linear_model_factor(
@@ -797,7 +797,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_loss_cost_relativity_high_credibility(self):
         """Test loss cost relativity with high credibility."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         exposure_data = {"exposure_years": 100}
         loss_data = {
@@ -821,7 +821,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_loss_cost_relativity_low_credibility(self):
         """Test loss cost relativity with low credibility."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         exposure_data = {"exposure_years": 10}
         loss_data = {
@@ -842,7 +842,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_frequency_severity_model_success(self):
         """Test frequency/severity model calculation."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         driver_profile = {
             "age": 35,
@@ -878,7 +878,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_catastrophe_loading_hurricane_zone(self):
         """Test catastrophe loading for hurricane zone."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         result = StatisticalRatingModels.calculate_catastrophe_loading(
             zip_code="33101",  # Miami, FL
@@ -891,7 +891,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_catastrophe_loading_earthquake_zone(self):
         """Test catastrophe loading for earthquake zone."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         result = StatisticalRatingModels.calculate_catastrophe_loading(
             zip_code="90210",  # Beverly Hills, CA
@@ -904,7 +904,7 @@ class TestStatisticalRatingModels:
 
     def test_calculate_catastrophe_loading_with_dwelling_credits(self):
         """Test catastrophe loading with dwelling characteristics."""
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         dwelling_chars = {
             "construction_type": "masonry",
@@ -928,7 +928,7 @@ class TestStatisticalRatingModels:
         """Test trend factors for future policy date."""
         from datetime import datetime
 
-        from pd_prime_demo.services.rating.calculators import StatisticalRatingModels
+        from policy_core.services.rating.calculators import StatisticalRatingModels
 
         # Policy effective 1 year in the future
         policy_date = datetime(2025, 1, 1)
@@ -958,7 +958,7 @@ class TestAdvancedPerformanceCalculator:
 
     def test_batch_calculate_factors(self):
         """Test batch factor calculation."""
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             AdvancedPerformanceCalculator,
         )
 
@@ -993,7 +993,7 @@ class TestAdvancedPerformanceCalculator:
 
     def test_lookup_factor_direct(self):
         """Test direct factor lookup."""
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             AdvancedPerformanceCalculator,
         )
 
@@ -1015,7 +1015,7 @@ class TestAdvancedPerformanceCalculator:
 
     def test_lookup_factor_interpolation(self):
         """Test interpolated factor lookup."""
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             AdvancedPerformanceCalculator,
         )
 
@@ -1036,7 +1036,7 @@ class TestAdvancedPerformanceCalculator:
 
     def test_lookup_factor_errors(self):
         """Test lookup factor error handling."""
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             AdvancedPerformanceCalculator,
         )
 
@@ -1061,7 +1061,7 @@ class TestRegulatoryComplianceCalculator:
         """Test rate deviation validation within limits."""
         from decimal import Decimal
 
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             RegulatoryComplianceCalculator,
         )
 
@@ -1079,7 +1079,7 @@ class TestRegulatoryComplianceCalculator:
         """Test rate deviation validation exceeding limits."""
         from decimal import Decimal
 
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             RegulatoryComplianceCalculator,
         )
 
@@ -1099,7 +1099,7 @@ class TestRegulatoryComplianceCalculator:
         """Test rate deviation with invalid filed rate."""
         from decimal import Decimal
 
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             RegulatoryComplianceCalculator,
         )
 
@@ -1115,7 +1115,7 @@ class TestRegulatoryComplianceCalculator:
 
     def test_apply_mandatory_coverages_california(self):
         """Test mandatory coverage application for California."""
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             RegulatoryComplianceCalculator,
         )
 
@@ -1135,7 +1135,7 @@ class TestRegulatoryComplianceCalculator:
 
     def test_apply_mandatory_coverages_new_york(self):
         """Test mandatory coverage application for New York."""
-        from pd_prime_demo.services.rating.calculators import (
+        from policy_core.services.rating.calculators import (
             RegulatoryComplianceCalculator,
         )
 
