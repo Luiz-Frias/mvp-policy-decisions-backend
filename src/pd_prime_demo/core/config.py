@@ -1,6 +1,12 @@
-"""Configuration management using Pydantic Settings with Doppler integration."""
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
 
-from functools import lru_cache
+"""Configuration management using Pydantic Settings with Doppler integration."""
 
 from beartype import beartype
 from pydantic import Field, ValidationInfo, field_validator
@@ -20,9 +26,17 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        ...,
+        default="sqlite+aiosqlite:///:memory:",
         description="PostgreSQL connection URL",
         min_length=1,
+    )
+    database_public_url: str | None = Field(
+        default=None,
+        description="PostgreSQL public URL (for external access)",
+    )
+    database_read_url: str | None = Field(
+        default=None,
+        description="PostgreSQL read replica URL (optional)",
     )
     database_pool_min: int = Field(
         default=5,
@@ -36,10 +50,38 @@ class Settings(BaseSettings):
         le=100,
         description="Maximum database pool size",
     )
+    database_pool_timeout: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=60.0,
+        description="Connection acquisition timeout in seconds",
+    )
+    database_command_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=300.0,
+        description="Query execution timeout in seconds",
+    )
+    database_max_inactive_connection_lifetime: float = Field(
+        default=600.0,
+        ge=60.0,
+        le=3600.0,
+        description="Maximum connection lifetime in seconds",
+    )
+    database_max_connections: int = Field(
+        default=100,
+        ge=50,
+        le=500,
+        description="Maximum database connections (for capacity planning)",
+    )
+    database_admin_pool_enabled: bool = Field(
+        default=True,
+        description="Enable dedicated admin connection pool",
+    )
 
     # Redis
     redis_url: str = Field(
-        ...,
+        default="redis://localhost:6379/0",
         description="Redis connection URL",
         min_length=1,
     )
@@ -51,6 +93,11 @@ class Settings(BaseSettings):
     )
 
     # API Configuration
+    app_name: str = Field(
+        default="PD Prime Demo",
+        description="Application name",
+        min_length=1,
+    )
     api_host: str = Field(
         default="0.0.0.0",  # nosec B104 - Binding to all interfaces is needed for containerized deployment
         description="API host to bind to",
@@ -70,15 +117,20 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000"],
         description="Allowed CORS origins",
     )
+    api_url: str = Field(
+        default="http://localhost:8000",
+        description="API base URL",
+        min_length=1,
+    )
 
     # Security
     secret_key: str = Field(
-        ...,
+        default="test-secret-key-for-testing-only-never-use-in-production-32-chars",
         min_length=32,
         description="Application secret key",
     )
     jwt_secret: str = Field(
-        ...,
+        default="test-jwt-secret-for-testing-only-never-use-in-production-32-chars",
         min_length=32,
         description="JWT signing secret",
     )
@@ -97,6 +149,30 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(
         default=None,
         description="OpenAI API key for AI features",
+    )
+
+    # External APIs
+    vin_api_key: str | None = Field(
+        default=None,
+        description="VIN decoder API key",
+    )
+    vin_api_endpoint: str | None = Field(
+        default=None,
+        description="VIN decoder API endpoint URL",
+    )
+
+    # SSO Configuration
+    google_oauth_client_id: str | None = Field(
+        default=None,
+        description="Google OAuth2 client ID",
+    )
+    azure_ad_client_id: str | None = Field(
+        default=None,
+        description="Azure AD client ID",
+    )
+    okta_domain: str | None = Field(
+        default=None,
+        description="Okta domain for SSO",
     )
 
     # Feature Flags
@@ -144,19 +220,71 @@ class Settings(BaseSettings):
                 raise ValueError(f"Invalid CORS origin: {origin}")
         return v
 
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls: type["Settings"], v: str, info: ValidationInfo) -> str:
+        """Ensure test secrets are not used in production."""
+        if "api_env" in info.data and info.data["api_env"] == "production":
+            if v.startswith("test-"):
+                raise ValueError(
+                    "Test secret key cannot be used in production. "
+                    "Set SECRET_KEY environment variable."
+                )
+        return v
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def validate_jwt_secret(cls: type["Settings"], v: str, info: ValidationInfo) -> str:
+        """Ensure test JWT secrets are not used in production."""
+        if "api_env" in info.data and info.data["api_env"] == "production":
+            if v.startswith("test-"):
+                raise ValueError(
+                    "Test JWT secret cannot be used in production. "
+                    "Set JWT_SECRET environment variable."
+                )
+        return v
+
     @property
+    @beartype
     def is_production(self) -> bool:
         """Check if running in production mode."""
         return self.api_env == "production"
 
     @property
+    @beartype
     def is_development(self) -> bool:
         """Check if running in development mode."""
         return self.api_env == "development"
 
+    @property
+    @beartype
+    def effective_database_url(self) -> str:
+        """Get the effective database URL, preferring public URL when available."""
+        # If public URL is available and we're not in Railway environment, use public
+        if self.database_public_url:
+            # Check if we're running outside Railway (by testing if internal URL works)
+            if "railway.internal" in self.database_url:
+                # We have an internal URL, so prefer public for external access
+                return self.database_public_url
 
-@lru_cache
+        # Fall back to regular database_url
+        return self.database_url
+
+
+_settings: Settings | None = None
+
+
 @beartype
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings
+
+
+@beartype
+def clear_settings_cache() -> None:
+    """Clear settings cache (for testing)."""
+    global _settings
+    _settings = None

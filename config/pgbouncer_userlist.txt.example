@@ -1,0 +1,22 @@
+;; PgBouncer userlist file
+;; Format: "username" "password_hash"
+;;
+;; To generate MD5 password hash:
+;; echo -n "passwordusername" | md5sum
+;;
+;; For example, for user "app_user" with password "secure_password":
+;; echo -n "secure_passwordapp_user" | md5sum
+;;
+;; Production passwords should be generated using stronger methods
+
+;; Application users
+"app_user" "md5_hash_here"
+"app_readonly" "md5_hash_here"
+
+;; Admin users
+"pgbouncer_admin" "md5_hash_here"
+"pgbouncer_stats" "md5_hash_here"
+"pgbouncer_monitor" "md5_hash_here"
+
+;; Database superuser (use with caution)
+"postgres" "md5_hash_here"

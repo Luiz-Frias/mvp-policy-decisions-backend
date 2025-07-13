@@ -2,12 +2,12 @@ name: 🛡️ Master Ruleset Enforcement CI/CD
 
 on:
   push:
-    branches: [main, develop, staging]
+    branches: [main, development, staging]
     paths-ignore:
       - "*.md"
       - "docs/**"
   pull_request:
-    branches: [main, staging, develop]
+    branches: [main, staging, development]
   schedule:
     - cron: "0 2 * * 1" # Weekly security scan
   workflow_dispatch:

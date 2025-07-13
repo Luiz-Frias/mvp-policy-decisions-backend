@@ -111,6 +111,38 @@ else
     exit 1
 fi
 
+# Check if port 3000 is already in use
+echo "🔍 Checking if port 3000 is available..."
+if lsof -i :3000 > /dev/null 2>&1; then
+    echo "⚠️  Port 3000 is already in use. Attempting to free it..."
+
+    # Get the PID of the process using port 3000
+    EXISTING_FRONTEND_PID=$(lsof -ti :3000)
+    if [ -n "$EXISTING_FRONTEND_PID" ]; then
+        echo "🛑 Stopping existing process on port 3000 (PID: $EXISTING_FRONTEND_PID)..."
+        kill -TERM $EXISTING_FRONTEND_PID 2>/dev/null || true
+        sleep 3
+
+        # Force kill if still running
+        if lsof -i :3000 > /dev/null 2>&1; then
+            echo "🔥 Force stopping stubborn process..."
+            kill -KILL $EXISTING_FRONTEND_PID 2>/dev/null || true
+            sleep 2
+        fi
+    fi
+
+    # Final check
+    if lsof -i :3000 > /dev/null 2>&1; then
+        echo "❌ Unable to free port 3000. Please manually stop the process using port 3000:"
+        echo "   lsof -i :3000"
+        echo "   kill -9 <PID>"
+        kill $BACKEND_PID 2>/dev/null || true
+        exit 1
+    fi
+fi
+
+echo "✅ Port 3000 is available"
+
 # Start frontend server
 echo "🎨 Starting frontend server..."
 cd frontend

@@ -1,3 +1,11 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """Claim domain models with strict validation and audit trail support.
 
 This module defines all claim-related models including creation,
@@ -85,6 +93,7 @@ class ClaimBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfig
 
     @field_validator("incident_date")
     @classmethod
+    @beartype
     def validate_incident_date(cls, v: date) -> date:
         """Ensure incident date is not in the future."""
         from datetime import datetime
@@ -128,6 +137,7 @@ class ClaimCreate(ClaimBase):
 
     @field_validator("supporting_documents")
     @classmethod
+    @beartype
     def validate_documents(cls, v: list[str]) -> list[str]:
         """Validate supporting document references."""
         if len(v) > 20:
@@ -172,6 +182,7 @@ class ClaimUpdate(BaseModelConfig):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_status_transitions(self) -> "ClaimUpdate":
         """Validate claim status transition rules."""
         if self.status == ClaimStatus.DENIED and not self.denial_reason:
@@ -187,6 +198,7 @@ class ClaimUpdate(BaseModelConfig):
         return self
 
     @model_validator(mode="after")
+    @beartype
     def validate_at_least_one_field(self) -> "ClaimUpdate":
         """Ensure at least one field is provided for update."""
         if not any(getattr(self, field) is not None for field in self.model_fields):
@@ -277,6 +289,7 @@ class Claim(ClaimBase, IdentifiableModel):
 
     @field_validator("claim_number")
     @classmethod
+    @beartype
     def validate_claim_number(cls, v: str) -> str:
         """Ensure claim number follows business format."""
         parts = v.split("-")
@@ -291,6 +304,7 @@ class Claim(ClaimBase, IdentifiableModel):
         return v
 
     @model_validator(mode="after")
+    @beartype
     def validate_claim_amounts(self) -> "Claim":
         """Validate claim amount relationships."""
         if self.approved_amount and self.claimed_amount:
@@ -304,6 +318,7 @@ class Claim(ClaimBase, IdentifiableModel):
         return self
 
     @model_validator(mode="after")
+    @beartype
     def validate_timestamps(self) -> "Claim":
         """Validate timestamp relationships."""
         if self.submitted_at and self.created_at:

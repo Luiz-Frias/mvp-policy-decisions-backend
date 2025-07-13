@@ -23,13 +23,25 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.3.0",
     "pyjwt>=2.10.1",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.6",
     "redis>=6.0.0",
     "python-dotenv>=1.1.1",
     "faker>=37.4.0",
     "pydantic-settings>=2.10.1",
     "psutil>=5.9.8",
+    "pytest-benchmark>=4.0.0",
+    "numpy>=1.24.0,<2.0",
+    "scipy>=1.10.0,<2.0",
+    "argon2-cffi>=25.1.0",
+    # MFA dependencies
+    "pyotp>=2.9.0,<3.0",
+    "qrcode[pil]>=7.4.2,<8.0",
+    "webauthn>=1.11.1,<2.0",
+    "cryptography>=42.0.0,<43.0",
+    "defusedxml>=0.7.1",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 readme = "README.md"
 license = {text = "MIT"}
 keywords = ["python", "modern"]
@@ -174,7 +186,7 @@ ml = [
     "jupyter>=1.0,<2.0",
     "ipython>=8.0,<9.0",
     "polars>=0.20,<1.0",  # Fast DataFrame library
-    "duckdb>=0.9,<1.0",  # Fast analytics
+    "duckdb>=0.10.2,<1.0",  # Fast analytics – 0.10.2 includes fix for CVE-2024-41672
 ]
 
 # 🤖 LLM/AI pipeline stack
@@ -184,18 +196,18 @@ llm = [
     "langchain>=0.1,<1.0",
     "langchain-community>=0.0.10,<1.0",
     "tiktoken>=0.5,<1.0",
-    "sentence-transformers>=2.2,<3.0",
+    "sentence-transformers>=3.4.1,<4.0",  # Latest 3.x line
     "chromadb>=0.4,<1.0",
     "pinecone-client>=2.2,<3.0",
 ]
 
 # 📊 Data pipeline stack
 data = [
-    "duckdb>=0.9,<1.0",
+    "duckdb>=0.10.2,<1.0",
     "polars>=0.20,<1.0",
     "pyarrow>=14.0,<15.0",
     "dask>=2023.12,<2024.12",
-    "prefect>=2.14,<3.0",
+    "prefect>=2.19.10,<3.0",  # >=2.19.10 patches PVE-2024-73210 & PVE-2024-71644
     "great-expectations>=0.18,<1.0",
     "pandera>=0.17,<1.0",  # Data validation
 ]
@@ -248,6 +260,12 @@ multi_line_output = 3
 line_length = 88
 known_first_party = ["pd_prime_demo"]
 
+[tool.ruff]
+# Exclude example files from linting
+extend-exclude = ["src/pd_prime_demo/api/example_elite_pattern.py"]
+line-length = 88
+target-version = "py311"
+
 [tool.mypy]
 # 🛡️ MASTER RULESET: MAXIMUM Type Safety Standards
 python_version = "3.11"
@@ -261,6 +279,11 @@ mypy_path = "stubs"
 # PLUGINS for framework support
 plugins = [
     "pydantic.mypy",
+]
+
+# EXCLUDE example files from type checking
+exclude = [
+    "src/pd_prime_demo/api/example_elite_pattern.py",
 ]
 
 # TYPE SAFETY MAXIMIZATION
@@ -453,6 +476,7 @@ commands = mypy src
 
 [dependency-groups]
 dev = [
+    "bandit>=1.8.5",
     "black>=23.0,<25.0",
     "check-wheel-contents>=0.6.1",
     "detect-secrets>=1.5.0",

@@ -1,3 +1,11 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """Customer domain models with strict validation and PII protection.
 
 This module defines all customer-related models including creation,
@@ -85,6 +93,7 @@ class CustomerBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfi
 
     @field_validator("date_of_birth")
     @classmethod
+    @beartype
     def validate_age(cls, v: date) -> date:
         """Ensure customer is at least 18 years old."""
         from datetime import datetime
@@ -101,6 +110,7 @@ class CustomerBase(BaseModelConfig):  # Inherits frozen=True from BaseModelConfi
 
     @field_validator("email")
     @classmethod
+    @beartype
     def validate_email_format(cls, v: EmailStr) -> EmailStr:
         """Additional email validation rules."""
         email_str = str(v).lower()
@@ -138,6 +148,7 @@ class CustomerCreate(CustomerBase):
 
     @field_validator("tax_id")
     @classmethod
+    @beartype
     def validate_tax_id(cls, v: str) -> str:
         """Validate basic tax ID format."""
         # Remove any formatting characters
@@ -148,7 +159,7 @@ class CustomerCreate(CustomerBase):
             raise ValueError("Tax ID must be 9 digits")
 
         # Mask for storage (keep only last 4 digits visible)
-        return f"XXX-XX-{cleaned[-4:]}"
+        return f"***-**-{cleaned[-4:]}"
 
 
 @beartype
@@ -193,6 +204,7 @@ class CustomerUpdate(BaseModelConfig):
     )
 
     @model_validator(mode="after")
+    @beartype
     def validate_at_least_one_field(self) -> "CustomerUpdate":
         """Ensure at least one field is provided for update."""
         if not any(getattr(self, field) is not None for field in self.model_fields):
@@ -230,6 +242,7 @@ class Customer(CustomerBase, IdentifiableModel):
 
     @field_validator("customer_number")
     @classmethod
+    @beartype
     def validate_customer_number(cls, v: str) -> str:
         """Ensure customer number follows business format."""
         if not v.startswith("CUST-"):

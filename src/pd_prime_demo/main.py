@@ -1,3 +1,11 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """MVP Policy Decision Backend - Main Application Module."""
 
 import json
@@ -16,11 +24,15 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .api.middleware.security_headers import SecurityHeadersMiddleware
 from .api.v1 import router as v1_router
 from .core.cache import get_cache
 from .core.config import get_settings
 from .core.database import get_database
+from .core.performance_monitor import PerformanceMonitoringMiddleware
+from .core.rate_limiter import RateLimitConfig, RateLimitingMiddleware
 from .schemas.common import APIInfo
+from .websocket.app import websocket_app
 
 # Configure detailed logging
 logging.basicConfig(
@@ -149,6 +161,7 @@ class Result(Generic[T, E]):
     _error: E | None = field(default=None, init=False)
 
     @classmethod
+    @beartype
     def ok(cls, value: T) -> "Result[T, E]":
         """Create a successful result."""
         result = cls()
@@ -156,32 +169,38 @@ class Result(Generic[T, E]):
         return result
 
     @classmethod
+    @beartype
     def err(cls, error: E) -> "Result[T, E]":
         """Create an error result."""
         result = cls()
         object.__setattr__(result, "_error", error)
         return result
 
+    @beartype
     def is_ok(self) -> bool:
         """Check if result is successful."""
         return self._value is not None
 
+    @beartype
     def is_err(self) -> bool:
         """Check if result is an error."""
         return self._error is not None
 
+    @beartype
     def unwrap(self) -> T:
         """Unwrap value or raise exception."""
         if self._value is not None:
             return self._value
         raise RuntimeError("Called unwrap() on error result")
 
+    @beartype
     def unwrap_err(self) -> E:
         """Extract the error value or panic."""
         if self._error is not None:
             return self._error
         raise RuntimeError("Called unwrap_err() on ok result")
 
+    @beartype
     def unwrap_or(self, default: T) -> T:
         """Unwrap value or return default."""
         return self._value if self._value is not None else default
@@ -200,10 +219,9 @@ class BaseAppModel(BaseModel):
 
     model_config = ConfigDict(
         frozen=True,
-        str_strip_whitespace=True,
-        validate_assignment=True,
         extra="forbid",
-        use_enum_values=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
         validate_default=True,
     )
 
@@ -234,10 +252,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await cache.connect()
     logger.info("✅ Redis connection pool initialized")
 
+    # Initialize WebSocket manager
+    from .websocket.app import get_manager
+
+    websocket_manager = get_manager()
+    await websocket_manager.start()
+    logger.info("✅ WebSocket manager started with monitoring")
+
+    # Warm performance caches for optimal response times
+    from .core.performance_cache import warm_all_caches
+
+    cache_results = await warm_all_caches()
+    logger.info(
+        f"✅ Performance caches warmed: {cache_results['summary']['total_keys_warmed']} keys in {cache_results['summary']['total_warmup_time_ms']:.1f}ms"
+    )
+
     yield
 
     # Shutdown
     logger.info("🛑 Shutting down MVP Policy Decision Backend...")
+
+    # Stop WebSocket manager
+    await websocket_manager.stop()
+    logger.info("✅ WebSocket manager stopped")
 
     # Close database connections
     await db.disconnect()
@@ -267,12 +304,24 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Add rate limiting middleware (protect against high load)
+    rate_limit_config = RateLimitConfig()
+    logger.info("Adding rate limiting middleware for high load protection")
+    app.add_middleware(RateLimitingMiddleware, config=rate_limit_config, enabled=True)
+
+    # Add performance monitoring middleware (always enabled for Wave 2.5)
+    logger.info(
+        "Adding performance monitoring middleware for <100ms requirement tracking"
+    )
+    app.add_middleware(PerformanceMonitoringMiddleware, track_memory=True)
+
     # Add comprehensive request logging middleware (only in development)
     if settings.is_development:
         logger.info("Adding request logging middleware for debugging")
         app.add_middleware(RequestLoggingMiddleware)
 
     # Security middleware
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=["*"] if settings.is_development else ["api.example.com"],
@@ -289,6 +338,9 @@ def create_app() -> FastAPI:
 
     # Include API routers
     app.include_router(v1_router)
+
+    # Mount WebSocket app
+    app.mount("/ws", websocket_app)
 
     # Root endpoint
     @app.get("/")

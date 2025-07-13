@@ -1,3 +1,11 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """Health check schemas."""
 
 from typing import TYPE_CHECKING
@@ -15,6 +23,8 @@ class ComponentStatus(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     status: str = Field(..., pattern=r"^(healthy|unhealthy|degraded)$")
@@ -29,6 +39,8 @@ class HealthComponents(BaseModel):
         frozen=True,
         extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     database: ComponentStatus = Field(..., description="Database health")

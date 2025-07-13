@@ -1,9 +1,33 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """Domain models package for MVP Policy Decision Backend.
 
 This package exports all Pydantic domain models with strict validation
 and immutability for enterprise-grade insurance operations.
 """
 
+from .admin import (
+    ActivityAction,
+    AdminActivityLog,
+    AdminDashboard,
+    AdminDashboardWidget,
+    AdminRole,
+    AdminRoleModel,
+    AdminUser,
+    AdminUserBase,
+    AdminUserCreate,
+    AdminUserUpdate,
+    DashboardWidget,
+    Permission,
+    SystemSetting,
+    SystemSettingCategory,
+)
 from .base import BaseModelConfig, IdentifiableModel, TimestampedModel
 from .claim import (
     Claim,
@@ -30,6 +54,39 @@ from .policy import (
     PolicyStatus,
     PolicyType,
     PolicyUpdate,
+)
+from .quote import (
+    ContactMethod,
+    CoverageSelection,
+    CoverageType,
+    Discount,
+    DiscountType,
+    DriverInfo,
+    DriverRelationship,
+    ProductType,
+    Quote,
+    QuoteBase,
+    QuoteComparison,
+    QuoteCreate,
+    QuoteStatus,
+    QuoteUpdate,
+    VehicleInfo,
+    VehicleType,
+)
+from .user import (
+    EmailVerificationRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    User,
+    UserBase,
+    UserCreate,
+    UserLogin,
+    UserLoginResponse,
+    UserPasswordUpdate,
+    UserRefreshRequest,
+    UserRole,
+    UserStatus,
+    UserUpdate,
 )
 
 __all__ = [
@@ -60,4 +117,50 @@ __all__ = [
     "ClaimType",
     "ClaimStatus",
     "ClaimPriority",
+    # Quote models
+    "QuoteBase",
+    "Quote",
+    "QuoteCreate",
+    "QuoteUpdate",
+    "QuoteComparison",
+    "QuoteStatus",
+    "CoverageType",
+    "DiscountType",
+    "VehicleType",
+    "DriverRelationship",
+    "ContactMethod",
+    "ProductType",
+    "VehicleInfo",
+    "DriverInfo",
+    "CoverageSelection",
+    "Discount",
+    # Admin models
+    "AdminUser",
+    "AdminUserBase",
+    "AdminUserCreate",
+    "AdminUserUpdate",
+    "AdminRole",
+    "AdminRoleModel",
+    "Permission",
+    "SystemSetting",
+    "SystemSettingCategory",
+    "AdminActivityLog",
+    "ActivityAction",
+    "AdminDashboard",
+    "AdminDashboardWidget",
+    "DashboardWidget",
+    # User models
+    "User",
+    "UserBase",
+    "UserCreate",
+    "UserUpdate",
+    "UserPasswordUpdate",
+    "UserLogin",
+    "UserLoginResponse",
+    "UserRefreshRequest",
+    "PasswordResetRequest",
+    "PasswordResetConfirm",
+    "EmailVerificationRequest",
+    "UserRole",
+    "UserStatus",
 ]

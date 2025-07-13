@@ -4,7 +4,7 @@
 if command -v doppler >/dev/null 2>&1; then
     export GPG_PASSPHRASE=$(doppler secrets get GPG_PASSPHRASE --plain --project mvp-policy-decision-backend --config dev 2>/dev/null)
     if [ -n "$GPG_PASSPHRASE" ]; then
-        export GNUPGHOME=${GNUPGHOME:-$HOME/.gnupg}
+        # Don't override GNUPGHOME if it's already set (preserve project-specific GPG config)
         export GPG_TTY=$(tty)
     fi
 fi

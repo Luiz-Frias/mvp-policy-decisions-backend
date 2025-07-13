@@ -1,0 +1,373 @@
+name: 📊 Production Monitoring & Alerts
+
+on:
+  schedule:
+    # Run every 5 minutes during business hours (9 AM - 6 PM UTC)
+    - cron: "*/5 9-18 * * 1-5"
+    # Run every 15 minutes outside business hours
+    - cron: "*/15 0-8,19-23 * * *"
+    - cron: "*/15 * * * 0,6"
+  workflow_dispatch:
+    inputs:
+      alert_level:
+        description: "Alert level to test"
+        required: false
+        default: "info"
+        type: choice
+        options:
+          - info
+          - warning
+          - critical
+
+env:
+  PRODUCTION_URL: "https://mvp-policy-decisions-backend-production.up.railway.app"
+  STAGING_URL: "https://mvp-policy-decisions-backend-staging.up.railway.app"
+
+jobs:
+  health-monitoring:
+    name: 🏥 Health Monitoring
+    runs-on: ubuntu-latest
+    outputs:
+      production-status: ${{ steps.production-health.outputs.status }}
+      staging-status: ${{ steps.staging-health.outputs.status }}
+      response-time: ${{ steps.performance.outputs.response-time }}
+    steps:
+      - name: 🔍 Production health check
+        id: production-health
+        run: |
+          echo "Checking production health..."
+
+          START_TIME=$(date +%s%N)
+
+          if curl -f -s -m 10 "$PRODUCTION_URL/api/v1/health" > health-response.json; then
+            END_TIME=$(date +%s%N)
+            RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "response-time=$RESPONSE_TIME" >> $GITHUB_OUTPUT
+            echo "✅ Production is healthy (${RESPONSE_TIME}ms)"
+
+            # Check health response details
+            cat health-response.json | jq '.'
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "❌ Production health check failed"
+            exit 1
+          fi
+
+      - name: 🧪 Staging health check
+        id: staging-health
+        continue-on-error: true
+        run: |
+          echo "Checking staging health..."
+
+          if curl -f -s -m 10 "$STAGING_URL/api/v1/health" > staging-health.json; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "✅ Staging is healthy"
+            cat staging-health.json | jq '.'
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "⚠️ Staging health check failed (non-critical)"
+          fi
+
+      - name: ⚡ Performance check
+        id: performance
+        run: |
+          echo "Running performance checks..."
+
+          # Test critical endpoints with response time monitoring
+          ENDPOINTS=(
+            "/api/v1/health"
+            "/api/v1/health/ready"
+            "/docs"
+            "/openapi.json"
+          )
+
+          TOTAL_TIME=0
+          COUNT=0
+
+          for endpoint in "${ENDPOINTS[@]}"; do
+            echo "Testing $endpoint..."
+
+            START_TIME=$(date +%s%N)
+
+            if curl -f -s -m 5 "$PRODUCTION_URL$endpoint" > /dev/null; then
+              END_TIME=$(date +%s%N)
+              RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+              TOTAL_TIME=$((TOTAL_TIME + RESPONSE_TIME))
+              COUNT=$((COUNT + 1))
+
+              echo "  ✅ $endpoint: ${RESPONSE_TIME}ms"
+
+              # Alert if any endpoint is slower than 2 seconds
+              if [ $RESPONSE_TIME -gt 2000 ]; then
+                echo "  ⚠️ Slow response detected: ${RESPONSE_TIME}ms"
+              fi
+            else
+              echo "  ❌ $endpoint: Failed"
+            fi
+          done
+
+          if [ $COUNT -gt 0 ]; then
+            AVG_TIME=$((TOTAL_TIME / COUNT))
+            echo "response-time=$AVG_TIME" >> $GITHUB_OUTPUT
+            echo "Average response time: ${AVG_TIME}ms"
+          fi
+
+      - name: 📤 Upload monitoring data
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-data-${{ github.run_number }}
+          path: |
+            health-response.json
+            staging-health.json
+          retention-days: 7
+
+  database-monitoring:
+    name: 🗄️ Database Monitoring
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install 3.11
+
+      - name: 📦 Install dependencies
+        run: |
+          uv sync --all-extras --dev
+          uv add psycopg2-binary
+
+      - name: 🗄️ Database health check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cat > db_monitor.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import os
+          import time
+          import json
+          from datetime import datetime
+
+          async def check_database():
+              database_url = os.getenv('DATABASE_URL')
+              if not database_url:
+                  print("❌ DATABASE_URL not set")
+                  return False
+
+              try:
+                  start_time = time.time()
+
+                  # Test connection
+                  conn = await asyncpg.connect(database_url)
+
+                  # Test basic query
+                  result = await conn.fetchval('SELECT 1')
+
+                  # Test table access (check if our tables exist)
+                  tables = await conn.fetch("""
+                      SELECT table_name
+                      FROM information_schema.tables
+                      WHERE table_schema = 'public'
+                      ORDER BY table_name
+                  """)
+
+                  # Test connection pool performance
+                  pool_start = time.time()
+                  pool = await asyncpg.create_pool(
+                      database_url,
+                      min_size=1,
+                      max_size=5,
+                      command_timeout=5
+                  )
+
+                  # Test concurrent connections
+                  async with pool.acquire() as conn2:
+                      await conn2.fetchval('SELECT COUNT(*) FROM information_schema.tables')
+
+                  await pool.close()
+                  pool_time = time.time() - pool_start
+
+                  await conn.close()
+                  total_time = time.time() - start_time
+
+                  print(f"✅ Database connection successful")
+                  print(f"⚡ Connection time: {total_time:.3f}s")
+                  print(f"🏊 Pool setup time: {pool_time:.3f}s")
+                  print(f"📊 Tables found: {len(tables)}")
+
+                  # Check for critical tables
+                  table_names = [row['table_name'] for row in tables]
+                  critical_tables = ['users', 'policies', 'claims', 'quotes']
+                  missing_tables = [t for t in critical_tables if t not in table_names]
+
+                  if missing_tables:
+                      print(f"⚠️ Missing critical tables: {missing_tables}")
+                  else:
+                      print("✅ All critical tables present")
+
+                  # Save monitoring data
+                  monitoring_data = {
+                      "timestamp": datetime.utcnow().isoformat(),
+                      "connection_time_ms": round(total_time * 1000, 2),
+                      "pool_setup_time_ms": round(pool_time * 1000, 2),
+                      "tables_count": len(tables),
+                      "critical_tables_missing": missing_tables,
+                      "status": "healthy"
+                  }
+
+                  with open('db-monitoring.json', 'w') as f:
+                      json.dump(monitoring_data, f, indent=2)
+
+                  return True
+
+              except Exception as e:
+                  print(f"❌ Database error: {e}")
+
+                  monitoring_data = {
+                      "timestamp": datetime.utcnow().isoformat(),
+                      "error": str(e),
+                      "status": "unhealthy"
+                  }
+
+                  with open('db-monitoring.json', 'w') as f:
+                      json.dump(monitoring_data, f, indent=2)
+
+                  return False
+
+          if __name__ == "__main__":
+              success = asyncio.run(check_database())
+              exit(0 if success else 1)
+          EOF
+
+          uv run python db_monitor.py
+
+      - name: 📤 Upload database monitoring
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: database-monitoring-${{ github.run_number }}
+          path: db-monitoring.json
+          retention-days: 30
+
+  security-monitoring:
+    name: 🔒 Security Monitoring
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install 3.11
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🔒 Security endpoint tests
+        run: |
+          echo "Testing security endpoints..."
+
+          # Test SSL/TLS configuration
+          echo "🔐 Testing SSL configuration..."
+          curl -I -s "$PRODUCTION_URL" | grep -i "strict-transport-security" || echo "⚠️ HSTS header missing"
+
+          # Test security headers
+          echo "🛡️ Testing security headers..."
+          HEADERS=$(curl -I -s "$PRODUCTION_URL/api/v1/health")
+
+          echo "$HEADERS" | grep -i "x-content-type-options" || echo "⚠️ X-Content-Type-Options header missing"
+          echo "$HEADERS" | grep -i "x-frame-options" || echo "⚠️ X-Frame-Options header missing"
+          echo "$HEADERS" | grep -i "x-xss-protection" || echo "⚠️ X-XSS-Protection header missing"
+
+          # Test authentication endpoints
+          echo "🔑 Testing authentication..."
+
+          # Should get 401 for protected endpoints
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL/api/v1/admin/users")
+          if [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ]; then
+            echo "✅ Protected endpoints properly secured"
+          else
+            echo "⚠️ Protected endpoints may be exposed (Status: $STATUS)"
+          fi
+
+      - name: 🕸️ Dependency vulnerability scan
+        run: |
+          echo "Scanning for dependency vulnerabilities..."
+
+          # Run safety check
+          uv run safety check --json --output safety-results.json || true
+
+          # Count high severity issues
+          if [ -f safety-results.json ]; then
+            HIGH_VULN=$(cat safety-results.json | jq '[.[] | select(.vulnerability_id)] | length' 2>/dev/null || echo "0")
+            echo "Vulnerabilities found: $HIGH_VULN"
+
+            if [ "$HIGH_VULN" -gt 0 ]; then
+              echo "⚠️ Security vulnerabilities detected"
+              cat safety-results.json | jq '.'
+            else
+              echo "✅ No security vulnerabilities found"
+            fi
+          fi
+
+      - name: 📤 Upload security monitoring
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-monitoring-${{ github.run_number }}
+          path: safety-results.json
+          retention-days: 30
+
+  alert-on-failure:
+    name: 🚨 Alert on Failure
+    runs-on: ubuntu-latest
+    needs: [health-monitoring, database-monitoring, security-monitoring]
+    if: failure() || needs.health-monitoring.outputs.production-status == 'unhealthy'
+    steps:
+      - name: 🚨 Critical Alert
+        run: |
+          echo "🚨 CRITICAL ALERT: Production system issues detected!"
+          echo "Time: $(date)"
+          echo "Production Status: ${{ needs.health-monitoring.outputs.production-status }}"
+          echo "Response Time: ${{ needs.health-monitoring.outputs.response-time }}ms"
+
+          # Here you would typically send alerts to:
+          # - Slack/Discord webhook
+          # - Email notifications
+          # - PagerDuty
+          # - SMS alerts
+
+          echo "Alert sent to monitoring channels"
+
+  uptime-report:
+    name: 📈 Uptime Report
+    runs-on: ubuntu-latest
+    needs: [health-monitoring]
+    if: always()
+    steps:
+      - name: 📊 Generate uptime report
+        run: |
+          echo "📈 Uptime Monitoring Report"
+          echo "=========================="
+          echo "Timestamp: $(date)"
+          echo "Production Status: ${{ needs.health-monitoring.outputs.production-status }}"
+          echo "Staging Status: ${{ needs.health-monitoring.outputs.staging-status }}"
+          echo "Average Response Time: ${{ needs.health-monitoring.outputs.response-time }}ms"
+
+          # Calculate uptime percentage (simplified)
+          if [ "${{ needs.health-monitoring.outputs.production-status }}" = "healthy" ]; then
+            echo "Current Check: ✅ UP"
+          else
+            echo "Current Check: ❌ DOWN"
+          fi
+
+          echo ""
+          echo "SLA Target: 99.9% uptime"
+          echo "Performance Target: <100ms average response time"

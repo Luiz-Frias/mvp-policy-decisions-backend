@@ -1,5 +1,14 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """Policy business logic service."""
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -7,23 +16,31 @@ from uuid import UUID
 import asyncpg
 from beartype import beartype
 
+from pd_prime_demo.core.result_types import Err, Ok, Result
+
 from ..core.cache import Cache
 from ..core.database import Database
 from ..models.policy import Policy, PolicyCreate, PolicyStatus, PolicyType, PolicyUpdate
-from .result import Err, Ok, Result
+from .cache_keys import CacheKeys
+from .performance_monitor import performance_monitor
 
 
 class PolicyService:
     """Service for policy business logic."""
 
     def __init__(self, db: Database, cache: Cache) -> None:
-        """Initialize policy service."""
+        """Initialize policy service with dependency validation."""
+        if not db or not hasattr(db, "execute"):
+            raise ValueError("Database connection required and must be active")
+        if not cache or not hasattr(cache, "get"):
+            raise ValueError("Cache connection required and must be available")
+
         self._db = db
         self._cache = cache
-        self._cache_prefix = "policy:"
         self._cache_ttl = 3600  # 1 hour
 
     @beartype
+    @performance_monitor("create_policy")
     async def create(
         self,
         policy_data: PolicyCreate,
@@ -68,7 +85,8 @@ class PolicyService:
             policy = self._row_to_policy(row)
 
             # Invalidate customer cache
-            await self._cache.delete(f"customer:{customer_id}:policies")
+            await self._cache.delete(CacheKeys.customer_policies(customer_id))
+            await self._cache.delete(CacheKeys.policies_by_customer(customer_id))
 
             return Ok(policy)
 
@@ -78,10 +96,11 @@ class PolicyService:
             return Err(f"Database error: {str(e)}")
 
     @beartype
-    async def get(self, policy_id: UUID) -> Result[Policy | None, str]:
+    @performance_monitor("get_policy")
+    async def get(self, policy_id: UUID) -> Result[Policy, str]:
         """Get policy by ID."""
         # Check cache first
-        cache_key = f"{self._cache_prefix}{policy_id}"
+        cache_key = CacheKeys.policy_by_id(policy_id)
         cached = await self._cache.get(cache_key)
         if cached:
             return Ok(Policy(**cached))
@@ -96,7 +115,7 @@ class PolicyService:
 
         row = await self._db.fetchrow(query, policy_id)
         if not row:
-            return Ok(None)
+            return Err("Policy not found")
 
         policy = self._row_to_policy(row)
 
@@ -110,6 +129,7 @@ class PolicyService:
         return Ok(policy)
 
     @beartype
+    @performance_monitor("list_policies")
     async def list(
         self,
         customer_id: UUID | None = None,
@@ -136,11 +156,11 @@ class PolicyService:
 
         param_count += 1
         query_parts.append(f"LIMIT ${param_count}")
-        params.append(limit)
+        params.append(str(limit))
 
         param_count += 1
         query_parts.append(f"OFFSET ${param_count}")
-        params.append(offset)
+        params.append(str(offset))
 
         query = " ".join(query_parts)
         rows = await self._db.fetch(query, *params)
@@ -149,11 +169,12 @@ class PolicyService:
         return Ok(policies)
 
     @beartype
+    @performance_monitor("update_policy")
     async def update(
         self,
         policy_id: UUID,
         policy_update: PolicyUpdate,
-    ) -> Result[Policy | None, str]:
+    ) -> Result[Policy, str]:
         """Update policy."""
         # Get existing policy
         existing_result = await self.get(policy_id)
@@ -162,7 +183,7 @@ class PolicyService:
 
         existing = existing_result.unwrap()
         if not existing:
-            return Ok(None)
+            return Err("Policy not found")
 
         # Validate update
         if policy_update.status == "CANCELLED" and existing.status == "CANCELLED":
@@ -194,6 +215,10 @@ class PolicyService:
         if policy_update.deductible is not None:
             data_updates["deductible"] = str(policy_update.deductible)
 
+        # Track cancellation date when status changes to CANCELLED
+        if policy_update.status == "CANCELLED" and existing.status != "CANCELLED":
+            data_updates["cancelled_at"] = datetime.now().isoformat()
+
         if data_updates:
             param_count += 1
             update_parts.append(SAFE_UPDATE_TEMPLATES["data_merge"].format(param_count))
@@ -224,11 +249,13 @@ class PolicyService:
         policy = self._row_to_policy(row)
 
         # Invalidate cache
-        await self._cache.delete(f"{self._cache_prefix}{policy_id}")
+        await self._cache.delete(CacheKeys.policy_by_id(policy_id))
+        await self._cache.delete(CacheKeys.policies_by_customer(policy.customer_id))
 
         return Ok(policy)
 
     @beartype
+    @performance_monitor("delete_policy")
     async def delete(self, policy_id: UUID) -> Result[bool, str]:
         """Soft delete a policy by setting status to CANCELLED."""
         result = await self.update(
@@ -249,6 +276,7 @@ class PolicyService:
         return Ok(policy is not None)
 
     @beartype
+    @performance_monitor("validate_policy_data")
     async def _validate_policy_data(
         self, policy_data: PolicyCreate
     ) -> Result[bool, str]:
@@ -275,34 +303,36 @@ class PolicyService:
         return Ok(True)
 
     @beartype
+    @performance_monitor("row_to_policy")
     def _row_to_policy(self, row: asyncpg.Record) -> Policy:
         """Convert database row to Policy model."""
         data = dict(row["data"])
 
-        # Parse policy type from data or infer from policy number
+        # Parse policy type from data
         policy_type_str = data.get("type", "AUTO")  # Default to AUTO
         try:
             policy_type = PolicyType(policy_type_str.upper())
         except ValueError:
             policy_type = PolicyType.AUTO  # Fallback to AUTO for invalid types
 
+        # Fix: Data is stored directly in the JSON, not nested under 'coverage'
         return Policy(
             id=row["id"],
             customer_id=row["customer_id"],
             policy_number=row["policy_number"],
             policy_type=policy_type,
             status=PolicyStatus(row["status"]),
-            premium_amount=Decimal(
-                str(data.get("coverage", {}).get("base_premium", "0"))
-            ),
-            coverage_amount=Decimal(
-                str(data.get("coverage", {}).get("coverage_limit", "0"))
-            ),
-            deductible=Decimal(str(data.get("coverage", {}).get("deductible", "0"))),
+            premium_amount=Decimal(str(data.get("premium", "0"))),
+            coverage_amount=Decimal(str(data.get("coverage_amount", "0"))),
+            deductible=Decimal(str(data.get("deductible", "0"))),
             effective_date=row["effective_date"],
             expiration_date=row["expiration_date"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             notes=data.get("notes"),
-            cancelled_at=None,
+            cancelled_at=(
+                datetime.fromisoformat(data["cancelled_at"])
+                if data.get("cancelled_at")
+                else None
+            ),
         )

@@ -1,0 +1,201 @@
+name: 🧪 Staging Deployment
+
+on:
+  push:
+    branches: [feat/*, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install 3.11
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🧪 Run tests
+        run: |
+          uv run pytest tests/ -v --tb=short --cov=src --cov-report=term
+
+      - name: 🔒 Security scan
+        run: |
+          uv run bandit -r src/ --severity-level medium
+          uv run safety check
+
+  build-staging:
+    name: 🏗️ Build Staging Image
+    runs-on: ubuntu-latest
+    needs: [test]
+    outputs:
+      image-tag: ${{ steps.image.outputs.tag }}
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔐 Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch,suffix=-staging
+            type=ref,event=pr,suffix=-staging
+            type=sha,prefix=staging-
+
+      - name: 🏗️ Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🚀 Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 📝 Set image tag
+        id: image
+        run: |
+          TAG=${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  deploy-staging:
+    name: 🚂 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-staging]
+    environment: staging
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚂 Install Railway CLI
+        run: |
+          curl -fsSL https://railway.app/install.sh | sh
+          echo "$HOME/.railway/bin" >> $GITHUB_PATH
+
+      - name: 🚀 Deploy to Railway Staging
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+        run: |
+          echo "Deploying to Railway staging environment..."
+
+          # Switch to staging environment
+          railway environment staging
+
+          # Deploy with staging configuration
+          railway deploy --detach
+
+          echo "✅ Staging deployment initiated"
+
+      - name: ⏳ Wait for staging deployment
+        run: |
+          echo "Waiting for staging deployment to complete..."
+          sleep 45
+
+      - name: 🧪 Staging smoke test
+        run: |
+          STAGING_URL="https://mvp-policy-decisions-backend-staging.up.railway.app"
+
+          echo "Running staging smoke tests..."
+
+          # Wait for service and test health
+          for i in {1..5}; do
+            if curl -f -s "$STAGING_URL/api/v1/health" > /dev/null; then
+              echo "✅ Staging health check passed"
+              break
+            else
+              echo "⏳ Waiting for staging service... attempt $i/5"
+              sleep 15
+            fi
+          done
+
+          # Test API endpoints
+          curl -f "$STAGING_URL/api/v1/health" | jq '.'
+          curl -f -I "$STAGING_URL/docs"
+
+  integration-test:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: 🐍 Setup Python
+        run: uv python install 3.11
+
+      - name: 📦 Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: 🔗 Run integration tests
+        env:
+          TEST_API_URL: "https://mvp-policy-decisions-backend-staging.up.railway.app"
+        run: |
+          echo "Running integration tests against staging environment..."
+
+          # Run integration tests that point to staging
+          uv run pytest tests/integration/ -v --tb=short \
+            --staging \
+            --base-url="$TEST_API_URL"
+
+  notify-pr:
+    name: 📢 PR Notification
+    runs-on: ubuntu-latest
+    needs: [test, build-staging]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: 📝 Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.payload.pull_request.number;
+
+            const body = `
+            ## 🧪 Staging Build Complete
+
+            ✅ Tests passed
+            ✅ Security scan passed
+            ✅ Staging image built
+
+            **Image**: \`${{ needs.build-staging.outputs.image-tag }}\`
+
+            Ready for review and merge to deploy to production.
+            `;
+
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pr_number,
+              body
+            });

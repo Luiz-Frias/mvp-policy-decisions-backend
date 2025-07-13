@@ -1,3 +1,11 @@
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
+
 """Internal schemas for system boundaries where dict is allowed."""
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,8 +16,10 @@ class JWTDecodeResult(BaseModel):
 
     model_config = ConfigDict(
         frozen=True,
-        extra="allow",  # JWT can have extra claims
+        extra="forbid",
         validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 
     sub: str = Field(..., description="Subject")

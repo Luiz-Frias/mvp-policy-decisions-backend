@@ -1,0 +1,67 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 30
+restartPolicyType = "always"
+
+[[services]]
+name = "api"
+port = 8080
+
+[services.scaling]
+minInstances = 2
+maxInstances = 10
+
+[[services]]
+name = "websocket"
+port = 8081
+
+[services.scaling]
+minInstances = 1
+maxInstances = 5
+
+[environments.production]
+variables.APP_ENV = "production"
+variables.API_HOST = "0.0.0.0"
+variables.API_PORT = "8080"
+variables.WEBSOCKET_PORT = "8081"
+variables.LOG_LEVEL = "INFO"
+variables.ENABLE_METRICS = "true"
+variables.ENABLE_PROFILING = "false"
+variables.MAX_REQUEST_SIZE_MB = "10"
+variables.REQUEST_TIMEOUT_SECONDS = "30"
+variables.JWT_ALGORITHM = "RS256"
+variables.JWT_EXPIRATION_MINUTES = "60"
+variables.DATABASE_POOL_MIN = "10"
+variables.DATABASE_POOL_MAX = "50"
+variables.DATABASE_POOL_TIMEOUT = "10.0"
+variables.DATABASE_COMMAND_TIMEOUT = "30.0"
+variables.DATABASE_MAX_INACTIVE_CONNECTION_LIFETIME = "600.0"
+variables.DATABASE_MAX_CONNECTIONS = "200"
+variables.DATABASE_ADMIN_POOL_ENABLED = "true"
+variables.REDIS_TTL_SECONDS = "3600"
+
+[environments.staging]
+variables.APP_ENV = "staging"
+variables.API_HOST = "0.0.0.0"
+variables.API_PORT = "8080"
+variables.WEBSOCKET_PORT = "8081"
+variables.LOG_LEVEL = "DEBUG"
+variables.ENABLE_METRICS = "true"
+variables.ENABLE_PROFILING = "true"
+variables.DATABASE_POOL_MIN = "5"
+variables.DATABASE_POOL_MAX = "20"
+
+[environments.development]
+variables.APP_ENV = "development"
+variables.API_HOST = "0.0.0.0"
+variables.API_PORT = "8080"
+variables.WEBSOCKET_PORT = "8081"
+variables.LOG_LEVEL = "DEBUG"
+variables.ENABLE_METRICS = "true"
+variables.ENABLE_PROFILING = "true"
+variables.DATABASE_POOL_MIN = "2"
+variables.DATABASE_POOL_MAX = "10"

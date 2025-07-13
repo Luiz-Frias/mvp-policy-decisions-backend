@@ -80,15 +80,10 @@ os.environ.setdefault("API_ENV", "development")
 
 # NOW we can safely import the app-related modules  # noqa: E402
 from src.pd_prime_demo.api.v1.health import HealthStatus  # noqa: E402
-from src.pd_prime_demo.api.v1.policies import (  # noqa: E402
-    PolicyListResponse,
-)
+from src.pd_prime_demo.api.v1.policies import PolicyListResponse  # noqa: E402
 from src.pd_prime_demo.core.config import Settings, get_settings  # noqa: E402
 from src.pd_prime_demo.main import create_app  # noqa: E402
-from src.pd_prime_demo.models.policy import (  # noqa: E402
-    PolicyStatus,
-    PolicyType,
-)
+from src.pd_prime_demo.models.policy import PolicyStatus, PolicyType  # noqa: E402
 from src.pd_prime_demo.schemas.auth import CurrentUser  # noqa: E402
 
 # Test data using actual model structures

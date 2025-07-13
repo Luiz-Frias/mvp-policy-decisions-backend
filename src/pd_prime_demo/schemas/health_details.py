@@ -1,6 +1,12 @@
-"""Health check detail schemas for component-specific information."""
+# PolicyCore - Policy Decision Management System
+# Copyright (C) 2025 Luiz Frias <luizf35@gmail.com>
+# Form F[x] Labs
+#
+# This software is dual-licensed under AGPL-3.0 and Commercial License.
+# For commercial licensing, contact: luizf35@gmail.com
+# See LICENSE file for full terms.
 
-from typing import Union
+"""Health check detail schemas for component-specific information."""
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,6 +19,7 @@ class DatabasePoolStats(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     size: int | None = Field(
@@ -37,6 +44,7 @@ class DatabaseHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     version: str = Field(..., description="Database version string")
@@ -53,6 +61,7 @@ class RedisHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     version: str = Field(..., description="Redis version")
@@ -84,6 +93,7 @@ class SystemResourceDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     total_gb: float | None = Field(
@@ -105,6 +115,7 @@ class CPUHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     count: int | None = Field(None, ge=1, description="Number of CPU cores")
@@ -121,6 +132,7 @@ class MemoryHealthDetails(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
+        validate_default=True,
     )
 
     total_gb: float = Field(..., ge=0, description="Total memory in GB")
@@ -131,10 +143,10 @@ class MemoryHealthDetails(BaseModel):
 
 
 # Union type for all possible health details
-HealthDetails = Union[
-    RedisHealthDetails,
-    DatabaseHealthDetails,
-    MemoryHealthDetails,
-    CPUHealthDetails,
-    SystemResourceDetails,
-]
+HealthDetails = (
+    RedisHealthDetails
+    | DatabaseHealthDetails
+    | MemoryHealthDetails
+    | CPUHealthDetails
+    | SystemResourceDetails
+)

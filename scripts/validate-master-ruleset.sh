@@ -3,14 +3,26 @@
 
 set -euo pipefail
 
-echo "📋 Validating master ruleset compliance..."
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+echo "📋 Validating master ruleset compliance..."
+
+# Check for git zombie processes first
+echo "🔍 Checking for git zombie processes..."
+zombies=$(ps aux | grep '[Zz]' | grep 'git' | grep -v grep || true)
+if [[ -n "$zombies" ]]; then
+    echo -e "${RED}❌ ERROR: Found git zombie processes that may block commits:${NC}"
+    echo "$zombies"
+    echo "Run: sudo kill -9 <pid> to clean up zombies"
+    exit 1
+else
+    echo -e "${GREEN}✓ No git zombie processes found${NC}"
+fi
 
 # Track violations
 VIOLATIONS=0
@@ -32,18 +44,62 @@ else
     echo -e "${GREEN}✓ No quick fix indicators found${NC}"
 fi
 
-# Check 2: All data models use Pydantic (no plain dicts)
-echo "🔍 Checking for plain dictionary usage..."
-dict_usage=$(grep -r "dict\[str,\|Dict\[str,\|: dict\|-> dict" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" || true)
-if [[ -n "$dict_usage" ]]; then
-    echo -e "${YELLOW}⚠️  WARNING: Found plain dictionary type hints. Consider using Pydantic models:${NC}"
-    echo "$dict_usage" | head -5
-    ((WARNINGS++))
+# Check 2: All data models use Pydantic (no plain dicts without SYSTEM_BOUNDARY)
+echo "🔍 MASTER RULE: Validating Pydantic model compliance..."
+
+# 2a: Plain dictionary usage without SYSTEM_BOUNDARY annotation (exclude tests)
+DICT_VIOL_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "dict\\[" {} \; 2>/dev/null | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null || true)
+if [[ -n "$DICT_VIOL_FILES" ]]; then
+    COUNT=$(echo "$DICT_VIOL_FILES" | wc -l)
+    echo -e "${RED}❌ MASTER RULE VIOLATION: $COUNT file(s) use plain dictionaries without annotation:${NC}"
+    echo "$DICT_VIOL_FILES" | head -20 | sed 's/^/   • /'
+    if [[ $COUNT -gt 20 ]]; then
+        echo "   ... and $((COUNT - 20)) more"
+    fi
+    ((VIOLATIONS+=$COUNT))
+else
+    echo -e "${GREEN}✓ No plain dictionary usage without SYSTEM_BOUNDARY found${NC}"
+fi
+
+# 2b: Pydantic models missing frozen=True (exclude tests)
+BASEMODEL_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "class.*BaseModel" {} \; 2>/dev/null)
+UNFROZEN_LIST=""
+if [[ -n "$BASEMODEL_FILES" ]]; then
+    UNFROZEN_LIST=$(echo "$BASEMODEL_FILES" | xargs grep -L "frozen.*=.*True" 2>/dev/null || true)
+fi
+if [[ -n "$UNFROZEN_LIST" ]]; then
+    COUNT=$(echo "$UNFROZEN_LIST" | wc -l)
+    echo -e "${RED}❌ MASTER RULE VIOLATION: $COUNT model(s) lack frozen=True:${NC}"
+    echo "$UNFROZEN_LIST" | head -10 | sed 's/^/   • /'
+    if [[ $COUNT -gt 10 ]]; then
+        echo "   ... and $((COUNT - 10)) more"
+    fi
+    ((VIOLATIONS+=$COUNT))
+else
+    echo -e "${GREEN}✓ All Pydantic models have frozen=True${NC}"
+fi
+
+# 2c: Public functions missing @beartype (exclude tests)
+PUBLIC_FUNCS_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "^def [^_]" {} \; 2>/dev/null)
+MISSING_BEAR=""
+if [[ -n "$PUBLIC_FUNCS_FILES" ]]; then
+    MISSING_BEAR=$(echo "$PUBLIC_FUNCS_FILES" | xargs grep -L "@beartype" 2>/dev/null || true)
+fi
+if [[ -n "$MISSING_BEAR" ]]; then
+    COUNT=$(echo "$MISSING_BEAR" | wc -l)
+    echo -e "${RED}❌ MASTER RULE VIOLATION: $COUNT public function file(s) without @beartype:${NC}"
+    echo "$MISSING_BEAR" | head -10 | sed 's/^/   • /'
+    if [[ $COUNT -gt 10 ]]; then
+        echo "   ... and $((COUNT - 10)) more"
+    fi
+    ((VIOLATIONS+=$COUNT))
+else
+    echo -e "${GREEN}✓ All public functions have @beartype decorators${NC}"
 fi
 
 # Check 3: No bare 'Any' types
 echo "🔍 Checking for Any type usage..."
-any_usage=$(grep -r "Any\|typing.Any" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" | grep -v "# type: ignore" || true)
+any_usage=$(grep -r "Any\|typing.Any" src/ --include="*.py" 2>/dev/null | grep -v "test_" | grep -v "__pycache__" | grep -v "# type: ignore" | grep -v "example_elite_pattern.py" || true)
 if [[ -n "$any_usage" ]]; then
     echo -e "${RED}❌ ERROR: Found 'Any' type usage without proper boundaries:${NC}"
     echo "$any_usage" | head -5

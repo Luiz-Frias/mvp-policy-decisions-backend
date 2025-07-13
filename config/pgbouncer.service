@@ -1,0 +1,44 @@
+[Unit]
+Description=PgBouncer connection pooler for PostgreSQL
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=pgbouncer
+Group=pgbouncer
+
+# Security settings
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+ReadWritePaths=/var/log/pgbouncer /var/run/pgbouncer
+
+# Resource limits for 10,000 connections
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Environment
+Environment="PGBOUNCER_CONFIG=/etc/pgbouncer/pgbouncer.ini"
+
+# Start command
+ExecStart=/usr/bin/pgbouncer -d ${PGBOUNCER_CONFIG}
+ExecReload=/usr/bin/pgbouncer -R -d ${PGBOUNCER_CONFIG}
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+StartLimitBurst=5
+StartLimitInterval=60s
+
+# Process management
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStopSec=30s
+
+# Health check
+ExecStartPost=/bin/sh -c 'sleep 2 && /usr/bin/psql -h localhost -p 6432 -U pgbouncer_stats -d pgbouncer -c "SHOW STATS" > /dev/null'
+
+[Install]
+WantedBy=multi-user.target

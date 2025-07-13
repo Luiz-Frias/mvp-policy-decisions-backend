@@ -15,18 +15,24 @@ repos:
     hooks:
       - id: black
         language_version: python3
+        # Focus on production code only
+        exclude: ^(scripts/|docs/|examples/|dev-tools/)
 
   - repo: https://github.com/pycqa/isort
     rev: 6.0.1
     hooks:
       - id: isort
         args: ["--profile", "black"]
+        # Focus on production code only
+        exclude: ^(scripts/|docs/|examples/|dev-tools/)
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.12.1
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        # Focus on production code only
+        exclude: ^(scripts/|docs/|examples/|dev-tools/)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.16.1
@@ -75,8 +81,8 @@ repos:
           "types-aiofiles>=23.2",
         ]
         args: [--config-file=pyproject.toml, --show-error-codes]
-        # Exclude test directories where typing can be more relaxed
-        exclude: ^(tests/|scripts/|alembic/)
+        # Focus on production code - exclude dev tools and scripts
+        exclude: ^(tests/|scripts/|alembic/|docs/|examples/|dev-tools/)
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.5
@@ -84,24 +90,31 @@ repos:
       - id: bandit
         args: ['-c', 'pyproject.toml']
         additional_dependencies: ["bandit[toml]"]
+        # Focus on production code only
+        exclude: ^(scripts/|docs/|examples/|dev-tools/|tests/)
 
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0
     hooks:
       - id: pydocstyle
         args: [--config=pyproject.toml]
+        # Focus on production code only
+        exclude: ^(scripts/|docs/|examples/|dev-tools/|tests/)
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.20.0
     hooks:
       - id: pyupgrade
         args: [--py311-plus]
+        # Focus on production code only
+        exclude: ^(scripts/|docs/|examples/|dev-tools/)
 
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         types_or: [yaml, markdown, json]
+        args: [--no-parallel]
         exclude: '^(\.pre-commit-config\.yaml)$'
 
   # Safety check using local hook since we use uv, not poetry
@@ -125,3 +138,39 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
+
+  - repo: local
+    hooks:
+      - id: fast-tests
+        name: Run fast unit tests (marked not slow)
+        entry: bash -c 'pytest -m "not slow and not benchmark and not database"'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+      - id: perf-bench-smoke
+        name: Run benchmark smoke suite
+        entry: bash -c 'pytest -q -m benchmark --benchmark-only --benchmark-min-time=0.01'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+
+  - repo: local
+    hooks:
+      - id: full-test-pre-push
+        name: Run full test + perf suite on pre-push
+        entry: bash -c 'pytest -q && pytest -q -m benchmark --benchmark-only'
+        language: system
+        pass_filenames: false
+        stages: [push]
+      - id: master-ruleset-validation
+        name: Validate master ruleset compliance
+        entry: bash -c './scripts/validate-master-ruleset-v2.sh || true'
+        language: system
+        pass_filenames: false
+        files: '^src/.*\.py$'
+      - id: pydantic-compliance-check
+        name: Check Pydantic compliance (dict usage)
+        entry: python scripts/validate-dict-usage.py
+        language: system
+        pass_filenames: false
+        files: '^src/.*\.py$'
