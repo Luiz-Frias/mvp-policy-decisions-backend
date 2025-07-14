@@ -17,21 +17,19 @@ from decimal import Decimal
 from typing import Any
 
 from beartype import beartype
-from pydantic import Field
 
-from policy_core.core.result_types import Err, Ok, Result
-from policy_core.models.base import BaseModelConfig
+# Switch to the authoritative RatingFactors model – this behaves like a
+# mapping after recent enhancements, so existing iteration logic continues to
+# work while we eliminate duplicate placeholder types.
+from policy_core.core.result_types import Err, Ok, Result  # noqa: E402
+from policy_core.schemas.rating import RatingFactors  # noqa: E402
 
-from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo
+# Domain models
+from ...models.quote import CoverageSelection, DriverInfo, VehicleInfo  # noqa: E402
 
-# Auto-generated models
-
-
-@beartype
-class FactorsMetrics(BaseModelConfig):
-    """Structured model replacing dict[str, float] usage."""
-
-    average: float = Field(default=0.0, ge=0.0, description="Average value")
+# Backward-compat alias so type hints elsewhere remain valid without an
+# invasive refactor.  After callers are updated, this alias can be removed.
+FactorsMetrics = RatingFactors  # type: ignore
 
 
 @beartype
@@ -195,6 +193,10 @@ class RatingBusinessRules:
         violations = []
 
         for factor_name, factor_value in factors.items():
+            # Skip optional factors that were not populated (None)
+            if factor_value is None:
+                continue
+
             # Check maximum limits
             max_limit = self._max_factor_limits.get(factor_name)
             if max_limit and factor_value > max_limit:
@@ -310,7 +312,7 @@ class RatingBusinessRules:
                     BusinessRuleViolation(
                         rule_id="PREMIUM_RATIO_LOW",
                         severity="warning",
-                        message=f"Premium decreased by {1/premium_ratio:.1f}x from base (${base_premium} to ${total_premium})",
+                        message=f"Premium decreased by {1 / premium_ratio:.1f}x from base (${base_premium} to ${total_premium})",
                         field="total_premium",
                         suggested_action="Review discount applications for excessive reduction",
                     )
@@ -366,6 +368,10 @@ class RatingBusinessRules:
 
         # Check individual discount limits
         for discount in discounts:
+            # Some discounts are flat‐fee only (percentage None)
+            if discount.percentage is None:
+                continue
+
             discount_pct = float(discount.percentage)
 
             if discount_pct > 25:  # No single discount should exceed 25%
@@ -627,7 +633,7 @@ class RatingBusinessRules:
             # Check for prohibited factors
             prohibited_factors = ["credit", "occupation", "education"]
             for factor in prohibited_factors:
-                if factor in factors:
+                if factor in factors and factors[factor] is not None:
                     violations.append(
                         BusinessRuleViolation(
                             rule_id="CA_PROP103_PROHIBITED_FACTOR",
@@ -642,7 +648,7 @@ class RatingBusinessRules:
             primary_factors = ["violations", "accidents", "experience"]
             primary_impact = 1.0
             for factor in primary_factors:
-                if factor in factors:
+                if factor in factors and factors[factor] is not None:
                     primary_impact *= factors[factor]
 
             if (

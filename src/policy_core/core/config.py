@@ -262,6 +262,21 @@ class Settings(BaseSettings):
         """Check if running in development mode."""
         return self.api_env == "development"
 
+    # ------------------------------------------------------------------
+    # Convenience helper used throughout the codebase to express "mock" mode –
+    # i.e. any environment where it is acceptable to substitute in-memory
+    # fixtures, provide defensive fall-backs, or bypass external integrations.
+    # This evaluates to *False* only in strict production.  All other
+    # environments (development, staging, CI, benchmark harnesses) are treated
+    # as mock-friendly.
+    # ------------------------------------------------------------------
+
+    @property
+    @beartype
+    def is_mock(self) -> bool:
+        """Return True for any *non-production* environment."""
+        return self.api_env != "production"
+
     @property
     @beartype
     def effective_database_url(self) -> str:

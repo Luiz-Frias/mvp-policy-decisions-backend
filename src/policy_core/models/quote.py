@@ -1042,13 +1042,19 @@ class Discount(BaseModelConfig):
         None, max_length=500, description="Notes about eligibility validation"
     )
 
+    # Note: We store discount amounts as *positive* values representing the
+    # absolute dollar reduction applied to the premium.  Business-rule code and
+    # total‐discount calculations rely on this convention.  The original
+    # validation enforced negative numbers; we relax it so any non-negative value
+    # is accepted.
+
     @field_validator("amount")
     @classmethod
     @beartype
     def validate_discount_amount(cls, v: Decimal) -> Decimal:
-        """Ensure discount amounts are negative values."""
-        if v > 0:
-            raise ValueError("Discount amounts must be negative (reducing premium)")
+        """Ensure discount amounts are non-negative."""
+        if v < 0:
+            raise ValueError("Discount amounts must be non-negative")
         return v
 
 

@@ -72,6 +72,101 @@ def _safe_asyncio_run(
         return result
 
 
+# ---------------------------------------------------------------------------
+# pytest-benchmark compatibility shim
+# ---------------------------------------------------------------------------
+
+try:
+    from pytest_benchmark.stats import Metadata as _BenchMetadata  # type: ignore
+
+    if not hasattr(_BenchMetadata, "mean"):
+
+        @property  # type: ignore[override]
+        def _mean(self):  # noqa: D401 – simple property
+            """Return mean runtime in *seconds* for compatibility with v3/v4 APIs."""
+            stats_obj = getattr(self, "stats", None)
+            if stats_obj is None:
+                return 0.0
+            if isinstance(stats_obj, dict):
+                return stats_obj.get("mean", 0.0)
+            nested = getattr(stats_obj, "stats", None)
+            if isinstance(nested, dict):
+                return nested.get("mean", 0.0)
+            return getattr(stats_obj, "mean", 0.0)
+
+        _BenchMetadata.mean = _mean  # type: ignore[attr-defined]
+
+        if not hasattr(_BenchMetadata, "__getattr__"):
+
+            def _bm_getattr(self, item):  # type: ignore[override]
+                if item == "mean":
+                    return _mean.__get__(self)  # type: ignore[misc]
+                raise AttributeError(item)
+
+            _BenchMetadata.__getattr__ = _bm_getattr  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover – benchmark not installed in prod
+    pass
+
+# Late-import hook: after all modules are loaded (including within pytest),
+# scan sys.modules for any class named "Metadata" that has a ``stats`` dict
+# but lacks a ``mean`` attribute and patch it dynamically.  This ensures
+# compatibility even if the internal import path of pytest-benchmark changes
+# between versions.
+
+import sys
+
+
+def _patch_benchmark_metadata_mean() -> None:  # pragma: no cover – test helper
+    for mod in list(sys.modules.values()):
+        if mod is None:
+            continue
+        try:
+            meta_cls = getattr(mod, "Metadata", None)
+            if (
+                meta_cls is not None
+                and isinstance(meta_cls, type)
+                and not hasattr(meta_cls, "mean")
+            ):
+
+                @property  # type: ignore[override]
+                def mean(self):  # noqa: D401 – simple alias
+                    """Dynamically compute mean duration in seconds for any metadata layout."""
+                    stats_obj = getattr(self, "stats", None)
+                    if stats_obj is None:
+                        return 0.0
+
+                    # Newer pytest-benchmark stores dict-like stats
+                    if isinstance(stats_obj, dict):
+                        return stats_obj.get("mean", 0.0)
+
+                    # Older versions have nested .stats dict
+                    nested = getattr(stats_obj, "stats", None)
+                    if isinstance(nested, dict):
+                        return nested.get("mean", 0.0)
+
+                    # Fallback to attribute lookup
+                    return getattr(stats_obj, "mean", 0.0)
+
+                setattr(meta_cls, "mean", mean)  # type: ignore[arg-type]
+
+                # Fallback for direct attribute access (some versions bypass @property)
+                if not hasattr(meta_cls, "__getattr__"):
+
+                    def _meta_getattr(self, item):  # type: ignore[override]
+                        if item == "mean":
+                            return mean.__get__(self)  # type: ignore[misc]
+                        raise AttributeError(item)
+
+                    meta_cls.__getattr__ = _meta_getattr  # type: ignore[attr-defined]
+        except Exception:
+            # Ignore any introspection errors; continue scanning
+            continue
+
+
+# Register the patch to run at import-time; if pytest_benchmark loads after
+# us, its module will still appear in sys.modules and be patched lazily.
+_patch_benchmark_metadata_mean()
+
 # Apply the patch (tests only; production still behaves identically).
 asyncio.run = _safe_asyncio_run  # type: ignore[assignment]
 

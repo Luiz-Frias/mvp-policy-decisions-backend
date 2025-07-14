@@ -218,6 +218,30 @@ class RatingFactors(BaseModel):
         default=None, description="Gender factor - prohibited in many states"
     )
 
+    # ------------------------------------------------------------------
+    # Dict-like helpers — allow business-rules code to treat RatingFactors
+    # instances as if they were plain mappings without needing explicit
+    # `.model_dump()` conversions.  This retains immutability while
+    # improving drop-in compatibility with legacy logic that was built
+    # around ``dict[str, float]`` objects.
+    # ------------------------------------------------------------------
+
+    def __getitem__(self, item: str):  # type: ignore[override]
+        """Dictionary-style access e.g. ``factors["territory"]``."""
+        return getattr(self, item)
+
+    def items(self):  # type: ignore[override]
+        """Return ``(key, value)`` iterable mirroring ``dict.items()``."""
+        return self.model_dump().items()
+
+    def __iter__(self):  # type: ignore[override]
+        """Iterate over factor names (keys) like a regular dict."""
+        return iter(self.model_dump())
+
+    def __contains__(self, item: str) -> bool:  # type: ignore[override]
+        """Enable ``"credit" in factors`` style look-ups."""
+        return item in self.model_dump()
+
     def is_factor_prohibited(self, factor_name: str, state: str) -> bool:
         """Check if a factor is prohibited in a specific state."""
         prohibited_by_state = {
