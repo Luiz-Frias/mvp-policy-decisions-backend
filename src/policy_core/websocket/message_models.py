@@ -14,8 +14,9 @@ from typing import Any, Union
 from uuid import UUID
 
 from beartype import beartype
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, validator
 
+from policy_core.core.result_types import Err, Ok, Result
 from policy_core.models.base import BaseModelConfig
 
 # Auto-generated models
@@ -25,7 +26,16 @@ from policy_core.models.base import BaseModelConfig
 class PayloadData(BaseModelConfig):
     """Structured model replacing dict[str, Any] usage."""
 
-    # Auto-generated - customize based on usage
+    # Allow arbitrary extra keys for flexible payloads in cross-boundary messages.
+    model_config = ConfigDict(
+        frozen=True,
+        extra="allow",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    # Common optional fields
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
@@ -39,11 +49,29 @@ class VData(BaseModelConfig):
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
 
-@beartype
 class Data(BaseModelConfig):
-    """Structured model replacing dict[str, Any] usage."""
+    """Structured model replacing dict[str, Any] usage.
 
-    # Auto-generated - customize based on usage
+    This model intentionally **allows** extra keys because it represents the
+    arbitrary JSON payload inside a ``WebSocketMessage`` that crosses the
+    server-client boundary. Concrete helpers like ``WebSocketMessageData`` or
+    specialized domain models should be used where the structure is known. For
+    the generic ``data`` field we relax validation to prevent brittle failures
+    when new keys are introduced by clients or internal helpers (e.g. welcome
+    messages).
+    """
+
+    # Override configuration inherited from ``BaseModelConfig`` so that unknown
+    # keys are *allowed* at runtime (system-boundary permissiveness).
+    model_config = ConfigDict(
+        frozen=True,
+        extra="allow",  # <<< permit arbitrary keys
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        validate_default=True,
+    )
+
+    # Known common keys (optional)
     content: str | None = Field(default=None, description="Content data")
     metadata: dict[str, str] = Field(default_factory=dict, description="Metadata")
 
@@ -72,9 +100,27 @@ class ByStateCounts(BaseModelConfig):
 
 @beartype
 class ConnectionLimitsCounts(BaseModelConfig):
-    """Structured model replacing dict[str, int] usage."""
+    """Structured model replacing dict[str, int] usage.
 
-    total: int = Field(default=0, ge=0, description="Total count")
+    Provides backward-compat keys ``max_connections`` and ``current_connections`` used by
+    ConnectionManager welcome messages.
+    """
+
+    max_connections: int | None = Field(
+        default=None,
+        ge=0,
+        description="Maximum concurrent connections allowed by server",
+    )
+    current_connections: int | None = Field(
+        default=None,
+        ge=0,
+        description="Current active WebSocket connections on server",
+    )
+    total: int | None = Field(
+        default=None,
+        ge=0,
+        description="Total connections (legacy metric, may match current_connections)",
+    )
 
 
 @beartype
@@ -135,7 +181,9 @@ class WebSocketMessageData(BaseModel):
 
     # Message content
     action: str | None = Field(default=None, description="Action type")
-    payload: PayloadData = Field(default_factory=dict, description="Message payload")
+    payload: PayloadData = Field(
+        default_factory=PayloadData, description="Message payload"
+    )
 
     # System fields
     server_time: datetime | None = Field(default=None, description="Server timestamp")
@@ -185,7 +233,7 @@ class WebSocketMessageData(BaseModel):
     @validator("payload")
     @classmethod
     @beartype
-    def validate_payload_size(cls, v: VData) -> VData:
+    def validate_payload_size(cls, v: PayloadData) -> PayloadData:
         """Validate payload size to prevent oversized messages."""
         import json
 
@@ -710,6 +758,55 @@ def get_supported_message_types() -> list[str]:
     return list(MESSAGE_TYPE_REGISTRY.keys())
 
 
+# ---------------------------------------------------------------------------
+# LEGACY_INPUT_BOUNDARY
+# TODO: delete when all callers provide ConnectionLimitsCounts / ConnectionCapabilities
+# Helpers to convert loose dict inputs into strict models for backward compatibility.
+# ---------------------------------------------------------------------------
+
+
+@beartype
+def _to_connection_limits_counts(
+    data: ConnectionLimitsCounts | dict[str, Any] | None,
+) -> Result[ConnectionLimitsCounts | None, str]:
+    """Convert dict to ConnectionLimitsCounts where necessary."""
+
+    if data is None or isinstance(data, ConnectionLimitsCounts):
+        return Ok(data)
+
+    if isinstance(data, dict):
+        try:
+            return Ok(ConnectionLimitsCounts.model_validate(data))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid connection_limits: {exc}")
+
+    return Err(
+        "Unsupported connection_limits type. Expected ConnectionLimitsCounts, dict, or None."
+    )
+
+
+@beartype
+def _to_connection_capabilities(
+    data: ConnectionCapabilities | dict[str, Any] | None,
+) -> Result[ConnectionCapabilities | None, str]:
+    """Convert dict to ConnectionCapabilities while filtering unknown fields."""
+
+    if data is None or isinstance(data, ConnectionCapabilities):
+        return Ok(data)
+
+    if isinstance(data, dict):
+        try:
+            allowed_keys = ConnectionCapabilities.model_fields.keys()
+            filtered = {k: v for k, v in data.items() if k in allowed_keys}
+            return Ok(ConnectionCapabilities.model_validate(filtered))
+        except ValidationError as exc:  # type: ignore[name-defined]
+            return Err(f"Invalid connection_capabilities: {exc}")
+
+    return Err(
+        "Unsupported capabilities type. Expected ConnectionCapabilities, dict, or None."
+    )
+
+
 @beartype
 def create_websocket_message_data(
     *,
@@ -717,16 +814,44 @@ def create_websocket_message_data(
     user_id: UUID | None = None,
     room_id: str | None = None,
     action: str | None = None,
-    payload: PayloadData | None = None,
+    payload: PayloadData | dict[str, Any] | None = None,
+    connection_limits: ConnectionLimitsCounts | dict[str, int] | None = None,
+    capabilities: ConnectionCapabilities | dict[str, bool] | None = None,
     **kwargs: Any,
 ) -> WebSocketMessageData:
-    """Helper function to create WebSocketMessageData instances."""
+    """Helper function to create WebSocketMessageData instances accepting legacy dicts."""
+
+    # Convert payload
+    payload_model = (
+        payload
+        if isinstance(payload, PayloadData)
+        else PayloadData.model_validate(payload or {})
+    )
+
+    # Convert connection_limits
+    limits_result = _to_connection_limits_counts(connection_limits)
+    if limits_result.is_err():
+        raise ValueError(limits_result.unwrap_err())
+    limits_model = limits_result.unwrap()
+
+    # Capabilities remain a simple dict in WebSocketMessageData; allow both dict and model
+    if isinstance(capabilities, ConnectionCapabilities):
+        capabilities_dict = {
+            k: v for k, v in capabilities.model_dump().items() if isinstance(v, bool)
+        }
+    else:
+        capabilities_dict = {
+            k: v for k, v in (capabilities or {}).items() if isinstance(v, bool)
+        }
+
     return WebSocketMessageData(
         connection_id=connection_id,
         user_id=user_id,
         room_id=room_id,
         action=action,
-        payload=payload or {},
+        payload=payload_model,
+        connection_limits=limits_model,
+        capabilities=capabilities_dict,
         **kwargs,
     )
 
@@ -738,9 +863,17 @@ def create_connection_capabilities(
     real_time_analytics: bool = False,
     file_transfer: bool = False,
     compression: bool = False,
+    capabilities: ConnectionCapabilities | dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> ConnectionCapabilities:
-    """Helper function to create ConnectionCapabilities instances."""
+    """Helper function to create ConnectionCapabilities instances or validate provided dict."""
+
+    if capabilities is not None:
+        result = _to_connection_capabilities(capabilities)
+        if result.is_err():
+            raise ValueError(result.unwrap_err())
+        return result.unwrap() or ConnectionCapabilities()
+
     return ConnectionCapabilities(
         collaborative_editing=collaborative_editing,
         real_time_analytics=real_time_analytics,
@@ -787,15 +920,20 @@ def create_connection_metadata(
     user_id: UUID | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
-    capabilities: ConnectionCapabilities | None = None,
+    capabilities: ConnectionCapabilities | dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> WebSocketConnectionMetadata:
-    """Helper function to create WebSocketConnectionMetadata instances."""
+    """Helper to create WebSocketConnectionMetadata accepting dict capabilities."""
+
+    result = _to_connection_capabilities(capabilities)
+    if result.is_err():
+        raise ValueError(result.unwrap_err())
+
     return WebSocketConnectionMetadata(
         connection_id=connection_id,
         user_id=user_id,
         ip_address=ip_address,
         user_agent=user_agent,
-        capabilities=capabilities or ConnectionCapabilities(),
+        capabilities=result.unwrap() or ConnectionCapabilities(),
         **kwargs,
     )

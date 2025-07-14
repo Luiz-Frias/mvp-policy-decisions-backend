@@ -25,8 +25,41 @@ class CurrentUser(BaseModel):
     user_id: str = Field(..., description="Unique user identifier")
     username: str = Field(..., description="Username")
     email: str = Field(..., description="User email")
-    client_id: str = Field(..., description="OAuth2 client identifier")
+    client_id: str | None = Field(default=None, description="OAuth2 client identifier")
     scopes: list[str] = Field(default_factory=list, description="User permissions")
+
+    # ------------------------------------------------------------------
+    # Legacy dict-style access shim ------------------------------------------------
+    # Several older API handlers still expect `current_user["sub"]` or similar.
+    # Pydantic models are not subscriptable by default, so we provide a minimal
+    # mapping interface that forwards to attribute access.  This should be
+    # removed once all handlers are updated to dot-notation.
+    # ------------------------------------------------------------------
+
+    def __getitem__(self, item: str):  # type: ignore[override]
+        """Allow legacy dict-style key access.
+
+        Keys like "sub" map to ``user_id`` for backward compatibility.
+        """
+        mapping = {
+            "sub": "user_id",
+            "user_id": "user_id",
+            "username": "username",
+            "email": "email",
+            "client_id": "client_id",
+            "scopes": "scopes",
+        }
+        attr = mapping.get(item, item)
+        if not hasattr(self, attr):
+            raise KeyError(item)
+        return getattr(self, attr)
+
+    def get(self, item: str, default=None):  # noqa: D401
+        """Dict-like ``get`` helper for legacy code."""
+        try:
+            return self[item]
+        except KeyError:
+            return default
 
 
 class JWTPayload(BaseModel):

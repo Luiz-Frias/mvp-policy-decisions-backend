@@ -199,6 +199,12 @@ class Settings(BaseSettings):
         description="Request timeout in seconds",
     )
 
+    # Risk Engine Configuration
+    risk_engine_config: dict = Field(
+        default_factory=dict,
+        description="Configuration for the risk engine",
+    )
+
     @field_validator("database_pool_max")
     @classmethod
     def validate_pool_sizes(cls: type["Settings"], v: int, info: ValidationInfo) -> int:
@@ -255,6 +261,21 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development mode."""
         return self.api_env == "development"
+
+    # ------------------------------------------------------------------
+    # Convenience helper used throughout the codebase to express "mock" mode –
+    # i.e. any environment where it is acceptable to substitute in-memory
+    # fixtures, provide defensive fall-backs, or bypass external integrations.
+    # This evaluates to *False* only in strict production.  All other
+    # environments (development, staging, CI, benchmark harnesses) are treated
+    # as mock-friendly.
+    # ------------------------------------------------------------------
+
+    @property
+    @beartype
+    def is_mock(self) -> bool:
+        """Return True for any *non-production* environment."""
+        return self.api_env != "production"
 
     @property
     @beartype

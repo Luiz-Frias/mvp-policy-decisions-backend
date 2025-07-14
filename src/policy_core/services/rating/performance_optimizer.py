@@ -19,8 +19,6 @@ from typing import Any
 from beartype import beartype
 from pydantic import Field
 
-from policy_core.core.cache import Cache
-from policy_core.core.database import Database
 from policy_core.core.result_types import Err, Ok, Result
 from policy_core.models.base import BaseModelConfig
 
@@ -57,7 +55,7 @@ HAS_NUMPY = False  # NumPy not used in current implementation
 class RatingPerformanceOptimizer:
     """Advanced performance optimizer for rating calculations."""
 
-    def __init__(self, db: Database, cache: Cache) -> None:
+    def __init__(self, db: Any, cache: Any) -> None:
         """Initialize performance optimizer."""
         self._db = db
         self._cache = cache
@@ -65,14 +63,14 @@ class RatingPerformanceOptimizer:
 
         # Performance monitoring
         self._calculation_times: list[float] = []
-        self._cache_hit_rates: CacheHitRatesCounts = {"hits": 0, "misses": 0}
+        self._cache_hit_rates: dict[str, int] = {"hits": 0, "misses": 0}
 
         # Precomputed lookup tables
-        self._factor_lookup_cache: FactorLookupCacheMetrics = {}
+        self._factor_lookup_cache: dict[str, float] = {}
         self._rate_multiplier_cache: dict[str, Decimal] = {}
 
         # Batch processing support
-        self._batch_cache: BatchCacheData = {}
+        self._batch_cache: dict[str, Any] = {}
 
     @beartype
     async def initialize_performance_caches(self) -> Result[bool, str]:
@@ -204,7 +202,9 @@ class RatingPerformanceOptimizer:
             # Cache the result
             self._factor_lookup_cache[cache_key] = factor
             await self._cache.set(
-                f"{self._cache_prefix}{cache_key}", str(factor), 3600  # 1 hour cache
+                f"{self._cache_prefix}{cache_key}",
+                str(factor),
+                3600,  # 1 hour cache
             )
 
             return Ok(factor)
@@ -317,7 +317,9 @@ class RatingPerformanceOptimizer:
         # Cache the result
         self._rate_multiplier_cache[cache_key] = rate
         await self._cache.set(
-            f"{self._cache_prefix}rate:{cache_key}", str(rate), 1800  # 30 minute cache
+            f"{self._cache_prefix}rate:{cache_key}",
+            str(rate),
+            1800,  # 30 minute cache
         )
 
         return Ok(rate)

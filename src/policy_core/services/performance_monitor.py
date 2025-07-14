@@ -106,7 +106,7 @@ def performance_monitor(
                     operation_id=operation_id,
                     operation_name=operation_name,
                     duration_ms=duration_ms,
-                    memory_usage_mb=0,
+                    memory_usage_mb=0.0,
                     success=False,
                     error=str(e),
                     max_duration_ms=max_duration_ms,

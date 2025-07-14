@@ -1,0 +1,16 @@
+# Risk-engine calibration
+thresholds:
+  low: 0.0
+  medium: 0.4
+  high: 0.7
+  critical: 0.9
+
+weights:
+  new_device: 0.3
+  new_location: 0.25
+  impossible_travel: 0.4
+  suspicious_time: 0.15
+  failed_attempts: 0.2
+  untrusted_network: 0.2
+  account_age: 0.1
+  unusual_behavior: 0.25 

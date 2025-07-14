@@ -18,9 +18,8 @@ from uuid import UUID
 from beartype import beartype
 from pydantic import Field
 
-from policy_core.core.cache import Cache
-from policy_core.core.database import Database
 from policy_core.core.result_types import Err, Ok, Result
+from policy_core.core.types import CacheLike, DatabaseLike
 from policy_core.models.base import BaseModelConfig
 
 from ...schemas.rating import TerritoryRiskFactors
@@ -86,7 +85,7 @@ class TerritoryDefinition:
 class TerritoryManager:
     """Manager for territory definitions and geographic rating."""
 
-    def __init__(self, db: Database, cache: Cache) -> None:
+    def __init__(self, db: DatabaseLike, cache: CacheLike) -> None:
         """Initialize territory manager.
 
         Args:
