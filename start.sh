@@ -26,7 +26,8 @@ fi
 
 # Start the application with proper signal handling
 echo "🌐 Starting FastAPI server..."
-exec DATABASE_URL=$database_url uv run uvicorn src.policy_core.main:app \
+export DATABASE_URL=$database_url
+exec uv run uvicorn src.policy_core.main:app \
     --host ${API_HOST:-0.0.0.0} \
     --port ${API_PORT:-8080} \
     --workers ${WORKERS:-1} \
