@@ -72,39 +72,9 @@ USER appuser
 # Expose ports for API and WebSocket
 EXPOSE 8080 8081
 
-# Create startup script with proper error handling
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-echo "🚀 Starting MVP Policy Decision Backend - Production"\n\
-echo "Environment: $APP_ENV"\n\
-echo "API Port: $API_PORT"\n\
-echo "WebSocket Port: $WEBSOCKET_PORT"\n\
-\n\
-# Run database migrations if database_url is available\n\
-if [ -n "$database_url" ]; then\n\
-    echo "🔄 Running database migrations..."\n\
-    DATABASE_URL=$database_url uv run alembic upgrade head || {\n\
-        echo "❌ Database migrations failed"\n\
-        exit 1\n\
-    }\n\
-    echo "✅ Database migrations completed"\n\
-else\n\
-    echo "⚠️ database_url not set, skipping migrations"\n\
-fi\n\
-\n\
-# Start the application with proper signal handling\n\
-echo "🌐 Starting FastAPI server..."\n\
-exec uv run uvicorn src.policy_core.main:app \\\n\
-    --host ${API_HOST:-0.0.0.0} \\\n\
-    --port ${API_PORT:-8080} \\\n\
-    --workers ${WORKERS:-1} \\\n\
-    --log-level ${LOG_LEVEL:-info} \\\n\
-    --access-log \\\n\
-    --use-colors \\\n\
-    --loop uvloop \\\n\
-    --http httptools' > /app/start.sh && \
-    chmod +x /app/start.sh
+# Copy startup script
+COPY --chown=appuser:appuser start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Use the startup script as the default command
 CMD ["/app/start.sh"]
