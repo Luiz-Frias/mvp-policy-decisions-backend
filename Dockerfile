@@ -78,7 +78,7 @@ HEALTHCHECK --interval=30s --start-period=300s --retries=5 \
 USER appuser
 
 # Expose ports for API and WebSocket
-EXPOSE 8080 8081
+EXPOSE 8000 8001
 
 # Copy startup scripts
 COPY --chown=appuser:appuser migrate.sh /app/migrate.sh
