@@ -28,6 +28,9 @@ RUN uv sync --frozen --no-dev
 # Production stage
 FROM python:3.11-slim
 
+# Cache bust to force rebuild
+ARG CACHEBUST=1
+
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     libpq5 \
