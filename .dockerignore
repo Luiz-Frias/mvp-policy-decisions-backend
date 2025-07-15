@@ -4,12 +4,12 @@
 .gitattributes
 
 # Documentation
-README.md
 CLAUDE.md
 CONTRIBUTING.md
 LICENSE*
 docs/
 *.md
+!README.md
 
 # Python
 __pycache__/
