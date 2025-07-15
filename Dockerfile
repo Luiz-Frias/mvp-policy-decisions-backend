@@ -29,7 +29,7 @@ RUN uv sync --frozen --no-dev
 FROM python:3.11-slim
 
 # Cache bust to force rebuild - UPDATE THIS TO FORCE NEW BUILD
-ARG CACHEBUST=20250715-fix-migration-order
+ARG CACHEBUST=20250715-add-db-wait
 
 # Force rebuild with timestamp
 RUN echo "Build timestamp: $(date -u +%Y%m%d-%H%M%S)"
@@ -78,9 +78,10 @@ EXPOSE 8080 8081
 
 # Copy startup scripts
 COPY --chown=appuser:appuser migrate.sh /app/migrate.sh
+COPY --chown=appuser:appuser wait-for-db.sh /app/wait-for-db.sh
 COPY --chown=appuser:appuser app.sh /app/app.sh
-RUN chmod +x /app/migrate.sh /app/app.sh
+RUN chmod +x /app/migrate.sh /app/wait-for-db.sh /app/app.sh
 
-# Run migrations first, then start the app
+# Run migrations first, wait for DB to be ready, then start the app
 # This ensures tables exist before the connection pool tries to prepare statements
-CMD ["/bin/bash", "-c", "/app/migrate.sh && /app/app.sh"]
+CMD ["/bin/bash", "-c", "/app/migrate.sh && /app/wait-for-db.sh && /app/app.sh"]
