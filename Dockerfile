@@ -36,6 +36,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+# Install uv for runtime use in a system location
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.cargo/bin/uv /usr/local/bin/uv && \
+    chmod +x /usr/local/bin/uv
+
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/logs && \
