@@ -28,8 +28,11 @@ RUN uv sync --frozen --no-dev
 # Production stage
 FROM python:3.11-slim
 
-# Cache bust to force rebuild
-ARG CACHEBUST=1
+# Cache bust to force rebuild - UPDATE THIS TO FORCE NEW BUILD
+ARG CACHEBUST=20250715
+
+# Force rebuild with timestamp
+RUN echo "Build timestamp: $(date -u +%Y%m%d-%H%M%S)"
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
