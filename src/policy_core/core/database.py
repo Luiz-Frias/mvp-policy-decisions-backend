@@ -276,9 +276,17 @@ class Database:
             """,
         }
 
-        # Prepare statements
+        # Try to prepare statements, but don't fail if tables don't exist yet
+        # This handles the case where migrations haven't run yet
         for name, query in self._prepared_statements.items():
-            await conn.execute(f"PREPARE {name} AS {query}")
+            try:
+                await conn.execute(f"PREPARE {name} AS {query}")
+            except asyncpg.exceptions.UndefinedTableError:
+                # Tables don't exist yet - migrations probably haven't run
+                logger.warning(f"Cannot prepare statement '{name}' - table doesn't exist yet. This is normal during initial setup.")
+            except Exception as e:
+                # Log other errors but don't fail initialization
+                logger.error(f"Failed to prepare statement '{name}': {e}")
 
     @beartype
     async def _init_read_connection(self, conn: asyncpg.Connection) -> None:

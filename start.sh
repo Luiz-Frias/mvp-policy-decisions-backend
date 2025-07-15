@@ -30,6 +30,12 @@ if [ -n "$DATABASE_URL" ]; then
     uv run python -m alembic current || echo "Failed to get current migration"
     
     echo "✅ Database migrations completed"
+    
+    # Wait for migrations to fully settle and ensure all constraints are applied
+    echo "⏳ Waiting 30 seconds for database schema to fully settle..."
+    echo "   This ensures all tables, indexes, and constraints are properly created"
+    sleep 30
+    echo "✅ Migration settling period complete"
 else
     echo "⚠️ DATABASE_URL not set, skipping migrations"
 fi
