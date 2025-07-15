@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column("external_id", sa.String(255), nullable=False),
         sa.Column(
             "data",
-            sa.Text(),
+            postgresql.JSONB(),
             nullable=False,
             server_default="{}",
         ),
