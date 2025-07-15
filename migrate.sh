@@ -5,9 +5,13 @@ echo "🔍 SIMPLE MIGRATION - Just alembic, no orchestration"
 echo "📅 Migration timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 
 if [ -n "$DATABASE_URL" ]; then
-    # Tables already exist, just stamp as current
-    echo "🔧 Stamping database as current version (tables exist from manual migration)"
-    uv run alembic stamp head
+    # First, clear any existing alembic version
+    echo "🧹 Clearing existing alembic version..."
+    uv run alembic stamp --purge || true
+    
+    # Now stamp as latest
+    echo "🔧 Stamping database as revision 012 (latest)"
+    uv run alembic stamp 012
     echo "✅ Database stamped as current - ready for FastAPI!"
 else
     echo "⚠️ DATABASE_URL not set"
