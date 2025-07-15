@@ -29,7 +29,7 @@ RUN uv sync --frozen --no-dev
 FROM python:3.11-slim
 
 # Cache bust to force rebuild - UPDATE THIS TO FORCE NEW BUILD
-ARG CACHEBUST=20250715-add-db-wait
+ARG CACHEBUST=20250715-fix-migration-runner
 
 # Force rebuild with timestamp
 RUN echo "Build timestamp: $(date -u +%Y%m%d-%H%M%S)"
@@ -67,7 +67,11 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Health check for Railway/Kubernetes
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Give migrations plenty of time to complete before health checks start
+# start-period: 5 minutes for migrations + app startup
+# timeout: 30s for slow queries during migration
+# retries: 5 to be more forgiving
+HEALTHCHECK --interval=30s --timeout=30s --start-period=300s --retries=5 \
     CMD curl -f http://localhost:8080/api/v1/health/live || exit 1
 
 # Switch to non-root user
@@ -78,6 +82,7 @@ EXPOSE 8080 8081
 
 # Copy startup scripts
 COPY --chown=appuser:appuser migrate.sh /app/migrate.sh
+COPY --chown=appuser:appuser run-migrations.py /app/run-migrations.py
 COPY --chown=appuser:appuser wait-for-db.sh /app/wait-for-db.sh
 COPY --chown=appuser:appuser app.sh /app/app.sh
 RUN chmod +x /app/migrate.sh /app/wait-for-db.sh /app/app.sh

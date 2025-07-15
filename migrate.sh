@@ -51,9 +51,12 @@ asyncio.run(reset_migrations())
     echo "📊 Current migration status:"
     uv run python -m alembic current || echo "No current migration"
     
-    echo "🔄 Upgrading to head..."
-    uv run python -m alembic upgrade head || {
+    echo "🔄 Running detailed migration script..."
+    # Use our custom migration runner for better debugging
+    uv run python /app/run-migrations.py || {
         echo "❌ Database migrations failed"
+        echo "🔍 Attempting to show detailed error..."
+        uv run python -m alembic current -v || echo "Could not get current revision"
         exit 1
     }
     
