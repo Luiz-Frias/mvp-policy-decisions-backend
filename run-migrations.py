@@ -47,6 +47,32 @@ async def main():
     
     print(f"📊 Database URL: {db_url[:50]}...")
     
+    # Clean up any stuck migration state
+    print('\n🧹 Cleaning migration state...')
+    try:
+        conn = await asyncpg.connect(db_url)
+        
+        # Check if alembic_version exists
+        exists = await conn.fetchval('''
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'alembic_version'
+            )
+        ''')
+        
+        if exists:
+            print('🗑️  Dropping alembic_version table to force fresh migration...')
+            await conn.execute('DROP TABLE alembic_version CASCADE')
+            print('✅ alembic_version table dropped')
+        else:
+            print('ℹ️  No alembic_version table found')
+        
+        await conn.close()
+        
+    except Exception as e:
+        print(f'⚠️  Error resetting migrations: {e}')
+    
     # Check initial state
     await check_database_state("before")
     
