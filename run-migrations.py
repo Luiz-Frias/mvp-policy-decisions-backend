@@ -85,9 +85,11 @@ async def run_migrations_process():
                 current_version = await conn.fetchval('SELECT version_num FROM alembic_version')
                 print(f'ℹ️  Found existing alembic_version with version: {current_version}')
                 if current_version:
-                    print('🎯 Migrations already complete, skipping')
-                    await conn.close()
-                    return True
+                    # Don't skip! We need to check if we're at the latest version
+                    # Let alembic determine if upgrade is needed
+                    print(f'ℹ️  Current version: {current_version} - checking if upgrade needed...')
+                else:
+                    print('⚠️  alembic_version table exists but has NULL version')
             except:
                 print('⚠️  alembic_version table exists but empty')
         else:
