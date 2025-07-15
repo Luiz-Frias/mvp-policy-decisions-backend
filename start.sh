@@ -9,6 +9,9 @@ echo "WebSocket Port: $WEBSOCKET_PORT"
 # Debug: Show environment variables
 echo "📊 Environment check:"
 echo "  DATABASE_URL: ${DATABASE_URL:-NOT SET}"
+echo "  PATH: $PATH"
+echo "  Which uv: $(which uv || echo 'uv not found in PATH')"
+echo "  uv location: $(ls -la /bin/uv 2>&1 || echo '/bin/uv not found')"
 
 # Doppler provides DATABASE_URL in uppercase
 # Run database migrations if DATABASE_URL is available

@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy uv from the official image (recommended approach)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN chmod +x /bin/uv /bin/uvx
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
