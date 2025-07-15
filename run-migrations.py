@@ -98,20 +98,6 @@ async def run_migrations_process():
     except Exception as e:
         print(f'⚠️  Error checking migrations: {e}')
         return False
-
-async def main():
-    db_url = os.environ.get('DATABASE_URL', '')
-    if not db_url:
-        print('❌ No DATABASE_URL found')
-        sys.exit(1)
-    
-    print(f"📊 Database URL: {db_url[:50]}...")
-    
-    # Run migrations with file lock
-    success = await run_migrations_with_lock()
-    if not success:
-        print('❌ Migration process failed')
-        sys.exit(1)
     
     # Check initial state
     await check_database_state("before")
@@ -153,12 +139,28 @@ async def main():
     
     if result.returncode != 0:
         print(f'\n❌ Migration failed with exit code: {result.returncode}')
-        sys.exit(1)
+        return False
     
     print('\n✅ Migrations completed!')
     
     # Check final state
     await check_database_state("after")
+    
+    return True
+
+async def main():
+    db_url = os.environ.get('DATABASE_URL', '')
+    if not db_url:
+        print('❌ No DATABASE_URL found')
+        sys.exit(1)
+    
+    print(f"📊 Database URL: {db_url[:50]}...")
+    
+    # Run migrations with file lock
+    success = await run_migrations_with_lock()
+    if not success:
+        print('❌ Migration process failed')
+        sys.exit(1)
     
     print('✅ Migration process completed successfully')
     print('🔓 File lock will be automatically released')
