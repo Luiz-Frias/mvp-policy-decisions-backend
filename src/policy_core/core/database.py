@@ -249,7 +249,7 @@ class Database:
     @beartype
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
         """Initialize each connection with optimizations."""
-        logger.info("🚨 NEW CODE RUNNING - _init_connection WITH TRY/CATCH - BUILD 20250715")
+        logger.debug("🚨 NEW CODE RUNNING - _init_connection WITH TRY/CATCH - BUILD 20250715")
         
         # Register custom types
         await conn.set_type_codec(  # type: ignore[attr-defined]
@@ -283,7 +283,7 @@ class Database:
         for name, query in self._prepared_statements.items():
             try:
                 await conn.execute(f"PREPARE {name} AS {query}")
-                logger.info(f"✅ Successfully prepared statement '{name}'")
+                logger.debug(f"✅ Successfully prepared statement '{name}'")
             except asyncpg.exceptions.UndefinedTableError as e:
                 # Tables don't exist yet - migrations probably haven't run
                 logger.error(f"❌ Cannot prepare statement '{name}' - table doesn't exist: {e}")
