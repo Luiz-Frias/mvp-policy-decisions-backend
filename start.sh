@@ -17,10 +17,18 @@ echo "  uv location: $(ls -la /bin/uv 2>&1 || echo '/bin/uv not found')"
 # Run database migrations if DATABASE_URL is available
 if [ -n "$DATABASE_URL" ]; then
     echo "🔄 Running database migrations..."
+    echo "📊 Current migration status:"
+    uv run python -m alembic current || echo "Failed to get current migration"
+    
+    echo "🔄 Upgrading to head..."
     uv run python -m alembic upgrade head || {
         echo "❌ Database migrations failed"
         exit 1
     }
+    
+    echo "📊 Migration status after upgrade:"
+    uv run python -m alembic current || echo "Failed to get current migration"
+    
     echo "✅ Database migrations completed"
 else
     echo "⚠️ DATABASE_URL not set, skipping migrations"
