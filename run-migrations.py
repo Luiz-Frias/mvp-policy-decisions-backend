@@ -82,7 +82,7 @@ async def main():
     # First show current state
     print('\n📍 Current revision:')
     result = subprocess.run(
-        ["uv", "run", "python", "-m", "alembic", "current", "-v"],
+        ["uv", "run", "python", "-m", "alembic", "current"],
         capture_output=True,
         text=True
     )
@@ -93,7 +93,7 @@ async def main():
     # Show what will be upgraded
     print('\n📜 Checking upgrade path:')
     result = subprocess.run(
-        ["uv", "run", "python", "-m", "alembic", "history", "-v"],
+        ["uv", "run", "python", "-m", "alembic", "history"],
         capture_output=True,
         text=True
     )
@@ -102,7 +102,7 @@ async def main():
     # Run the actual upgrade
     print('\n🚀 Upgrading to head...')
     result = subprocess.run(
-        ["uv", "run", "python", "-m", "alembic", "upgrade", "head", "-v"],
+        ["uv", "run", "python", "-m", "alembic", "upgrade", "head"],
         capture_output=True,
         text=True
     )
