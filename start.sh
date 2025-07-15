@@ -38,8 +38,58 @@ if [ -n "$DATABASE_URL" ]; then
     uv run python -m alembic current || echo "Failed to get current migration"
     
     echo "🔄 Upgrading to head..."
-    uv run python -m alembic upgrade head || {
+    # First, drop and recreate alembic_version to force fresh migration
+    echo "🧹 Cleaning migration state..."
+    uv run python -c "
+import asyncio
+import asyncpg
+import os
+
+async def reset_migrations():
+    db_url = os.environ.get('DATABASE_URL', '')
+    if not db_url:
+        print('❌ No DATABASE_URL found')
+        return
+    
+    try:
+        conn = await asyncpg.connect(db_url)
+        
+        # Check if alembic_version exists
+        exists = await conn.fetchval('''
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'alembic_version'
+            )
+        ''')
+        
+        if exists:
+            print('🗑️  Dropping alembic_version table to force fresh migration...')
+            await conn.execute('DROP TABLE alembic_version CASCADE')
+            print('✅ alembic_version table dropped')
+        else:
+            print('ℹ️  No alembic_version table found')
+        
+        await conn.close()
+        
+    except Exception as e:
+        print(f'⚠️  Error resetting migrations: {e}')
+
+asyncio.run(reset_migrations())
+"
+    
+    # Run migrations with very verbose output
+    echo "🔄 Running migrations from scratch..."
+    uv run python -m alembic upgrade head --sql || {
+        echo "📋 SQL preview failed, running actual migration..."
+    }
+    uv run python -m alembic upgrade head -vvv || {
         echo "❌ Database migrations failed"
+        # Try to get more info about the failure
+        echo "🔍 Checking alembic history..."
+        uv run python -m alembic history
+        echo "🔍 Checking current revision..."
+        uv run python -m alembic current
         exit 1
     }
     
