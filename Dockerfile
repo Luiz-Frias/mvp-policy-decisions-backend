@@ -71,7 +71,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # start-period: 5 minutes for migrations + app startup
 # timeout: 30s for slow queries during migration
 # retries: 5 to be more forgiving
-HEALTHCHECK --interval=30s --timeout=30s --start-period=300s --retries=5 \
+HEALTHCHECK --interval=30s --start-period=300s --retries=5 \
     CMD curl -f http://localhost:8080/api/v1/health/live || exit 1
 
 # Switch to non-root user
