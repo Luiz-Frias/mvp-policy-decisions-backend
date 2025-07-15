@@ -29,7 +29,7 @@ RUN uv sync --frozen --no-dev
 FROM python:3.11-slim
 
 # Cache bust to force rebuild - UPDATE THIS TO FORCE NEW BUILD
-ARG CACHEBUST=20250715-stop-dropping-alembic-version
+ARG CACHEBUST=20250715-fix-race-condition-with-advisory-lock
 
 # Force rebuild with timestamp
 RUN echo "Build timestamp: $(date -u +%Y%m%d-%H%M%S)"

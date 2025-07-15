@@ -47,12 +47,27 @@ async def main():
     
     print(f"📊 Database URL: {db_url[:50]}...")
     
-    # Check migration state (but don't drop anything)
-    print('\n🧹 Checking migration state...')
+    # Use database advisory lock to prevent concurrent migrations
+    print('\n🔒 Acquiring migration lock...')
     try:
         conn = await asyncpg.connect(db_url)
         
-        # Check if alembic_version exists
+        # Try to acquire advisory lock (blocking, 30 second timeout)
+        # Using lock ID 123456 for migrations
+        lock_acquired = await conn.fetchval('''
+            SELECT pg_try_advisory_lock(123456)
+        ''')
+        
+        if not lock_acquired:
+            print('⏳ Another migration process is running, waiting...')
+            # Wait for lock with timeout
+            await conn.execute('SELECT pg_advisory_lock(123456)')
+            print('✅ Migration lock acquired')
+        else:
+            print('✅ Migration lock acquired immediately')
+        
+        # Check migration state
+        print('\n🧹 Checking migration state...')
         exists = await conn.fetchval('''
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.tables 
@@ -118,6 +133,16 @@ async def main():
     
     # Check final state
     await check_database_state("after")
+    
+    # Release the migration lock
+    print('\n🔓 Releasing migration lock...')
+    try:
+        conn = await asyncpg.connect(db_url)
+        await conn.execute('SELECT pg_advisory_unlock(123456)')
+        await conn.close()
+        print('✅ Migration lock released')
+    except Exception as e:
+        print(f'⚠️  Error releasing lock: {e}')
 
 if __name__ == "__main__":
     asyncio.run(main())
