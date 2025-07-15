@@ -283,12 +283,36 @@ class Database:
         for name, query in self._prepared_statements.items():
             try:
                 await conn.execute(f"PREPARE {name} AS {query}")
-            except asyncpg.exceptions.UndefinedTableError:
+                logger.info(f"✅ Successfully prepared statement '{name}'")
+            except asyncpg.exceptions.UndefinedTableError as e:
                 # Tables don't exist yet - migrations probably haven't run
-                logger.warning(f"Cannot prepare statement '{name}' - table doesn't exist yet. This is normal during initial setup.")
+                logger.error(f"❌ Cannot prepare statement '{name}' - table doesn't exist: {e}")
+                logger.error("🚨 CRITICAL: Database tables are missing! Did migrations run successfully?")
+                
+                # Let's check what tables actually exist
+                try:
+                    tables = await conn.fetch("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                        ORDER BY table_name
+                    """)
+                    table_names = [row['table_name'] for row in tables]
+                    logger.error(f"📋 Available tables: {table_names}")
+                    
+                    # Check alembic version
+                    try:
+                        version = await conn.fetchval("SELECT version_num FROM alembic_version")
+                        logger.error(f"📝 Current migration version: {version}")
+                    except:
+                        logger.error("📝 No alembic_version table found - migrations never ran?")
+                        
+                except Exception as check_err:
+                    logger.error(f"❌ Could not check available tables: {check_err}")
+                
             except Exception as e:
                 # Log other errors but don't fail initialization
-                logger.error(f"Failed to prepare statement '{name}': {e}")
+                logger.error(f"❌ Failed to prepare statement '{name}': {e}")
 
     @beartype
     async def _init_read_connection(self, conn: asyncpg.Connection) -> None:
