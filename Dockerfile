@@ -50,8 +50,8 @@ RUN useradd -m -u 1000 appuser && \
 # Set working directory
 WORKDIR /app
 
-# Copy virtual environment from builder stage
-COPY --from=builder /app/.venv /app/.venv
+# Copy virtual environment from builder stage with correct ownership
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
 # Copy application code
 COPY --chown=appuser:appuser . .
@@ -81,16 +81,16 @@ echo "Environment: $APP_ENV"\n\
 echo "API Port: $API_PORT"\n\
 echo "WebSocket Port: $WEBSOCKET_PORT"\n\
 \n\
-# Run database migrations if DATABASE_URL is available\n\
-if [ -n "$DATABASE_URL" ]; then\n\
+# Run database migrations if database_url is available\n\
+if [ -n "$database_url" ]; then\n\
     echo "🔄 Running database migrations..."\n\
-    uv run alembic upgrade head || {\n\
+    DATABASE_URL=$database_url uv run alembic upgrade head || {\n\
         echo "❌ Database migrations failed"\n\
         exit 1\n\
     }\n\
     echo "✅ Database migrations completed"\n\
 else\n\
-    echo "⚠️ DATABASE_URL not set, skipping migrations"\n\
+    echo "⚠️ database_url not set, skipping migrations"\n\
 fi\n\
 \n\
 # Start the application with proper signal handling\n\
