@@ -89,7 +89,7 @@ fi\n\
 \n\
 # Start the application with proper signal handling\n\
 echo "🌐 Starting FastAPI server..."\n\
-exec uv run uvicorn src.pd_prime_demo.main:app \\\n\
+exec uv run uvicorn src.policy_core.main:app \\\n\
     --host ${API_HOST:-0.0.0.0} \\\n\
     --port ${API_PORT:-8080} \\\n\
     --workers ${WORKERS:-1} \\\n\

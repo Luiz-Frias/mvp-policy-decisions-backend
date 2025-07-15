@@ -79,7 +79,7 @@ async def async_engine(test_database_url: str) -> AsyncGenerator[Any, None]:
     )
 
     # Import your Base model here when available
-    # from pd_prime_demo.models import Base
+    # from policy_core.models import Base
     # async with engine.begin() as conn:
     #     await conn.run_sync(Base.metadata.create_all)
 
@@ -113,7 +113,7 @@ def sync_engine() -> Generator[Any, None, None]:
     )
 
     # Import your Base model here when available
-    # from pd_prime_demo.models import Base
+    # from policy_core.models import Base
     # Base.metadata.create_all(bind=engine)
 
     yield engine
@@ -316,7 +316,7 @@ def setup_test_environment(
     # Cleanup after test - reset any singleton instances
     try:
         # Reset database singleton
-        import src.pd_prime_demo.core.database_enhanced as db_module
+        import src.policy_core.core.database_enhanced as db_module
 
         if hasattr(db_module, "_database"):
             db_module._database = None
@@ -325,7 +325,7 @@ def setup_test_environment(
 
     try:
         # Reset config singleton
-        from src.pd_prime_demo.core.config import clear_settings_cache
+        from src.policy_core.core.config import clear_settings_cache
 
         clear_settings_cache()
     except ImportError:
@@ -354,7 +354,7 @@ def mock_http_client() -> MagicMock:
 @pytest_asyncio.fixture  # type: ignore[misc]
 async def rating_engine(mock_db: MagicMock, mock_cache: MagicMock) -> Any:
     """Create rating engine instance for testing."""
-    from src.pd_prime_demo.services.rating_engine import RatingEngine
+    from src.policy_core.services.rating_engine import RatingEngine
 
     # Set up mock database responses for rating data
     mock_db.fetch.return_value = [

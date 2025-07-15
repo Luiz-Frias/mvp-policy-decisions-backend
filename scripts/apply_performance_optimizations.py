@@ -9,9 +9,9 @@ from pathlib import Path
 # Add the src directory to the path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pd_prime_demo.core.database import get_database
-from pd_prime_demo.core.performance_cache import get_performance_cache, warm_all_caches
-from pd_prime_demo.core.performance_monitor import (
+from policy_core.core.database import get_database
+from policy_core.core.performance_cache import get_performance_cache, warm_all_caches
+from policy_core.core.performance_monitor import (
     benchmark_operation,
     get_performance_collector,
 )

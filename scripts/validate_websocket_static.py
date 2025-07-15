@@ -15,7 +15,7 @@ class WebSocketStaticValidator:
 
     def __init__(self):
         self.project_root = Path(__file__).parent.parent
-        self.websocket_dir = self.project_root / "src/pd_prime_demo/websocket"
+        self.websocket_dir = self.project_root / "src/policy_core/websocket"
         self.results = {
             "passed": [],
             "failed": [],
@@ -288,7 +288,7 @@ class WebSocketStaticValidator:
 
         # Check quote service integration
         quote_service_file = (
-            self.project_root / "src/pd_prime_demo/services/quote_service.py"
+            self.project_root / "src/policy_core/services/quote_service.py"
         )
         if quote_service_file.exists():
             tree = self.analyze_file(quote_service_file)
@@ -317,7 +317,7 @@ class WebSocketStaticValidator:
                         )
 
         # Check dependencies.py for WebSocket injection
-        deps_file = self.project_root / "src/pd_prime_demo/api/dependencies.py"
+        deps_file = self.project_root / "src/policy_core/api/dependencies.py"
         if deps_file.exists():
             with open(deps_file) as f:
                 content = f.read()

@@ -24,7 +24,7 @@ from uuid import uuid4
 import pytest
 from beartype import beartype
 
-from pd_prime_demo.core.result_types import Err, Ok, Result
+from policy_core.core.result_types import Err, Ok, Result
 from tests.fixtures.test_data import (
     VALID_POLICY_DATA,
     PolicyDecisionModel,

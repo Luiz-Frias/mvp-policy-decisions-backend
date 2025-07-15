@@ -22,7 +22,7 @@ def fix_response_depends(file_path: Path) -> bool:
 
 def main():
     """Fix all Response = Depends() issues in API files."""
-    api_dir = Path("src/pd_prime_demo/api/v1")
+    api_dir = Path("src/policy_core/api/v1")
     
     fixed_files = []
     

@@ -13,7 +13,7 @@ FastAPI application and real response models from the source code.
 5. Enable @pytest.mark.database tests (currently skipped due to beartype restrictions)
 
 🚀 POLICY CRUD IMPLEMENTATION:
-- Implement actual database queries in src/pd_prime_demo/api/v1/policies.py
+- Implement actual database queries in src/policy_core/api/v1/policies.py
 - Add proper error handling and validation for database operations
 - Implement caching strategies with Redis integration
 - Add comprehensive policy filtering and pagination logic
@@ -56,7 +56,7 @@ from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
 
 # Import test dependencies first
-from src.pd_prime_demo.api.dependencies import (
+from src.policy_core.api.dependencies import (
     get_db,
     get_redis,
     get_user_with_demo_fallback,
@@ -79,12 +79,12 @@ os.environ.setdefault(
 os.environ.setdefault("API_ENV", "development")
 
 # NOW we can safely import the app-related modules  # noqa: E402
-from src.pd_prime_demo.api.v1.health import HealthStatus  # noqa: E402
-from src.pd_prime_demo.api.v1.policies import PolicyListResponse  # noqa: E402
-from src.pd_prime_demo.core.config import Settings, get_settings  # noqa: E402
-from src.pd_prime_demo.main import create_app  # noqa: E402
-from src.pd_prime_demo.models.policy import PolicyStatus, PolicyType  # noqa: E402
-from src.pd_prime_demo.schemas.auth import CurrentUser  # noqa: E402
+from src.policy_core.api.v1.health import HealthStatus  # noqa: E402
+from src.policy_core.api.v1.policies import PolicyListResponse  # noqa: E402
+from src.policy_core.core.config import Settings, get_settings  # noqa: E402
+from src.policy_core.main import create_app  # noqa: E402
+from src.policy_core.models.policy import PolicyStatus, PolicyType  # noqa: E402
+from src.policy_core.schemas.auth import CurrentUser  # noqa: E402
 
 # Test data using actual model structures
 VALID_POLICY_CREATE_DATA = {
@@ -157,7 +157,7 @@ def real_test_app(test_settings: Settings, mock_redis: Any) -> FastAPI:
 
     # Create app with dependency overrides
     with patch(
-        "src.pd_prime_demo.core.config.get_settings",
+        "src.policy_core.core.config.get_settings",
         return_value=test_settings,
     ):
         app = create_app()

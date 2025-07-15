@@ -8,7 +8,7 @@ from pathlib import Path
 # Ensure project root's `src` directory is on the import path when running directly
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from pd_prime_demo.services.rating.calculators import (
+from policy_core.services.rating.calculators import (
     DiscountCalculator,
     PremiumCalculator,
 )

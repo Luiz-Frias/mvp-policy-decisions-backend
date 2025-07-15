@@ -12,8 +12,8 @@ from uuid import uuid4
 from beartype import beartype
 from pydantic import Field, model_validator
 
-from pd_prime_demo.models.base import BaseModelConfig, IdentifiableModel
-from pd_prime_demo.models.quote import (
+from policy_core.models.base import BaseModelConfig, IdentifiableModel
+from policy_core.models.quote import (
     CoverageSelection,
     CoverageType,
     DriverInfo,

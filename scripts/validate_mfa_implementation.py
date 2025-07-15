@@ -11,8 +11,8 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    from pd_prime_demo.core.auth.mfa import RiskEngine, TOTPProvider
-    from pd_prime_demo.core.auth.mfa.models import MFAMethod, RiskLevel
+    from policy_core.core.auth.mfa import RiskEngine, TOTPProvider
+    from policy_core.core.auth.mfa.models import MFAMethod, RiskLevel
 except ImportError as e:
     print(f"Import error: {e}")
     print("Please ensure you're running from the project root directory")
@@ -36,13 +36,13 @@ class MFAValidator:
 
         try:
             # Import all modules to validate they exist - these are intentionally unused
-            from pd_prime_demo.core.auth.mfa import (  # noqa: F401
+            from policy_core.core.auth.mfa import (  # noqa: F401
                 MFAManager,
                 RiskEngine,
                 TOTPProvider,
                 WebAuthnProvider,
             )
-            from pd_prime_demo.core.auth.mfa.models import (  # noqa: F401
+            from policy_core.core.auth.mfa.models import (  # noqa: F401
                 MFAChallenge,
                 MFAConfig,
                 MFAMethod,
@@ -261,7 +261,7 @@ class MFAValidator:
             from datetime import datetime, timezone
             from uuid import uuid4
 
-            from pd_prime_demo.core.auth.mfa.models import (
+            from policy_core.core.auth.mfa.models import (
                 MFAConfig,
                 RiskAssessment,
                 TOTPSetupData,
@@ -325,7 +325,7 @@ class MFAValidator:
         self.test_count += 1
 
         try:
-            from pd_prime_demo.api.v1.mfa import router
+            from policy_core.api.v1.mfa import router
 
             # Check that router has routes
             if not router.routes:

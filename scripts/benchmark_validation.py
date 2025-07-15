@@ -7,7 +7,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 # Logging Setup (replaces legacy ``print`` output with structured logging)
 # ---------------------------------------------------------------------------
-from pd_prime_demo.core.logging_utils import configure_logging, patch_print
+from policy_core.core.logging_utils import configure_logging, patch_print
 
 configure_logging()
 patch_print()

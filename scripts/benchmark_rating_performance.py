@@ -18,13 +18,13 @@ from uuid import uuid4
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pd_prime_demo.models.quote import (
+from policy_core.models.quote import (
     CoverageSelection,
     CoverageType,
     DriverInfo,
     VehicleInfo,
 )
-from pd_prime_demo.services.rating import RatingEngine
+from policy_core.services.rating import RatingEngine
 
 
 class MockCache:

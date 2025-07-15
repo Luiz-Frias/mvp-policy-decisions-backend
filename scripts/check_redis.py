@@ -9,7 +9,7 @@ from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field
 
 try:
-    from pd_prime_demo.core.cache import redis_client
+    from policy_core.core.cache import redis_client
 except ImportError:
     print("❌ Failed to import Redis configuration")
     print("Make sure the application is properly installed")

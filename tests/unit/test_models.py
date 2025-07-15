@@ -17,8 +17,8 @@ import pytest
 from beartype import beartype
 from pydantic import ValidationError
 
-from pd_prime_demo.core.result_types import Err, Ok, Result
-from pd_prime_demo.models.base import (
+from policy_core.core.result_types import Err, Ok, Result
+from policy_core.models.base import (
     BaseModelConfig,
     IdentifiableModel,
     TimestampedModel,

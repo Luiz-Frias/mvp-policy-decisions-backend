@@ -37,7 +37,7 @@ class Wave2PerformanceValidator:
         self.log("Testing database connection pool performance...")
 
         try:
-            from pd_prime_demo.core.database import get_database
+            from policy_core.core.database import get_database
 
             db = get_database()
             start_time = time.perf_counter()
@@ -102,7 +102,7 @@ class Wave2PerformanceValidator:
         self.log("Testing performance monitoring system...")
 
         try:
-            from pd_prime_demo.core.performance_monitor import (
+            from policy_core.core.performance_monitor import (
                 benchmark_operation,
                 get_performance_collector,
             )
@@ -153,7 +153,7 @@ class Wave2PerformanceValidator:
         self.log("Testing caching system performance...")
 
         try:
-            from pd_prime_demo.core.performance_cache import (
+            from policy_core.core.performance_cache import (
                 get_performance_cache,
                 warm_all_caches,
             )
@@ -211,7 +211,7 @@ class Wave2PerformanceValidator:
 
         try:
 
-            from pd_prime_demo.core.rate_limiter import (
+            from policy_core.core.rate_limiter import (
                 get_rate_limiter,
             )
 
@@ -324,7 +324,7 @@ class Wave2PerformanceValidator:
         try:
             from fastapi.testclient import TestClient
 
-            from pd_prime_demo.main import create_app
+            from policy_core.main import create_app
 
             app = create_app()
             client = TestClient(app)

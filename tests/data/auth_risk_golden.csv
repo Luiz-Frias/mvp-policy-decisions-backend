@@ -1,0 +1,4 @@
+user_id,ip_address,user_agent,new_device,new_location,failed_attempts,risk_score
+u1,198.51.100.1,Firefox,0,0,0,0.05
+u2,203.0.113.7,Safari,1,1,2,0.65
+u3,10.0.0.5,Chrome,0,0,0,0.02 

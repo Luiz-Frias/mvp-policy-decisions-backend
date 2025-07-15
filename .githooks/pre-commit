@@ -44,13 +44,23 @@ print_status "🔍 MASTER RULE: Validating Pydantic model compliance..."
 set +e
 VIOLATIONS=0
 
-# 1️⃣  Plain dictionary usage that is not at a SYSTEM_BOUNDARY (exclude tests)
-DICT_VIOL_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "dict\\[" {} \; 2>/dev/null | xargs grep -L "SYSTEM_BOUNDARY" 2>/dev/null)
-if [ -n "$DICT_VIOL_FILES" ]; then
-    COUNT=$(echo "$DICT_VIOL_FILES" | wc -l)
-    print_error "❌ MASTER RULE VIOLATION: $COUNT file(s) use plain dictionaries without annotation:"
-    echo "$DICT_VIOL_FILES" | sed 's/^/   • /'
-    VIOLATIONS=$((VIOLATIONS+COUNT))
+# 1️⃣  Dictionary usage analysis - SYSTEM_BOUNDARY classification
+ALL_DICT_FILES=$(find src -name "*.py" -not -path "*/test*" -exec grep -l "dict\\[" {} \; 2>/dev/null)
+
+if [ -n "$ALL_DICT_FILES" ]; then
+    print_status "🔍 Analyzing dictionary usage patterns..."
+    
+    while IFS= read -r file; do
+        if [ -n "$file" ]; then
+            if grep -q "SYSTEM_BOUNDARY" "$file" 2>/dev/null; then
+                print_status "===NOTICE=== 📍 ${file} (infrastructure layer - flexible dict usage approved)"
+            else
+                print_error "❌ BUSINESS LOGIC VIOLATION: ${file} uses dict[str, Any] without SYSTEM_BOUNDARY annotation"
+                print_status "💡 Add '# SYSTEM_BOUNDARY: <reason>' comment if this is infrastructure code"
+                VIOLATIONS=$((VIOLATIONS+1))
+            fi
+        fi
+    done <<< "$ALL_DICT_FILES"
 fi
 
 # 2️⃣  Pydantic models missing frozen=True (exclude tests)
@@ -179,22 +189,47 @@ if ! uv run ruff format --check src tests; then
 fi
 print_success "✅ Ruff linting and formatting verified"
 
-# 6. MANDATORY: Security scanning
+# 6. MANDATORY: Security vulnerability scanning
 print_status "🛡️ MASTER RULE: Security vulnerability scanning..."
+
+# Bandit security analysis
 uv run bandit -r src -f json -o bandit-report.json >/dev/null 2>&1 || true
-HIGH_ISSUES=$(cat bandit-report.json 2>/dev/null | jq -r '.results[] | select(.issue_severity == "HIGH") | .test_name' | wc -l || echo "0")
-if [ "$HIGH_ISSUES" -gt 0 ]; then
-    print_error "❌ MASTER RULE VIOLATION: $HIGH_ISSUES high-severity security issues found"
-    print_error "🚨 SECURITY FIRST: Fix all high-severity issues before commit"
-    exit 1
+if [ -f "bandit-report.json" ]; then
+    HIGH_ISSUES=$(cat bandit-report.json 2>/dev/null | jq -r '.results[] | select(.issue_severity == "HIGH") | .test_name' 2>/dev/null | wc -l || echo "0")
+    MEDIUM_ISSUES=$(cat bandit-report.json 2>/dev/null | jq -r '.results[] | select(.issue_severity == "MEDIUM") | .test_name' 2>/dev/null | wc -l || echo "0")
+    LOW_ISSUES=$(cat bandit-report.json 2>/dev/null | jq -r '.results[] | select(.issue_severity == "LOW") | .test_name' 2>/dev/null | wc -l || echo "0")
+    
+    if [ "$HIGH_ISSUES" -gt 0 ]; then
+        print_error "❌ MASTER RULE VIOLATION: $HIGH_ISSUES high-severity security issues found"
+        print_error "🚨 SECURITY FIRST: Fix all high-severity issues before commit"
+        print_status "💡 Run 'uv run bandit -r src' for detailed security analysis"
+        exit 1
+    elif [ "$MEDIUM_ISSUES" -gt 0 ] || [ "$LOW_ISSUES" -gt 0 ]; then
+        print_warning "⚠️ SECURITY AWARENESS: $MEDIUM_ISSUES medium, $LOW_ISSUES low severity issues found"
+        print_status "💡 Review security recommendations with 'uv run bandit -r src'"
+    else
+        print_success "✅ No security vulnerabilities detected"
+    fi
+    
+    # Clean up report
+    rm -f bandit-report.json
+else
+    print_warning "⚠️ Bandit security scan failed - install with 'uv add --dev bandit'"
 fi
 
-# Run safety check on dependencies
-if ! uv run safety check --json >/dev/null 2>&1; then
-    print_warning "⚠️ SECURITY: Dependency vulnerabilities found (check with 'uv run safety check')"
+# Dependency vulnerability check
+print_status "🔍 Checking dependency vulnerabilities..."
+if command -v safety >/dev/null 2>&1 || uv run python -c "import safety" >/dev/null 2>&1; then
+    if ! uv run safety check --json >/dev/null 2>&1; then
+        print_warning "⚠️ SECURITY: Dependency vulnerabilities found"
+        print_status "💡 Run 'uv run safety check' for detailed vulnerability report"
+    else
+        print_success "✅ No known dependency vulnerabilities"
+    fi
+else
+    print_status "📦 Installing safety for dependency scanning..."
+    uv add --dev safety >/dev/null 2>&1 || true
 fi
-
-print_success "✅ Security scanning completed"
 
 # 7. MANDATORY: Memory leak detection in tests
 print_status "🧠 MASTER RULE: Memory leak detection..."
@@ -214,13 +249,44 @@ if [ -d "tests" ]; then
     fi
 fi
 
-# 8. Documentation validation
-print_status "📚 Documentation compliance check..."
-if ! uv run pydocstyle src --count >/dev/null 2>&1; then
-    print_warning "⚠️ Documentation style issues found (run 'uv run pydocstyle src' for details)"
+# 8. Code complexity and maintainability analysis
+print_status "🧮 MASTER RULE: Code complexity and maintainability analysis..."
+
+# Check for overly complex functions using radon
+if command -v radon >/dev/null 2>&1 || uv run python -c "import radon" >/dev/null 2>&1; then
+    COMPLEX_FUNCTIONS=$(uv run radon cc src -s | grep -E "F|E|D" | wc -l || echo "0")
+    if [ "$COMPLEX_FUNCTIONS" -gt 0 ]; then
+        print_warning "⚠️ MAINTAINABILITY: $COMPLEX_FUNCTIONS high-complexity functions found"
+        print_status "💡 Consider refactoring functions with complexity grade D, E, or F"
+        print_status "   Run 'uv run radon cc src -s' for detailed analysis"
+    else
+        print_success "✅ Code complexity within acceptable bounds"
+    fi
+else
+    print_status "📊 Installing radon for complexity analysis..."
+    uv add --dev radon >/dev/null 2>&1 || true
 fi
 
-# 9. MANDATORY: Type coverage validation
+# Check maintainability index
+if command -v radon >/dev/null 2>&1 || uv run python -c "import radon" >/dev/null 2>&1; then
+    LOW_MAINTAIN=$(uv run radon mi src -s | grep -E "C|D|F" | wc -l || echo "0")
+    if [ "$LOW_MAINTAIN" -gt 0 ]; then
+        print_warning "⚠️ MAINTAINABILITY: $LOW_MAINTAIN files with low maintainability index"
+        print_status "💡 Run 'uv run radon mi src -s' to identify files needing refactoring"
+    fi
+fi
+
+# 9. Documentation validation
+print_status "📚 Documentation compliance check..."
+DOCSTRING_ISSUES=$(uv run pydocstyle src --count 2>/dev/null || echo "0")
+if [ "$DOCSTRING_ISSUES" -gt 0 ]; then
+    print_warning "⚠️ DOCUMENTATION: $DOCSTRING_ISSUES documentation style issues found"
+    print_status "💡 Run 'uv run pydocstyle src' for detailed documentation requirements"
+else
+    print_success "✅ Documentation style compliance verified"
+fi
+
+# 10. MANDATORY: Type coverage validation
 print_status "🎯 MASTER RULE: Type coverage validation..."
 TYPE_COVERAGE=$(uv run mypy --strict src 2>&1 | grep -o "Found [0-9]* error" | grep -o "[0-9]*" || echo "0")
 if [ "$TYPE_COVERAGE" -gt 0 ]; then
@@ -229,12 +295,15 @@ if [ "$TYPE_COVERAGE" -gt 0 ]; then
     exit 1
 fi
 
-# 10. MANDATORY: Result Type Usage Check
-print_status "🔄 MASTER RULE: Result type usage validation..."
+# 11. Result Type Usage Analysis
+print_status "🔄 Defensive programming pattern analysis..."
 EXCEPTION_FLOW=$(find src -name "*.py" -exec grep -l "raise.*Exception\|except.*:" {} \; 2>/dev/null | wc -l)
 RESULT_USAGE=$(find src -name "*.py" -exec grep -l "Result\[" {} \; 2>/dev/null | wc -l)
 if [ "$EXCEPTION_FLOW" -gt 0 ] && [ "$RESULT_USAGE" -eq 0 ]; then
     print_warning "⚠️ DEFENSIVE PROGRAMMING: Consider using Result[T, E] types instead of exceptions for flow control"
+    print_status "💡 Current: $EXCEPTION_FLOW files use exceptions, $RESULT_USAGE files use Result types"
+else
+    print_success "✅ Defensive programming patterns verified ($RESULT_USAGE files using Result types)"
 fi
 
 print_header "🎯 MASTER RULESET ENFORCEMENT SUMMARY"

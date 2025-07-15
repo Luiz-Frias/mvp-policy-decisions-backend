@@ -6,8 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from pd_prime_demo.core.result_types import Err, Ok
-from pd_prime_demo.models.quote import (
+from policy_core.core.result_types import Err, Ok
+from policy_core.models.quote import (
     CoverageSelection,
     CoverageType,
     DriverInfo,
@@ -17,7 +17,7 @@ from pd_prime_demo.models.quote import (
     QuoteUpdate,
     VehicleInfo,
 )
-from pd_prime_demo.services.quote_service import QuoteService
+from policy_core.services.quote_service import QuoteService
 
 
 @pytest.fixture

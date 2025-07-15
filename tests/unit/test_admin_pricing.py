@@ -8,7 +8,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-from pd_prime_demo.services.admin.pricing_override_service import PricingOverrideService
+from policy_core.services.admin.pricing_override_service import PricingOverrideService
 
 
 async def test_admin_pricing_overrides():

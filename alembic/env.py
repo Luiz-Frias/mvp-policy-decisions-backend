@@ -12,7 +12,7 @@ from alembic import context
 
 # Import your declarative base and models here
 # This will be updated when models are implemented
-# from src.pd_prime_demo.models import Base
+# from src.policy_core.models import Base
 
 # This is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -36,7 +36,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from pd_prime_demo.core.config import get_settings
+from policy_core.core.config import get_settings
 
 # Use our smart URL selection logic
 settings = get_settings()

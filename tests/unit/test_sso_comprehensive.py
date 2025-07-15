@@ -5,13 +5,13 @@ from uuid import uuid4
 
 import pytest
 
-from src.pd_prime_demo.core.auth.providers.auth0 import Auth0SSOProvider
-from src.pd_prime_demo.core.auth.providers.azure import AzureADSSOProvider
-from src.pd_prime_demo.core.auth.providers.google import GoogleSSOProvider
-from src.pd_prime_demo.core.auth.providers.okta import OktaSSOProvider
-from src.pd_prime_demo.core.auth.sso_base import SSOUserInfo
-from src.pd_prime_demo.core.auth.sso_manager import SSOManager
-from src.pd_prime_demo.core.result_types import Err
+from src.policy_core.core.auth.providers.auth0 import Auth0SSOProvider
+from src.policy_core.core.auth.providers.azure import AzureADSSOProvider
+from src.policy_core.core.auth.providers.google import GoogleSSOProvider
+from src.policy_core.core.auth.providers.okta import OktaSSOProvider
+from src.policy_core.core.auth.sso_base import SSOUserInfo
+from src.policy_core.core.auth.sso_manager import SSOManager
+from src.policy_core.core.result_types import Err
 
 
 class TestSSOComprehensiveIntegration:
@@ -102,7 +102,7 @@ class TestSSOComprehensiveIntegration:
         assert provider.okta_domain == "dev-example.okta.com"
         assert provider.authorization_server_id == "custom_server"
 
-    @patch("src.pd_prime_demo.core.auth.providers.google.httpx.AsyncClient")
+    @patch("src.policy_core.core.auth.providers.google.httpx.AsyncClient")
     async def test_google_oidc_discovery(self, mock_client):
         """Test Google OIDC discovery document fetching."""
         mock_response = AsyncMock()
@@ -200,7 +200,7 @@ class TestSSOComprehensiveIntegration:
 
         # Mock HTTP failure
         with patch(
-            "src.pd_prime_demo.core.auth.providers.google.httpx.AsyncClient"
+            "src.policy_core.core.auth.providers.google.httpx.AsyncClient"
         ) as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 500
@@ -356,7 +356,7 @@ class TestSSOComprehensiveIntegration:
         assert "email" in provider.scopes
         assert "profile" in provider.scopes
 
-    @patch("src.pd_prime_demo.core.auth.providers.azure.httpx.AsyncClient")
+    @patch("src.policy_core.core.auth.providers.azure.httpx.AsyncClient")
     async def test_azure_graph_integration(self, mock_client):
         """Test Azure AD Microsoft Graph integration."""
         mock_response = AsyncMock()

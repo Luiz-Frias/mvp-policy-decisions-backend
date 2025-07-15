@@ -17,20 +17,20 @@ from beartype import beartype
 # Add project root to path
 sys.path.insert(0, "/home/devuser/projects/mvp_policy_decision_backend")
 
-from src.pd_prime_demo.core.cache import Cache
-from src.pd_prime_demo.core.config import Settings
-from src.pd_prime_demo.core.database import Database
-from src.pd_prime_demo.services.admin.activity_logger import AdminActivityLogger
-from src.pd_prime_demo.services.admin.admin_user_service import AdminUserService
-from src.pd_prime_demo.services.admin.system_settings_service import (
+from src.policy_core.core.cache import Cache
+from src.policy_core.core.config import Settings
+from src.policy_core.core.database import Database
+from src.policy_core.services.admin.activity_logger import AdminActivityLogger
+from src.policy_core.services.admin.admin_user_service import AdminUserService
+from src.policy_core.services.admin.system_settings_service import (
     SystemSettingsService,
 )
-from src.pd_prime_demo.services.claim_service import ClaimService
-from src.pd_prime_demo.services.customer_service import CustomerService
-from src.pd_prime_demo.services.policy_service import PolicyService
-from src.pd_prime_demo.services.quote_service import QuoteService
-from src.pd_prime_demo.services.rating_engine import RatingEngine
-from src.pd_prime_demo.core.result_types import Ok, Err, Result
+from src.policy_core.services.claim_service import ClaimService
+from src.policy_core.services.customer_service import CustomerService
+from src.policy_core.services.policy_service import PolicyService
+from src.policy_core.services.quote_service import QuoteService
+from src.policy_core.services.rating_engine import RatingEngine
+from src.policy_core.core.result_types import Ok, Err, Result
 
 
 class ServiceIntegrationValidator:
@@ -227,10 +227,10 @@ class ServiceIntegrationValidator:
 
         # Services that should NOT have mock data
         services_to_check = [
-            "src/pd_prime_demo/services/policy_service.py",
-            "src/pd_prime_demo/services/customer_service.py",
-            "src/pd_prime_demo/services/claim_service.py",
-            "src/pd_prime_demo/services/quote_service.py",
+            "src/policy_core/services/policy_service.py",
+            "src/policy_core/services/customer_service.py",
+            "src/policy_core/services/claim_service.py",
+            "src/policy_core/services/quote_service.py",
         ]
 
         mock_patterns = [

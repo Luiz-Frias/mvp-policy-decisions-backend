@@ -7,11 +7,11 @@ from typing import Any
 
 import pytest
 
-from pd_prime_demo.services.rating.calculators import (
+from policy_core.services.rating.calculators import (
     DiscountCalculator,
     PremiumCalculator,
 )
-from pd_prime_demo.services.rating.performance import RatingPerformanceOptimizer
+from policy_core.services.rating.performance import RatingPerformanceOptimizer
 
 
 class TestRatingPerformance:

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 # ---------------------------------------------------------------------------
 # Logging Setup (replaces all legacy ``print`` output with proper logging)
 # ---------------------------------------------------------------------------
-from pd_prime_demo.core.logging_utils import configure_logging, patch_print
+from policy_core.core.logging_utils import configure_logging, patch_print
 
 configure_logging()
 patch_print()
@@ -23,7 +23,7 @@ def test_sso_base_classes():
 
     try:
         # Test SSOUserInfo model
-        from pd_prime_demo.core.auth.sso_base import SSOUserInfo
+        from policy_core.core.auth.sso_base import SSOUserInfo
 
         user_info = SSOUserInfo(
             sub="test-123",
@@ -48,7 +48,7 @@ def test_google_provider():
     print("\n🔍 Testing Google SSO Provider...")
 
     try:
-        from pd_prime_demo.core.auth.providers.google import GoogleSSOProvider
+        from policy_core.core.auth.providers.google import GoogleSSOProvider
 
         provider = GoogleSSOProvider(
             client_id="test-client-id",
@@ -81,7 +81,7 @@ def test_all_providers():
     providers_config = [
         (
             "Google",
-            "pd_prime_demo.core.auth.providers.google",
+            "policy_core.core.auth.providers.google",
             "GoogleSSOProvider",
             {
                 "client_id": "test-id",
@@ -91,7 +91,7 @@ def test_all_providers():
         ),
         (
             "Azure AD",
-            "pd_prime_demo.core.auth.providers.azure",
+            "policy_core.core.auth.providers.azure",
             "AzureADSSOProvider",
             {
                 "client_id": "test-id",
@@ -102,7 +102,7 @@ def test_all_providers():
         ),
         (
             "Okta",
-            "pd_prime_demo.core.auth.providers.okta",
+            "policy_core.core.auth.providers.okta",
             "OktaSSOProvider",
             {
                 "client_id": "test-id",
@@ -113,7 +113,7 @@ def test_all_providers():
         ),
         (
             "Auth0",
-            "pd_prime_demo.core.auth.providers.auth0",
+            "policy_core.core.auth.providers.auth0",
             "Auth0SSOProvider",
             {
                 "client_id": "test-id",
@@ -149,7 +149,7 @@ def test_result_types():
     print("\n🔍 Testing Result Type Patterns...")
 
     try:
-        from pd_prime_demo.core.result_types import Err, Ok, Result
+        from policy_core.core.result_types import Err, Ok, Result
 
         # Test Ok result
         success = Ok("success value")

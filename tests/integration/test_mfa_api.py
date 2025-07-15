@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from src.pd_prime_demo.main import app
+from src.policy_core.main import app
 
 
 @pytest.fixture
@@ -31,8 +31,8 @@ def auth_headers(mock_user):
 class TestMFAStatusEndpoint:
     """Tests for MFA status endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_get_mfa_status_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -65,8 +65,8 @@ class TestMFAStatusEndpoint:
         assert data["sms_enabled"] is False
         assert data["recovery_codes_count"] == 2
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_get_mfa_status_error(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -90,8 +90,8 @@ class TestMFAStatusEndpoint:
 class TestTOTPSetupEndpoint:
     """Tests for TOTP setup endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_totp_setup_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -129,8 +129,8 @@ class TestTOTPSetupEndpoint:
         assert "backup_codes" in data
         assert len(data["backup_codes"]) == 2
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_totp_setup_already_enabled(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -159,8 +159,8 @@ class TestTOTPSetupEndpoint:
 class TestTOTPVerificationEndpoint:
     """Tests for TOTP verification endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_totp_verify_setup_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -186,8 +186,8 @@ class TestTOTPVerificationEndpoint:
         data = response.json()
         assert "successfully enabled" in data["message"]
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_totp_verify_setup_invalid_code(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -227,8 +227,8 @@ class TestTOTPVerificationEndpoint:
 class TestMFAChallengeEndpoint:
     """Tests for MFA challenge endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_create_mfa_challenge_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -249,7 +249,7 @@ class TestMFAChallengeEndpoint:
         mock_timedelta.total_seconds.return_value = 300
 
         # Mock the subtraction result
-        with patch("src.pd_prime_demo.api.v1.mfa.datetime"):
+        with patch("src.policy_core.api.v1.mfa.datetime"):
             mock_challenge.expires_at.__sub__.return_value = mock_timedelta
 
             mock_manager = AsyncMock()
@@ -272,8 +272,8 @@ class TestMFAChallengeEndpoint:
 class TestRiskAssessmentEndpoint:
     """Tests for risk assessment endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_get_risk_assessment_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -314,8 +314,8 @@ class TestRiskAssessmentEndpoint:
 class TestRecoveryCodesEndpoint:
     """Tests for recovery codes endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_generate_recovery_codes_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
@@ -347,8 +347,8 @@ class TestRecoveryCodesEndpoint:
 class TestDeviceTrustEndpoint:
     """Tests for device trust endpoint."""
 
-    @patch("src.pd_prime_demo.api.dependencies.get_current_user")
-    @patch("src.pd_prime_demo.api.v1.mfa.get_mfa_manager")
+    @patch("src.policy_core.api.dependencies.get_current_user")
+    @patch("src.policy_core.api.v1.mfa.get_mfa_manager")
     async def test_trust_device_success(
         self, mock_mfa_manager, mock_get_current_user, client, mock_user, auth_headers
     ):
