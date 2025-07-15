@@ -11,6 +11,9 @@
 import asyncio
 import json
 import logging
+
+# Configure detailed logging
+import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -35,8 +38,6 @@ from .core.rate_limiter import RateLimitConfig, RateLimitingMiddleware
 from .schemas.common import APIInfo
 from .websocket.app import websocket_app
 
-# Configure detailed logging
-import os
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 numeric_level = getattr(logging, log_level, logging.INFO)
 logging.basicConfig(
@@ -47,6 +48,7 @@ logger = logging.getLogger(__name__)
 # Install uvloop for performance if available
 try:
     import uvloop
+
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     logger.info("✅ uvloop installed - 2-4x performance boost enabled")
 except ImportError:
@@ -340,9 +342,11 @@ def create_app() -> FastAPI:
 
     # Security middleware
     app.add_middleware(SecurityHeadersMiddleware)
+    # TrustedHostMiddleware: allow all hosts in containerized environments (Railway/K8s)
+    # Production domains can be enforced via reverse proxy / gateway.
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*"] if settings.is_development else ["api.example.com"],
+        allowed_hosts=["*"],
     )
 
     # CORS middleware
