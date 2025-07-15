@@ -29,7 +29,7 @@ RUN uv sync --frozen --no-dev
 FROM python:3.11-slim
 
 # Cache bust to force rebuild - UPDATE THIS TO FORCE NEW BUILD
-ARG CACHEBUST=20250715-fix-migrations
+ARG CACHEBUST=20250715-fix-migration-order
 
 # Force rebuild with timestamp
 RUN echo "Build timestamp: $(date -u +%Y%m%d-%H%M%S)"
@@ -76,9 +76,11 @@ USER appuser
 # Expose ports for API and WebSocket
 EXPOSE 8080 8081
 
-# Copy startup script
-COPY --chown=appuser:appuser start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+# Copy startup scripts
+COPY --chown=appuser:appuser migrate.sh /app/migrate.sh
+COPY --chown=appuser:appuser app.sh /app/app.sh
+RUN chmod +x /app/migrate.sh /app/app.sh
 
-# Use the startup script as the default command
-CMD ["/app/start.sh"]
+# Run migrations first, then start the app
+# This ensures tables exist before the connection pool tries to prepare statements
+CMD ["/bin/bash", "-c", "/app/migrate.sh && /app/app.sh"]
