@@ -38,8 +38,9 @@ RUN apt-get update && apt-get install -y \
 
 # Install uv for runtime use in a system location
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.cargo/bin/uv /usr/local/bin/uv && \
-    chmod +x /usr/local/bin/uv
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    mv /root/.local/bin/uvx /usr/local/bin/uvx && \
+    chmod +x /usr/local/bin/uv /usr/local/bin/uvx
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
