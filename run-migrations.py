@@ -39,35 +39,39 @@ async def check_database_state(when="before"):
     except Exception as e:
         print(f'❌ Error checking {when} state: {e}')
 
-async def main():
+async def run_migrations_with_lock():
+    # Use file-based lock to prevent concurrent migrations
+    import fcntl
+    import time
+    
+    print('\n🔒 Acquiring file-based migration lock...')
+    with open('/tmp/migration.lock', 'w') as lock_file:
+        # Try to acquire exclusive lock with timeout
+        max_wait = 60  # 1 minute timeout
+        wait_time = 0
+        while wait_time < max_wait:
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                print('✅ Migration lock acquired')
+                break
+            except BlockingIOError:
+                print('⏳ Another migration process is running, waiting...')
+                time.sleep(2)
+                wait_time += 2
+        else:
+            print('❌ Timeout waiting for migration lock')
+            return False
+        
+        # Run the actual migration process
+        return await run_migrations_process()
+
+async def run_migrations_process():
     db_url = os.environ.get('DATABASE_URL', '')
-    if not db_url:
-        print('❌ No DATABASE_URL found')
-        sys.exit(1)
     
-    print(f"📊 Database URL: {db_url[:50]}...")
-    
-    # Use database advisory lock to prevent concurrent migrations
-    print('\n🔒 Acquiring migration lock...')
+    # Check migration state
+    print('\n🧹 Checking migration state...')
     try:
         conn = await asyncpg.connect(db_url)
-        
-        # Try to acquire advisory lock (blocking, 30 second timeout)
-        # Using lock ID 123456 for migrations
-        lock_acquired = await conn.fetchval('''
-            SELECT pg_try_advisory_lock(123456)
-        ''')
-        
-        if not lock_acquired:
-            print('⏳ Another migration process is running, waiting...')
-            # Wait for lock with timeout
-            await conn.execute('SELECT pg_advisory_lock(123456)')
-            print('✅ Migration lock acquired')
-        else:
-            print('✅ Migration lock acquired immediately')
-        
-        # Check migration state
-        print('\n🧹 Checking migration state...')
         exists = await conn.fetchval('''
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.tables 
@@ -77,8 +81,15 @@ async def main():
         ''')
         
         if exists:
-            current_version = await conn.fetchval('SELECT version_num FROM alembic_version')
-            print(f'ℹ️  Found existing alembic_version with version: {current_version}')
+            try:
+                current_version = await conn.fetchval('SELECT version_num FROM alembic_version')
+                print(f'ℹ️  Found existing alembic_version with version: {current_version}')
+                if current_version:
+                    print('🎯 Migrations already complete, skipping')
+                    await conn.close()
+                    return True
+            except:
+                print('⚠️  alembic_version table exists but empty')
         else:
             print('ℹ️  No alembic_version table found - fresh database')
         
@@ -86,6 +97,21 @@ async def main():
         
     except Exception as e:
         print(f'⚠️  Error checking migrations: {e}')
+        return False
+
+async def main():
+    db_url = os.environ.get('DATABASE_URL', '')
+    if not db_url:
+        print('❌ No DATABASE_URL found')
+        sys.exit(1)
+    
+    print(f"📊 Database URL: {db_url[:50]}...")
+    
+    # Run migrations with file lock
+    success = await run_migrations_with_lock()
+    if not success:
+        print('❌ Migration process failed')
+        sys.exit(1)
     
     # Check initial state
     await check_database_state("before")
@@ -134,15 +160,8 @@ async def main():
     # Check final state
     await check_database_state("after")
     
-    # Release the migration lock
-    print('\n🔓 Releasing migration lock...')
-    try:
-        conn = await asyncpg.connect(db_url)
-        await conn.execute('SELECT pg_advisory_unlock(123456)')
-        await conn.close()
-        print('✅ Migration lock released')
-    except Exception as e:
-        print(f'⚠️  Error releasing lock: {e}')
+    print('✅ Migration process completed successfully')
+    print('🔓 File lock will be automatically released')
 
 if __name__ == "__main__":
     asyncio.run(main())
