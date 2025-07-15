@@ -170,7 +170,7 @@ fi
 echo "🌐 Starting FastAPI server..."
 exec uv run python -m uvicorn src.policy_core.main:app \
     --host ${API_HOST:-0.0.0.0} \
-    --port ${API_PORT:-8080} \
+    --port ${API_PORT:-8000} \
     --workers ${WORKERS:-1} \
     --log-level ${LOG_LEVEL:-info} \
     --access-log \

@@ -16,7 +16,7 @@ maxInstances = 1
 
 [[services]]
 name = "websocket"
-port = 8081
+port = 8001
 
 [services.scaling]
 minInstances = 1
@@ -26,7 +26,7 @@ maxInstances = 1
 variables.APP_ENV = "production"
 variables.API_HOST = "0.0.0.0"
 variables.API_PORT = "8000"
-variables.WEBSOCKET_PORT = "8081"
+variables.WEBSOCKET_PORT = "8001"
 variables.LOG_LEVEL = "INFO"
 variables.ENABLE_METRICS = "true"
 variables.ENABLE_PROFILING = "false"

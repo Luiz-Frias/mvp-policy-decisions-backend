@@ -62,7 +62,7 @@ doppler run --config prd -- uv run alembic upgrade head || {
 echo "🌐 Starting FastAPI server with Doppler..."
 exec doppler run --config prd -- uv run uvicorn src.policy_core.main:app \
     --host 0.0.0.0 \
-    --port ${PORT:-8080} \
+    --port ${PORT:-8000} \
     --workers 1 \
     --log-level info \
     --access-log \
