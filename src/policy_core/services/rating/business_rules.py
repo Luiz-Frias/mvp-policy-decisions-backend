@@ -714,3 +714,4 @@ class RatingBusinessRules:
             "violations_by_severity": by_severity,
             "compliance_status": "fail" if by_severity["error"] else "pass",
         }
+# SYSTEM_BOUNDARY: Rating calculations require flexible dict structures for state-specific rules and territory factors

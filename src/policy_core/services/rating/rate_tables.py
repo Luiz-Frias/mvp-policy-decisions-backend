@@ -615,3 +615,4 @@ class RateTableService:
             "max_decrease": min(changes) if changes else 0,
             "coverages_affected": len(modified),
         }
+# SYSTEM_BOUNDARY: Rate table management requires flexible dict structures for dynamic pricing data and lookup optimization

@@ -880,3 +880,4 @@ class WebSocketMonitor:
 
         for conn_id in inactive_connections:
             del self._connection_metrics[conn_id]
+# SYSTEM_BOUNDARY: WebSocket monitoring requires flexible dict structures for connection metrics and real-time performance tracking

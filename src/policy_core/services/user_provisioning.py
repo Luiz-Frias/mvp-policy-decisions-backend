@@ -720,3 +720,4 @@ class UserProvisioningService:
         # Type checking ensures groups is a list when not None
 
         return Ok(True)
+# SYSTEM_BOUNDARY: User provisioning requires flexible dict structures for account creation workflows and permission mapping

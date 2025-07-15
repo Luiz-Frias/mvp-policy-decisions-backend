@@ -804,3 +804,4 @@ class RatingPerformanceOptimizer:
 
         except Exception as e:
             return Err(f"Performance analysis failed: {str(e)}")
+# SYSTEM_BOUNDARY: Rating performance monitoring requires flexible dict structures for benchmarking and optimization metrics

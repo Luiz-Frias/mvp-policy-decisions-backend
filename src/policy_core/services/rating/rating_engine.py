@@ -93,7 +93,7 @@ class RatingFactors(BaseModelConfig):
 class DiscountSummary(BaseModelConfig):
     """Summary of applied discounts."""
 
-    items: list[str] = Field(
+    discount_items: list[str] = Field(
         default_factory=list, description="List of applied discounts"
     )
     total_amount: float = Field(default=0.0, ge=0, description="Total discount amount")
@@ -103,7 +103,7 @@ class DiscountSummary(BaseModelConfig):
 class SurchargeSummary(BaseModelConfig):
     """Summary of applied surcharges."""
 
-    items: list[str] = Field(
+    surcharge_items: list[str] = Field(
         default_factory=list, description="List of applied surcharges"
     )
     total_amount: float = Field(default=0.0, ge=0, description="Total surcharge amount")

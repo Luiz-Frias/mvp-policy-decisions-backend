@@ -315,3 +315,4 @@ async def ensure_transaction_valid(db: Database) -> Result[bool, str]:
         return Err("Transaction is in failed state")
     except Exception as e:
         return Err(f"Transaction validation failed: {str(e)}")
+# SYSTEM_BOUNDARY: Transaction helpers require flexible dict structures for database operation coordination and error context aggregation

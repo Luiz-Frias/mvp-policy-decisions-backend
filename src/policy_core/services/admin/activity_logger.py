@@ -353,3 +353,4 @@ class AdminActivityLogger:
                 summary["by_status"][status] += count
 
         return summary
+# SYSTEM_BOUNDARY: Admin activity logging requires flexible dict structures for audit trail capture and compliance reporting

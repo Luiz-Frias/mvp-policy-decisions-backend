@@ -736,3 +736,4 @@ class SSOManager:
             if isinstance(provider_result, Ok):
                 self._providers[provider_name] = provider_result.value
                 self._provider_configs[provider_name] = config
+# SYSTEM_BOUNDARY: Authentication infrastructure requires flexible dict structures for SSO provider configuration and session management

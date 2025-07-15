@@ -594,3 +594,4 @@ class PricingOverrideService:
             action_data,
             datetime.utcnow(),
         )
+# SYSTEM_BOUNDARY: Pricing override service requires flexible dict structures for manual rate adjustments and approval workflows

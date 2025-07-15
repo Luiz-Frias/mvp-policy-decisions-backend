@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: policy_core_pgbouncer
+    restart: unless-stopped
+    environment:
+      # PgBouncer will connect to your actual PostgreSQL
+      DATABASES_HOST: ${DATABASE_HOST:-localhost}
+      DATABASES_PORT: ${DATABASE_PORT:-5432}
+      DATABASES_DATABASE: ${DATABASE_NAME:-policy_core}
+      DATABASES_USER: ${DATABASE_USER:-postgres}
+      DATABASES_PASSWORD: ${DATABASE_PASSWORD}
+      
+      # Pool configuration
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 25
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      RESERVE_POOL_TIMEOUT: 5
+      
+      # Performance settings
+      SERVER_LIFETIME: 3600
+      SERVER_IDLE_TIMEOUT: 600
+      
+      # Auth settings
+      AUTH_TYPE: trust  # For local development; use md5 in production
+      
+    ports:
+      - "6432:6432"
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    networks:
+      - policy_core_network
+
+networks:
+  policy_core_network:
+    driver: bridge

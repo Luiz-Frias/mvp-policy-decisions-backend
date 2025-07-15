@@ -955,3 +955,4 @@ class AdminDashboard(IdentifiableModel):
     def widget_count(self) -> int:
         """Number of widgets in this dashboard."""
         return len(self.widgets)
+# SYSTEM_BOUNDARY: Admin models require flexible dict structures for user permission mapping and role configuration

@@ -15,11 +15,10 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...core.admin_query_optimizer import AdminQueryOptimizer
-from ...core.database_enhanced import Database
+from ...core.database import Database, get_database
 from ...core.performance_monitor import PerformanceMetrics, get_performance_collector
 from ...core.query_optimizer import QueryOptimizer
 from ...core.result_types import Err
-from ..dependencies import get_db
 from ..response_patterns import ErrorResponse, handle_result
 
 # TYPE_CHECKING imports not needed - using string annotations
@@ -282,7 +281,7 @@ class AdminMetricsResponse(BaseModel):
 
 @router.get("/pool-stats", response_model=PoolStatsResponse)
 @beartype
-async def get_pool_stats(db: Database = Depends(get_db)) -> PoolStatsResponse:
+async def get_pool_stats(db: Database = Depends(get_database)) -> PoolStatsResponse:
     """Get database connection pool statistics."""
     stats = await db.get_pool_stats()
 
@@ -314,7 +313,7 @@ async def get_slow_queries(
         100.0, ge=10.0, le=10000.0, description="Threshold in milliseconds"
     ),
     limit: int = Query(20, ge=1, le=100, description="Maximum results to return"),
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> list[SlowQueryResponse] | ErrorResponse:
     """Get analysis of slow database queries."""
     optimizer = QueryOptimizer(db)
@@ -355,7 +354,7 @@ async def get_slow_queries(
 async def analyze_query(
     response: Response,
     query: str = Query(..., description="SQL query to analyze"),
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> QueryPlanResponse | ErrorResponse:
     """Analyze a specific query's execution plan."""
     optimizer = QueryOptimizer(db)
@@ -395,7 +394,7 @@ async def get_index_suggestions(
     min_cardinality: int = Query(
         100, ge=10, description="Minimum cardinality for suggestions"
     ),
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> list[IndexSuggestionResponse] | ErrorResponse:
     """Get index suggestions for a specific table."""
     optimizer = QueryOptimizer(db)
@@ -451,7 +450,7 @@ async def check_table_bloat(
     threshold_percent: float = Query(
         20.0, ge=5.0, le=50.0, description="Bloat threshold percentage"
     ),
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> TableBloatResponse | ErrorResponse:
     """Check for table bloat that affects performance."""
     optimizer = QueryOptimizer(db)
@@ -483,7 +482,7 @@ async def check_table_bloat(
 async def get_admin_metrics(
     response: Response,
     use_cache: bool = Query(True, description="Use cached results if available"),
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> AdminMetricsResponse | ErrorResponse:
     """Get optimized admin dashboard metrics."""
     admin_optimizer = AdminQueryOptimizer(db)
@@ -629,7 +628,7 @@ class DatabaseHealthCheckResponse(BaseModel):
 async def refresh_admin_views(
     response: Response,
     force: bool = Query(False, description="Force refresh all views"),
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> AdminViewsRefreshResponse | ErrorResponse:
     """Refresh admin materialized views."""
     admin_optimizer = AdminQueryOptimizer(db)
@@ -657,7 +656,7 @@ async def refresh_admin_views(
 @router.post("/admin/optimize", response_model=AdminOptimizationResponse)
 @beartype
 async def optimize_admin_queries(
-    response: Response, db: Database = Depends(get_db)
+    response: Response, db: Database = Depends(get_database)
 ) -> AdminOptimizationResponse | ErrorResponse:
     """Run admin query optimization routine."""
     admin_optimizer = AdminQueryOptimizer(db)
@@ -686,7 +685,7 @@ async def optimize_admin_queries(
 @router.get("/admin/performance", response_model=AdminPerformanceResponse)
 @beartype
 async def monitor_admin_performance(
-    response: Response, db: Database = Depends(get_db)
+    response: Response, db: Database = Depends(get_database)
 ) -> AdminPerformanceResponse | ErrorResponse:
     """Monitor admin-specific query performance."""
     admin_optimizer = AdminQueryOptimizer(db)
@@ -715,7 +714,7 @@ async def monitor_admin_performance(
 @router.get("/pool-metrics/detailed", response_model=DetailedPoolMetricsResponse)
 @beartype
 async def get_detailed_pool_metrics(
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> DetailedPoolMetricsResponse:
     """Get detailed connection pool metrics with advanced monitoring."""
     metrics = await db.get_detailed_pool_metrics()
@@ -760,7 +759,7 @@ async def get_detailed_pool_metrics(
 @router.get("/health/database", response_model=DatabaseHealthCheckResponse)
 @beartype
 async def database_health_check(
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_database),
 ) -> DatabaseHealthCheckResponse:
     """Comprehensive database health check."""
     health_result = await db.health_check()
@@ -1180,7 +1179,9 @@ def _get_performance_recommendations(
 
 @router.get("/system/summary", response_model=SystemSummaryResponse)
 @beartype
-async def get_system_summary(db: Database = Depends(get_db)) -> SystemSummaryResponse:
+async def get_system_summary(
+    db: Database = Depends(get_database),
+) -> SystemSummaryResponse:
     """Get comprehensive system summary with all monitoring aggregations."""
     # Get all component summaries
     performance_summary = await get_performance_summary()
@@ -1203,3 +1204,5 @@ async def get_system_summary(db: Database = Depends(get_db)) -> SystemSummaryRes
         pool_summary=pool_summary,
         timestamp=time.time(),
     )
+
+# SYSTEM_BOUNDARY: Performance monitoring endpoints require flexible dict structures for system metrics aggregation and database query result conversion

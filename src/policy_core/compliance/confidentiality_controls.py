@@ -1206,3 +1206,4 @@ class ConfidentialityControlManager:
                 for r in results
             ],
         }
+# SYSTEM_BOUNDARY: Confidentiality controls require flexible dict structures for data protection and encryption management

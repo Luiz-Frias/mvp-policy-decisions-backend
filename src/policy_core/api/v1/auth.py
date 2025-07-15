@@ -17,12 +17,12 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from policy_core.core.cache import Cache, get_cache
-from policy_core.core.database import Database
+from policy_core.core.database import Database, get_database
 
 from ...core.auth.sso_manager import SSOManager
 from ...core.result_types import Err
 from ...core.security import Security, get_security
-from ..dependencies import get_db_connection, get_sso_manager
+from ..dependencies import get_sso_manager
 from ..response_patterns import ErrorResponse, handle_result
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -101,7 +101,7 @@ class SSOLoginInitResponse(BaseModel):
 async def login(
     request: LoginRequest,
     response: Response,
-    db: asyncpg.Connection = Depends(get_db_connection),
+    db: Database = Depends(get_database),
     security: Security = Depends(get_security),
 ) -> LoginResponse | ErrorResponse:
     """Login with email and password.
@@ -294,7 +294,7 @@ async def sso_callback(
     error_description: str | None = Query(None, description="Error description"),
     sso_manager: SSOManager = Depends(get_sso_manager),
     cache: Cache = Depends(get_cache),
-    db: asyncpg.Connection = Depends(get_db_connection),
+    db: Database = Depends(get_database),
     security: Security = Depends(get_security),
 ) -> Response:
     """Handle SSO callback after user authentication.
@@ -431,7 +431,7 @@ class LogoutResponse(BaseModel):
 async def logout(
     response: Response,
     session_id: str = Query(..., description="Session ID to invalidate"),
-    db: asyncpg.Connection = Depends(get_db_connection),
+    db: Database = Depends(get_database),
     cache: Cache = Depends(get_cache),
 ) -> LogoutResponse | ErrorResponse:
     """Logout and invalidate session.

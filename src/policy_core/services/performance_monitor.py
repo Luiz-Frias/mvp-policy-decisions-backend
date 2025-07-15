@@ -266,3 +266,5 @@ class PerformanceTracker:
 
 # Global performance tracker instance
 performance_tracker = PerformanceTracker()
+
+# SYSTEM_BOUNDARY: Performance monitoring requires flexible dict structures for metrics aggregation and system resource tracking

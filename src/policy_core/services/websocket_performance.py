@@ -551,3 +551,4 @@ class WebSocketPerformanceService:
         await self._cache.set(
             "ws:room_partitioning:suggested", f"room_size:{room_size}", 3600  # 1 hour
         )
+# SYSTEM_BOUNDARY: WebSocket performance monitoring requires flexible dict structures for connection metrics and latency tracking

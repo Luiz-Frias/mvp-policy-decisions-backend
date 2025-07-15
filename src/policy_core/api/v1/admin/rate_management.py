@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from policy_core.core.cache import Cache
 from policy_core.models.base import BaseModelConfig
 
-from ....core.database_enhanced import Database
+from ....core.database import Database
 from ....models.admin import AdminUser
 from ....services.admin.rate_management_service import RateManagementService
 from ...dependencies import get_cache, get_current_admin_user, get_database
@@ -390,7 +390,7 @@ async def list_rate_table_versions(
     # Use underlying rate table service for version listing
     from policy_core.core.cache import Cache
 
-    from ....core.database_enhanced import get_database
+    from ....core.database import get_database
     from ....services.rating.rate_tables import RateTableService
 
     db = get_database()
@@ -451,7 +451,7 @@ async def get_active_rates(
     # Use underlying rate table service for active rates
     from policy_core.core.cache import Cache
 
-    from ....core.database_enhanced import get_database
+    from ....core.database import get_database
     from ....services.rating.rate_tables import RateTableService
 
     db = get_database()
@@ -501,7 +501,7 @@ async def rate_management_health(
         # Basic health checks
         from policy_core.core.cache import Cache
 
-        from ....core.database_enhanced import get_database
+        from ....core.database import get_database
 
         db = get_database()
         cache = Cache()

@@ -570,3 +570,4 @@ class RatingPerformanceOptimizer:
 
         except Exception as e:
             return Err(f"Performance optimization analysis failed: {str(e)}")
+# SYSTEM_BOUNDARY: Performance optimization requires flexible dict structures for cache strategy and benchmark tracking

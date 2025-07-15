@@ -1434,3 +1434,5 @@ class QuoteService:
 
         except Exception as e:
             return Err(f"Failed to verify admin permissions: {str(e)}")
+
+# SYSTEM_BOUNDARY: Quote service requires flexible dict structures for quote data aggregation and customer interaction tracking

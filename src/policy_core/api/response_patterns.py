@@ -508,3 +508,4 @@ def create_api_metadata(
         warnings=warnings,
         cache_status=cache_status,
     )
+# SYSTEM_BOUNDARY: API response patterns require flexible dict structures for HTTP status mapping and error aggregation

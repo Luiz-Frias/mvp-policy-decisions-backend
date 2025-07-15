@@ -22,14 +22,13 @@ from fastapi import Depends, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 
-if TYPE_CHECKING:
-    from ..services.quote_service import QuoteService
-    from ..services.quote_wizard import QuoteWizardService
+from ..services.quote_service import QuoteService
+from ..services.quote_wizard import QuoteWizardService
 
 from ..core.auth.sso_manager import SSOManager
 from ..core.cache import Cache, get_redis_client
 from ..core.config import Settings, get_settings
-from ..core.database import Database, get_db_session
+from ..core.database import Database, get_database, get_db_session
 from ..core.security import verify_jwt_token
 from ..models.admin import AdminUser
 from ..schemas.auth import CurrentUser
@@ -432,9 +431,9 @@ async def get_oauth2_admin_service(
 
 @beartype
 async def get_quote_service(
-    db: asyncpg.Connection = Depends(get_db_connection),
+    db: Database = Depends(get_database),
     redis: Redis = Depends(get_redis),
-) -> "QuoteService":
+) -> QuoteService:
     """Provide Quote service instance.
 
     Args:
@@ -444,12 +443,9 @@ async def get_quote_service(
     Returns:
         QuoteService: Service instance for quote operations
     """
-    from ..core.database import Database
-    from ..services.quote_service import QuoteService
     from ..websocket.app import get_manager
 
-    # Wrap connections in our database/cache interfaces
-    database = Database(db)
+    # db is already a Database instance from get_database()
     cache = Cache(redis)
 
     # Get WebSocket manager for real-time updates
@@ -463,14 +459,14 @@ async def get_quote_service(
 
     # Note: Rating engine will be injected when Agent 06 creates it
     return QuoteService(
-        database, cache, rating_engine=None, websocket_manager=websocket_manager
+        db, cache, rating_engine=None, websocket_manager=websocket_manager
     )
 
 
 @beartype
 async def get_wizard_service(
     redis: Redis = Depends(get_redis),
-) -> "QuoteWizardService":
+) -> QuoteWizardService:
     """Provide Quote Wizard service instance.
 
     Args:
@@ -479,8 +475,6 @@ async def get_wizard_service(
     Returns:
         QuoteWizardService: Service instance for wizard operations
     """
-    from ..services.quote_wizard import QuoteWizardService
-
     # Wrap redis in our cache interface
     cache = Cache(redis)
 
@@ -542,10 +536,10 @@ def get_database() -> Database:
     """Backward-compatibility wrapper returning global Database instance.
 
     Several legacy components import `get_database` from this module. The
-    canonical helper now lives in `policy_core.core.database_enhanced` (and
+    canonical helper now lives in `policy_core.core.database` (and
     previously in `policy_core.core.database`).  To minimise churn while we
     update callers, we simply delegate to the core helper here.
     """
-    from ..core.database_enhanced import get_database as _core_get_database
+    from ..core.database import get_database as _core_get_database
 
     return _core_get_database()

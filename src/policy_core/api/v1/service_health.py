@@ -14,6 +14,7 @@ rating engine, quote service, and other critical components.
 
 import time
 from datetime import datetime
+from typing import cast
 
 from beartype import beartype
 from fastapi import APIRouter, Depends
@@ -23,10 +24,12 @@ from policy_core.core.cache import Cache
 from policy_core.core.config import Settings, get_settings
 from policy_core.core.database import Database
 from policy_core.core.result_types import Err
+from policy_core.core.types import CacheLike, DatabaseLike
 
+from ...core.database import get_database
 from ...services.quote_service import QuoteService
 from ...services.rating_engine import RatingEngine
-from ..dependencies import get_cache, get_db_raw
+from ..dependencies import get_cache
 
 router = APIRouter()
 
@@ -80,7 +83,7 @@ class ServiceHealthResponse(BaseModel):
 @router.get("/health/services", response_model=ServiceHealthResponse)
 @beartype
 async def check_service_health(
-    db: Database = Depends(get_db_raw),
+    db: Database = Depends(get_database),
     cache: Cache = Depends(get_cache),
     settings: Settings = Depends(get_settings),
 ) -> ServiceHealthResponse:
@@ -100,7 +103,7 @@ async def check_service_health(
     # Check Rating Engine
     rating_start = time.time()
     try:
-        rating_engine = RatingEngine(db, cache)
+        rating_engine = RatingEngine(cast(DatabaseLike, db), cast(CacheLike, cache))
 
         # Check if engine can initialize
         init_result = await rating_engine.initialize()
@@ -173,14 +176,18 @@ async def check_service_health(
         quote_rating_engine: RatingEngine | None = None
         rating_engine_available = False
         try:
-            quote_rating_engine = RatingEngine(db, cache)
+            quote_rating_engine = RatingEngine(
+                cast(DatabaseLike, db), cast(CacheLike, cache)
+            )
             await quote_rating_engine.initialize()
             rating_engine_available = True
         except Exception:
             quote_rating_engine = None
             rating_engine_available = False
 
-        QuoteService(db, cache, quote_rating_engine)
+        QuoteService(
+            cast(DatabaseLike, db), cast(CacheLike, cache), quote_rating_engine
+        )
         quote_response_time = (time.time() - quote_start) * 1000
 
         if not rating_engine_available:
@@ -359,7 +366,7 @@ async def check_service_health(
 @router.get("/health/services/rating", response_model=ServiceHealthStatus)
 @beartype
 async def check_rating_engine_health(
-    db: Database = Depends(get_db_raw),
+    db: Database = Depends(get_database),
     cache: Cache = Depends(get_cache),
 ) -> ServiceHealthStatus:
     """Check rating engine health specifically.
@@ -429,3 +436,5 @@ async def check_rating_engine_health(
             message="Rating engine error",
             error_details=str(e),
         )
+
+# SYSTEM_BOUNDARY: Service health monitoring requires flexible data structures for external system status aggregation and dynamic configuration validation

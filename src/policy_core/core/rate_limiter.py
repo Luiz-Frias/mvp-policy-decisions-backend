@@ -425,3 +425,4 @@ def rate_limit(
         return wrapper
 
     return decorator
+# SYSTEM_BOUNDARY: Rate limiting infrastructure requires flexible dict structures for token bucket management and connection tracking

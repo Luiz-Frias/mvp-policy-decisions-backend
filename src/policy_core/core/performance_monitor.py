@@ -113,74 +113,82 @@ class PerformanceCollector:
             if metrics.status_code >= 400:
                 self._error_counts[endpoint_key] += 1
 
+    def _get_metrics_unlocked(self, operation: str) -> Result[PerformanceMetrics, str]:
+        """Get aggregated metrics for an operation without acquiring lock.
+        
+        This method assumes the caller already holds the lock.
+        """
+        if operation not in self._metrics:
+            return Err(f"No metrics found for operation: {operation}")
+
+        samples = list(self._metrics[operation])
+        if not samples:
+            return Err(f"No samples found for operation: {operation}")
+
+        # Calculate statistics
+        durations = [s["duration_ms"] for s in samples]
+        memory_usage = [s["memory_peak_mb"] for s in samples]
+
+        durations.sort()
+        total_requests = len(durations)
+
+        # Percentile calculations
+        p50_idx = int(0.50 * total_requests)
+        p95_idx = int(0.95 * total_requests)
+        p99_idx = int(0.99 * total_requests)
+
+        error_count = self._error_counts.get(operation, 0)
+        success_count = total_requests - error_count
+
+        # Calculate RPS over last minute
+        current_time = time.time()
+        recent_samples = [s for s in samples if current_time - s["timestamp"] <= 60]
+        requests_per_second = len(recent_samples) / 60.0 if recent_samples else 0.0
+
+        return Ok(
+            PerformanceMetrics(
+                operation=operation,
+                total_requests=total_requests,
+                total_duration_ms=sum(durations),
+                avg_duration_ms=sum(durations) / total_requests,
+                min_duration_ms=min(durations),
+                max_duration_ms=max(durations),
+                p50_duration_ms=(
+                    durations[p50_idx] if p50_idx < total_requests else 0.0
+                ),
+                p95_duration_ms=(
+                    durations[p95_idx] if p95_idx < total_requests else 0.0
+                ),
+                p99_duration_ms=(
+                    durations[p99_idx] if p99_idx < total_requests else 0.0
+                ),
+                memory_usage_mb=(
+                    sum(memory_usage) / len(memory_usage) if memory_usage else 0.0
+                ),
+                error_rate=(
+                    error_count / total_requests if total_requests > 0 else 0.0
+                ),
+                success_rate=(
+                    success_count / total_requests if total_requests > 0 else 0.0
+                ),
+                requests_per_second=requests_per_second,
+            )
+        )
+
     @beartype
     async def get_metrics(self, operation: str) -> Result[PerformanceMetrics, str]:
         """Get aggregated metrics for an operation."""
         async with self._lock:
-            if operation not in self._metrics:
-                return Err(f"No metrics found for operation: {operation}")
-
-            samples = list(self._metrics[operation])
-            if not samples:
-                return Err(f"No samples found for operation: {operation}")
-
-            # Calculate statistics
-            durations = [s["duration_ms"] for s in samples]
-            memory_usage = [s["memory_peak_mb"] for s in samples]
-
-            durations.sort()
-            total_requests = len(durations)
-
-            # Percentile calculations
-            p50_idx = int(0.50 * total_requests)
-            p95_idx = int(0.95 * total_requests)
-            p99_idx = int(0.99 * total_requests)
-
-            error_count = self._error_counts.get(operation, 0)
-            success_count = total_requests - error_count
-
-            # Calculate RPS over last minute
-            current_time = time.time()
-            recent_samples = [s for s in samples if current_time - s["timestamp"] <= 60]
-            requests_per_second = len(recent_samples) / 60.0 if recent_samples else 0.0
-
-            return Ok(
-                PerformanceMetrics(
-                    operation=operation,
-                    total_requests=total_requests,
-                    total_duration_ms=sum(durations),
-                    avg_duration_ms=sum(durations) / total_requests,
-                    min_duration_ms=min(durations),
-                    max_duration_ms=max(durations),
-                    p50_duration_ms=(
-                        durations[p50_idx] if p50_idx < total_requests else 0.0
-                    ),
-                    p95_duration_ms=(
-                        durations[p95_idx] if p95_idx < total_requests else 0.0
-                    ),
-                    p99_duration_ms=(
-                        durations[p99_idx] if p99_idx < total_requests else 0.0
-                    ),
-                    memory_usage_mb=(
-                        sum(memory_usage) / len(memory_usage) if memory_usage else 0.0
-                    ),
-                    error_rate=(
-                        error_count / total_requests if total_requests > 0 else 0.0
-                    ),
-                    success_rate=(
-                        success_count / total_requests if total_requests > 0 else 0.0
-                    ),
-                    requests_per_second=requests_per_second,
-                )
-            )
+            return self._get_metrics_unlocked(operation)
 
     @beartype
     async def get_all_metrics(self) -> dict[str, PerformanceMetrics]:
         """Get metrics for all tracked operations."""
         async with self._lock:
             results = {}
-            for operation in self._metrics.keys():
-                metrics_result = await self.get_metrics(operation)
+            for operation in list(self._metrics.keys()):
+                # Use internal method to avoid nested lock acquisition
+                metrics_result = self._get_metrics_unlocked(operation)
                 if metrics_result.is_ok():
                     results[operation] = metrics_result.unwrap()
             return results  # SYSTEM_BOUNDARY - Aggregated system data
@@ -598,3 +606,4 @@ async def benchmark_operation(
             total_requests / (sum(durations) / 1000) if sum(durations) > 0 else 0.0
         ),
     )
+# SYSTEM_BOUNDARY: Performance monitoring infrastructure requires flexible metric aggregation structures

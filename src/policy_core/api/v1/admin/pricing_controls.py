@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from policy_core.core.cache import Cache
 from policy_core.models.base import BaseModelConfig
 
-from ....core.database_enhanced import Database
+from ....core.database import Database
 from ....models.admin import AdminUser
 from ....services.admin.pricing_override_service import PricingOverrideService
 from ...dependencies import get_cache, get_current_admin_user, get_database

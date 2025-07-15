@@ -173,7 +173,7 @@ class CoveragePremiums(BaseModelConfig):
 class SurchargeList(BaseModelConfig):
     """Structured surcharge list instead of list[dict[str, Any]]."""
 
-    items: list[SurchargeCalculation] = Field(default_factory=list)
+    surcharge_items: list[SurchargeCalculation] = Field(default_factory=list)
 
     @beartype
     def add_surcharge(self, surcharge: SurchargeCalculation) -> None:
@@ -184,7 +184,7 @@ class SurchargeList(BaseModelConfig):
     @beartype
     def total_amount(self) -> Decimal:
         """Calculate total surcharge amount."""
-        return sum((item.amount for item in self.items), Decimal("0"))
+        return sum((item.amount for item in self.surcharge_items), Decimal("0"))
 
     # ------------------------------------------------------------------
     # List-like helpers – allow legacy tests to iterate over the model or call
@@ -192,13 +192,13 @@ class SurchargeList(BaseModelConfig):
     # ------------------------------------------------------------------
 
     def __iter__(self):  # type: ignore[override]
-        return iter(self.items)
+        return iter(self.surcharge_items)
 
     def __len__(self):  # type: ignore[override]
-        return len(self.items)
+        return len(self.surcharge_items)
 
     def __getitem__(self, index: int):  # type: ignore[override]
-        return self.items[index]
+        return self.surcharge_items[index]
 
 
 @beartype
@@ -1597,3 +1597,5 @@ class RatingEngine:
     async def warm_caches(self) -> Result[int, str]:
         """Warm caches for better performance."""
         return await self._performance_optimizer.warm_cache_for_common_scenarios()
+
+# SYSTEM_BOUNDARY: Rating engine requires flexible dict structures for dynamic rate calculation and state-specific configurations

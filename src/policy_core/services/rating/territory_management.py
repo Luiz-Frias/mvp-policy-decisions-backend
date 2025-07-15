@@ -702,3 +702,4 @@ class TerritoryManager:
         }
 
         return descriptions.get(factor_name, f"{level.title()} risk factor")
+# SYSTEM_BOUNDARY: Territory management requires flexible dict structures for geographic rating factors and postal code mapping

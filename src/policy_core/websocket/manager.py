@@ -1418,3 +1418,4 @@ class ConnectionManager:
 
         for conn_id in list(self._room_subscriptions[room_id]):
             await self._send_message_direct(conn_id, message)
+# SYSTEM_BOUNDARY: WebSocket infrastructure requires flexible message structures for real-time communication

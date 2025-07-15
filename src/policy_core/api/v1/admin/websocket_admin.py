@@ -101,7 +101,7 @@ def get_admin_dashboard_handler() -> AdminDashboardHandler:
     # For now, using a placeholder
     from policy_core.core.cache import get_cache
 
-    from ....core.database_enhanced import get_database
+    from ....core.database import get_database
 
     cache = get_cache()
     database = get_database()

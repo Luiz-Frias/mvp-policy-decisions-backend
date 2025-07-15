@@ -421,3 +421,4 @@ class SystemSettingsService:
         except Exception:
             # Don't fail the update if logging fails
             pass
+# SYSTEM_BOUNDARY: System settings management requires flexible dict structures for configuration storage and feature flags

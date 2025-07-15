@@ -621,3 +621,4 @@ async def get_risk_assessment(
         "recommended_methods": [m.value for m in assessment.recommended_methods],
         "reason": assessment.reason,
     }
+# SYSTEM_BOUNDARY: MFA endpoints require flexible dict structures for challenge generation and verification workflows

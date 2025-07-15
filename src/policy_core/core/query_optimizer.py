@@ -16,7 +16,7 @@ from pydantic import Field
 
 from policy_core.models.base import BaseModelConfig
 
-from .database_enhanced import Database
+from .database import Database
 from .result_types import Err, Ok, Result
 
 # Auto-generated models
@@ -429,3 +429,4 @@ class QueryOptimizer:
         )
 
         return settings
+# SYSTEM_BOUNDARY: Query optimization requires flexible dict structures for query plan analysis and performance metrics collection

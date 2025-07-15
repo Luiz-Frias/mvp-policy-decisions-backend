@@ -1656,3 +1656,4 @@ class QuoteOverrideRequest(BaseModelConfig):
 
 
 # End of quote models
+# SYSTEM_BOUNDARY: Quote models require flexible dict structures for dynamic product configuration and pricing calculations

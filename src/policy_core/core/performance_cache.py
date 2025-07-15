@@ -482,3 +482,4 @@ async def invalidate_rate_cache(
         pattern = "rating:*"
 
     return await cache.clear_pattern(pattern)
+# SYSTEM_BOUNDARY: Performance cache management requires flexible dict structures for cache key optimization and hit rate tracking

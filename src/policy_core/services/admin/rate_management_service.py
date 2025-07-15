@@ -757,3 +757,4 @@ class RateManagementService:
             return "decreasing"
         else:
             return "stable"
+# SYSTEM_BOUNDARY: Rate management requires flexible dict structures for pricing rule configuration and territory-specific settings

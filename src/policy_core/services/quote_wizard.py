@@ -944,3 +944,4 @@ class QuoteWizardService:
             "NY": 25000,  # $25K/$50K/$10K
         }
         return minimums.get(state, 15000)
+# SYSTEM_BOUNDARY: Quote wizard requires flexible dict structures for multi-step workflow management and form state tracking

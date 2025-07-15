@@ -40,6 +40,7 @@ dependencies = [
     "webauthn>=1.11.1,<2.0",
     "cryptography>=42.0.0,<43.0",
     "defusedxml>=0.7.1",
+    "uvloop>=0.21.0",
 ]
 requires-python = ">=3.11,<3.12"
 readme = "README.md"

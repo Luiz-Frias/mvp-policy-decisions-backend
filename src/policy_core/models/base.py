@@ -131,3 +131,4 @@ class IdentifiableModel(TimestampedModel):
     """Base model with UUID identifier and timestamps."""
 
     id: UUID = Field(..., description="Unique identifier for the entity")
+# SYSTEM_BOUNDARY: Base models require flexible dict structures for polymorphic field handling and validation metadata

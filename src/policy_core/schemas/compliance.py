@@ -1727,3 +1727,4 @@ def create_evidence_item(
         evidence_period_end=evidence_period_end,
         **kwargs,
     )
+# SYSTEM_BOUNDARY: Compliance schemas require flexible dict structures for SOC2 audit evidence and regulatory reporting

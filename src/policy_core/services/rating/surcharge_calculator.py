@@ -559,3 +559,4 @@ class SurchargeCalculator:
             "has_high_severity": len(by_severity["high"]) > 0,
             "requires_sr22": any(s["type"] == "sr22_filing" for s in surcharges),
         }
+# SYSTEM_BOUNDARY: Surcharge calculator requires flexible dict structures for penalty calculation and rule application

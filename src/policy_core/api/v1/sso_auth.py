@@ -361,3 +361,4 @@ async def refresh_sso_token(
         "expires_in": refresh_result.value.get("expires_in"),
         "token_type": "bearer",
     }
+# SYSTEM_BOUNDARY: SSO authentication requires flexible dict structures for provider configuration and token claims processing

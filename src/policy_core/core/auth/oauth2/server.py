@@ -1153,3 +1153,4 @@ class OAuth2Server:
                 "error": str(e),
                 "server_time": datetime.now(timezone.utc).isoformat(),
             }
+# SYSTEM_BOUNDARY: OAuth2 server infrastructure requires flexible dict structures for token management and client configuration

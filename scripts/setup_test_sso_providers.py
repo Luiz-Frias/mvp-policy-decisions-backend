@@ -7,31 +7,31 @@ to enable full SSO functionality testing.
 
 import asyncio
 import json
+import sys
+from pathlib import Path
 from uuid import uuid4
 
-import asyncpg
+# Add project root and src to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "src"))
+
 from beartype import beartype
 
-from src.policy_core.core.config import get_settings
+from policy_core.core.database import Database
+from policy_core.core.config import get_settings
 
 
 @beartype
 async def setup_test_providers() -> None:
     """Set up test SSO provider configurations."""
-    settings = get_settings()
-
-    # Connect to database
-    conn = await asyncpg.connect(
-        host=settings.db_host,
-        port=settings.db_port,
-        user=settings.db_user,
-        password=settings.db_password,
-        database=settings.db_name,
-    )
-
+    db = Database()
+    
     try:
+        await db.connect()
+        print("✅ Connected to database")
         # Check if providers already exist
-        existing = await conn.fetchval("SELECT COUNT(*) FROM sso_provider_configs")
+        existing = await db.fetchval("SELECT COUNT(*) FROM sso_provider_configs")
 
         if existing > 0:
             print(f"Found {existing} existing SSO providers, skipping setup")
@@ -107,17 +107,21 @@ async def setup_test_providers() -> None:
         for provider in providers:
             provider_id = uuid4()
 
-            await conn.execute(
+            await db.execute(
                 """
                 INSERT INTO sso_provider_configs (
-                    id, provider_name, provider_type, configuration,
+                    id, provider_name, provider_type, 
+                    client_id, client_secret_encrypted,
+                    configuration,
                     is_enabled, auto_create_users, allowed_domains, default_role,
                     created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """,
                 provider_id,
                 provider["provider_name"],
                 provider["provider_type"],
+                provider["configuration"]["client_id"],
+                provider["configuration"]["client_secret"],  # In real use, this would be encrypted
                 json.dumps(provider["configuration"]),
                 provider["is_enabled"],
                 provider["auto_create_users"],
@@ -131,7 +135,7 @@ async def setup_test_providers() -> None:
 
             # Add sample group mappings for each provider
             if provider["provider_name"] == "google":
-                await conn.execute(
+                await db.execute(
                     """
                     INSERT INTO sso_group_mappings (
                         id, provider_id, sso_group_name, internal_role, auto_assign, created_at
@@ -143,7 +147,7 @@ async def setup_test_providers() -> None:
                     "admin",
                     True,
                 )
-                await conn.execute(
+                await db.execute(
                     """
                     INSERT INTO sso_group_mappings (
                         id, provider_id, sso_group_name, internal_role, auto_assign, created_at
@@ -165,7 +169,7 @@ async def setup_test_providers() -> None:
             )
 
     finally:
-        await conn.close()
+        await db.disconnect()
 
 
 if __name__ == "__main__":

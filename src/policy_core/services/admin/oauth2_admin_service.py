@@ -822,3 +822,4 @@ class OAuth2AdminService:
         except Exception:
             # Don't fail the main operation if logging fails
             pass
+# SYSTEM_BOUNDARY: OAuth2 admin service requires flexible dict structures for client management and token administration

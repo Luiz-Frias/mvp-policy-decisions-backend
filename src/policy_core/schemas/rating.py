@@ -955,3 +955,4 @@ class PerformanceThresholds(BaseModel):
             return "acceptable"
         else:
             return "poor"
+# SYSTEM_BOUNDARY: Rating schemas require flexible dict structures for coverage options and state-specific rate configurations

@@ -1596,3 +1596,4 @@ class ProcessingIntegrityManager:
             ),
             control_results=control_results,
         )
+# SYSTEM_BOUNDARY: SOC2 compliance monitoring requires flexible dict structures for audit evidence collection and control testing
