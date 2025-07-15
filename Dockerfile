@@ -82,11 +82,12 @@ EXPOSE 8080 8081
 
 # Copy startup scripts
 COPY --chown=appuser:appuser migrate.sh /app/migrate.sh
-COPY --chown=appuser:appuser run-migrations.py /app/run-migrations.py
-COPY --chown=appuser:appuser wait-for-db.sh /app/wait-for-db.sh
+COPY --chown=appuser:appuser start-app.sh /app/start-app.sh
 COPY --chown=appuser:appuser app.sh /app/app.sh
-RUN chmod +x /app/migrate.sh /app/wait-for-db.sh /app/app.sh
+RUN chmod +x /app/migrate.sh /app/start-app.sh /app/app.sh
 
-# Run migrations first, wait for DB to be ready, then start the app
-# This ensures tables exist before the connection pool tries to prepare statements
-CMD ["/bin/bash", "-c", "/app/migrate.sh && /app/wait-for-db.sh && /app/app.sh"]
+# Default command - Railway will override this with service-specific commands
+# migrator service: bash /app/migrate.sh
+# api service: bash /app/start-app.sh  
+# websocket service: bash /app/start-app.sh
+CMD ["/bin/bash", "/app/start-app.sh"]
