@@ -10,7 +10,7 @@ echo "WebSocket Port: ${WEBSOCKET_PORT:-8001}"
 # Start the application with proper signal handling
 exec uv run python -m uvicorn src.policy_core.main:app \
     --host ${API_HOST:-0.0.0.0} \
-    --port 8000 \
+    --port ${PORT:-8000} \
     --workers ${WORKERS:-1} \
     --log-level ${LOG_LEVEL:-info} \
     --access-log \
