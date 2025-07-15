@@ -8,30 +8,16 @@ healthcheckTimeout = 300
 restartPolicyType = "always"
 
 [[services]]
-name = "migrator"
-# This service runs migrations ONCE then exits
-startCommand = "bash /app/migrate.sh"
-# No port - this is a job, not a service
+name = "api"
+port = 8080
 
 [services.scaling]
 minInstances = 1
-maxInstances = 1
-
-[[services]]
-name = "api"
-port = 8080
-# Wait for migrator to complete before starting
-dependsOn = ["migrator"]
-
-[services.scaling]
-minInstances = 2
 maxInstances = 10
 
 [[services]]
 name = "websocket"
 port = 8081
-# Also wait for migrations
-dependsOn = ["migrator"]
 
 [services.scaling]
 minInstances = 1
