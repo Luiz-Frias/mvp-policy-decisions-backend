@@ -45,6 +45,7 @@ async def setup_cors() -> None:
         websocket_app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.api_cors_origins,
+            allow_origin_regex=settings.api_cors_origin_regex,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
