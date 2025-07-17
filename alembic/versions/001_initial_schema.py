@@ -27,14 +27,15 @@ def upgrade() -> None:
         "customers",
         sa.Column(
             "id",
-            sa.String(36),
+            postgresql.UUID(as_uuid=True),
             nullable=False,
             primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
         ),
         sa.Column("external_id", sa.String(255), nullable=False),
         sa.Column(
             "data",
-            sa.Text(),
+            postgresql.JSONB(),
             nullable=False,
             server_default="{}",
         ),

@@ -89,8 +89,8 @@ Pipfile.lock
 # poetry
 poetry.lock
 
-# uv
-uv.lock
+# uv (commented out for reproducible deployments)
+# uv.lock
 
 # pdm
 .pdm.toml

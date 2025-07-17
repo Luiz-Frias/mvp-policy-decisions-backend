@@ -249,6 +249,8 @@ class Database:
     @beartype
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
         """Initialize each connection with optimizations."""
+        logger.debug("🚨 NEW CODE RUNNING - _init_connection WITH TRY/CATCH - BUILD 20250715")
+        
         # Register custom types
         await conn.set_type_codec(  # type: ignore[attr-defined]
             "jsonb",
@@ -276,9 +278,41 @@ class Database:
             """,
         }
 
-        # Prepare statements
+        # Try to prepare statements, but don't fail if tables don't exist yet
+        # This handles the case where migrations haven't run yet
         for name, query in self._prepared_statements.items():
-            await conn.execute(f"PREPARE {name} AS {query}")
+            try:
+                await conn.execute(f"PREPARE {name} AS {query}")
+                logger.debug(f"✅ Successfully prepared statement '{name}'")
+            except asyncpg.exceptions.UndefinedTableError as e:
+                # Tables don't exist yet - migrations probably haven't run
+                logger.error(f"❌ Cannot prepare statement '{name}' - table doesn't exist: {e}")
+                logger.error("🚨 CRITICAL: Database tables are missing! Did migrations run successfully?")
+                
+                # Let's check what tables actually exist
+                try:
+                    tables = await conn.fetch("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                        ORDER BY table_name
+                    """)
+                    table_names = [row['table_name'] for row in tables]
+                    logger.error(f"📋 Available tables: {table_names}")
+                    
+                    # Check alembic version
+                    try:
+                        version = await conn.fetchval("SELECT version_num FROM alembic_version")
+                        logger.error(f"📝 Current migration version: {version}")
+                    except:
+                        logger.error("📝 No alembic_version table found - migrations never ran?")
+                        
+                except Exception as check_err:
+                    logger.error(f"❌ Could not check available tables: {check_err}")
+                
+            except Exception as e:
+                # Log other errors but don't fail initialization
+                logger.error(f"❌ Failed to prepare statement '{name}': {e}")
 
     @beartype
     async def _init_read_connection(self, conn: asyncpg.Connection) -> None:
@@ -407,8 +441,20 @@ class Database:
         main_config = self._get_pool_config("main")
         self._main_config = main_config  # Save for later use
 
+        # asyncpg expects postgresql:// URLs, not postgresql+driver:// format
+        # Remove any driver specification from the URL
+        db_url = self._settings.effective_database_url
+        if db_url.startswith("postgresql+"):
+            # Remove the +driver part (e.g., postgresql+asyncpg:// -> postgresql://)
+            db_url = "postgresql://" + db_url.split("://", 1)[1]
+        
+        # Log the database we're connecting to (sanitized)
+        import urllib.parse
+        parsed = urllib.parse.urlparse(db_url)
+        logger.info(f"🔗 Connecting to database: {parsed.hostname}:{parsed.port}/{parsed.path.lstrip('/')}")
+        
         self._pool = await asyncpg.create_pool(
-            self._settings.effective_database_url,
+            db_url,
             min_size=main_config.min_connections,
             max_size=main_config.max_connections,
             max_inactive_connection_lifetime=main_config.max_inactive_connection_lifetime,

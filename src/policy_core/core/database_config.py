@@ -16,39 +16,54 @@ from beartype import beartype
 @beartype
 def get_database_url() -> str:
     """Get the appropriate database URL based on environment.
-    
-    When running in Railway (detected by RAILWAY_ENVIRONMENT variable),
-    use the internal URL. Otherwise, use the public URL for local development.
-    
-    Returns:
-        str: The appropriate database URL
+
+    Preference order:
+    1. Explicit DATABASE_URL (or DATABASE_PUBLIC_URL when outside Railway)
+    2. Build from PG* variables (PGUSER, PGPASSWORD, PGHOST, PGPORT, PGDATABASE)
+    3. Empty string (caller must handle)
     """
-    # Check if we're running in Railway
-    railway_env = os.getenv("RAILWAY_ENVIRONMENT")
-    
-    if railway_env:
-        # Running in Railway - use internal URL
-        return os.getenv("DATABASE_URL", "")
-    else:
-        # Local development - use public URL if available, otherwise fall back to DATABASE_URL
-        return os.getenv("DATABASE_PUBLIC_URL", os.getenv("DATABASE_URL", ""))
+    # 1. Respect explicit DATABASE_URL if provided
+    db_url = os.getenv("DATABASE_URL")
+
+    # 2. Outside Railway we may prefer DATABASE_PUBLIC_URL
+    if not db_url:
+        db_url = os.getenv("DATABASE_PUBLIC_URL")
+
+    # 3. If neither variable is set, attempt to construct from PG* parts (common in Doppler)
+    if not db_url:
+        user = os.getenv("PGUSER") or os.getenv("DATABASE_USER")
+        password = os.getenv("PGPASSWORD") or os.getenv("DATABASE_PASSWORD")
+        host = os.getenv("PGHOST") or os.getenv("DATABASE_HOST")
+        port = os.getenv("PGPORT", "5432")
+        dbname = os.getenv("PGDATABASE") or os.getenv("DATABASE_NAME")
+
+        if all([user, password, host, dbname]):
+            db_url = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+
+    return db_url or ""
 
 
 @beartype
 def get_redis_url() -> str:
     """Get the appropriate Redis URL based on environment.
-    
-    When running in Railway, use the internal URL. 
-    Otherwise, use the public URL for local development.
-    
+
+    Preference order mirrors get_database_url.
+
     Returns:
         str: The appropriate Redis URL
     """
-    railway_env = os.getenv("RAILWAY_ENVIRONMENT")
-    
-    if railway_env:
-        # Running in Railway - use internal URL
-        return os.getenv("REDIS_URL", "")
-    else:
-        # Local development - use public URL if available
-        return os.getenv("REDIS_PUBLIC_URL", os.getenv("REDIS_URL", ""))
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        redis_url = os.getenv("REDIS_PUBLIC_URL")
+
+    if not redis_url:
+        user = os.getenv("REDISUSER", "default")
+        password = os.getenv("REDISPASSWORD")
+        host = os.getenv("REDISHOST") or os.getenv("REDIS_HOST")
+        port = os.getenv("REDISPORT", "6379")
+        db_index = os.getenv("REDIS_DB", "0")
+
+        if host and password:
+            redis_url = f"redis://{user}:{password}@{host}:{port}/{db_index}"
+
+    return redis_url or ""

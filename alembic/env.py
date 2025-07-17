@@ -42,15 +42,19 @@ from policy_core.core.config import get_settings
 settings = get_settings()
 DATABASE_URL = settings.effective_database_url
 
+# Debug logging
+import logging
+logging.info(f"Alembic using database URL: {DATABASE_URL[:50]}...")
+
 # Override the sqlalchemy.url from alembic.ini with environment variable
 if "sqlite" in DATABASE_URL or "sqlite" in config.get_main_option("sqlalchemy.url", ""):
     # For SQLite testing, use the URL as-is (synchronous)
     pass
 else:
     # For PostgreSQL, convert to async driver
-    config.set_main_option(
-        "sqlalchemy.url", DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-    )
+    final_url = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    config.set_main_option("sqlalchemy.url", final_url)
+    logging.info(f"Alembic final URL: {final_url[:50]}...")
 
 
 def run_migrations_offline() -> None:
@@ -85,10 +89,13 @@ def do_run_migrations(connection: Any) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        # Ensure we're using the public schema
+        include_schemas=True,
     )
 
     with context.begin_transaction():
         context.run_migrations()
+        # Transaction is automatically committed when exiting the context
 
 
 async def run_async_migrations() -> None:

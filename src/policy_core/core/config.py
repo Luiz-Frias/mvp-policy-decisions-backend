@@ -117,6 +117,11 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000"],
         description="Allowed CORS origins",
     )
+    # Optional regular expression for dynamic CORS matching (e.g. all *.vercel.app)
+    api_cors_origin_regex: str | None = Field(
+        default=r"https://.*\.vercel\.app",
+        description="Regular expression for allowed CORS origins",
+    )
     api_url: str = Field(
         default="http://localhost:8000",
         description="API base URL",
@@ -260,7 +265,11 @@ class Settings(BaseSettings):
     @beartype
     def is_development(self) -> bool:
         """Check if running in development mode."""
-        return self.api_env == "development"
+        return (
+            self.api_env == "development"
+            or self.api_env == "staging"
+            or self.api_env == "dev"
+        )
 
     # ------------------------------------------------------------------
     # Convenience helper used throughout the codebase to express "mock" mode –

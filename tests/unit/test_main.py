@@ -332,7 +332,7 @@ class TestMainFunction:
             jwt_secret="test-jwt-secret-for-testing-32-chars",  # nosec # pragma: allowlist secret
             api_env="development",
             api_host="127.0.0.1",
-            api_port=8080,
+            api_port=8000,
         )
 
         with (
@@ -344,7 +344,7 @@ class TestMainFunction:
             mock_run.assert_called_once_with(
                 "policy_core.main:app",
                 host="127.0.0.1",
-                port=8080,
+                port=8000,
                 reload=True,  # Development mode
                 log_level="info",
             )

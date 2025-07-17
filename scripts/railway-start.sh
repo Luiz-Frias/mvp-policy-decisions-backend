@@ -5,6 +5,21 @@ echo "🚀 Starting MVP Policy Decision Backend on Railway"
 echo "Environment: Production (Railway)"
 echo "Using Doppler for secrets management"
 
+# ---------------------------------------------------------------------------
+# Build internal DATABASE_URL/REDIS_URL from individual env vars if Doppler
+# provided parts only.
+# ---------------------------------------------------------------------------
+
+if [ -z "$DATABASE_URL" ] && [ -n "$PGHOST" ] && [ -n "$PGPASSWORD" ] && [ -n "$PGUSER" ] && [ -n "$PGDATABASE" ]; then
+  export DATABASE_URL="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE}"
+  echo "🔗 Synthesised DATABASE_URL from PG* variables -> ${DATABASE_URL%%@*}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE}"
+fi
+
+if [ -z "$REDIS_URL" ] && [ -n "$REDISHOST" ] && [ -n "$REDISPASSWORD" ]; then
+  export REDIS_URL="redis://default:${REDISPASSWORD}@${REDISHOST}:${REDISPORT:-6379}/${REDIS_DB:-0}"
+  echo "🔗 Synthesised REDIS_URL from Redis* variables -> redis://default:***@${REDISHOST}:${REDISPORT:-6379}/${REDIS_DB:-0}"
+fi
+
 # Install Doppler CLI if not present
 if ! command -v doppler &> /dev/null; then
     echo "📦 Installing Doppler CLI..."
@@ -62,7 +77,7 @@ doppler run --config prd -- uv run alembic upgrade head || {
 echo "🌐 Starting FastAPI server with Doppler..."
 exec doppler run --config prd -- uv run uvicorn src.policy_core.main:app \
     --host 0.0.0.0 \
-    --port ${PORT:-8080} \
+    --port ${PORT:-8000} \
     --workers 1 \
     --log-level info \
     --access-log \
