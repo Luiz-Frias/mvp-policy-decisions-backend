@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+# ---------------------------------------------------------------------------
+# Construct DATABASE_URL from individual PG* env vars if it is not already
+# provided (useful when Doppler only supplies PGHOST, PGUSER, etc.).
+# ---------------------------------------------------------------------------
+
+if [ -z "$DATABASE_URL" ] && [ -n "$PGHOST" ] && [ -n "$PGPASSWORD" ] && [ -n "$PGUSER" ] && [ -n "$PGDATABASE" ]; then
+  export DATABASE_URL="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE}"
+  echo "🔗 Synthesised DATABASE_URL from PG* variables -> ${DATABASE_URL%%@*}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE}"
+fi
+
 echo "🔍 SIMPLE MIGRATION - Just alembic, no orchestration"
 echo "📅 Migration timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 

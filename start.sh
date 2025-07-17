@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Build DATABASE_URL from PG* vars if not set (Doppler staging convenience)
+if [ -z "$DATABASE_URL" ] && [ -n "$PGHOST" ] && [ -n "$PGPASSWORD" ] && [ -n "$PGUSER" ] && [ -n "$PGDATABASE" ]; then
+  export DATABASE_URL="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE}"
+  echo "🔗 Synthesised DATABASE_URL from PG* variables -> ${DATABASE_URL%%@*}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE}"
+fi
+
 echo "🚀 Starting MVP Policy Decision Backend - Production"
 echo "📅 Deployment timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 echo "🔖 Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
