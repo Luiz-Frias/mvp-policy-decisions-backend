@@ -1,5 +1,6 @@
 # Policy Decision Management Platform
 ## ⚠️ Proof-of-concept – under active polish.
+This repo is a toy policy-decision backend I spun up over 72 h to test strict-typing + adversarial logging patterns that map cleanly onto LLM-supervisor loops.
 
 **Enterprise-grade insurance platform built for scale** - A modern Python backend delivering 20-50K QPS capability with 100% type safety and defensive programming patterns. Perfect for P&C insurers requiring real-time quote generation, policy management, and SOC 2 compliance.
 
